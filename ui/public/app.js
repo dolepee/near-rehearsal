@@ -128,6 +128,7 @@
     const userDelta = branch?.balances?.user?.delta;
     const tx = branch?.claim?.transactionHash;
     const controlLabel = branch?.controls?.outsiderDenied ? 'controls pass' : 'controls not run';
+    const interimBalance = branch?.balances?.status === 'interim';
     return `<article class="branch-card ${tone === 'bad' ? 'bad-card' : 'good-card'} ${isFocus ? 'focus' : ''} ${isDetail ? 'detail' : ''}" data-branch="${escape(name)}">
       <div class="branch-name"><strong>${escape(branchName(name, candidateLabel))}</strong><span class="branch-status ${tone}">${escape(status)}</span></div>
       <div class="branch-kicker">${escape(name === 'baseline' ? 'claim_refund() — no candidate' : name === 'bad' ? `${escape(candidateLabel)} + migrate()` : 'corrected reference + migrate()')}</div>
@@ -135,7 +136,7 @@
         <div><span>Entitlement before</span><b>${escape(near(before))} NEAR</b></div>
         <div><span>After migration</span><b>${escape(near(afterMigration))} NEAR</b></div>
         <div><span>After claim</span><b>${escape(near(afterClaim))} NEAR</b></div>
-        <div><span>User net</span><b>${userDelta ? (BigInt(userDelta) > 0n ? '+' : '') + near(userDelta) + ' NEAR' : 'interim / —'}</b></div>
+        <div><span>User net</span><b>${interimBalance ? 'pending / unavailable' : userDelta ? (BigInt(userDelta) > 0n ? '+' : '') + near(userDelta) + ' NEAR' : '—'}</b></div>
         <div><span>Transfer</span><b>${escape(transfer)}</b></div>
         <div><span>${escape(controlLabel)}</span><b>${branch?.balances?.status === 'interim' ? 'balance interim' : 'balance final'}</b></div>
       </div>
