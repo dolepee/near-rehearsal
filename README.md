@@ -59,7 +59,7 @@ ulimit -n 65535
 
 The archive is `28,469,491` bytes and extracts `Linux-x86_64/near-sandbox`. Its SHA-256 is the value checked above. The runtime pin is recorded independently in every report and is rechecked against the captured and actual runtime.
 
-Do not substitute `/workspace/tools/near-sandbox-wrapper`; that path is specific to the development host. On a non-x86_64 host, use `scripts/sandbox-wrapper.sh` only as an explicitly unverified emulation workaround, with `NEAR_SANDBOX_REAL_BIN`, `NEAR_SANDBOX_QEMU` and `NEAR_SANDBOX_QEMU_LD_PREFIX` set to local paths.
+Do not use a host-specific wrapper path. On a non-x86_64 host, use `scripts/sandbox-wrapper.sh` only as an explicitly unverified emulation workaround, with `NEAR_SANDBOX_REAL_BIN`, `NEAR_SANDBOX_QEMU` and `NEAR_SANDBOX_QEMU_LD_PREFIX` set to local paths.
 
 ## Launch the app
 
