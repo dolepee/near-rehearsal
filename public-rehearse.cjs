@@ -263,24 +263,28 @@ async function runAll(capture, regression) {
     bad: { succeeded: false },
     corrected: { succeeded: true, value: (BigInt(capture.counter) + 1n).toString() },
   };
-  const inconclusive = Object.values(branches).some((b) => b.status === 'inconclusive');
-  const status = inconclusive ? 'inconclusive' : 'complete';
-  const expectedMatches = {
-    baseline: branches.baseline.status === 'completed' && branches.baseline.operation?.succeeded === expected.baseline.succeeded
-      && (!expected.baseline.succeeded || branches.baseline.operation.value === expected.baseline.value),
-    bad: branches.bad.status === 'contract-failure' && branches.bad.operation?.succeeded === expected.bad.succeeded
-      && branches.bad.operation.tx?.failed === true,
-    corrected: branches.corrected.status === 'completed' && branches.corrected.operation?.succeeded === expected.corrected.succeeded
-      && (!expected.corrected.succeeded || branches.corrected.operation.value === expected.corrected.value),
-  };
-  if (status === 'complete' && !Object.values(expectedMatches).every(Boolean)) {
-    throw new Error(`replay expected outcome mismatch: ${json({ expected, expectedMatches, branches })}`);
-  }
   const actualRuntime = branches.baseline.runtime;
   const runtimeMatch = !regression?.runtime
     || (actualRuntime?.version === regression.runtime.version
       && actualRuntime?.protocolVersion === regression.runtime.protocolVersion
       && actualRuntime?.commit === regression.runtime.commit);
+  const inconclusive = Object.values(branches).some((b) => b.status === 'inconclusive');
+  // A declared runtime is part of the replay contract. A different runtime may
+  // produce valid-looking transactions, so it cannot be reported as a complete
+  // regression; it is a non-reproducible environment and must be inconclusive.
+  const runtimeMismatch = !!regression?.runtime && !runtimeMatch;
+  const status = inconclusive || runtimeMismatch ? 'inconclusive' : 'complete';
+  const expectedMatches = {
+    baseline: branches.baseline.status === 'completed' && branches.baseline.operation?.succeeded === expected.baseline.succeeded
+      && (!expected.baseline.succeeded || branches.baseline.operation?.value === expected.baseline.value),
+    bad: branches.bad.status === 'contract-failure' && branches.bad.operation?.succeeded === expected.bad.succeeded
+      && branches.bad.operation?.tx?.failed === true,
+    corrected: branches.corrected.status === 'completed' && branches.corrected.operation?.succeeded === expected.corrected.succeeded
+      && (!expected.corrected.succeeded || branches.corrected.operation?.value === expected.corrected.value),
+  };
+  if (status === 'complete' && !Object.values(expectedMatches).every(Boolean)) {
+    throw new Error(`replay expected outcome mismatch: ${json({ expected, expectedMatches, branches })}`);
+  }
   return {
     branches,
     operation,
@@ -288,16 +292,17 @@ async function runAll(capture, regression) {
     regressionRuntime: regression?.runtime ?? null,
     actualRuntime,
     runtimeMatch,
+    runtimeMismatch,
     result: {
       status,
-      baseline: branches.baseline.operation,
-      badSucceeded: branches.bad.operation.succeeded,
+      baseline: branches.baseline.operation ?? null,
+      badSucceeded: branches.bad.operation?.succeeded ?? null,
       badReceiptFailure: branches.bad.operation?.tx?.failed === true,
-      corrected: branches.corrected.operation,
+      corrected: branches.corrected.operation ?? null,
       regressionObserved: status === 'complete' && branches.baseline.operation?.succeeded === true
         && branches.bad.status === 'contract-failure' && branches.bad.operation?.tx?.failed === true,
       correctionObserved: status === 'complete' && branches.corrected.operation?.succeeded === true
-        && branches.corrected.operation.value === expected.corrected.value,
+        && branches.corrected.operation?.value === expected.corrected.value,
       sameStartingState: Object.values(branches).every((b) => b.importCheck?.matches === true),
     },
   };
@@ -321,6 +326,7 @@ function writeReport(capture, outcome) {
     replayRuntime: outcome.actualRuntime,
     runtime: outcome.actualRuntime,
     runtimeMatch: outcome.runtimeMatch,
+    runtimeMismatch: outcome.runtimeMismatch,
     status: outcome.result.status,
     expected: outcome.expected,
     branches: outcome.branches,

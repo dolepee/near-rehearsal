@@ -25,7 +25,7 @@ The declared v2 migration adds a `version` marker (`2`); it preserves the `count
 
 Every branch imported the same code hash and state hash. The bad candidate is explicitly seeded. No public writes, no deployment, no production authorization, and no claim that the migration is an upstream release.
 
-The command is `npm run public`; replay is `npm run replay:public`; verification is `npm run verify:public`.
+The command is `npm run public`; replay is `npm run replay:public`; verification is `npm run verify:public`; the one-page maintainer packet is generated with `npm run review:packet` into `out/release-review.html` and `out/release-review.json`.
 
 `out/public-report.json` retains the transaction hash, final status, receipt failures and structured failure for every operation. `out/public-regression.json` pins the capture hash, runtime, candidate WASM hashes and expected outcomes; `--replay` loads that file rather than hardcoding the current local WASMs.
 
@@ -37,6 +37,8 @@ Every replay starts with `Worker.init({ network: 'sandbox' })`; after init, the 
 The exported `operation` is validated, not ignored: this slice accepts only `incrementCounter({value:1})`/`getCounter()`, and rejects any other method, view or args before starting a sandbox. The migration records its before-state before `callRaw('migrate')` and its after-state after the receipt, so `changedState` is a true pre/post comparison. The report distinguishes `capturedRuntime`, `regressionRuntime` and `replayRuntime`.
 
 Transport, read and decode failures are marked `inconclusive`; they cannot become a contract regression. `regressionObserved` requires the bad branch's actual structured receipt failure (`tx.failed === true`), not merely a missing or failed read. The verifier rejects incomplete or inconclusive reports.
+
+The regression manifest's runtime fields are a declared part of the replay. If the actual runtime differs, replay is `inconclusive` and exits nonzero; it does not report a complete regression. The verifier separately compares the manifest, the actual runtime and the report's recorded declaration, so a stale report cannot verify against an altered manifest. A fresh capture has no prior `regressionRuntime` in its report, but its newly written manifest still has to match the actual run.
 
 ### Fair baseline and setup
 
@@ -131,6 +133,8 @@ scripts/sandbox-wrapper.sh
 out/capture.json        pinned code, state, block and runtime
 out/report.json         branch outcomes and import checks
 out/regression.json     replay contract
+out/release-review.html one-page maintainer review packet
+out/release-review.json machine-readable packet evidence
 substrate/              inspected historical probe material; not product evidence
 ```
 

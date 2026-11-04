@@ -1,6 +1,6 @@
 {
   "schema": "near-rehearsal/public-report/v1",
-  "generatedAt": "2026-11-04T05:01:37.383Z",
+  "generatedAt": "2026-11-04T05:43:16.032Z",
   "sourceContract": "counter.testnet",
   "localContract": "counter.test.near",
   "capture": {
@@ -51,6 +51,7 @@
     "latestProtocolVersion": 77
   },
   "runtimeMatch": true,
+  "runtimeMismatch": false,
   "status": "complete",
   "expected": {
     "baseline": {
@@ -91,7 +92,7 @@
         "succeeded": true,
         "value": "292",
         "tx": {
-          "transactionHash": "D5zTU6hmLm3M1FXfyiaxBmVikSErvtUKJXTRAjKNgrTU",
+          "transactionHash": "48AbZxoV1jVoCm25FfJndBo4XoVZrtSSFRQRAn3jUPDT",
           "status": {
             "SuccessValue": ""
           },
@@ -130,7 +131,7 @@
         "matches": true
       },
       "migration": {
-        "transactionHash": "D5xB4jfLDKDJRPa7RLZ42qKpGAV87FDEGQbadbcf6VZn",
+        "transactionHash": "7k7h2hsLbFrPRT3qQnFqP1YERejjb913XYc7ADKcz3Mh",
         "status": {
           "SuccessValue": ""
         },
@@ -149,7 +150,7 @@
         "status": "contract-failure",
         "succeeded": false,
         "tx": {
-          "transactionHash": "BaZpimumccgpMaG3uA25QWbEhHyXEUWkK6FeCbCL1c47",
+          "transactionHash": "5UHfpH7294PwtayHMWxC7TMA9wL8Qg2SKKCQXShgoJaT",
           "status": {
             "Failure": {
               "ActionError": {
@@ -217,7 +218,7 @@
         "matches": true
       },
       "migration": {
-        "transactionHash": "8n71kMv8YRHx5jHDMPkWENhjxdxV2gCzXk2U59TjqejD",
+        "transactionHash": "4E1arpW3bHAJZ6D867RKyBsJ8b1MxZdqFQtfWHDUX6bC",
         "status": {
           "SuccessValue": ""
         },
@@ -237,7 +238,7 @@
         "succeeded": true,
         "value": "292",
         "tx": {
-          "transactionHash": "81wifwQ6s6anYRbKiy66QD9uPcECHafrSDYFGmcZYTJk",
+          "transactionHash": "4XTEt2i8RaYcfTeyK2zcszUgDq6g7w5EBCgoPJo7XNJ4",
           "status": {
             "SuccessValue": ""
           },
@@ -259,7 +260,7 @@
       "succeeded": true,
       "value": "292",
       "tx": {
-        "transactionHash": "D5zTU6hmLm3M1FXfyiaxBmVikSErvtUKJXTRAjKNgrTU",
+        "transactionHash": "48AbZxoV1jVoCm25FfJndBo4XoVZrtSSFRQRAn3jUPDT",
         "status": {
           "SuccessValue": ""
         },
@@ -281,7 +282,7 @@
       "succeeded": true,
       "value": "292",
       "tx": {
-        "transactionHash": "81wifwQ6s6anYRbKiy66QD9uPcECHafrSDYFGmcZYTJk",
+        "transactionHash": "4XTEt2i8RaYcfTeyK2zcszUgDq6g7w5EBCgoPJo7XNJ4",
         "status": {
           "SuccessValue": ""
         },
