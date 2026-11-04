@@ -15,7 +15,8 @@
     "verify:oracle": "node scripts/verify-oracle.cjs",
     "review:packet": "node scripts/build-release-review.cjs",
     "test:refund": "node scripts/test-refund-transfer.cjs",
-    "rehearse:refund": "node scripts/refund-three-way.cjs"
+    "rehearse:refund": "node scripts/refund-three-way.cjs",
+    "test:guards": "node scripts/test-refund-guards.cjs"
   },
   "dependencies": {
     "near-workspaces": "5.0.0"

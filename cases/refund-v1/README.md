@@ -22,17 +22,18 @@ The bad migration is deliberately seeded for release-review contrast. No product
 ```sh
 npm ci --ignore-scripts
 node scripts/patch-near-sandbox.cjs
+npm run test:guards
 npm run rehearse:refund
 ```
 
-The runner captures one funded state, imports that exact code/state into three fresh local Sandbox branches, and writes `out/refund-report.json`:
+`npm run test:guards` validates the fixed capture schema and rejects changed code hashes, beneficiary bytes, entitlement, runtime pin, unknown case/candidate fields, and an unrelated beneficiary gas-refund receipt. `npm run rehearse:refund` captures one funded state, imports that exact code/state into three fresh local Sandbox branches, and writes `out/refund-report.json`:
 
 - baseline: `claim_refund()` → transfer;
 - bad: candidate deploy + owner migration → `NO_REFUND`;
 - corrected: candidate deploy + owner migration → transfer.
 
-It records entitlement before/after migration and after claim, the captured and branch runtime, code and state hashes, raw linked receipts with gas/tokens burnt, and balance deltas. Migration gas is excluded from the claim delta by recording the post-migration, pre-claim balance. The bad branch is accepted only when the failure is the structured `NO_REFUND` receipt and no successful transfer receipt exists; transport, deploy, migration or read failures are `inconclusive`.
+It records entitlement before/after migration and after claim, the captured and branch runtime, code and state hashes, raw linked receipts with gas/tokens burnt, and balance deltas. The completion gate requires the contract's `SuccessReceiptId` to link to a `SuccessValue` receipt executed by the captured beneficiary; an unrelated receipt executed by that account is not accepted. Migration gas is excluded from the claim delta by recording the post-migration, pre-claim balance. Failed-claim balances are marked `interim` because signer gas may settle after the read. The bad branch is accepted only when the failure is the structured `NO_REFUND` receipt and no beneficiary transfer link exists; transport, deploy, migration or read failures are `inconclusive`.
 
 On the arm64 development host, point `NEAR_SANDBOX_BIN_PATH` at the wrapper directory and set a high file-descriptor limit first.
 
-The gross entitlement is 0.10 NEAR. The user's net increase is below that because the signer pays gas; the contract balance is shown separately and includes storage/setup cost.
+The gross entitlement is 0.10 NEAR. The user's net increase is below that because the signer pays gas; the contract balance is shown separately and includes storage/setup cost. The case declares the runtime pin `2.6.2`, protocol `77`, commit `2f9ddb711ebd94a306eaec06030d87ef8dfc51fa`; the report is incomplete if either the captured or actual runtime differs.

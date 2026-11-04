@@ -32,8 +32,13 @@
     "bad": "NO_REFUND",
     "corrected": "success"
   },
-  "boundary": "Local Sandbox only. Authored seeded migration example, not a public-chain capture, production upgrade authorization, or custody claim.",
+  "boundary": "Local Sandbox only. Authored seeded migration example; not a public-chain capture, upgrade authorization, or production custody claim.",
   "beneficiary": "refunduser.test.near",
   "fundedNear": "1",
-  "grossEntitlementNear": "0.1"
+  "grossEntitlementNear": "0.1",
+  "runtimePin": {
+    "version": "2.6.2",
+    "protocolVersion": 77,
+    "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa"
+  }
 }
