@@ -32,6 +32,7 @@ npm run test:guards
 npm run rehearse:refund
 npm run rehearse:refund -- --case cases/refund-v1/half-case.json --report out/refund-half-report.json
 npm run test:amount
+node scripts/verify-refund-report.cjs out/refund-half-report.json cases/refund-v1/half-case.json
 ```
 
 `npm run test:guards` validates the fixed capture schema and rejects changed code hashes, beneficiary bytes, entitlement, runtime pin, unknown case/candidate fields, and an unrelated beneficiary gas-refund receipt. `npm run rehearse:refund` captures one funded state, imports that exact code/state into three fresh local Sandbox branches, and writes `out/refund-report.json`:
