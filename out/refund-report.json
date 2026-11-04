@@ -2,7 +2,7 @@
   "schema": "near-rehearsal/refund-report/v1",
   "case": "refund-v1",
   "label": "Funded refund claim — authored local Sandbox example",
-  "generatedAt": "2026-11-04T15:42:30.887Z",
+  "generatedAt": "2026-11-04T15:46:59.106Z",
   "capture": {
     "contract": "refund.test.near",
     "blockHeight": 9,
@@ -49,7 +49,7 @@
       },
       "migration": null,
       "claim": {
-        "transactionHash": "DoaHtmec25hFribD3QYa9r99fWisj39g9WysEyTfjBJM",
+        "transactionHash": "6NyJSUsgZ9PEqfuM55DmhbJ7VEL7229abPfrovT4pz1f",
         "succeeded": true,
         "failed": false,
         "status": {
@@ -60,17 +60,17 @@
         "receiptFailures": [],
         "receipts": [
           {
-            "id": "7BchNcyxuYfhvJmS6JjKuETiHQ2zJ4wn3to1WYowaLbp",
+            "id": "DsoufpRZR6T18qmcET4LP8KAzjJ9vyTCzcLRcZP7xT7f",
             "executorId": "refund.test.near",
             "status": {
-              "SuccessReceiptId": "57RVtUUPx7mXkGb9zYL9792LbY8WkN5NhGaycdhQZgT"
+              "SuccessReceiptId": "CQt9BgdQ7t7PUhJmmbsqofzEqQBxGymRZaFduRTwJsLL"
             },
             "gasBurnt": 1345900264594,
             "tokensBurnt": "134590026459400000000",
             "logs": []
           },
           {
-            "id": "57RVtUUPx7mXkGb9zYL9792LbY8WkN5NhGaycdhQZgT",
+            "id": "CQt9BgdQ7t7PUhJmmbsqofzEqQBxGymRZaFduRTwJsLL",
             "executorId": "refunduser.test.near",
             "status": {
               "SuccessValue": ""
@@ -80,7 +80,7 @@
             "logs": []
           },
           {
-            "id": "89zZAdmRhy6AHRwkZJ6cCHqNfhBEBDNREx53rS9KxB2t",
+            "id": "98on9EXhEBXyasDkgqpdaUaYiJWVCiHA4njXi9AMVrV4",
             "executorId": "refunduser.test.near",
             "status": {
               "SuccessValue": ""
@@ -104,9 +104,9 @@
       "balances": {
         "contract": {
           "initial": "981687329979124904421104",
-          "beforeClaim": "981687329979124904421104",
+          "beforeClaim": "981689795062480504421104",
           "after": "881703529346326004421104",
-          "delta": "-99983800632798900000000"
+          "delta": "-99986265716154500000000"
         },
         "user": {
           "initial": "10000000000000000000000000",
@@ -134,7 +134,7 @@
         "matches": true
       },
       "migration": {
-        "transactionHash": "AagXqu9X6HHZc34yjY44pbA97FHirDZnGSnqYwB6RVX1",
+        "transactionHash": "4wTg4khx6nuyfPHLvQNkTegS1BxkMAuSwKbE1oEuNk3v",
         "succeeded": true,
         "failed": false,
         "status": {
@@ -145,7 +145,7 @@
         "receiptFailures": [],
         "receipts": [
           {
-            "id": "B3UhezDRXxzqhDjGBfyb9DUQkLqkqgv4XCjUhiBBmfxG",
+            "id": "62mXpSDk6e7WQPUk2LFLKAeYryYa2EzmHyEu2ZFW1ELc",
             "executorId": "refund.test.near",
             "status": {
               "SuccessValue": ""
@@ -160,7 +160,7 @@
         "changedState": true
       },
       "claim": {
-        "transactionHash": "3kW4SkxYLnGksQaYdsPUaNWCSPqbvS91e9WEaNwb9hbK",
+        "transactionHash": "SdCSF6yfuPGkJcZmASqArWzfoCY2jLyeu8Tayvm1di7",
         "succeeded": false,
         "failed": true,
         "status": {
@@ -182,7 +182,7 @@
         ],
         "receipts": [
           {
-            "id": "B8fqSSgE6rvrto9Lkb1TN1xMXkUDb6m9VZTSLConsnfc",
+            "id": "3NGdVAtgFBx1nL4L5pFNQ4NFgtfV3EgsS1AQWALVvn7S",
             "executorId": "refund.test.near",
             "status": {
               "Failure": {
@@ -215,9 +215,9 @@
       "balances": {
         "contract": {
           "initial": "981687329979124904421104",
-          "beforeClaim": "981488082284345504421104",
+          "beforeClaim": "981490551158447704421104",
           "after": "981490551158447704421104",
-          "delta": "2468874102200000000"
+          "delta": "0"
         },
         "user": {
           "initial": "10000000000000000000000000",
@@ -245,7 +245,7 @@
         "matches": true
       },
       "migration": {
-        "transactionHash": "Ck9Yx6fGhk7NkBHQsHehFwukQ9sw9dEdGxvdmbte1MPm",
+        "transactionHash": "4L6cL24iy6QD8CyrLu3TghyqweWyUtnvNU4kdjuEirYa",
         "succeeded": true,
         "failed": false,
         "status": {
@@ -256,7 +256,7 @@
         "receiptFailures": [],
         "receipts": [
           {
-            "id": "82foiq4vxjkM7SvaE1P7Du3KjLLD4Dhuq3KrEwza6sh3",
+            "id": "Fmbm555nyG1AajsRWWZrkK9tUywCSn36w8MEKPzXz9bD",
             "executorId": "refund.test.near",
             "status": {
               "SuccessValue": ""
@@ -271,7 +271,7 @@
         "changedState": true
       },
       "claim": {
-        "transactionHash": "2EK45s7K8WacvykJsDr3hfeAw8wLPSX3yqkVSJ5tXSUd",
+        "transactionHash": "AnXNmaUNGHzXLpzGF5uWhAzCZdRk3SFXtPbqifHpjxxX",
         "succeeded": true,
         "failed": false,
         "status": {
@@ -282,17 +282,17 @@
         "receiptFailures": [],
         "receipts": [
           {
-            "id": "HAhqBLjK5yzBtUJpQCZgMBkTh1NSx6ps6BHsGYCFWqQv",
+            "id": "DAEiMWxdTGL4kB6evrTKtJRBEavgAyLFvpuBArYEs31o",
             "executorId": "refund.test.near",
             "status": {
-              "SuccessReceiptId": "2o2asfBUdcAR2PrgDdnQVRcrPv58iR47qRagVVrhgyMf"
+              "SuccessReceiptId": "4etABKRgxRY5AqpyjqUE8eLKaKEhLkxgnyJ9MYtBxjyw"
             },
             "gasBurnt": 1346009194094,
             "tokensBurnt": "134600919409400000000",
             "logs": []
           },
           {
-            "id": "2o2asfBUdcAR2PrgDdnQVRcrPv58iR47qRagVVrhgyMf",
+            "id": "4etABKRgxRY5AqpyjqUE8eLKaKEhLkxgnyJ9MYtBxjyw",
             "executorId": "refunduser.test.near",
             "status": {
               "SuccessValue": ""
@@ -302,7 +302,7 @@
             "logs": []
           },
           {
-            "id": "42y4xNDomwBF65dzZsAsb9PzWmBRA2fe5qvKhDCP4i3r",
+            "id": "Hg1A99g2Sft9vhYtrzYmHPNLZy4rAn2exx5VkqSgrqBj",
             "executorId": "refunduser.test.near",
             "status": {
               "SuccessValue": ""
@@ -326,9 +326,9 @@
       "balances": {
         "contract": {
           "initial": "981687329979124904421104",
-          "beforeClaim": "981488197544560604421104",
+          "beforeClaim": "981490665895801204421104",
           "after": "881504403447531704421104",
-          "delta": "-99983794097028900000000"
+          "delta": "-99986262448269500000000"
         },
         "user": {
           "initial": "10000000000000000000000000",

@@ -89,13 +89,16 @@ async function waitForEntitlement(worker, accountId, predicate, attempts = 60) {
 }
 
 
-async function waitForStableAccount(worker, accountId, attempts = 20) {
+async function waitForStableAccount(worker, accountId, attempts = 40) {
   let previous = null;
+  let stable = 0;
   for (let i = 0; i < attempts; i++) {
     const current = await waitForAccount(worker, accountId);
-    if (previous && current.amount === previous.amount) return current;
+    if (previous && current.amount === previous.amount) stable += 1;
+    else stable = 0;
+    if (stable >= 3) return current;
     previous = current;
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
   return previous;
 }
