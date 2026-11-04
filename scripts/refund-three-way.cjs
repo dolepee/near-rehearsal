@@ -345,7 +345,7 @@ async function runBranch(capture, config, candidate, expected) {
   const caseArgIndex = process.argv.indexOf('--case');
   const caseFile = path.resolve(ROOT, caseArgIndex >= 0 ? (process.argv[caseArgIndex + 1] || 'cases/refund-v1/case.json') : 'cases/refund-v1/case.json');
   const config = validateCase(caseFile);
-  const capturePath = path.join(OUT, 'refund-capture.json');
+  const capturePath = path.resolve(ROOT, config.capture);
   let capture;
   if (fs.existsSync(capturePath)) capture = JSON.parse(fs.readFileSync(capturePath, 'utf8'));
   else capture = await captureBaseline();
