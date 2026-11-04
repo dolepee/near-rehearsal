@@ -8,6 +8,7 @@
     tab: 'receipt',
     poll: null,
     clock: null,
+    candidate: null,
   };
 
   const $ = (id) => document.getElementById(id);
@@ -29,7 +30,48 @@
     if (branch.status === 'inconclusive') return ['Inconclusive', 'bad'];
     return ['Error', 'bad'];
   };
-  const branchName = (name) => ({baseline: 'Baseline', bad: 'Seeded bad', corrected: 'Corrected'}[name] || name);
+  const branchName = (name, candidateLabel = 'Supplied candidate') => ({baseline: 'Baseline', bad: candidateLabel, corrected: 'Corrected reference'}[name] || name);
+  const candidateReady = () => Boolean(state.candidate?.base64 && state.candidate?.sha256);
+
+  function bytesToBase64(bytes) {
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    return btoa(binary);
+  }
+
+  function renderCandidate(message) {
+    const meta = $('candidate-meta');
+    if (!meta) return;
+    if (state.candidate) {
+      meta.className = 'candidate-meta ready';
+      meta.textContent = `${state.candidate.name} · ${state.candidate.bytes} bytes · sha256 ${state.candidate.sha256}`;
+    } else {
+      meta.className = 'candidate-meta';
+      meta.textContent = message || 'No candidate selected. Rehearse requires an actual WASM input.';
+    }
+    $('run-button').disabled = !candidateReady() || state.run?.status === 'running';
+  }
+
+  async function setCandidate(bytes, name) {
+    if (!bytes?.length) throw new Error('The selected file is empty.');
+    if (bytes.length > 2 * 1024 * 1024) throw new Error('Candidate WASM must be 2 MB or smaller.');
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    const sha256 = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    state.candidate = {name, bytes: bytes.length, sha256, base64: bytesToBase64(bytes)};
+    renderCandidate();
+  }
+
+  async function loadFixture(name) {
+    try {
+      const response = await fetch(`/fixtures/${name}.wasm`, {cache: 'no-store'});
+      if (!response.ok) throw new Error(`Fixture request failed (${response.status}).`);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      await setCandidate(bytes, `${name}.wasm`);
+    } catch (error) {
+      renderCandidate(error.message);
+    }
+  }
 
   function setStatus(text, kind = 'idle') {
     const el = $('global-status');
@@ -63,19 +105,21 @@
     $('log-output').scrollTop = $('log-output').scrollHeight;
     $('run-button').disabled = true;
     $('rerun-button').hidden = true;
+    $('export-button').disabled = true;
     setStatus('Running / local Sandbox', 'running');
   }
 
   function renderError() {
     $('error-copy').textContent = state.run?.error || 'The runner exited without producing a new result.';
     $('error-log').textContent = (state.run?.logs || []).slice(-30).join('\n') || 'No runner output.';
-    $('run-button').disabled = false;
+    $('run-button').disabled = !candidateReady();
     $('rerun-button').hidden = true;
+    $('export-button').disabled = true;
     setStatus('Rehearsal error', 'error');
     show('error-state');
   }
 
-  function branchSummary(branch, name, isFocus, isDetail) {
+  function branchSummary(branch, name, isFocus, isDetail, candidateLabel) {
     const [status, tone] = branchStatus(branch);
     const transfer = branch?.transfer?.linked ? 'beneficiary link' : 'no link';
     const before = branch?.entitlement?.beforeMigration;
@@ -85,8 +129,8 @@
     const tx = branch?.claim?.transactionHash;
     const controlLabel = branch?.controls?.outsiderDenied ? 'controls pass' : 'controls not run';
     return `<article class="branch-card ${tone === 'bad' ? 'bad-card' : 'good-card'} ${isFocus ? 'focus' : ''} ${isDetail ? 'detail' : ''}" data-branch="${escape(name)}">
-      <div class="branch-name"><strong>${escape(branchName(name))}</strong><span class="branch-status ${tone}">${escape(status)}</span></div>
-      <div class="branch-kicker">${escape(name === 'baseline' ? 'claim_refund() — no candidate' : name === 'bad' ? 'seeded-bad-v2 + migrate()' : 'corrected-v2 + migrate()')}</div>
+      <div class="branch-name"><strong>${escape(branchName(name, candidateLabel))}</strong><span class="branch-status ${tone}">${escape(status)}</span></div>
+      <div class="branch-kicker">${escape(name === 'baseline' ? 'claim_refund() — no candidate' : name === 'bad' ? `${escape(candidateLabel)} + migrate()` : 'corrected reference + migrate()')}</div>
       <div class="branch-mini">
         <div><span>Entitlement before</span><b>${escape(near(before))} NEAR</b></div>
         <div><span>After migration</span><b>${escape(near(afterMigration))} NEAR</b></div>
@@ -106,6 +150,7 @@
     const bad = report.branches?.bad;
     const corrected = report.branches?.corrected;
     const baseline = report.branches?.baseline;
+    const candidateLabel = report.branches?.bad?.candidateLabel || state.run?.input?.filename || 'Supplied candidate';
     const focus = state.focus === 'corrected' ? corrected : bad;
     const focusName = state.focus === 'corrected' ? 'corrected' : 'bad';
 
@@ -118,12 +163,12 @@
     const goodPaid = corrected?.status === 'completed' && corrected?.transfer?.linked === true;
     const focusIsBad = focusName === 'bad';
     $('outcome-title').textContent = focusIsBad
-      ? (badBlocked ? 'The migration removes the existing user’s refund.' : 'The seeded bad result is not a verified NO_REFUND.')
+      ? (badBlocked ? 'The supplied candidate removes the existing user’s refund.' : 'The supplied candidate is not a verified NO_REFUND.')
       : (goodPaid ? 'The correction restores the existing user’s refund.' : 'The corrected result is not a verified payout.');
     $('outcome-badge').textContent = focusIsBad ? (badBlocked ? 'NO_REFUND / no payout' : 'UNVERIFIED') : (goodPaid ? 'BENEFICIARY PAID' : 'UNVERIFIED');
     $('outcome-badge').className = `badge ${focusIsBad ? (badBlocked ? 'bad' : 'subtle') : (goodPaid ? 'good' : 'subtle')}`;
     $('outcome-copy').textContent = focusIsBad
-      ? 'The seeded migration clears the stored entitlement before the same existing-user claim. The claim fails with a structured NO_REFUND and there is no contract-to-beneficiary transfer link. The funds stay in the contract; this is an authored local-Sandbox example, not a public incident.'
+      ? 'The supplied candidate and declared migration clear the stored entitlement before the same existing-user claim. The claim fails with a structured NO_REFUND and there is no contract-to-beneficiary transfer link. The funds stay in the contract; this is an authored local-Sandbox example, not a public incident.'
       : 'The corrected migration preserves the stored entitlement. The same claim succeeds and the contract receipt’s SuccessReceiptId links to a SuccessValue receipt executed by the captured beneficiary. The gross entitlement and net balance are shown separately.';
 
     const before = focus?.entitlement?.beforeMigration;
@@ -141,7 +186,7 @@
 
     $('branch-grid').innerHTML = ['baseline', 'bad', 'corrected'].map((name) => {
       const branch = report.branches?.[name];
-      return branchSummary(branch, name, name === focusName, name === state.detailBranch);
+      return branchSummary(branch, name, name === focusName, name === state.detailBranch, candidateLabel);
     }).join('');
     for (const card of document.querySelectorAll('.branch-card')) {
       card.addEventListener('click', () => {
@@ -151,10 +196,10 @@
       });
     }
 
-    $('detail-branch-label').textContent = `${branchName(state.detailBranch)} detail`;
+    $('detail-branch-label').textContent = `${branchName(state.detailBranch, candidateLabel)} detail`;
     for (const tab of document.querySelectorAll('.tab')) tab.classList.toggle('active', tab.dataset.tab === state.tab);
     renderDetails(report);
-    $('run-button').disabled = false;
+    $('run-button').disabled = !candidateReady();
     $('rerun-button').hidden = false;
     $('rerun-button').disabled = false;
     $('export-button').disabled = !complete;
@@ -222,23 +267,32 @@
       ${receiptRows || '<p class="muted">No receipts recorded.</p>'}`;
   }
 
-  function schedulePoll() {
-    clearTimeout(state.poll);
-    if (state.run?.status !== 'running') return;
-    state.poll = setTimeout(refresh, 1400);
-  }
+  let pollGeneration = 0;
 
-  async function refresh() {
-    if (!state.run?.id) return;
-    try {
-      const response = await fetch(`/api/runs/${encodeURIComponent(state.run.id)}`, {cache: 'no-store'});
-      if (!response.ok) throw new Error(`Status request failed (${response.status})`);
-      state.run = await response.json();
-      render();
-    } catch (error) {
-      state.run = {...state.run, status: 'error', error: error.message};
-      render();
-    }
+  async function pollRun() {
+    const runId = state.run?.id;
+    if (!runId) return;
+    const generation = ++pollGeneration;
+    const isCurrent = () => generation === pollGeneration && state.run?.id === runId;
+    await window.RehearsalPoller.pollUntilTerminal({
+      delayMs: 1400,
+      shouldStop: () => !isCurrent(),
+      fetchRun: async () => {
+        const response = await fetch(`/api/runs/${encodeURIComponent(runId)}`, {cache: 'no-store'});
+        if (!response.ok) throw new Error(`Status request failed (${response.status})`);
+        return response.json();
+      },
+      onRun: (run) => {
+        if (!isCurrent()) return;
+        state.run = run;
+        render();
+      },
+      onError: (error) => {
+        if (!isCurrent()) return;
+        state.run = {...state.run, status: 'error', error: error.message};
+        render();
+      },
+    });
   }
 
   async function exportRun() {
@@ -269,17 +323,44 @@
 
   async function startRun() {
     if (state.run?.status === 'running') return;
+    if (!candidateReady()) {
+      renderCandidate('Select a candidate WASM before rehearsing. Candidate focus alone does not execute an input.');
+      return;
+    }
+    let migration;
+    let operation;
+    try {
+      migration = JSON.parse($('migration-input').value);
+      operation = JSON.parse($('operation-input').value);
+    } catch (error) {
+      renderCandidate(`Declared input is not valid JSON: ${error.message}`);
+      return;
+    }
     $('run-button').disabled = true;
     $('rerun-button').disabled = true;
+    $('export-button').disabled = true;
     try {
-      const response = await fetch('/api/rehearse', {method: 'POST'});
+      const response = await fetch('/api/rehearse', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({
+          family: 'refund-v1',
+          candidate: {
+            filename: state.candidate.name,
+            sha256: state.candidate.sha256,
+            base64: state.candidate.base64,
+          },
+          migration,
+          operation,
+        }),
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not start the rehearsal.');
       state.run = data.run;
       state.detailBranch = state.focus;
       state.tab = 'receipt';
       render();
-      schedulePoll();
+      pollRun();
     } catch (error) {
       state.run = {status: 'error', error: error.message, logs: []};
       render();
@@ -289,6 +370,7 @@
   function render() {
     clearInterval(state.clock);
     if (!state.run) {
+      renderCandidate();
       setStatus('No run yet');
       show('empty-state');
       return;
@@ -306,6 +388,21 @@
     show('error-state');
     renderError();
   }
+
+  $('candidate-file').addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      await setCandidate(bytes, file.name);
+    } catch (error) {
+      state.candidate = null;
+      renderCandidate(error.message);
+    }
+  });
+  $('fixture-bad').addEventListener('click', () => loadFixture('refund-v2-bad'));
+  $('fixture-corrected').addEventListener('click', () => loadFixture('refund-v2-fixed'));
+  renderCandidate();
 
   $('focus-select').addEventListener('change', (event) => {
     state.focus = event.target.value;
@@ -329,7 +426,7 @@
       state.run = data.active;
       state.detailBranch = state.focus;
       render();
-      schedulePoll();
+      pollRun();
     } else {
       render();
     }

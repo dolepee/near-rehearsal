@@ -17,6 +17,10 @@ This is an authored, local-Sandbox example, not a public-contract capture.
 
 The bad migration is deliberately seeded for release-review contrast. No production bug, public write, deployment or custody claim is made.
 
+## Supported custom candidate
+
+The local UI accepts a supported refund-family candidate WASM plus declared `migrate({})` and `claim_refund({})` inputs. The server checks the candidate hash and required exports, writes a run-specific case, and executes those exact bytes. The corrected reference stays fixed. Unsupported families, fields, methods and hash edits reject.
+
 ## Reproducible three-way run
 
 ```sh

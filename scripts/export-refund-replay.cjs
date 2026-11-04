@@ -46,7 +46,7 @@ try {
     capture: `${rel(bundleDir)}/capture.json`,
     baselineWasm: `${rel(bundleDir)}/inputs/refund-v1.wasm`,
     candidates: {
-      bad: {...config.candidates.bad, wasm: `${rel(bundleDir)}/inputs/refund-v2-bad.wasm`},
+      bad: {...config.candidates.bad, wasm: `${rel(bundleDir)}/inputs/candidate.wasm`},
       corrected: {...config.candidates.corrected, wasm: `${rel(bundleDir)}/inputs/refund-v2-fixed.wasm`},
     },
   };
@@ -56,8 +56,7 @@ try {
   for (const [name, file] of [
     ['refund-v1.wasm', config.baselineWasm],
     ['refund-v1.wat', 'contracts/refund-v1.wat'],
-    ['refund-v2-bad.wasm', config.candidates.bad.wasm],
-    ['refund-v2-bad.wat', 'contracts/refund-v2-bad.wat'],
+    ['candidate.wasm', config.candidates.bad.wasm],
     ['refund-v2-fixed.wasm', config.candidates.corrected.wasm],
     ['refund-v2-fixed.wat', 'contracts/refund-v2-fixed.wat'],
   ]) copy(path.resolve(ROOT, file), path.join(bundleDir, 'inputs', name));
@@ -66,7 +65,7 @@ try {
     fileEntry(path.join(bundleDir, 'case.json'), 'case'),
     fileEntry(path.join(bundleDir, 'capture.json'), 'capture'),
     fileEntry(path.join(bundleDir, 'report.json'), 'report'),
-    ...['refund-v1.wasm', 'refund-v1.wat', 'refund-v2-bad.wasm', 'refund-v2-bad.wat', 'refund-v2-fixed.wasm', 'refund-v2-fixed.wat']
+    ...['refund-v1.wasm', 'refund-v1.wat', 'candidate.wasm', 'refund-v2-fixed.wasm', 'refund-v2-fixed.wat']
       .map((name) => fileEntry(path.join(bundleDir, 'inputs', name), 'input')),
   ];
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], {cwd: ROOT, encoding: 'utf8'}).trim();
@@ -90,6 +89,11 @@ try {
       sha256: inputs.find((x) => x.role === 'report').sha256,
       generatedAt: report.generatedAt,
       result: report.result,
+    },
+    candidate: {
+      label: config.candidates.bad.label,
+      sha256: config.candidates.bad.sha256,
+      path: rel(path.join(bundleDir, 'inputs/candidate.wasm')),
     },
     runtimePin: config.runtimePin,
     boundary: config.boundary,

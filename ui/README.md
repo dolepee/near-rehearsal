@@ -32,6 +32,14 @@ node scripts/replay-refund-export.cjs out/exports/<bundle>
 
 The export script refuses anything other than a complete report that passes the verifier. The bundle pins the case, capture, runtime, report hash, input hashes, and the exact rerun/verify commands. Replay does not trust the bundled report; it executes the runner again against the bundled capture and verifies the new report.
 
+## Supported input path
+
+- Select a candidate WASM or load one of the two local fixture files.
+- The browser computes its SHA-256; the server revalidates the bytes and hash.
+- Declared migration and operation are parsed and checked against the supported refund family: `migrate({})`, `claim_refund({})`, `get_refundable`.
+- Candidate focus only changes the featured outcome; the exact uploaded bytes are executed in the candidate branch. Unsupported exports, fields, methods or hashes reject before a run.
+- After a complete run, the export button produces a verifier-backed bundle containing the exact candidate and declared inputs.
+
 ## Current WIP boundaries
 
 - Local Sandbox only; no deployment or public URL.

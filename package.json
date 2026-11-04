@@ -22,7 +22,8 @@
     "verify:refund": "node scripts/verify-refund-report.cjs",
     "verify:refund-export": "node scripts/verify-refund-export.cjs",
     "replay:refund-export": "node scripts/replay-refund-export.cjs",
-    "test:export": "node scripts/test-export-guards.cjs"
+    "test:export": "node scripts/test-export-guards.cjs",
+    "test:ui": "node scripts/test-ui-polling.cjs"
   },
   "dependencies": {
     "near-workspaces": "5.0.0"

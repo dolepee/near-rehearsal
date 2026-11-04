@@ -29,16 +29,33 @@
           </select>
         </label>
         <label class="field">
+          <span>Candidate WASM</span>
+          <input id="candidate-file" type="file" accept=".wasm,application/wasm">
+        </label>
+        <div id="candidate-meta" class="candidate-meta">No candidate selected. Rehearse requires an actual WASM input.</div>
+        <div class="fixture-row">
+          <button id="fixture-bad" class="fixture" type="button">Use bad sample</button>
+          <button id="fixture-corrected" class="fixture" type="button">Use corrected sample</button>
+        </div>
+        <label class="field">
+          <span>Declared migration JSON</span>
+          <textarea id="migration-input" spellcheck="false">{"method":"migrate","args":{}}</textarea>
+        </label>
+        <label class="field">
+          <span>Declared operation JSON</span>
+          <textarea id="operation-input" spellcheck="false">{"method":"claim_refund","args":{},"view":"get_refundable"}</textarea>
+        </label>
+        <label class="field">
           <span>Candidate focus</span>
           <select id="focus-select">
-            <option value="bad">seeded bad v2 migration</option>
-            <option value="corrected">corrected v2 migration</option>
+            <option value="bad">supplied candidate</option>
+            <option value="corrected">corrected reference</option>
           </select>
         </label>
-        <p class="hint">The comparison always runs baseline, seeded bad, and corrected from the same captured state. Focus only changes which consequence is shown first.</p>
+        <p class="hint">Rehearse executes the uploaded candidate with the declared migration and operation. Focus only changes which consequence is shown first; both candidates run for comparison. Unsupported fields reject.</p>
 
-        <button id="run-button" class="primary" type="button">Rehearse refund case</button>
-        <button id="rerun-button" class="secondary" type="button" hidden>Rerun corrected case</button>
+        <button id="run-button" class="primary" type="button" disabled>Rehearse supplied candidate</button>
+        <button id="rerun-button" class="secondary" type="button" hidden>Rerun supplied candidate</button>
         <button id="export-button" class="secondary" type="button" disabled title="Available after a validated complete run">Export verified replay</button>
         <p class="gate-note"><span class="dot"></span> Export only a validated complete run.</p>
         <div id="export-result" class="export-result" hidden></div>
@@ -126,6 +143,7 @@
       </section>
     </main>
   </div>
+  <script src="/polling.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
