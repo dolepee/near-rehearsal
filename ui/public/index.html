@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rehearsal — refund release review</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">R</span>
+        <div>
+          <div class="eyebrow">NEAR / release rehearsal</div>
+          <h1>Consequence review</h1>
+        </div>
+      </div>
+      <div id="global-status" class="status-pill idle">No run yet</div>
+    </header>
+
+    <main class="layout">
+      <aside class="setup panel">
+        <div class="panel-kicker">Rehearsal setup</div>
+        <label class="field">
+          <span>Supported case</span>
+          <select id="case-select">
+            <option value="refund-v1">refund-v1 — funded refund claim</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Candidate focus</span>
+          <select id="focus-select">
+            <option value="bad">seeded bad v2 migration</option>
+            <option value="corrected">corrected v2 migration</option>
+          </select>
+        </label>
+        <p class="hint">The comparison always runs baseline, seeded bad, and corrected from the same captured state. Focus only changes which consequence is shown first.</p>
+
+        <button id="run-button" class="primary" type="button">Rehearse refund case</button>
+        <button id="rerun-button" class="secondary" type="button" hidden>Rerun corrected case</button>
+        <button id="export-button" class="secondary" type="button" disabled title="Queued until verifier integration">Export verified replay</button>
+        <p class="gate-note"><span class="dot"></span> Export is gated until verifier integration.</p>
+
+        <div class="boundary">
+          <strong>Boundary</strong>
+          <p>Local Sandbox only. Authored seeded migration. No public deployment, custody claim, spend, or merge.</p>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <section id="empty-state" class="empty panel">
+          <div class="empty-mark" aria-hidden="true">⌁</div>
+          <div class="eyebrow">No result loaded</div>
+          <h2>Start with the existing user.</h2>
+          <p>Rehearse the supported funded-refund case to produce a new result. The page does not load the committed report as if it were a new run.</p>
+          <div class="empty-grid">
+            <div><span class="mini-label">Freeze</span><strong>One captured state</strong><small>code + state imported identically</small></div>
+            <div><span class="mini-label">Run</span><strong>Three branches</strong><small>baseline / bad / corrected</small></div>
+            <div><span class="mini-label">Check</span><strong>Receipt-linked payout</strong><small>not just a positive balance</small></div>
+          </div>
+        </section>
+
+        <section id="running-state" class="running panel" hidden>
+          <div class="running-head">
+            <div>
+              <div class="eyebrow">Actual runner / local Sandbox</div>
+              <h2 id="running-title">Starting three-way rehearsal…</h2>
+            </div>
+            <div id="elapsed" class="elapsed">00:00</div>
+          </div>
+          <div class="progress"><span></span></div>
+          <p id="running-copy" class="muted">Capturing the funded state, then importing it into fresh local Sandbox branches. No fixture result is shown.</p>
+          <div class="log-card">
+            <div class="log-head"><span>Runner output</span><span class="mono" id="run-id"></span></div>
+            <pre id="log-output" class="log-output">Waiting for the runner…</pre>
+          </div>
+        </section>
+
+        <section id="error-state" class="error-state panel" hidden>
+          <div class="eyebrow">Rehearsal error</div>
+          <h2>The run did not produce a result.</h2>
+          <p id="error-copy"></p>
+          <pre id="error-log" class="log-output compact"></pre>
+          <button id="retry-button" class="primary" type="button">Retry rehearsal</button>
+        </section>
+
+        <section id="result-state" hidden>
+          <div id="result-banner" class="result-banner"></div>
+
+          <article class="outcome panel">
+            <div class="outcome-head">
+              <div>
+                <div class="eyebrow">Existing-user consequence</div>
+                <h2 id="outcome-title"></h2>
+              </div>
+              <span id="outcome-badge" class="badge"></span>
+            </div>
+            <p id="outcome-copy" class="outcome-copy"></p>
+            <div id="outcome-stats" class="stat-row"></div>
+            <div id="outcome-foot" class="outcome-foot"></div>
+          </article>
+
+          <section class="comparison">
+            <div class="section-head">
+              <div><div class="eyebrow">Same captured state</div><h3>Baseline / bad / corrected</h3></div>
+              <span class="muted small">Both candidates run; focus changes the featured card.</span>
+            </div>
+            <div id="branch-grid" class="branch-grid"></div>
+          </section>
+
+          <section class="details panel">
+            <div class="section-head">
+              <div><div class="eyebrow">Inspect</div><h3>Receipt and provenance</h3></div>
+              <span id="detail-branch-label" class="badge subtle"></span>
+            </div>
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-tab="receipt" type="button">Receipt &amp; link</button>
+              <button class="tab" data-tab="provenance" type="button">Provenance</button>
+              <button class="tab" data-tab="raw" type="button">Raw report</button>
+            </div>
+            <div id="detail-panel" class="detail-panel"></div>
+          </section>
+        </section>
+      </section>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

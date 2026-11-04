@@ -16,7 +16,8 @@
     "review:packet": "node scripts/build-release-review.cjs",
     "test:refund": "node scripts/test-refund-transfer.cjs",
     "rehearse:refund": "node scripts/refund-three-way.cjs",
-    "test:guards": "node scripts/test-refund-guards.cjs"
+    "test:guards": "node scripts/test-refund-guards.cjs",
+    "ui": "node ui/server.cjs"
   },
   "dependencies": {
     "near-workspaces": "5.0.0"
