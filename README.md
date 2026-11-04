@@ -6,7 +6,36 @@ It captures a deployed contract's code and state at a fixed block, imports that 
 
 This is a technical slice, not a production release gate or an audit.
 
-## First supported contract
+
+## Public first slice (meets the externally deployed condition)
+
+The public slice is `counter.testnet` on NEAR testnet, captured read-only at final block `276146679` (`4gnNG8v5SaJmpDdC49ivXUBmLU1FiGLmw7GQSZC4Dkn5`).
+
+- Source: `https://github.com/tansawit/near-counter-app`, commit `d777350aefa1e76734cbd0ed7633bd072acd511f`, `assembly/main.ts`
+- Deployed code hash: `7H96nK1NFTYUUgiRxNER5AjRfUeD4W1TVNC6eKfSgzrf`
+- Code SHA-256: `5d4892a56646ca96f76a2632e7d21117ac541a4fc58f661ab2acff5bab7adcac`
+- Captured state: `counter = 291`, 3 bytes; state SHA-256 `0c51bd223ce23d8c4decdddd1f7a113a4370610092d7e3fba56140f06d776926`
+- Source build check: `near-sdk-as` 0.4.2 built the public source to the same code SHA-256 as the captured deployed bytes.
+
+The declared v2 migration adds a `version` marker (`2`); it preserves the `counter` value. The old-user operation is `incrementCounter({value:1})`, read with `getCounter()`.
+
+- Baseline: `291 -> 292`.
+- Seeded bad migration: writes `version = 1`; the same `incrementCounter` panics with `v2 migration missing`.
+- Corrected migration: writes `version = 2`; the same operation succeeds; `292`.
+
+Every branch imported the same code hash and state hash. The bad candidate is explicitly seeded. No public writes, no deployment, no production authorization, and no claim that the migration is an upstream release.
+
+The command is `npm run public`; replay is `npm run replay:public`; verification is `npm run verify:public`.
+
+`out/public-report.json` retains the transaction hash, final status, receipt failures and structured failure for every operation. `out/public-regression.json` pins the capture hash, runtime, candidate WASM hashes and expected outcomes; `--replay` loads that file rather than hardcoding the current local WASMs.
+
+### Fair baseline and setup
+
+A competent `near-workspaces` maintainer can already call `importContract({ testnetContract: 'counter.testnet', withData: true })` for this 3-byte state. Import is not a unique advantage. The measured delta here is the packaged release-review workflow: pinned public block/code/state, three paired branches, structured receipt outcomes, migration comparison and a replayable export.
+
+No extra operator intervention was needed after the run started. The capture is three read-only RPC queries at one final block; the run starts three local Sandbox branches and one declared migration per candidate. The runtime is 2.6.2/protocol 77 on an x86_64 binary under emulation on this arm64 host, so elapsed time is not a native performance benchmark. See `out/public-effort.json`.
+
+## Earlier local fixture
 
 `state.test.near` — a minimal local Sandbox contract with an 8-byte `count`.
 

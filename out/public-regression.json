@@ -1,0 +1,56 @@
+{
+  "schema": "near-rehearsal/public-regression/v1",
+  "command": "node public-rehearse.cjs --replay out/public-regression.json",
+  "capture": "out/public-capture.json",
+  "captureSha256": "18cc8bb238f0a2e9cc559bd139504a617d104c6fe744ec17f86585d0d0465eee",
+  "runtime": {
+    "version": "2.6.2",
+    "build": "2.6.2",
+    "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+    "protocolVersion": 77,
+    "latestProtocolVersion": 77
+  },
+  "operation": {
+    "method": "incrementCounter",
+    "args": {
+      "value": 1
+    },
+    "view": "getCounter"
+  },
+  "expected": {
+    "baseline": {
+      "succeeded": true,
+      "value": "292"
+    },
+    "bad": {
+      "succeeded": false
+    },
+    "corrected": {
+      "succeeded": true,
+      "value": "292"
+    }
+  },
+  "candidates": {
+    "baseline": {
+      "id": "baseline",
+      "label": "captured public contract",
+      "candidate": null
+    },
+    "bad": {
+      "id": "seeded-bad-v2",
+      "label": "SEEDED bad v2 migration — writes version 1",
+      "candidate": {
+        "wasm": "contracts/counter-v2-buggy.wasm",
+        "sha256": "f90bb60d0e5d4edcbe0e1c495db3b2b3be8e6373857fac6285bb6e3cc0558d64"
+      }
+    },
+    "corrected": {
+      "id": "corrected-v2",
+      "label": "corrected v2 migration — writes version 2",
+      "candidate": {
+        "wasm": "contracts/counter-v2-fixed.wasm",
+        "sha256": "8a495216828da21fa27673e114c08c3c85aad98a3e387379408a8ec6a9071b4b"
+      }
+    }
+  }
+}

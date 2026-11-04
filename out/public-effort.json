@@ -1,0 +1,10 @@
+{
+  "capture": "one read-only block query plus view_account/view_code/view_state at the fixed final block",
+  "branches": 3,
+  "operatorInterventionsAfterStart": 0,
+  "customSetup": "one existing public contract, one declared version-marker migration, two candidate WASM files; no adapter or per-contract state initializer",
+  "nearWorkspacesBaseline": "near-workspaces already supports importContract(testnetContract, withData:true) for this 3-byte state. A competent maintainer can import it and call the candidate, but still has to write the migration branch, state comparison, receipt/error handling, report and replay export.",
+  "delta": "pinned public block/code/state, paired baseline/bad/corrected branches, structured receipt outcomes, and a replayable regression. Import is not claimed as unique.",
+  "runtime": "NEAR Sandbox 2.6.2, protocol 77, commit 2f9ddb711ebd94a306eaec06030d87ef8dfc51fa; x86_64 binary under emulation on this arm64 host, so timings are not a native performance benchmark.",
+  "sourceBuild": "near-sdk-as 0.4.2 build produced SHA-256 5d4892a56646ca96f76a2632e7d21117ac541a4fc58f661ab2acff5bab7adcac, matching the captured deployed bytes."
+}

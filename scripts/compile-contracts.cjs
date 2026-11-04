@@ -5,7 +5,7 @@ const wabt = require('wabt');
 (async () => {
   const root = path.join(__dirname, '..', 'contracts');
   const mod = await wabt();
-  for (const name of ['state-v1', 'state-v2-buggy', 'state-v2-fixed']) {
+  for (const name of ['state-v1', 'state-v2-buggy', 'state-v2-fixed', 'counter-v2-buggy', 'counter-v2-fixed']) {
     const wat = fs.readFileSync(path.join(root, `${name}.wat`), 'utf8');
     const wasm = mod.parseWat(`${name}.wat`, wat).toBinary({});
     fs.writeFileSync(path.join(root, `${name}.wasm`), Buffer.from(wasm.buffer));

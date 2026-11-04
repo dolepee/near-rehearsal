@@ -8,7 +8,10 @@
     "compile": "node scripts/compile-contracts.cjs",
     "rehearse": "node rehearse.cjs",
     "replay": "node rehearse.cjs --replay out/capture.json",
-    "verify": "node scripts/verify-report.cjs"
+    "verify": "node scripts/verify-report.cjs",
+    "public": "node public-rehearse.cjs",
+    "replay:public": "node public-rehearse.cjs --replay out/public-regression.json",
+    "verify:public": "node scripts/verify-public-report.cjs"
   },
   "dependencies": {
     "near-workspaces": "5.0.0"

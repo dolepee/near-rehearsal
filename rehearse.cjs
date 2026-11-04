@@ -236,13 +236,13 @@ async function rehearse(capture) {
     operation: 'existing user: increment(); read: get()',
     branches: { baseline, buggy, fixed },
     result: {
-      expectedAfterOneMore: String(Number(capture.count) + 1),
+      expectedAfterOneMore: (BigInt(capture.count) + 1n).toString(),
       baselineValue: baseline.operation.value,
       buggySucceeded: buggy.operation.succeeded,
       fixedValue: fixed.operation.value,
       sameStartingState: baseline.importCheck.matches && buggy.importCheck.matches && fixed.importCheck.matches,
       regressionObserved: baseline.operation.succeeded && !buggy.operation.succeeded,
-      correctionObserved: fixed.operation.succeeded && fixed.operation.value === String(Number(capture.count) + 1),
+      correctionObserved: fixed.operation.succeeded && fixed.operation.value === (BigInt(capture.count) + 1n).toString(),
     },
     claimBoundary: 'Pinned local Sandbox execution only. The bad candidate is explicitly seeded. No live vulnerability, production authorization, or public-chain state capture is claimed.',
   };
@@ -253,9 +253,9 @@ async function rehearse(capture) {
     capture: 'out/capture.json',
     operation,
     expected: {
-      baseline: { succeeded: true, value: String(Number(capture.count) + 1) },
+      baseline: { succeeded: true, value: (BigInt(capture.count) + 1n).toString() },
       buggy: { succeeded: false },
-      fixed: { succeeded: true, value: String(Number(capture.count) + 1) },
+      fixed: { succeeded: true, value: (BigInt(capture.count) + 1n).toString() },
     },
     candidates: {
       buggy: { wasm: 'contracts/state-v2-buggy.wasm', seeded: true },
