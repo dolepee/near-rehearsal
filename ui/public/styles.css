@@ -57,6 +57,8 @@ select:focus, button:focus-visible { border-color: var(--accent); box-shadow: 0 
 .secondary:disabled { opacity: .42; cursor: not-allowed; }
 .gate-note { display: flex; align-items: center; gap: 7px; margin: 2px 0 20px; }
 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 4px rgba(246,199,107,.08); }
+.export-result { border: 1px solid var(--line-soft); border-radius: 10px; padding: 10px; margin: 2px 0 16px; color: var(--muted); font: 10.5px/1.5 var(--mono); overflow-wrap: anywhere; }
+.export-result strong { display: block; color: var(--green); font: 700 10px var(--sans); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 5px; }
 .boundary { border-top: 1px solid var(--line-soft); padding-top: 16px; }
 .boundary strong { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
 .boundary p { margin-top: 7px; }

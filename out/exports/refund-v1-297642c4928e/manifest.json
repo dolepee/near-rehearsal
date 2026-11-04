@@ -1,0 +1,102 @@
+{
+  "schema": "near-rehearsal/refund-export/v1",
+  "bundleId": "refund-v1-297642c4928e",
+  "createdAt": "2026-11-04T16:42:15.149Z",
+  "sourceCommit": "2129d8d0e3facc8f56d35e4c6d12a4f85ddd4e7d",
+  "case": {
+    "id": "refund-v1",
+    "path": "out/exports/refund-v1-297642c4928e/case.json",
+    "sha256": "3f4f9ce323b80dea438a004923ecfe037b1a48f9877bc077a50927b8ddd46a9a"
+  },
+  "capture": {
+    "path": "out/exports/refund-v1-297642c4928e/capture.json",
+    "sha256": "7fe3bbb7dc1a68d8f86097219f48a86c8af354627700cc33dadbb8b3842f4e94",
+    "codeHash": "M9iWHajvM2yhmna75kgZCxq9koaqKJFLXqNgFjfFGYm",
+    "codeSha256": "0529788fcf3127ae8545b26ae3280b1eedf35aa5297852adc9633f15e0c24d1e",
+    "stateHash": "9d19a407e2b0b9283ccdd0084fd51f598eafc05c887dfd7a90a2293e88018e62",
+    "beneficiary": "refunduser.test.near",
+    "entitlement": "100000000000000000000000"
+  },
+  "report": {
+    "path": "out/exports/refund-v1-297642c4928e/report.json",
+    "sha256": "297642c4928ed5634c5ca06ea8b7dd782f12b86ba87f8e61e96c4c57f2a94183",
+    "generatedAt": "2026-11-04T16:41:00.288Z",
+    "result": {
+      "status": "complete",
+      "expected": {
+        "baseline": "success",
+        "bad": "NO_REFUND",
+        "corrected": "success"
+      },
+      "sameStartingState": true,
+      "controls": true,
+      "badFailureIsStructured": true,
+      "claimTransferToBeneficiary": true,
+      "runtimePinned": true
+    }
+  },
+  "runtimePin": {
+    "version": "2.6.2",
+    "protocolVersion": 77,
+    "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa"
+  },
+  "boundary": "Local Sandbox only. Authored seeded migration example; not a public-chain capture, upgrade authorization, or production custody claim.",
+  "inputs": [
+    {
+      "path": "out/exports/refund-v1-297642c4928e/case.json",
+      "role": "case",
+      "bytes": 1519,
+      "sha256": "3f4f9ce323b80dea438a004923ecfe037b1a48f9877bc077a50927b8ddd46a9a"
+    },
+    {
+      "path": "out/exports/refund-v1-297642c4928e/capture.json",
+      "role": "capture",
+      "bytes": 2905,
+      "sha256": "7fe3bbb7dc1a68d8f86097219f48a86c8af354627700cc33dadbb8b3842f4e94"
+    },
+    {
+      "path": "out/exports/refund-v1-297642c4928e/report.json",
+      "role": "report",
+      "bytes": 13450,
+      "sha256": "297642c4928ed5634c5ca06ea8b7dd782f12b86ba87f8e61e96c4c57f2a94183"
+    },
+    {
+      "path": "out/exports/refund-v1-297642c4928e/inputs/refund-v1.wasm",
+      "role": "input",
+      "bytes": 1025,
+      "sha256": "0529788fcf3127ae8545b26ae3280b1eedf35aa5297852adc9633f15e0c24d1e"
+    },
+    {
+      "path": "out/exports/refund-v1-297642c4928e/inputs/refund-v1.wat",
+      "role": "input",
+      "bytes": 5975,
+      "sha256": "6044bad50faa1a9f94474fafc9325146c64371f84e4a3fe816d023708bb0f0e9"
+    },
+    {
+      "path": "out/exports/refund-v1-297642c4928e/inputs/refund-v2-bad.wasm",
+      "role": "input",
+      "bytes": 1141,
+      "sha256": "f6340e6d6ef72c2baa706e42c12c463d30d4df7da53a69870020de17cc027323"
+    },
+    {
+      "path": "out/exports/refund-v1-297642c4928e/inputs/refund-v2-bad.wat",
+      "role": "input",
+      "bytes": 6818,
+      "sha256": "74a43acd0f4770e7be06c4970b8de534e87825dce6c1a883c4b4e876ad0d174a"
+    },
+    {
+      "path": "out/exports/refund-v1-297642c4928e/inputs/refund-v2-fixed.wasm",
+      "role": "input",
+      "bytes": 1125,
+      "sha256": "bbdcdb9c2e12d5020831dfba548ade2a1cb1c4596d0fe6b086ea4eef428fad0d"
+    },
+    {
+      "path": "out/exports/refund-v1-297642c4928e/inputs/refund-v2-fixed.wat",
+      "role": "input",
+      "bytes": 6708,
+      "sha256": "7113f814e76ab0ff42c7c9f3fb727c2ddfa01a2664af826efdf3fa24eeb2f925"
+    }
+  ],
+  "command": "node scripts/replay-refund-export.cjs out/exports/refund-v1-297642c4928e",
+  "verifyCommand": "node scripts/verify-refund-export.cjs out/exports/refund-v1-297642c4928e"
+}

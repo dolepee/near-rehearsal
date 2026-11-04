@@ -17,7 +17,12 @@
     "test:refund": "node scripts/test-refund-transfer.cjs",
     "rehearse:refund": "node scripts/refund-three-way.cjs",
     "test:guards": "node scripts/test-refund-guards.cjs",
-    "ui": "node ui/server.cjs"
+    "ui": "node ui/server.cjs",
+    "export:refund": "node scripts/export-refund-replay.cjs",
+    "verify:refund": "node scripts/verify-refund-report.cjs",
+    "verify:refund-export": "node scripts/verify-refund-export.cjs",
+    "replay:refund-export": "node scripts/replay-refund-export.cjs",
+    "test:export": "node scripts/test-export-guards.cjs"
   },
   "dependencies": {
     "near-workspaces": "5.0.0"

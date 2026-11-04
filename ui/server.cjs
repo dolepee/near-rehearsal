@@ -3,14 +3,15 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const {spawn} = require('node:child_process');
+const {spawn, execFile} = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const CASE = path.join(ROOT, 'cases/refund-v1/case.json');
 const REPORT = path.join(ROOT, 'out/refund-report.json');
+const OUT = path.join(ROOT, 'out');
 const PUBLIC = path.join(__dirname, 'public');
 const PORT = Number(process.env.PORT || 4173);
-const HOST = '127.0.0.1';
+const HOST = process.env.HOST || '127.0.0.1';
 const MAX_LOG_LINES = 160;
 
 const runs = new Map();
@@ -158,6 +159,35 @@ const server = http.createServer((req, res) => {
   if (requestUrl.pathname === '/api/rehearse' && req.method === 'POST') {
     const result = startRun();
     sendJson(res, result.error ? 409 : 202, result);
+    return;
+  }
+  if (requestUrl.pathname === '/api/export' && req.method === 'POST') {
+    if (activeRunId) { sendJson(res, 409, {error: 'Wait for the active rehearsal to finish.'}); return; }
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; if (body.length > 10000) req.destroy(); });
+    req.on('end', () => {
+      let payload = {};
+      try { payload = body ? JSON.parse(body) : {}; } catch { sendJson(res, 400, {error: 'Invalid JSON.'}); return; }
+      const run = runs.get(payload.runId);
+      if (!run || !run.report || run.status !== 'complete' || run.report.result?.status !== 'complete') {
+        sendJson(res, 409, {error: 'Only a validated complete run can be exported.'});
+        return;
+      }
+      const temp = path.join(OUT, `export-source-${run.id}.json`);
+      fs.writeFileSync(temp, JSON.stringify(run.report, null, 2) + '\n');
+      execFile(process.execPath, [path.join(ROOT, 'scripts/export-refund-replay.cjs'), '--report', temp], {
+        cwd: ROOT, env: {...process.env}, timeout: 120000, maxBuffer: 2 * 1024 * 1024,
+      }, (error, stdout, stderr) => {
+        try { fs.unlinkSync(temp); } catch {}
+        if (error) {
+          sendJson(res, 500, {error: stderr || error.message});
+          return;
+        }
+        let parsed;
+        try { parsed = JSON.parse(stdout); } catch { sendJson(res, 500, {error: 'Export returned invalid output.'}); return; }
+        sendJson(res, 200, parsed);
+      });
+    });
     return;
   }
   const match = requestUrl.pathname.match(/^\/api\/runs\/([0-9a-f-]+)$/);

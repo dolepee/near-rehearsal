@@ -20,7 +20,17 @@ export NEAR_SANDBOX_BINARY_PATH=/workspace/tools/near-sandbox-wrapper
 PORT=4173 npm run ui
 ```
 
-The server starts `scripts/refund-three-way.cjs` for each Rehearse click. Rehearsing writes a fresh `out/refund-report.json`; the UI only displays the report produced by that run. Export remains disabled until verifier integration.
+The server starts `scripts/refund-three-way.cjs` for each Rehearse click. Rehearsing writes a fresh `out/refund-report.json`; the UI only displays the report produced by that run. After a validated complete run, **Export verified replay** writes a hashed bundle under `out/exports/` through the verifier-backed export script.
+
+## Verifier-backed export
+
+```sh
+node scripts/export-refund-replay.cjs
+node scripts/verify-refund-export.cjs out/exports/<bundle>
+node scripts/replay-refund-export.cjs out/exports/<bundle>
+```
+
+The export script refuses anything other than a complete report that passes the verifier. The bundle pins the case, capture, runtime, report hash, input hashes, and the exact rerun/verify commands. Replay does not trust the bundled report; it executes the runner again against the bundled capture and verifies the new report.
 
 ## Current WIP boundaries
 

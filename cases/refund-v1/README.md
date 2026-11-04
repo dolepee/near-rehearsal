@@ -37,3 +37,13 @@ It records entitlement before/after migration and after claim, the captured and 
 On the arm64 development host, point `NEAR_SANDBOX_BIN_PATH` at the wrapper directory and set a high file-descriptor limit first.
 
 The gross entitlement is 0.10 NEAR. The user's net increase is below that because the signer pays gas; the contract balance is shown separately and includes storage/setup cost. The case declares the runtime pin `2.6.2`, protocol `77`, commit `2f9ddb711ebd94a306eaec06030d87ef8dfc51fa`; the report is incomplete if either the captured or actual runtime differs.
+
+## Verifier-backed export
+
+```sh
+npm run export:refund
+npm run verify:refund-export -- out/exports/<bundle>
+npm run replay:refund-export -- out/exports/<bundle>
+```
+
+Only a complete report that passes `verify-refund-report.cjs` is exported. The bundle pins the case, capture, runtime, report and input hashes; replay executes a fresh three-way run from the bundled capture and verifies the new report. Tampered reports, captures, or bundle inputs are rejected.

@@ -478,7 +478,11 @@ async function runBranch(capture, config, candidate, expected) {
 
 async function main() {
   const caseArgIndex = process.argv.indexOf('--case');
+  const reportArgIndex = process.argv.indexOf('--report');
   const caseFile = path.resolve(ROOT, caseArgIndex >= 0 ? (process.argv[caseArgIndex + 1] || 'cases/refund-v1/case.json') : 'cases/refund-v1/case.json');
+  const reportPath = reportArgIndex >= 0
+    ? path.resolve(ROOT, process.argv[reportArgIndex + 1] || 'out/refund-report.json')
+    : path.join(OUT, 'refund-report.json');
   const config = validateCase(caseFile);
   const capturePath = path.resolve(ROOT, config.capture);
   let capture;
@@ -544,8 +548,8 @@ async function main() {
       runtimePinned: expectedBranches.every((branch) => branch.runtimePinMatched === true),
     },
   };
-  fs.mkdirSync(OUT, {recursive: true});
-  fs.writeFileSync(path.join(OUT, 'refund-report.json'), json(report) + '\n');
+  fs.mkdirSync(path.dirname(reportPath), {recursive: true});
+  fs.writeFileSync(reportPath, json(report) + '\n');
   console.log(json(report));
   if (!complete) process.exitCode = 1;
 }

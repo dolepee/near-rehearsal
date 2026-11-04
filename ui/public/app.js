@@ -157,6 +157,9 @@
     $('run-button').disabled = false;
     $('rerun-button').hidden = false;
     $('rerun-button').disabled = false;
+    $('export-button').disabled = !complete;
+    $('export-button').textContent = 'Export verified replay';
+    if (!complete) $('export-result').hidden = true;
     setStatus(complete ? 'Complete / verified run' : 'Incomplete / not evidence', complete ? 'complete' : 'incomplete');
     show('result-state');
   }
@@ -238,6 +241,32 @@
     }
   }
 
+  async function exportRun() {
+    if (state.run?.status !== 'complete' || state.run?.report?.result?.status !== 'complete') return;
+    const button = $('export-button');
+    const output = $('export-result');
+    button.disabled = true;
+    button.textContent = 'Exporting verified replay…';
+    output.hidden = false;
+    output.innerHTML = '<strong>Export</strong>Validating the completed report and hashing inputs…';
+    try {
+      const response = await fetch('/api/export', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({runId: state.run.id}),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Export failed.');
+      output.innerHTML = `<strong>Verified export written</strong>${escape(data.bundle)}<br>${escape(data.verifyCommand)}`;
+      button.textContent = 'Export verified replay';
+      button.disabled = false;
+    } catch (error) {
+      output.innerHTML = `<strong style="color:var(--red)">Export rejected</strong>${escape(error.message)}`;
+      button.textContent = 'Export verified replay';
+      button.disabled = false;
+    }
+  }
+
   async function startRun() {
     if (state.run?.status === 'running') return;
     $('run-button').disabled = true;
@@ -287,7 +316,7 @@
   $('run-button').addEventListener('click', startRun);
   $('retry-button').addEventListener('click', startRun);
   $('rerun-button').addEventListener('click', startRun);
-  $('export-button').addEventListener('click', () => {});
+  $('export-button').addEventListener('click', exportRun);
   for (const tab of document.querySelectorAll('.tab')) {
     tab.addEventListener('click', () => {
       state.tab = tab.dataset.tab;

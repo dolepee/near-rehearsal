@@ -39,8 +39,9 @@
 
         <button id="run-button" class="primary" type="button">Rehearse refund case</button>
         <button id="rerun-button" class="secondary" type="button" hidden>Rerun corrected case</button>
-        <button id="export-button" class="secondary" type="button" disabled title="Queued until verifier integration">Export verified replay</button>
-        <p class="gate-note"><span class="dot"></span> Export is gated until verifier integration.</p>
+        <button id="export-button" class="secondary" type="button" disabled title="Available after a validated complete run">Export verified replay</button>
+        <p class="gate-note"><span class="dot"></span> Export only a validated complete run.</p>
+        <div id="export-result" class="export-result" hidden></div>
 
         <div class="boundary">
           <strong>Boundary</strong>
