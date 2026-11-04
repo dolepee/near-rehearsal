@@ -21,6 +21,8 @@ The bad migration is deliberately seeded for release-review contrast. No product
 
 The local UI accepts a supported refund-family candidate WASM plus declared `migrate({})` and `claim_refund({})` inputs. The server checks the candidate hash and required exports, writes a run-specific case, and executes those exact bytes. The corrected reference stays fixed. Unsupported families, fields, methods and hash edits reject.
 
+A supplied candidate is classified from its own outcome: beneficiary paid, structured `NO_REFUND`, or inconclusive. The uploaded corrected sample therefore produces a paid candidate result and remains exportable; the uploaded bad sample produces the structured failure. There is no requirement that every candidate reproduce the seeded bug.
+
 ## Reproducible three-way run
 
 ```sh

@@ -39,16 +39,22 @@ function verifyRefundReport(report, config, capture) {
 
   if (!report.result || report.result.status !== 'complete') fail(errors, 'report is not complete');
   const result = report.result || {};
-  for (const key of ['sameStartingState', 'controls', 'badFailureIsStructured', 'claimTransferToBeneficiary', 'runtimePinned']) {
+  const candidateOutcome = report.result?.candidateOutcome;
+  for (const key of ['sameStartingState', 'controls', 'claimTransferToBeneficiary', 'runtimePinned']) {
     if (result[key] !== true) fail(errors, `result.${key} is not true`);
   }
+  if (candidateOutcome === 'no-refund' && result.badFailureIsStructured !== true) fail(errors, 'result.badFailureIsStructured is not true for NO_REFUND');
+  if (candidateOutcome === 'paid' && result.badFailureIsStructured !== false) fail(errors, 'result.badFailureIsStructured must be false for paid candidate');
   if (JSON.stringify(result.expected) !== JSON.stringify(config.expected)) fail(errors, 'result expected outcomes do not match');
 
   const names = ['baseline', 'bad', 'corrected'];
   if (!report.branches || Object.keys(report.branches).sort().join(',') !== [...names].sort().join(',')) {
     return [...errors, 'report branches are not exactly baseline, bad, corrected'];
   }
-  const expectedStatus = {baseline: 'completed', bad: 'expected-failure', corrected: 'completed'};
+  if (!['paid', 'no-refund'].includes(candidateOutcome)) fail(errors, 'candidate outcome is not classified');
+  if (report.result?.candidateClassified !== true) fail(errors, 'candidate was not classified');
+  if (config.expected.bad !== 'candidate' && candidateOutcome !== 'no-refund') fail(errors, 'fixed bad case must classify as no-refund');
+  const expectedStatus = {baseline: 'completed', bad: config.expected.bad === 'candidate' ? (candidateOutcome === 'paid' ? 'completed' : 'expected-failure') : 'expected-failure', corrected: 'completed'};
   for (const name of names) {
     const branch = report.branches[name];
     if (!branch) { fail(errors, `missing ${name} branch`); continue; }
@@ -65,13 +71,20 @@ function verifyRefundReport(report, config, capture) {
       fail(errors, `${name} migration authority control did not pass`);
     }
     if (!branch.entitlement || branch.entitlement.afterClaim !== '0') fail(errors, `${name} entitlement was not cleared`);
-    if (name === 'bad') {
+    if (name === 'bad' && candidateOutcome === 'no-refund') {
       if (branch.entitlement?.afterMigration !== '0') fail(errors, 'bad migration did not clear entitlement');
       if (branch.claim?.failed !== true) fail(errors, 'bad claim did not fail');
       if (!JSON.stringify(branch.claim?.receiptFailures || []).includes('NO_REFUND')) fail(errors, 'bad claim failure is not structured NO_REFUND');
       const link = transferEvidence(branch.claim, parsed.beneficiary);
       if (link.linked) fail(errors, 'bad claim has a beneficiary transfer link');
       if (branch.balances?.status !== 'interim') fail(errors, 'bad branch balance is not marked interim');
+    } else if (name === 'bad' && candidateOutcome === 'paid') {
+      if (branch.claim?.succeeded !== true) fail(errors, 'paid candidate claim did not succeed');
+      const link = transferEvidence(branch.claim, parsed.beneficiary);
+      if (!link.linked) fail(errors, 'paid candidate lacks contract -> beneficiary transfer link');
+      if (branch.balances?.status !== 'final') fail(errors, 'paid candidate balance is not final');
+      if (!branch.balances?.user?.delta || BigInt(branch.balances.user.delta) <= 0n) fail(errors, 'paid candidate user delta is not positive');
+      if (!branch.balances?.contract?.delta || BigInt(branch.balances.contract.delta) >= 0n) fail(errors, 'paid candidate contract delta is not negative');
     } else {
       if (branch.claim?.succeeded !== true) fail(errors, `${name} claim did not succeed`);
       const link = transferEvidence(branch.claim, parsed.beneficiary);
@@ -81,6 +94,8 @@ function verifyRefundReport(report, config, capture) {
       if (!branch.balances?.contract?.delta || BigInt(branch.balances.contract.delta) >= 0n) fail(errors, `${name} contract delta is not negative`);
     }
   }
+  if (report.result?.badFailureIsStructured !== (candidateOutcome === 'no-refund')) fail(errors, 'badFailureIsStructured does not match candidate outcome');
+  if (report.result?.claimTransferToBeneficiary !== true) fail(errors, 'claimTransferToBeneficiary is not true');
   return errors;
 }
 

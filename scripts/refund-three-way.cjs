@@ -126,7 +126,7 @@ function validateCaseConfig(config) {
     throw new Error('this supported case only accepts claim_refund({})/get_refundable');
   }
   assertFields(config.expected, EXPECTED_FIELDS, 'expected');
-  if (config.expected.baseline !== 'success' || config.expected.bad !== 'NO_REFUND' || config.expected.corrected !== 'success') {
+  if (config.expected.baseline !== 'success' || !['NO_REFUND', 'candidate'].includes(config.expected.bad) || config.expected.corrected !== 'success') {
     throw new Error('unsupported expected outcomes');
   }
   if (!config.candidates || Object.keys(config.candidates).sort().join(',') !== 'bad,corrected') {
@@ -433,15 +433,17 @@ async function runBranch(capture, config, candidate, expected) {
     }
     result.claim = txEvidence(claimTx);
     result.transfer = transferEvidence(result.claim, parsedCapture.beneficiary);
-    result.entitlement.afterClaim = (await waitForEntitlement(worker, contract.accountId, (value) => expected === 'success' ? value === 0n : true, config.operation.view)).toString();
+    const expectsPayout = expected === 'success' || (expected === 'candidate' && claimTx.succeeded === true);
+    result.entitlement.afterClaim = (await waitForEntitlement(worker, contract.accountId, (value) => expectsPayout ? value === 0n : true, config.operation.view)).toString();
 
-    const contractAfter = await waitForBalance(worker, contract.accountId, (balance) => expected === 'success' ? balance < BigInt(result.balances.contract.beforeClaim) : true);
-    const userAfter = await waitForBalance(worker, user.accountId, (balance) => expected === 'success' ? balance > BigInt(result.balances.user.beforeClaim) : true);
+    const contractAfter = await waitForBalance(worker, contract.accountId, (balance) => expectsPayout ? balance < BigInt(result.balances.contract.beforeClaim) : true);
+    const userAfter = await waitForBalance(worker, user.accountId, (balance) => expectsPayout ? balance > BigInt(result.balances.user.beforeClaim) : true);
     result.balances.contract.after = balanceOf(contractAfter).toString();
     result.balances.contract.delta = (balanceOf(contractAfter) - BigInt(result.balances.contract.beforeClaim)).toString();
     result.balances.user.after = balanceOf(userAfter).toString();
     result.balances.user.delta = (balanceOf(userAfter) - BigInt(result.balances.user.beforeClaim)).toString();
-    if (result.balances.status === 'interim') {
+    if (claimTx.failed) {
+      result.balances.status = 'interim';
       result.balances.note = 'Failed claim: signer gas may settle after this read; this is not a final net payout measurement.';
     }
 
@@ -449,19 +451,21 @@ async function runBranch(capture, config, candidate, expected) {
     result.controls.secondClaimDenied = secondClaim.failed === true && /NO_REFUND/.test(failureText(secondClaim));
     if (!result.controls.secondClaimDenied) throw new Error('second claim was not denied');
 
-    if (expected === 'success') {
+    if (expected === 'success' || (expected === 'candidate' && claimTx.succeeded === true)) {
       if (!claimTx.succeeded) throw new Error(`expected successful claim, got failure: ${failureText(claimTx)}`);
       if (!result.transfer.linked) throw new Error('successful claim lacks a contract SuccessReceiptId -> beneficiary SuccessValue link');
       if (BigInt(result.balances.user.delta) <= 0n) throw new Error('successful claim did not increase beneficiary balance');
       if (BigInt(result.balances.contract.delta) >= 0n) throw new Error('successful claim did not decrease contract balance');
       if (result.entitlement.afterClaim !== '0') throw new Error('successful claim did not clear entitlement');
       result.status = 'completed';
-    } else if (expected === 'NO_REFUND') {
-      if (!claimTx.failed) throw new Error('seeded bad branch did not fail');
+      result.outcome = 'paid';
+    } else if (expected === 'NO_REFUND' || expected === 'candidate') {
+      if (!claimTx.failed) throw new Error('candidate claim did not fail and was not accepted as a payout');
       if (!/NO_REFUND/.test(failureText(claimTx))) throw new Inconclusive(`claim failed for a non-NO_REFUND reason: ${failureText(claimTx)}`);
-      if (result.entitlement.afterMigration !== '0') throw new Error('bad migration did not clear entitlement');
+      if (result.entitlement.afterMigration !== '0') throw new Error('candidate migration did not clear entitlement');
       if (result.transfer.linked) throw new Error('failed claim unexpectedly linked to a beneficiary transfer');
       result.status = 'expected-failure';
+      result.outcome = 'no-refund';
     } else {
       throw new Error(`unsupported expectation: ${expected}`);
     }
@@ -495,25 +499,39 @@ async function main() {
   const corrected = await runBranch(capture, config, config.candidates.corrected, config.expected.corrected);
 
   const expectedBranches = [baseline, bad, corrected];
-  const branchOutcomesMatch = expectedBranches.every((branch) => branch.expected === 'success'
-    ? branch.status === 'completed'
-    : branch.status === 'expected-failure');
+  const candidateOutcome = bad.status === 'completed' && bad.transfer?.linked === true
+    ? 'paid'
+    : bad.status === 'expected-failure'
+      && /NO_REFUND/.test(failureText({receiptFailureMessages: bad.claim?.receiptFailures || []}))
+      && bad.transfer?.linked === false
+      ? 'no-refund'
+      : 'inconclusive';
+  const candidateClassified = candidateOutcome !== 'inconclusive';
+  const branchOutcomesMatch = expectedBranches.every((branch) => {
+    if (branch.expected === 'success') return branch.status === 'completed';
+    if (branch.expected === 'NO_REFUND') return branch.status === 'expected-failure';
+    if (branch.expected === 'candidate') return branch.status === 'completed' || branch.status === 'expected-failure';
+    return false;
+  });
   const sameStartingState = expectedBranches.every((branch) => branch.importCheck?.matches === true);
   const controls = expectedBranches.every((branch) => branch.controls.outsiderDenied === true && branch.controls.secondClaimDenied === true)
     && bad.controls.migrationAuthorityDenied === true
     && corrected.controls.migrationAuthorityDenied === true;
-  const claimTransferToBeneficiary = [baseline, corrected].every((branch) =>
+  const baselineCorrectedTransfer = [baseline, corrected].every((branch) =>
     branch.status === 'completed'
     && branch.transfer?.linked === true
     && branch.transfer?.beneficiary === capture.beneficiary
     && BigInt(branch.balances.user.delta) > 0n
     && BigInt(branch.balances.contract.delta) < 0n);
-  const badFailureIsStructured = bad.status === 'expected-failure'
-    && /NO_REFUND/.test(failureText({receiptFailureMessages: bad.claim?.receiptFailures || []}))
-    && bad.transfer?.linked === false;
+  const candidatePaidTransfer = candidateOutcome !== 'paid' || (bad.status === 'completed'
+    && bad.transfer?.linked === true
+    && BigInt(bad.balances.user.delta) > 0n
+    && BigInt(bad.balances.contract.delta) < 0n);
+  const claimTransferToBeneficiary = baselineCorrectedTransfer && candidatePaidTransfer;
+  const badFailureIsStructured = candidateOutcome === 'no-refund';
 
-  const complete = branchOutcomesMatch && sameStartingState && controls
-    && claimTransferToBeneficiary && badFailureIsStructured;
+  const complete = branchOutcomesMatch && candidateClassified && sameStartingState && controls
+    && claimTransferToBeneficiary && (candidateOutcome === 'paid' || badFailureIsStructured);
   const report = {
     schema: REPORT_SCHEMA,
     case: config.id,
@@ -544,6 +562,8 @@ async function main() {
       sameStartingState,
       controls,
       badFailureIsStructured,
+      candidateOutcome,
+      candidateClassified,
       claimTransferToBeneficiary,
       runtimePinned: expectedBranches.every((branch) => branch.runtimePinMatched === true),
     },

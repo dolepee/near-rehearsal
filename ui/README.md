@@ -38,6 +38,7 @@ The export script refuses anything other than a complete report that passes the 
 - The browser computes its SHA-256; the server revalidates the bytes and hash.
 - Declared migration and operation are parsed and checked against the supported refund family: `migrate({})`, `claim_refund({})`, `get_refundable`.
 - Candidate focus only changes the featured outcome; the exact uploaded bytes are executed in the candidate branch. Unsupported exports, fields, methods or hashes reject before a run.
+- The candidate is classified from its own receipts and entitlement: beneficiary paid, structured NO_REFUND, or inconclusive. Corrections are not forced to reproduce the seeded bug.
 - After a complete run, the export button produces a verifier-backed bundle containing the exact candidate and declared inputs.
 
 ## Current WIP boundaries

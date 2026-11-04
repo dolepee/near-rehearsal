@@ -86,6 +86,7 @@ function buildRunCase(input) {
     },
     migration: input.migration,
     operation: input.operation,
+    expected: {...base.expected, bad: 'candidate'},
   };
   const casePath = path.join(runDir, 'case.json');
   fs.writeFileSync(casePath, JSON.stringify(caseConfig, null, 2) + '\n');

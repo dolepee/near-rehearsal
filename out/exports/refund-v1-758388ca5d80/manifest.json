@@ -1,15 +1,15 @@
 {
   "schema": "near-rehearsal/refund-export/v1",
-  "bundleId": "refund-v1-929be199baec",
-  "createdAt": "2026-11-04T17:07:27.882Z",
-  "sourceCommit": "fa5451d178ba0a1d1dd7efd68593f3ff9b111362",
+  "bundleId": "refund-v1-758388ca5d80",
+  "createdAt": "2026-11-04T17:28:15.978Z",
+  "sourceCommit": "b46d96e41ee20ebdcad23c26442ea970e7f5817a",
   "case": {
     "id": "refund-v1",
-    "path": "out/exports/refund-v1-929be199baec/case.json",
-    "sha256": "1d2142c14a97bedd1d6fe02270f569efd95a258cff898e94cd278116d90ef129"
+    "path": "out/exports/refund-v1-758388ca5d80/case.json",
+    "sha256": "394509e49b506fcf6395d5962840ae9b6073aebb02939583fde99c2f306cf93d"
   },
   "capture": {
-    "path": "out/exports/refund-v1-929be199baec/capture.json",
+    "path": "out/exports/refund-v1-758388ca5d80/capture.json",
     "sha256": "7fe3bbb7dc1a68d8f86097219f48a86c8af354627700cc33dadbb8b3842f4e94",
     "codeHash": "M9iWHajvM2yhmna75kgZCxq9koaqKJFLXqNgFjfFGYm",
     "codeSha256": "0529788fcf3127ae8545b26ae3280b1eedf35aa5297852adc9633f15e0c24d1e",
@@ -18,27 +18,29 @@
     "entitlement": "100000000000000000000000"
   },
   "report": {
-    "path": "out/exports/refund-v1-929be199baec/report.json",
-    "sha256": "929be199baecefc688b2aada516b02062d8ae6121e8fef48dcfc35e60ecd3af1",
-    "generatedAt": "2026-11-04T17:06:56.126Z",
+    "path": "out/exports/refund-v1-758388ca5d80/report.json",
+    "sha256": "758388ca5d806b12dc839dd915506ff6cb5c9670205a5a08a345b7be178924c9",
+    "generatedAt": "2026-11-04T17:26:43.336Z",
     "result": {
       "status": "complete",
       "expected": {
         "baseline": "success",
-        "bad": "NO_REFUND",
+        "bad": "candidate",
         "corrected": "success"
       },
       "sameStartingState": true,
       "controls": true,
-      "badFailureIsStructured": true,
+      "badFailureIsStructured": false,
+      "candidateOutcome": "paid",
+      "candidateClassified": true,
       "claimTransferToBeneficiary": true,
       "runtimePinned": true
     }
   },
   "candidate": {
-    "label": "refund-v2-bad.wasm",
-    "sha256": "f6340e6d6ef72c2baa706e42c12c463d30d4df7da53a69870020de17cc027323",
-    "path": "out/exports/refund-v1-929be199baec/inputs/candidate.wasm"
+    "label": "refund-v2-fixed.wasm",
+    "sha256": "bbdcdb9c2e12d5020831dfba548ade2a1cb1c4596d0fe6b086ea4eef428fad0d",
+    "path": "out/exports/refund-v1-758388ca5d80/inputs/candidate.wasm"
   },
   "runtimePin": {
     "version": "2.6.2",
@@ -48,54 +50,54 @@
   "boundary": "Local Sandbox only. Authored seeded migration example; not a public-chain capture, upgrade authorization, or production custody claim.",
   "inputs": [
     {
-      "path": "out/exports/refund-v1-929be199baec/case.json",
+      "path": "out/exports/refund-v1-758388ca5d80/case.json",
       "role": "case",
-      "bytes": 1503,
-      "sha256": "1d2142c14a97bedd1d6fe02270f569efd95a258cff898e94cd278116d90ef129"
+      "bytes": 1507,
+      "sha256": "394509e49b506fcf6395d5962840ae9b6073aebb02939583fde99c2f306cf93d"
     },
     {
-      "path": "out/exports/refund-v1-929be199baec/capture.json",
+      "path": "out/exports/refund-v1-758388ca5d80/capture.json",
       "role": "capture",
       "bytes": 2905,
       "sha256": "7fe3bbb7dc1a68d8f86097219f48a86c8af354627700cc33dadbb8b3842f4e94"
     },
     {
-      "path": "out/exports/refund-v1-929be199baec/report.json",
+      "path": "out/exports/refund-v1-758388ca5d80/report.json",
       "role": "report",
-      "bytes": 13439,
-      "sha256": "929be199baecefc688b2aada516b02062d8ae6121e8fef48dcfc35e60ecd3af1"
+      "bytes": 13966,
+      "sha256": "758388ca5d806b12dc839dd915506ff6cb5c9670205a5a08a345b7be178924c9"
     },
     {
-      "path": "out/exports/refund-v1-929be199baec/inputs/refund-v1.wasm",
+      "path": "out/exports/refund-v1-758388ca5d80/inputs/refund-v1.wasm",
       "role": "input",
       "bytes": 1025,
       "sha256": "0529788fcf3127ae8545b26ae3280b1eedf35aa5297852adc9633f15e0c24d1e"
     },
     {
-      "path": "out/exports/refund-v1-929be199baec/inputs/refund-v1.wat",
+      "path": "out/exports/refund-v1-758388ca5d80/inputs/refund-v1.wat",
       "role": "input",
       "bytes": 5975,
       "sha256": "6044bad50faa1a9f94474fafc9325146c64371f84e4a3fe816d023708bb0f0e9"
     },
     {
-      "path": "out/exports/refund-v1-929be199baec/inputs/candidate.wasm",
-      "role": "input",
-      "bytes": 1141,
-      "sha256": "f6340e6d6ef72c2baa706e42c12c463d30d4df7da53a69870020de17cc027323"
-    },
-    {
-      "path": "out/exports/refund-v1-929be199baec/inputs/refund-v2-fixed.wasm",
+      "path": "out/exports/refund-v1-758388ca5d80/inputs/candidate.wasm",
       "role": "input",
       "bytes": 1125,
       "sha256": "bbdcdb9c2e12d5020831dfba548ade2a1cb1c4596d0fe6b086ea4eef428fad0d"
     },
     {
-      "path": "out/exports/refund-v1-929be199baec/inputs/refund-v2-fixed.wat",
+      "path": "out/exports/refund-v1-758388ca5d80/inputs/refund-v2-fixed.wasm",
+      "role": "input",
+      "bytes": 1125,
+      "sha256": "bbdcdb9c2e12d5020831dfba548ade2a1cb1c4596d0fe6b086ea4eef428fad0d"
+    },
+    {
+      "path": "out/exports/refund-v1-758388ca5d80/inputs/refund-v2-fixed.wat",
       "role": "input",
       "bytes": 6708,
       "sha256": "7113f814e76ab0ff42c7c9f3fb727c2ddfa01a2664af826efdf3fa24eeb2f925"
     }
   ],
-  "command": "node scripts/replay-refund-export.cjs out/exports/refund-v1-929be199baec",
-  "verifyCommand": "node scripts/verify-refund-export.cjs out/exports/refund-v1-929be199baec"
+  "command": "node scripts/replay-refund-export.cjs out/exports/refund-v1-758388ca5d80",
+  "verifyCommand": "node scripts/verify-refund-export.cjs out/exports/refund-v1-758388ca5d80"
 }

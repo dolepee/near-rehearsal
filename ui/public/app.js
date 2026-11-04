@@ -155,20 +155,29 @@
     const focusName = state.focus === 'corrected' ? 'corrected' : 'bad';
 
     $('result-banner').className = `result-banner ${complete ? 'ok' : 'bad'}`;
+    const candidateOutcome = report.result?.candidateOutcome;
     $('result-banner').textContent = complete
-      ? 'New run complete. Fixed capture, runtime pin, controls, structured bad failure, and beneficiary-linked payouts all passed.'
+      ? `New run complete. Candidate classified as ${candidateOutcome === 'paid' ? 'beneficiary paid' : 'structured NO_REFUND'}; fixed capture, runtime pin, controls and corrected beneficiary-linked payout all passed.`
       : 'Run incomplete. This is not release evidence; inspect the failed gate and raw report below.';
 
     const badBlocked = bad?.status === 'expected-failure' && bad?.transfer?.linked === false;
+    const badPaid = bad?.status === 'completed' && bad?.transfer?.linked === true;
     const goodPaid = corrected?.status === 'completed' && corrected?.transfer?.linked === true;
     const focusIsBad = focusName === 'bad';
+    const focusPaid = focusIsBad ? badPaid : goodPaid;
     $('outcome-title').textContent = focusIsBad
-      ? (badBlocked ? 'The supplied candidate removes the existing user’s refund.' : 'The supplied candidate is not a verified NO_REFUND.')
+      ? (badBlocked ? 'The supplied candidate removes the existing user’s refund.' : badPaid ? 'The supplied candidate preserves the existing user’s refund.' : 'The supplied candidate is inconclusive.')
       : (goodPaid ? 'The correction restores the existing user’s refund.' : 'The corrected result is not a verified payout.');
-    $('outcome-badge').textContent = focusIsBad ? (badBlocked ? 'NO_REFUND / no payout' : 'UNVERIFIED') : (goodPaid ? 'BENEFICIARY PAID' : 'UNVERIFIED');
-    $('outcome-badge').className = `badge ${focusIsBad ? (badBlocked ? 'bad' : 'subtle') : (goodPaid ? 'good' : 'subtle')}`;
+    $('outcome-badge').textContent = focusIsBad
+      ? (badBlocked ? 'NO_REFUND / no payout' : badPaid ? 'BENEFICIARY PAID' : 'INCONCLUSIVE')
+      : (goodPaid ? 'BENEFICIARY PAID' : 'UNVERIFIED');
+    $('outcome-badge').className = `badge ${focusIsBad ? (badBlocked ? 'bad' : badPaid ? 'good' : 'subtle') : (goodPaid ? 'good' : 'subtle')}`;
     $('outcome-copy').textContent = focusIsBad
-      ? 'The supplied candidate and declared migration clear the stored entitlement before the same existing-user claim. The claim fails with a structured NO_REFUND and there is no contract-to-beneficiary transfer link. The funds stay in the contract; this is an authored local-Sandbox example, not a public incident.'
+      ? (badBlocked
+        ? 'The supplied candidate and declared migration clear the stored entitlement before the same existing-user claim. The claim fails with a structured NO_REFUND and there is no contract-to-beneficiary transfer link. The funds stay in the contract; this is an authored local-Sandbox example, not a public incident.'
+        : badPaid
+          ? 'The supplied candidate preserves the stored entitlement and the same claim succeeds. The contract receipt’s SuccessReceiptId links to a SuccessValue receipt executed by the captured beneficiary. This is a legitimate paid outcome, not a required seeded failure.'
+          : 'The supplied candidate did not produce a classified paid or structured NO_REFUND outcome. Treat it as inconclusive and do not export it as release evidence.')
       : 'The corrected migration preserves the stored entitlement. The same claim succeeds and the contract receipt’s SuccessReceiptId links to a SuccessValue receipt executed by the captured beneficiary. The gross entitlement and net balance are shown separately.';
 
     const before = focus?.entitlement?.beforeMigration;
@@ -178,7 +187,7 @@
     $('outcome-stats').innerHTML = `
       <div class="stat"><span class="stat-label">Refund entitlement before</span><div class="stat-value">${escape(near(before))} NEAR</div></div>
       <div class="stat"><span class="stat-label">After migration</span><div class="stat-value ${focusIsBad && afterMigration === '0' ? 'bad' : 'good'}">${escape(near(afterMigration))} NEAR</div></div>
-      <div class="stat"><span class="stat-label">Claim result</span><div class="stat-value ${focusIsBad ? 'bad' : 'good'}">${focusIsBad ? 'NO_REFUND' : 'PAID'}</div></div>
+      <div class="stat"><span class="stat-label">Claim result</span><div class="stat-value ${focusPaid ? 'good' : focusIsBad && badBlocked ? 'bad' : 'bad'}">${focusPaid ? 'PAID' : focusIsBad && badBlocked ? 'NO_REFUND' : 'INCONCLUSIVE'}</div></div>
       <div class="stat"><span class="stat-label">Beneficiary transfer link</span><div class="stat-value ${link ? 'good' : 'bad'}">${link ? 'linked' : 'not present'}</div></div>`;
     $('outcome-foot').textContent = focusIsBad
       ? `Baseline is ${baseline?.status || 'unknown'}; corrected is ${corrected?.status || 'unknown'}. The bad branch’s balance is marked ${bad?.balances?.status || 'interim'} and is not presented as a final net payout.`
