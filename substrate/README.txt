@@ -1,12 +1,11 @@
-NEAR REHEARSAL: RUNNABLE FIRST PROOF AND BUILD BRIEF
+NEAR REHEARSAL: RUNNABLE FIRST PROOF
 
 Prepared for qdee, 4 November 2026.
 Decision: build NEAR Rehearsal, primary track Open Innovation.
 
 START HERE
 
-BUILD_BRIEF.txt contains the product decision, direct competitor comparison,
-all thirteen track assessments, three-minute demonstration, scope and schedule.
+See the repository README for the current supported workflow.
 RESULTS.txt contains the observed outcomes in plain language.
 report.json and raw/ contain the actual captured local execution evidence.
 
@@ -98,7 +97,6 @@ provenance.json       Upstream source commit, file URLs and SHA-256 values.
 report.json          Captured observations, identities, snapshots and limits.
 raw/                 Complete native transaction outcomes for all four cases.
 RESULTS.txt           Human-readable outcome summary.
-BUILD_BRIEF.txt       Complete recommendation and remaining implementation plan.
 third_party/         Upstream repository license texts.
 
 PROVENANCE
