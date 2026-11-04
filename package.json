@@ -1,0 +1,19 @@
+{
+  "name": "near-rehearsal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bounded NEAR release rehearsal: capture existing contract state, apply a declared migration, compare the same user operation, and export a rerunnable regression.",
+  "scripts": {
+    "setup": "npm ci --ignore-scripts && node scripts/patch-near-sandbox.cjs",
+    "compile": "node scripts/compile-contracts.cjs",
+    "rehearse": "node rehearse.cjs",
+    "replay": "node rehearse.cjs --replay out/capture.json",
+    "verify": "node scripts/verify-report.cjs"
+  },
+  "dependencies": {
+    "near-workspaces": "5.0.0"
+  },
+  "devDependencies": {
+    "wabt": "1.0.36"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "project": "NEAR Rehearsal — bounded first slice",
+  "fixture_contract": "state.test.near",
+  "fixture_kind": "local Sandbox deployment, not a public-chain contract",
+  "source_files": {
+    "baseline": "contracts/state-v1.wat",
+    "seeded_bad_candidate": "contracts/state-v2-buggy.wat",
+    "corrected_candidate": "contracts/state-v2-fixed.wat"
+  },
+  "build": "scripts/compile-contracts.cjs (wabt 1.0.36, no debug names)",
+  "notes": "The bad candidate is deliberately seeded and must never be presented as a discovered live vulnerability. The capture and branch hashes are recorded in out/capture.json and out/report.json."
+}

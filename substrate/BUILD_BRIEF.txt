@@ -1,0 +1,286 @@
+NEAR REHEARSAL: BUILD DECISION
+Prepared for qdee, 4 November 2026
+Working product name: NEAR Rehearsal
+Primary track: Open Innovation
+
+DECISION
+
+GO on a focused contract upgrade rehearsal product. Allocate the remaining
+hackathon build time to it. Do not run a parallel Shadow build.
+
+The product answers: "What happens to existing users when I deploy this
+candidate contract?" It compares supported user operations against an explicit
+pre-upgrade snapshot, applies the declared upgrade/migration procedure, and
+exports a reproducible regression case. The product does not certify safety.
+
+This recommendation is a judgment about finishability, useful output and NEAR
+fit. It is not a measured probability of winning. The final field and judging
+weights are unknown.
+
+WHY THE PROCESS MUST CHANGE
+
+Previous work repeatedly confused three different questions: can a component
+run, does it help someone, and can the complete entry compete? A passed test
+answers the first question. An existing competitor does not automatically
+invalidate a useful product. A patentable invention, committed customers and
+an enduring moat are not prerequisites for finishing a hackathon entry.
+
+Choose one complete workflow and keep its definition stable. Compare against
+the strongest actual alternative before the build, then spend the remaining
+time improving the chosen workflow. Reopen the choice only if the central
+technical or practical premise fails. Do not add a new validation gate after
+each successful experiment. Treat the final three days as product finishing,
+reproduction and submission time.
+
+TARGET USER, TRIGGER AND RESULT
+
+User: the maintainer of a small NEAR contract already holding user state.
+Trigger: a release changes contract code, storage layout or migration logic.
+Result: a paired report showing which declared user operations changed or
+failed, the observable state/balance consequence, and an executable regression
+bundle tied to the exact candidate and starting state.
+
+The strongest direct need evidence is near/mpc issue 3758. Maintainers warned
+that migrating from the wrong deployed version could fail to deserialize live
+state. Their acceptance criteria included archiving the deployed WASM,
+checking its on-chain code hash and running an upgrade sandbox test. The
+issue was closed; it is evidence of maintenance work, not an open vulnerability
+or a customer commitment. NEAR's current upgrade documentation likewise
+explains why existing state requires explicit migration testing.
+
+Sources:
+https://github.com/near/mpc/issues/3758
+https://docs.near.org/smart-contracts/release/upgrade
+
+SHADOW VERDICT
+
+Codex was right to correct an excessively strict novelty standard. An authentic
+worker handover could be a worthwhile implementation. That correction creates
+no new evidence of demand or competitive superiority.
+
+Our allocation decision is NO GO on spending the next two days on Shadow.
+Nevermined already provides payment lookup and paid-result recovery; the draft
+reports a direct successful baseline comparison. Temporal already demonstrates
+killing an agent mid-task and resuming work. Allowance, a current entrant,
+documents an independent agent process, scoped NEAR keys, API payments and key
+revocation. Shadow would need a useful multi-step client deliverable and a
+genuine authority transfer to establish its remaining product proposition.
+
+An honest NEAR funding model also adds work. A NEAR contract can hold an escrow
+and constrain payments to a service merchant. It cannot constrain an external
+Nevermined payer key merely by recording a permission. A merchant could accept
+a NEAR order and buy external compute with its own funds, but then it is trusted
+for delivery and bears settlement/operating responsibilities. That is additional
+scope compared with the existing SQLite coordinator.
+
+Sources:
+https://nevermined.ai/docs/products/catalog/router/ledger
+https://nevermined.ai/docs/products/catalog/paid-results
+https://docs.temporal.io/ai
+https://github.com/soldanoandrea/allowance
+
+PRACTICAL ALTERNATIVE AND CURRENT RIVAL
+
+The strongest baseline is a competent maintainer writing an upgrade test with
+near-workspaces or near-mock. Snapshotting, execution, state import and replay
+already exist. Rehearsal should reuse those capabilities openly.
+
+The closest current hackathon rival is Workcell. Its public implementation
+documentation describes hostile-callback testing, economic invariants, receipt
+graphs, exact WASM binding, replay, shrinking and CI regression exports. Its
+adapter workflow initializes fresh testnet fixtures. The inspected documentation
+does not advertise applying an upgrade and migration to a captured existing
+contract state. We inspected source documentation, not its complete runtime.
+
+Our useful distinction must therefore be the release workflow:
+1. Identify the actual deployed baseline and capture a supported state.
+2. Apply a declared upgrade/migration to that inherited state.
+3. Compare the same meaningful user operations on both branches.
+4. Explain consequences and export a case a maintainer can retain in CI.
+
+A report viewer alone is insufficient. "Contract tests, but prettier" is not
+the intended product. The initial local probe is only an execution foundation;
+it does not yet establish this workflow advantage.
+
+Sources:
+https://github.com/near/near-workspaces-js
+https://docs.near.org/smart-contracts/testing/integration-test
+https://github.com/dotmantissa/workcell
+https://github.com/dotmantissa/workcell/blob/main/docs/ADAPTERS.md
+
+SETUP, TRUST AND SWITCHING COST
+
+Deliver a local CLI and local review UI. A maintainer supplies compiled WASM,
+a supported snapshot or read-only account capture, the migration call and a
+small manifest naming the operations and views to compare. No production key
+or wallet connection is needed. Existing tests and deployment tooling remain
+usable; the exported regression can be added to CI.
+
+Setup costs remain real: installing the runner, obtaining complete state,
+declaring counterparties and selecting meaningful operations. Do not claim
+automatic understanding of arbitrary contracts. The first release supports
+bounded state sizes and explicit dependencies. Local processing avoids sending
+unreleased code to our hosted service.
+
+NEAR ROLE AND THREAT MODEL
+
+The core executes actual NEAR WASM and models NEAR state and asynchronous
+receipts. A later failing receipt does not imply every earlier effect rolled
+back. The tool must inspect final observable outcomes rather than treating one
+transaction status as the entire economic result.
+
+The sandbox is trusted as the execution engine. Pin its version/protocol.
+Snapshot providers and supplied adapters are trusted unless independently
+verified. Hashes bind bytes; they do not prove consensus or complete capture.
+Rehearsal must identify missing dependencies, unsupported actions and incomplete
+state. These conditions cannot become a green release result.
+
+Run uploaded WASM in a resource-limited worker; bind the local server to
+loopback. Never execute an arbitrary uploaded TypeScript adapter in a hosted
+reviewer service. Support declarative manifests and reviewed local adapters.
+
+No mainnet transactions, custody, external signer control, AI security score or
+automatic production deployment are required. A complete pass means only that
+the declared scenarios passed for the pinned inputs and runtime.
+
+DEMONSTRATION: THREE MINUTES
+
+0:00 to 0:25
+Open an existing contract snapshot. Show baseline code hash, captured state,
+candidate hash and the intended upgrade. Show that an ordinary operation works.
+
+0:25 to 1:10
+Press Rehearse. Execute the candidate against the inherited state and run the
+same declared operations against baseline and candidate. The selected regression
+produces a concrete difference, such as a failed refund or a withdrawal broken
+by a migration. Explicitly label an intentionally seeded defect as such.
+
+1:10 to 1:45
+Open the difference. Show the caller, arguments, changed balance/view and failing
+receipt. A useful statement is "This rejected transfer returns 100 tokens on
+the baseline; after the candidate upgrade the sender remains down 100."
+Use actual observed quantities from the selected run.
+
+1:45 to 2:20
+Load the corrected candidate and rerun the exact starting snapshot and operation.
+Show that the selected regression is resolved. Do not imply rolling code back
+automatically recovers money already moved by a previous failing transaction.
+
+2:20 to 3:00
+Export the regression and run it from a clean terminal. Show the pinned inputs,
+result and limitations. The execution is local NEAR sandbox; any public-network
+snapshot is read-only. The scenario, defect and candidate selection are
+operator-controlled. Do not claim autonomous vulnerability discovery.
+
+EXECUTION PLAN
+
+November 4 and 5: Finish the CLI contract. Current-runtime execution; paired
+baseline/candidate runs from preserved state; manifest validation; exact code,
+state and runtime identity; first useful report. The supplied probe is a start.
+
+November 6 and 7: Implement the distinctive existing-state workflow. Capture one
+bounded deployed contract or approved saved snapshot at one block; require an
+explicit dependency manifest; run a real upgrade/migration path. Add a migration
+failure and corrected migration using an independent public example. Reject
+incomplete capture rather than silently initializing a fresh contract.
+
+November 8 and 9: Build the review UI around one user decision. Make operation
+comparison, consequence, receipt detail and exact inputs understandable. Package
+the regression export and a clean CLI rerun. Improve the comparison against the
+handwritten baseline through actual task execution, without blocking on recruiting
+customers.
+
+November 10 and 11: Exercise the full workflow on a second supported example.
+Test candidate mismatch, omitted dependency, invalid migration and runtime
+failure handling. Fix setup friction. Add no new contract family unless needed
+to finish the promised workflow.
+
+November 12 and 13: Freeze features. Reproduce from a fresh checkout. Prepare a
+hosted read-only report/demo and local full runner. Record the three-minute video.
+Document borrowed code, prior work, exact execution limits and the judging steps.
+
+November 14: Final reproduction, public repository and demo post, submission.
+Aim to submit well before 23:59 UTC. Publishing and submission remain explicit
+user actions/approvals; this package has not published or submitted anything.
+
+SCOPE CUTS
+
+No new VM, arbitrary-contract support, automatic complete mainnet history
+replay, whole-network fork, multi-chain support, production keys, automated
+deployment, new token, wallet dashboard, vulnerability score or LLM audit report.
+AI may help author manifests, but actual execution determines reported results.
+
+ALL THIRTEEN TRACKS: OPPORTUNITY JUDGMENT
+
+Unstoppable DeFi: new live trading introduces capital, oracle and keeper risk.
+Investment Thesis: feasible, but near-thesis already covers the earlier core.
+Privacy & Private AI: useful private workflows exist; no specific stronger one
+has been established here, and a new TEE integration adds critical dependencies.
+Autonomous Business: a complete useful sale is essential; a treasury is not
+itself that result.
+AI Swarms: coordination needs an observable benefit; a group-buy simulation is
+already represented by Flock.
+AI Security & Defense: a narrow developer problem is credible; generic spending
+guards and failure workbenches have strong existing entrants.
+Agent Economy: Shadow can be built, but its useful completed handover remains
+unexecuted and its honest funding model needs additional work.
+Real-World Money: familiar workflows are useful; new fiat/off-ramp integrations
+are poor late additions.
+Games With Real Economies: immediately testable, but another new game is a
+quality gamble after the earlier weak loops and given the team's experience.
+NFTs That Do Something: Deed already implements substantive account ownership
+and transfer control, overlapping the earlier Handoff direction.
+Memecoins With Mechanics: needs an expressive participation mechanic; token
+arithmetic alone supplies no demonstrated advantage.
+Social Money: Petty Cash and Patch Fund already cover earlier reimbursement and
+bounty workflows in concrete implementations.
+Open Innovation: selected for a specific native NEAR release tool. This does not
+imply weaker competitors or easier judging.
+
+These are opportunity judgments, not scores or track win probabilities. Current
+directory inspection is bounded and cannot establish the final field.
+
+STRONGEST CASE AGAINST THIS BET
+
+Experienced maintainers already write upgrade tests. Existing engines perform
+the hard execution work, and Workcell has a substantial inspection/replay product.
+If Rehearsal requires the same bespoke harness and manual preparation for each
+supported contract, the claimed workflow benefit may be too small. A polished
+toy report would be an inadequate final entry.
+
+The single observation that would change this recommendation is a representative
+supported upgrade requiring essentially the same custom test harness and state
+preparation as the direct near-workspaces baseline, with no useful reduction in
+release-review work. That is a product observation, not a new customer-recruitment
+gate or an invented success percentage.
+
+HISTORICAL WINNER CONTEXT
+
+NEARCON 2023 rewarded developer tools, including web3-plugin-near in the main
+track. The 2025 Useful Agents event rewarded practical products and required
+evidence of utility. Those records show that a globally unprecedented category
+is not a prerequisite. They do not predict this event's winners or provide
+judging weights for it.
+
+https://www.near.org/blog/meet-the-2023-nearcon-irl-hackathon-winners
+https://near.org/blog/building-useful-agents-sf-hackathon-shows-the-power-of-practical-ai
+
+RULES AND SELECTED COMPARATORS
+
+https://nearhackathon.com/
+https://nearhackathon.com/HACKATHON.md
+https://nearhackathon.com/api/projects
+https://github.com/nearai/near-hackathon-prompt-examples
+https://github.com/soldanoandrea/near-thesis
+https://github.com/aierosite/agent-crash-lab
+https://github.com/ClaudeOpusPremiumAgent/deed
+https://github.com/ClaudeOpusPremiumAgent/flock
+https://github.com/kasbsquall/petty-cash
+https://github.com/emilhuseyn/patch-fund
+
+FINAL ALLOCATION
+
+Invest the remaining build window in NEAR Rehearsal, Open Innovation. Finish
+existing-state upgrade comparison, useful explanation and reproducible export.
+The intended edge is a complete and precise release workflow. No guarantee,
+customer adoption, independent superiority or prize probability is claimed.

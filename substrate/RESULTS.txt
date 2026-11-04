@@ -1,0 +1,40 @@
+OBSERVED LOCAL EXECUTION RESULTS
+Captured: 4 November 2026
+Runtime: official unmodified NEAR Sandbox 1.29.0, protocol 56
+Scope: controlled upstream test fixtures with an explicitly seeded local fault
+
+Initial owner balance: 10,000 token units
+Initial receiver balance: 0 token units
+Total supply: 10,000 token units
+
+Case                                  Owner    Receiver   Final status
+Ordinary accepted transfer             9,900       100      Success
+Receiver rejection, original code     10,000         0      Success
+Receiver rejection, seeded upgrade     9,900       100      Failure
+Receiver rejection, restored code     10,000         0      Success
+
+The baseline rejection contains one failed receipt, but its refund completes.
+The seeded candidate adds a failing refund callback, leaving the earlier token
+movement committed. Both cases must be interpreted using the receipt graph and
+actual balances, not a single success/failure flag.
+
+Every branch passed an ordinary transfer out and back before the selected test.
+Full initialized FT storage was byte-identical across all four branches:
+54d7dadfa2b36cdc3162fdd6e6c7cc30ba632552540aaff016280b45e060ed34
+
+The code-only candidate deployment preserved that storage. The seeded candidate
+is not malformed WASM; it validates structurally and its ordinary transfer
+method works. Its deliberately replaced callback traps when invoked.
+
+All four scenario assertions passed. The report's transaction IDs and final
+statuses were cross-checked against the saved raw native outcomes. Upstream
+fixture SHA-256 hashes match their recorded provenance.
+
+The restored-code branch applies the original code before a NEW test operation.
+It does not recover a previous failed transfer. The two branches demonstrate
+the behavioral regression and its absence with the original code.
+
+No mainnet or public testnet funds were used. No live vulnerability was found.
+The current runtime could not start under this workspace's file-descriptor
+limit; current-protocol execution remains a required follow-up. This artifact
+does not yet implement the proposed complete existing-state release workflow.

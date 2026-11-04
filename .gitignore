@@ -1,0 +1,6 @@
+node_modules/
+out/run.log
+*.log
+.DS_Store
+out/*.log
+.npm/
