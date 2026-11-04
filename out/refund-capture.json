@@ -1,0 +1,41 @@
+{
+  "schema": "near-rehearsal/refund-capture/v1",
+  "label": "Local Sandbox authored funded-refund example",
+  "contract": "refund.test.near",
+  "network": "sandbox",
+  "blockHeight": 9,
+  "blockHash": "8atXdLVfanRJCQhxv2RVugEu75ThQAYHqn3mAuQe668U",
+  "capturedAt": "2026-11-04T15:30:19.502Z",
+  "runtime": {
+    "version": "2.6.2",
+    "build": "2.6.2",
+    "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+    "protocolVersion": 77,
+    "latestProtocolVersion": 77
+  },
+  "accountView": {
+    "amount": "981687329979124904421104",
+    "block_hash": "8atXdLVfanRJCQhxv2RVugEu75ThQAYHqn3mAuQe668U",
+    "block_height": 9,
+    "code_hash": "M9iWHajvM2yhmna75kgZCxq9koaqKJFLXqNgFjfFGYm",
+    "locked": "0",
+    "storage_paid_at": 0,
+    "storage_usage": 1344
+  },
+  "codeBase64": "AGFzbQEAAAABOQpgA35+fgF+YAV+fn5+fgF+YAJ+fgBgAX4BfmABfgBgAn5+AX5gA39/fwF/YAJ+fgF/YAABf2AAAAL9AQsDZW52DHN0b3JhZ2VfcmVhZAAAA2Vudg1zdG9yYWdlX3dyaXRlAAEDZW52DXJlYWRfcmVnaXN0ZXIAAgNlbnYMcmVnaXN0ZXJfbGVuAAMDZW52DHZhbHVlX3JldHVybgACA2VudgpwYW5pY191dGY4AAIDZW52FnByZWRlY2Vzc29yX2FjY291bnRfaWQABANlbnYSY3VycmVudF9hY2NvdW50X2lkAAQDZW52FHByb21pc2VfYmF0Y2hfY3JlYXRlAAUDZW52HXByb21pc2VfYmF0Y2hfYWN0aW9uX3RyYW5zZmVyAAIDZW52DnByb21pc2VfcmV0dXJuAAQDCQgGBwgJAgkJCQUDAQABBzEEBm1lbW9yeQIABGluaXQAEAxjbGFpbV9yZWZ1bmQAEQ5nZXRfcmVmdW5kYWJsZQASCpYECDcBAX9BACEDAkADQCADIAJPDQEgACADai0AACABIANqLQAARwRAQQAPCyADQQFqIQMMAAsLQQELNAECfiAAEAMhAiABEAMhAyACIANSBH9BAAUgAEKABBACIAFCgAUQAkGABEGABSACpxALCwspAQF+QgEQBkIBEAMhACAAQhRSBH9BAAVCAUKABBACQRBBgARBFBALCwshAQF/QgEQBkICEAdCAUICEAwhACAARQRAQglCoAEQBQsLEgBB0AAgADcDAEHYACABNwMAC3AAQgFC6AdCABAAUEUEQEIMQrABEAULEA5BAEIBNwMAQQhCFDcDAEEQQawCKQAANwAAQRhBtAIpAAA3AABBIEG8AigAADYAAEHQAEKAgIC0r6n44wI3AwBB2ABCrSo3AwBCAULoB0LgAEIAQgAQARoLpAEBBX5CAULoB0IAEAAaQgAQAyEAIABC4ABSBEBCCUKgARAFC0IAQgAQAkEAKQMAQgFSBEBCCUKgARAFCxANRQRAQghCkAEQBQtB0AApAwAhAUHYACkDACECIAFQIAJQcQRAQglCgAEQBQtCARAGQgEQAyEDQgFCgAQQAiADQoAEEAghBCAEQtAAEAlCAEIAEA9CAULoB0LgAEIAQgAQARogBBAKCzEBAX5CAULoB0IAEAAaQgAQAyEAIABC4ABSBEBCCUKgARAFC0IAQgAQAkIQQtAAEAQLC2AGAEHoBwsBcgBBgAELCU5PX1JFRlVORABBkAELCE9VVFNJREVSAEGgAQsJTUlHUkFUSU9OAEGwAQsMQUxSRUFEWV9JTklUAEGsAgsUcmVmdW5kdXNlci50ZXN0Lm5lYXI=",
+  "codeHash": "M9iWHajvM2yhmna75kgZCxq9koaqKJFLXqNgFjfFGYm",
+  "codeSha256": "a127983916b576164e9305ea9e06850089d7e3f235c8ecffcf907343a8ab6455",
+  "stateHash": "9d19a407e2b0b9283ccdd0084fd51f598eafc05c887dfd7a90a2293e88018e62",
+  "stateItems": [
+    {
+      "key": "cg==",
+      "value": "AQAAAAAAAAAUAAAAAAAAAHJlZnVuZHVzZXIudGVzdC5uZWFyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAID2SuHHAi0VAAAAAAAA"
+    }
+  ],
+  "stateBytes": 96,
+  "entitlement": "100000000000000000000000",
+  "beneficiary": "refunduser.test.near",
+  "fundedNear": "1",
+  "grossEntitlementNear": "0.1",
+  "claimBoundary": "Local Sandbox only. Authored seeded migration example; not a public-chain capture, upgrade authorization, or production custody claim."
+}

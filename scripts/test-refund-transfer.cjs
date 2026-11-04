@@ -66,10 +66,21 @@ function balanceOf(view) {
 
     const user = await worker.rootAccount.createSubAccount('refunduser', {initialBalance: parseNEAR('10')});
     const userBefore = await waitForAccount(worker, user.accountId);
-    const contractBefore = await waitForAccount(worker, contract.accountId);
+    const outsider = await worker.rootAccount.createSubAccount('outsider', {initialBalance: parseNEAR('10')});
+    await waitForAccount(worker, outsider.accountId);
 
     const entitlementBefore = amountOf(await worker.provider.viewCall(contract.accountId, 'get_refundable', {}, {finality: 'final'}));
     assert.equal(entitlementBefore, REFUND, 'initial entitlement must be 0.10 NEAR');
+
+    const secondInit = await contract.callRaw(contract, 'init', {}, {gas: GAS});
+    assert.equal(secondInit.failed, true, 'second init must fail');
+    assert.match(JSON.stringify(secondInit.receiptFailureMessages), /ALREADY_INIT/);
+    assert.equal(amountOf(await worker.provider.viewCall(contract.accountId, 'get_refundable', {}, {finality: 'final'})), REFUND, 'second init must preserve the entitlement');
+    const outsiderTx = await outsider.callRaw(contract, 'claim_refund', {}, {gas: GAS});
+    assert.equal(outsiderTx.failed, true, 'outsider claim must fail');
+    assert.match(JSON.stringify(outsiderTx.receiptFailureMessages), /OUTSIDER/);
+    assert.equal(amountOf(await worker.provider.viewCall(contract.accountId, 'get_refundable', {}, {finality: 'final'})), REFUND, 'outsider claim must preserve the entitlement');
+    assert.equal(balanceOf(await waitForAccount(worker, user.accountId)), balanceOf(userBefore), 'outsider claim must not change the beneficiary balance');
 
     const tx = await user.callRaw(contract, 'claim_refund', {}, {gas: GAS});
     assert.equal(tx.succeeded, true, 'claim transaction must succeed');
@@ -84,13 +95,19 @@ function balanceOf(view) {
     }
     assert.equal(entitlementAfter, 0n, 'claim must clear the entitlement');
 
-    const contractAfter = await waitForBalance(worker, contract.accountId, (balance) => balance < balanceOf(contractBefore));
+    const contractAfter = await waitForBalance(worker, contract.accountId, (balance) => balance < BigInt(parseNEAR('1')));
     const userAfter = await waitForBalance(worker, user.accountId, (balance) => balance > balanceOf(userBefore));
     const userDelta = balanceOf(userAfter) - balanceOf(userBefore);
-    const contractDelta = balanceOf(contractAfter) - balanceOf(contractBefore);
+    const contractDelta = balanceOf(contractAfter) - BigInt(parseNEAR('1'));
     assert.ok(userDelta > 0n, 'user balance must increase after the refund transfer');
-    assert.ok(contractDelta < 0n, 'contract balance must decrease after the refund transfer');
+    assert.ok(contractDelta < 0n, 'contract balance must be below its 1.00 NEAR funding after the claim');
     assert.ok(userDelta < REFUND, 'net user increase must be below the gross refund after signer gas');
+
+    const secondClaim = await user.callRaw(contract, 'claim_refund', {}, {gas: GAS});
+    assert.equal(secondClaim.failed, true, 'second claim must fail');
+    assert.match(JSON.stringify(secondClaim.receiptFailureMessages), /NO_REFUND/);
+    assert.equal(amountOf(await worker.provider.viewCall(contract.accountId, 'get_refundable', {}, {finality: 'final'})), 0n, 'second claim must preserve zero entitlement');
+    assert.equal(secondClaim.receipts_outcomes.some((receipt) => receipt.succeeded), false, 'second claim must not produce a successful transfer receipt');
 
     const receiptStatuses = tx.result.receipts_outcome.map((r) => ({
       id: r.id,
@@ -112,7 +129,7 @@ function balanceOf(view) {
       transactionHash,
       entitlement: {before: entitlementBefore.toString(), after: entitlementAfter.toString()},
       balances: {
-        contract: {before: balanceOf(contractBefore).toString(), after: balanceOf(contractAfter).toString(), delta: contractDelta.toString()},
+        contract: {funded: parseNEAR('1'), after: balanceOf(contractAfter).toString(), deltaFromFunding: contractDelta.toString()},
         user: {before: balanceOf(userBefore).toString(), after: balanceOf(userAfter).toString(), delta: userDelta.toString()},
       },
       receiptStatuses,
