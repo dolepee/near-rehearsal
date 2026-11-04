@@ -157,9 +157,6 @@ function startRun(input) {
   };
 
   const env = {...process.env};
-  const wrapper = '/workspace/tools/near-sandbox-wrapper';
-  if (!env.NEAR_SANDBOX_BIN_PATH && fs.existsSync(wrapper)) env.NEAR_SANDBOX_BIN_PATH = wrapper;
-  if (!env.NEAR_SANDBOX_BINARY_PATH && fs.existsSync(wrapper)) env.NEAR_SANDBOX_BINARY_PATH = wrapper;
 
   const quote = (value) => `'${String(value).replace(/'/g, `'\\''`)}'`;
   const command = `ulimit -n 65535 2>/dev/null || true; exec ${quote(process.execPath)} ${quote(path.join(ROOT, 'scripts/refund-three-way.cjs'))} --case ${quote(run.casePath)} --report ${quote(run.reportPath)}`;

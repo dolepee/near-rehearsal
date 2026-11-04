@@ -12,13 +12,7 @@ PORT=4173 npm run ui
 
 Open `http://127.0.0.1:4173`.
 
-On the arm64 development host, set the sandbox wrapper before launch if it is not already in the shell:
-
-```sh
-export NEAR_SANDBOX_BIN_PATH=/workspace/tools/near-sandbox-wrapper
-export NEAR_SANDBOX_BINARY_PATH=/workspace/tools/near-sandbox-wrapper
-PORT=4173 npm run ui
-```
+The supported clean-checkout runtime setup is in the repository [README](../README.md). Export `NEAR_SANDBOX_BIN_PATH` and `NEAR_SANDBOX_BINARY_PATH` to the directory containing the official `near-sandbox` binary before launch. Do not use a host-specific wrapper path.
 
 The server starts `scripts/refund-three-way.cjs` for each Rehearse click. Rehearsing writes a fresh `out/refund-report.json`; the UI only displays the report produced by that run. After a validated complete run, **Export verified replay** writes a hashed bundle under `out/exports/` through the verifier-backed export script.
 
