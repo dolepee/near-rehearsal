@@ -1,8 +1,8 @@
 {
   "schema": "near-rehearsal/refund-report/v1",
   "case": "refund-v1",
-  "label": "Funded refund claim — authored local Sandbox example / refund-v2-fixed.wasm",
-  "generatedAt": "2026-11-04T17:26:43.336Z",
+  "label": "Funded refund claim — authored local Sandbox example",
+  "generatedAt": "2026-11-04T18:56:51.303Z",
   "boundary": "Local Sandbox only. Authored seeded migration example; not a public-chain capture, upgrade authorization, or production custody claim.",
   "capture": {
     "contract": "refund.test.near",
@@ -55,7 +55,7 @@
       },
       "migration": null,
       "claim": {
-        "transactionHash": "8QTK8YzzKyeBz7cNZ7esdFx4VzoZpHPm1JEMoy5TarWM",
+        "transactionHash": "2EMLXPqcMgqtUJasKmAmHSVTUUq34o6dWe5pUcc31Snc",
         "succeeded": true,
         "failed": false,
         "status": {
@@ -66,17 +66,17 @@
         "receiptFailures": [],
         "receipts": [
           {
-            "id": "GcVvT7ZjCjva1BBxqyfzguKs1qViJeSV6ozBWh5HBY28",
+            "id": "DWyPww1ZQAnoTQ2FAb5VVhDHPMypoBDjSDfdArY9hsv7",
             "executorId": "refund.test.near",
             "status": {
-              "SuccessReceiptId": "8Hh8uoXQa15VZLk5Q6JEpt7oV8GHcZ2f7sB8hcioSAFx"
+              "SuccessReceiptId": "1SXHCwjqQGnbbDYTv9sXcR6g1t5HinWLiGwBrb8pQnw"
             },
             "gasBurnt": 1345900264594,
             "tokensBurnt": "134590026459400000000",
             "logs": []
           },
           {
-            "id": "8Hh8uoXQa15VZLk5Q6JEpt7oV8GHcZ2f7sB8hcioSAFx",
+            "id": "1SXHCwjqQGnbbDYTv9sXcR6g1t5HinWLiGwBrb8pQnw",
             "executorId": "refunduser.test.near",
             "status": {
               "SuccessValue": ""
@@ -86,7 +86,7 @@
             "logs": []
           },
           {
-            "id": "A4RhwNgzn9FpXd5qL9DVWESRfaFFXHPVttGMfFDhJ6SJ",
+            "id": "4of9A6v6bVxLitJTfdNqk7y5cubTcCQQRAj1Gvq4gR35",
             "executorId": "refunduser.test.near",
             "status": {
               "SuccessValue": ""
@@ -95,6 +95,14 @@
             "tokensBurnt": "0",
             "logs": []
           }
+        ],
+        "transfers": [
+          {
+            "receiptId": "1SXHCwjqQGnbbDYTv9sXcR6g1t5HinWLiGwBrb8pQnw",
+            "predecessorId": "refund.test.near",
+            "receiverId": "refunduser.test.near",
+            "amount": "100000000000000000000000"
+          }
         ]
       },
       "transfer": {
@@ -102,8 +110,8 @@
         "linked": true,
         "links": [
           {
-            "contractReceiptId": "GcVvT7ZjCjva1BBxqyfzguKs1qViJeSV6ozBWh5HBY28",
-            "beneficiaryReceiptId": "8Hh8uoXQa15VZLk5Q6JEpt7oV8GHcZ2f7sB8hcioSAFx",
+            "contractReceiptId": "DWyPww1ZQAnoTQ2FAb5VVhDHPMypoBDjSDfdArY9hsv7",
+            "beneficiaryReceiptId": "1SXHCwjqQGnbbDYTv9sXcR6g1t5HinWLiGwBrb8pQnw",
             "beneficiaryExecutorId": "refunduser.test.near",
             "beneficiaryStatus": {
               "SuccessValue": ""
@@ -111,7 +119,18 @@
             "gasBurnt": 223182562500,
             "tokensBurnt": "22318256250000000000"
           }
-        ]
+        ],
+        "transfers": [
+          {
+            "receiptId": "1SXHCwjqQGnbbDYTv9sXcR6g1t5HinWLiGwBrb8pQnw",
+            "predecessorId": "refund.test.near",
+            "receiverId": "refunduser.test.near",
+            "amount": "100000000000000000000000"
+          }
+        ],
+        "amount": "100000000000000000000000",
+        "obligation": "100000000000000000000000",
+        "amountMatches": true
       },
       "controls": {
         "outsiderDenied": true,
@@ -143,10 +162,10 @@
       "outcome": "paid"
     },
     "bad": {
-      "branch": "supplied-candidate",
-      "candidateLabel": "refund-v2-fixed.wasm",
+      "branch": "half-payout-regression",
+      "candidateLabel": "Half-payout regression — transfers 0.05 NEAR against a 0.10 entitlement",
       "expected": "candidate",
-      "status": "completed",
+      "status": "amount-regression",
       "runtime": {
         "version": "2.6.2",
         "build": "2.6.2",
@@ -161,7 +180,7 @@
         "matches": true
       },
       "migration": {
-        "transactionHash": "41mY7SuS7paLtjeZQNa5n2kkrNjG2HYutvUAvzAjW1ip",
+        "transactionHash": "6MDHbSbz5rvhAtdK4jzqqf2sSbGQd3AybbweTqBNdaK3",
         "succeeded": true,
         "failed": false,
         "status": {
@@ -172,13 +191,13 @@
         "receiptFailures": [],
         "receipts": [
           {
-            "id": "6xkzhbdpoNorqvbPsb8Z8mKTwvaiuRyWMJD4bv4kaYQb",
+            "id": "3eHyrsgrNLwyzAZFNVZeyhLSBHnaKPcgdsEtYuNL7atv",
             "executorId": "refund.test.near",
             "status": {
               "SuccessValue": ""
             },
-            "gasBurnt": 1107025765392,
-            "tokensBurnt": "110702576539200000000",
+            "gasBurnt": 1107054087062,
+            "tokensBurnt": "110705408706200000000",
             "logs": []
           }
         ],
@@ -187,7 +206,7 @@
         "changedState": true
       },
       "claim": {
-        "transactionHash": "Aje2MjZgVTZzoUAzSrj6jpEVm8scWrzLsCMYY3qudouK",
+        "transactionHash": "2hV66YyJHAKN74QnKnDFpx69oaciptojLUErNX2YYJ64",
         "succeeded": true,
         "failed": false,
         "status": {
@@ -198,17 +217,17 @@
         "receiptFailures": [],
         "receipts": [
           {
-            "id": "CHPc1wHaAGuCSWuUgVVatups6z713fBRKKHPiJx9eELu",
+            "id": "Gwo1bnoBF7MbpXLtmeACFgBRVfd7QH9FhmQnDfPUznZW",
             "executorId": "refund.test.near",
             "status": {
-              "SuccessReceiptId": "B79beJoFzY2VMBLMWqaTfynF4Cbx57Eg2dweRcCP3NhR"
+              "SuccessReceiptId": "7g5sP3Xyv8TTLYM15arAdoRxoXiEXEutmfSoSMgVa5ZK"
             },
-            "gasBurnt": 1346009194094,
-            "tokensBurnt": "134600919409400000000",
+            "gasBurnt": 1346042452300,
+            "tokensBurnt": "134604245230000000000",
             "logs": []
           },
           {
-            "id": "B79beJoFzY2VMBLMWqaTfynF4Cbx57Eg2dweRcCP3NhR",
+            "id": "7g5sP3Xyv8TTLYM15arAdoRxoXiEXEutmfSoSMgVa5ZK",
             "executorId": "refunduser.test.near",
             "status": {
               "SuccessValue": ""
@@ -218,7 +237,7 @@
             "logs": []
           },
           {
-            "id": "6F3qCLfp9qpkZRcfR1y2p1NWbKEHKMZzLVh71mzbq1Ta",
+            "id": "5pVpBAXquWhaNHe7H5NoEkHb3NTzFnUhLZA2creG111S",
             "executorId": "refunduser.test.near",
             "status": {
               "SuccessValue": ""
@@ -227,6 +246,14 @@
             "tokensBurnt": "0",
             "logs": []
           }
+        ],
+        "transfers": [
+          {
+            "receiptId": "7g5sP3Xyv8TTLYM15arAdoRxoXiEXEutmfSoSMgVa5ZK",
+            "predecessorId": "refund.test.near",
+            "receiverId": "refunduser.test.near",
+            "amount": "50000000000000000000000"
+          }
         ]
       },
       "transfer": {
@@ -234,8 +261,8 @@
         "linked": true,
         "links": [
           {
-            "contractReceiptId": "CHPc1wHaAGuCSWuUgVVatups6z713fBRKKHPiJx9eELu",
-            "beneficiaryReceiptId": "B79beJoFzY2VMBLMWqaTfynF4Cbx57Eg2dweRcCP3NhR",
+            "contractReceiptId": "Gwo1bnoBF7MbpXLtmeACFgBRVfd7QH9FhmQnDfPUznZW",
+            "beneficiaryReceiptId": "7g5sP3Xyv8TTLYM15arAdoRxoXiEXEutmfSoSMgVa5ZK",
             "beneficiaryExecutorId": "refunduser.test.near",
             "beneficiaryStatus": {
               "SuccessValue": ""
@@ -243,7 +270,18 @@
             "gasBurnt": 223182562500,
             "tokensBurnt": "22318256250000000000"
           }
-        ]
+        ],
+        "transfers": [
+          {
+            "receiptId": "7g5sP3Xyv8TTLYM15arAdoRxoXiEXEutmfSoSMgVa5ZK",
+            "predecessorId": "refund.test.near",
+            "receiverId": "refunduser.test.near",
+            "amount": "50000000000000000000000"
+          }
+        ],
+        "amount": "50000000000000000000000",
+        "obligation": "100000000000000000000000",
+        "amountMatches": false
       },
       "controls": {
         "outsiderDenied": true,
@@ -259,20 +297,20 @@
         "status": "final",
         "contract": {
           "initial": "981687329979124904421104",
-          "beforeClaim": "981490665895801204421104",
-          "after": "881504403447531704421104",
-          "delta": "-99986262448269500000000"
+          "beforeClaim": "981490480009132704421104",
+          "after": "931504218558609404421104",
+          "delta": "-49986261450523300000000"
         },
         "user": {
           "initial": "10000000000000000000000000",
-          "beforeClaim": "9999872324210170600000000",
-          "after": "10099665332052423273875000",
-          "delta": "99793007842252673875000"
+          "beforeClaim": "9999872321378003600000000",
+          "after": "10049665325894435673875000",
+          "delta": "49793004516432073875000"
         }
       },
-      "error": null,
+      "error": "paid 50000000000000000000000 yocto, inherited obligation 100000000000000000000000 yocto",
       "beneficiary": "refunduser.test.near",
-      "outcome": "paid"
+      "outcome": "amount-regression"
     },
     "corrected": {
       "branch": "corrected-v2",
@@ -293,7 +331,7 @@
         "matches": true
       },
       "migration": {
-        "transactionHash": "9zBuZZE6FzBJnYvmvgQ4AxJpkiBgvGewBEwPPByasnQ4",
+        "transactionHash": "8DqN7W5NTEgWZgYXSD1UA6A4kgoCQDGNesHY3ovDNqHC",
         "succeeded": true,
         "failed": false,
         "status": {
@@ -304,7 +342,7 @@
         "receiptFailures": [],
         "receipts": [
           {
-            "id": "4HHSDmHFKK2kqKwxdkzSCpaUUiXMZxBpGMprDYttayCA",
+            "id": "4NgoaEddxW697CkMnpmP1uEi5TxfWtmnRCABAqmsubLU",
             "executorId": "refund.test.near",
             "status": {
               "SuccessValue": ""
@@ -319,7 +357,7 @@
         "changedState": true
       },
       "claim": {
-        "transactionHash": "6TJBnhitgAGgV3i8uZZ8Dw836vxz6KYMp5SCdm3PHdHc",
+        "transactionHash": "85hSgLt8zjjch4zQuwzvjttxbWRSWwkurV8uxQbD2tUh",
         "succeeded": true,
         "failed": false,
         "status": {
@@ -330,17 +368,17 @@
         "receiptFailures": [],
         "receipts": [
           {
-            "id": "2hwSoGsC3fFiPVjdHzUZ1D1ogEr4RQqCbr1vVU6uvYQF",
+            "id": "cF3c3JWY4jmvN7XfigANhsMMeeJiYsP7yTGY5Pk4T9A",
             "executorId": "refund.test.near",
             "status": {
-              "SuccessReceiptId": "BVtqxcmHyUYHWzJf3QbDSuEmkfZdMmvt922KjYLr44cT"
+              "SuccessReceiptId": "AM1LScV65WdiLZRDgZb9V79sDabskgBM7bTkStyZW7Xt"
             },
             "gasBurnt": 1346009194094,
             "tokensBurnt": "134600919409400000000",
             "logs": []
           },
           {
-            "id": "BVtqxcmHyUYHWzJf3QbDSuEmkfZdMmvt922KjYLr44cT",
+            "id": "AM1LScV65WdiLZRDgZb9V79sDabskgBM7bTkStyZW7Xt",
             "executorId": "refunduser.test.near",
             "status": {
               "SuccessValue": ""
@@ -350,7 +388,7 @@
             "logs": []
           },
           {
-            "id": "8M54ppUq6oh6CjCWqpB3YkVrY8KU2PmMBr16CHY2rpzB",
+            "id": "Fb8V7mhushZbBiTTmiFH6FRG6LhbwQbHXbMT3PvskFpP",
             "executorId": "refunduser.test.near",
             "status": {
               "SuccessValue": ""
@@ -359,6 +397,14 @@
             "tokensBurnt": "0",
             "logs": []
           }
+        ],
+        "transfers": [
+          {
+            "receiptId": "AM1LScV65WdiLZRDgZb9V79sDabskgBM7bTkStyZW7Xt",
+            "predecessorId": "refund.test.near",
+            "receiverId": "refunduser.test.near",
+            "amount": "100000000000000000000000"
+          }
         ]
       },
       "transfer": {
@@ -366,8 +412,8 @@
         "linked": true,
         "links": [
           {
-            "contractReceiptId": "2hwSoGsC3fFiPVjdHzUZ1D1ogEr4RQqCbr1vVU6uvYQF",
-            "beneficiaryReceiptId": "BVtqxcmHyUYHWzJf3QbDSuEmkfZdMmvt922KjYLr44cT",
+            "contractReceiptId": "cF3c3JWY4jmvN7XfigANhsMMeeJiYsP7yTGY5Pk4T9A",
+            "beneficiaryReceiptId": "AM1LScV65WdiLZRDgZb9V79sDabskgBM7bTkStyZW7Xt",
             "beneficiaryExecutorId": "refunduser.test.near",
             "beneficiaryStatus": {
               "SuccessValue": ""
@@ -375,7 +421,18 @@
             "gasBurnt": 223182562500,
             "tokensBurnt": "22318256250000000000"
           }
-        ]
+        ],
+        "transfers": [
+          {
+            "receiptId": "AM1LScV65WdiLZRDgZb9V79sDabskgBM7bTkStyZW7Xt",
+            "predecessorId": "refund.test.near",
+            "receiverId": "refunduser.test.near",
+            "amount": "100000000000000000000000"
+          }
+        ],
+        "amount": "100000000000000000000000",
+        "obligation": "100000000000000000000000",
+        "amountMatches": true
       },
       "controls": {
         "outsiderDenied": true,
@@ -408,7 +465,7 @@
     }
   },
   "result": {
-    "status": "complete",
+    "status": "incomplete",
     "expected": {
       "baseline": "success",
       "bad": "candidate",
@@ -417,9 +474,9 @@
     "sameStartingState": true,
     "controls": true,
     "badFailureIsStructured": false,
-    "candidateOutcome": "paid",
+    "candidateOutcome": "amount-regression",
     "candidateClassified": true,
-    "claimTransferToBeneficiary": true,
+    "claimTransferToBeneficiary": false,
     "runtimePinned": true
   }
 }

@@ -156,6 +156,41 @@
     i64.const 1 i64.const 1000 i64.const 96 i64.const 0 i64.const 0
     call $storage_write
     drop)
+  (func (export "migrate")
+    (local $len i64)
+    (local $version i64)
+    i64.const 1 i64.const 1000 i64.const 0
+    call $storage_read
+    drop
+    i64.const 0
+    call $register_len
+    local.set $len
+    local.get $len
+    i64.const 96
+    i64.ne
+    if
+      i64.const 9 i64.const 160
+      call $panic_utf8
+    end
+    call $requireSelf
+    i64.const 0 i64.const 0
+    call $read_register
+    i32.const 0
+    i64.load align=8
+    local.set $version
+    local.get $version
+    i64.const 1
+    i64.ne
+    if
+      i64.const 9 i64.const 160
+      call $panic_utf8
+    end
+    i32.const 0
+    i64.const 2
+    i64.store align=8
+    i64.const 1 i64.const 1000 i64.const 96 i64.const 0 i64.const 0
+    call $storage_write
+    drop)
   (func (export "claim_refund")
     (local $len i64)
     (local $amount_lo i64)
@@ -179,7 +214,7 @@
     call $read_register
     i32.const 0
     i64.load align=8
-    i64.const 1
+    i64.const 2
     i64.ne
     if
       i64.const 9 i64.const 160
@@ -219,6 +254,13 @@
     call $promise_batch_create
     local.set $promise
     local.get $promise
+    ;; half-payout regression fixture: 0.05 NEAR instead of the inherited 0.10 entitlement
+    i32.const 80
+    i64.const 0x8163f0a57b400000
+    i64.store
+    i32.const 88
+    i64.const 0x0a96
+    i64.store
     i64.const 80
     call $promise_batch_action_transfer
     i64.const 0

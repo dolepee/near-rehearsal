@@ -27,6 +27,7 @@
     if (!branch) return ['Unknown', ''];
     if (branch.status === 'completed') return ['Payout', 'good'];
     if (branch.status === 'expected-failure') return ['No payout', 'bad'];
+    if (branch.status === 'amount-regression') return ['Underpaid', 'bad'];
     if (branch.status === 'inconclusive') return ['Inconclusive', 'bad'];
     return ['Error', 'bad'];
   };
@@ -121,7 +122,10 @@
 
   function branchSummary(branch, name, isFocus, isDetail, candidateLabel) {
     const [status, tone] = branchStatus(branch);
-    const transfer = branch?.transfer?.linked ? 'beneficiary link' : 'no link';
+    const transferAmount = branch?.transfer?.amount;
+    const transfer = branch?.transfer?.linked
+      ? `beneficiary link${transferAmount === null || transferAmount === undefined ? ' · amount unverified' : ` · ${near(transferAmount)} NEAR${branch.transfer.amountMatches ? ' / matches obligation' : ` / expected ${near(branch.transfer.obligation)}`}`}`
+      : 'no link';
     const before = branch?.entitlement?.beforeMigration;
     const afterMigration = branch?.entitlement?.afterMigration;
     const afterClaim = branch?.entitlement?.afterClaim;
@@ -162,36 +166,43 @@
       : 'Run incomplete. This is not release evidence; inspect the failed gate and raw report below.';
 
     const badBlocked = bad?.status === 'expected-failure' && bad?.transfer?.linked === false;
-    const badPaid = bad?.status === 'completed' && bad?.transfer?.linked === true;
-    const goodPaid = corrected?.status === 'completed' && corrected?.transfer?.linked === true;
+    const badAmountRegression = bad?.status === 'amount-regression';
+    const badPaid = bad?.status === 'completed' && bad?.transfer?.linked === true && bad?.transfer?.amountMatches === true;
+    const goodPaid = corrected?.status === 'completed' && corrected?.transfer?.linked === true && corrected?.transfer?.amountMatches === true;
     const focusIsBad = focusName === 'bad';
     const focusPaid = focusIsBad ? badPaid : goodPaid;
     $('outcome-title').textContent = focusIsBad
-      ? (badBlocked ? 'The supplied candidate removes the existing user’s refund.' : badPaid ? 'The supplied candidate preserves the existing user’s refund.' : 'The supplied candidate is inconclusive.')
+      ? (badBlocked ? 'The supplied candidate removes the existing user’s refund.' : badAmountRegression ? 'The supplied candidate pays less than the existing user’s refund.' : badPaid ? 'The supplied candidate preserves the existing user’s refund.' : 'The supplied candidate is inconclusive.')
       : (goodPaid ? 'The correction restores the existing user’s refund.' : 'The corrected result is not a verified payout.');
     $('outcome-badge').textContent = focusIsBad
-      ? (badBlocked ? 'NO_REFUND / no payout' : badPaid ? 'BENEFICIARY PAID' : 'INCONCLUSIVE')
+      ? (badBlocked ? 'NO_REFUND / no payout' : badAmountRegression ? 'AMOUNT REGRESSION' : badPaid ? 'BENEFICIARY PAID' : 'INCONCLUSIVE')
       : (goodPaid ? 'BENEFICIARY PAID' : 'UNVERIFIED');
-    $('outcome-badge').className = `badge ${focusIsBad ? (badBlocked ? 'bad' : badPaid ? 'good' : 'subtle') : (goodPaid ? 'good' : 'subtle')}`;
+    $('outcome-badge').className = `badge ${focusIsBad ? (badBlocked || badAmountRegression ? 'bad' : badPaid ? 'good' : 'subtle') : (goodPaid ? 'good' : 'subtle')}`;
     $('outcome-copy').textContent = focusIsBad
       ? (badBlocked
         ? 'The supplied candidate and declared migration clear the stored entitlement before the same existing-user claim. The claim fails with a structured NO_REFUND and there is no contract-to-beneficiary transfer link. The funds stay in the contract; this is an authored local-Sandbox example, not a public incident.'
-        : badPaid
-          ? 'The supplied candidate preserves the stored entitlement and the same claim succeeds. The contract receipt’s SuccessReceiptId links to a SuccessValue receipt executed by the captured beneficiary. This is a legitimate paid outcome, not a required seeded failure.'
-          : 'The supplied candidate did not produce a classified paid or structured NO_REFUND outcome. Treat it as inconclusive and do not export it as release evidence.')
+        : badAmountRegression
+          ? `The claim succeeded and the contract receipt links to the captured beneficiary, but the contract transferred ${near(bad?.transfer?.amount)} NEAR instead of the inherited ${near(bad?.transfer?.obligation)} NEAR entitlement. This is an amount regression, not preservation; it is not exportable as release evidence.`
+          : badPaid
+            ? 'The supplied candidate preserves the stored entitlement and the same claim succeeds. The contract receipt’s SuccessReceiptId links to a SuccessValue receipt executed by the captured beneficiary, and the exact gross transfer equals the inherited entitlement. This is a legitimate paid outcome, not a required seeded failure.'
+            : 'The supplied candidate did not produce a classified paid or structured NO_REFUND outcome. Treat it as inconclusive and do not export it as release evidence.')
       : 'The corrected migration preserves the stored entitlement. The same claim succeeds and the contract receipt’s SuccessReceiptId links to a SuccessValue receipt executed by the captured beneficiary. The gross entitlement and net balance are shown separately.';
 
     const before = focus?.entitlement?.beforeMigration;
     const afterMigration = focus?.entitlement?.afterMigration;
     const afterClaim = focus?.entitlement?.afterClaim;
     const link = focus?.transfer?.linked === true;
+    const amount = focus?.transfer?.amount;
+    const amountMatches = focus?.transfer?.amountMatches === true;
+    const claimLabel = focusPaid ? 'PAID' : focusIsBad && badBlocked ? 'NO_REFUND' : badAmountRegression ? 'UNDERPAID' : 'INCONCLUSIVE';
     $('outcome-stats').innerHTML = `
       <div class="stat"><span class="stat-label">Refund entitlement before</span><div class="stat-value">${escape(near(before))} NEAR</div></div>
       <div class="stat"><span class="stat-label">After migration</span><div class="stat-value ${focusIsBad && afterMigration === '0' ? 'bad' : 'good'}">${escape(near(afterMigration))} NEAR</div></div>
-      <div class="stat"><span class="stat-label">Claim result</span><div class="stat-value ${focusPaid ? 'good' : focusIsBad && badBlocked ? 'bad' : 'bad'}">${focusPaid ? 'PAID' : focusIsBad && badBlocked ? 'NO_REFUND' : 'INCONCLUSIVE'}</div></div>
-      <div class="stat"><span class="stat-label">Beneficiary transfer link</span><div class="stat-value ${link ? 'good' : 'bad'}">${link ? 'linked' : 'not present'}</div></div>`;
+      <div class="stat"><span class="stat-label">Claim result</span><div class="stat-value ${focusPaid ? 'good' : 'bad'}">${claimLabel}</div></div>
+      <div class="stat"><span class="stat-label">Beneficiary transfer link</span><div class="stat-value ${link ? 'good' : 'bad'}">${link ? 'linked' : 'not present'}</div></div>
+      <div class="stat"><span class="stat-label">Gross transfer / obligation</span><div class="stat-value ${amountMatches ? 'good' : 'bad'}">${amount === null || amount === undefined ? 'unverified' : `${escape(near(amount))} / ${escape(near(focus?.transfer?.obligation))} NEAR`}</div></div>`;
     $('outcome-foot').textContent = focusIsBad
-      ? `Baseline is ${baseline?.status || 'unknown'}; corrected is ${corrected?.status || 'unknown'}. The bad branch’s balance is marked ${bad?.balances?.status || 'interim'} and is not presented as a final net payout.`
+      ? `Baseline is ${baseline?.status || 'unknown'}; corrected is ${corrected?.status || 'unknown'}. The bad branch’s balance is marked ${bad?.balances?.status || 'interim'} and is not presented as a final net payout.${badAmountRegression ? ' The paid amount is a regression against the inherited obligation.' : ''}`
       : `Baseline is ${baseline?.status || 'unknown'}; bad is ${bad?.status || 'unknown'} with ${bad?.transfer?.linked ? 'an unexpected link' : 'no beneficiary link'}.`;
 
     $('branch-grid').innerHTML = ['baseline', 'bad', 'corrected'].map((name) => {
@@ -265,14 +276,15 @@
     panel.innerHTML = `
       <div class="receipt">
         <div class="receipt-top"><div class="receipt-title">Claim transaction ${escape(short(branch.claim?.transactionHash, 18))}</div><div class="receipt-status ${branch.claim?.failed ? 'fail' : 'ok'}">${branch.claim?.failed ? 'failed' : branch.claim?.succeeded ? 'succeeded' : 'unknown'}</div></div>
-        <div class="receipt-note">${branch.claim?.failed ? escape((branch.claim.receiptFailures || []).join(' ')) : 'Transaction succeeded. Payout acceptance below requires the contract SuccessReceiptId link.'}</div>
+        <div class="receipt-note">${branch.claim?.failed ? escape((branch.claim.receiptFailures || []).join(' ')) : 'Transaction succeeded. Payout acceptance below requires the contract SuccessReceiptId link and an exact gross transfer equal to the inherited obligation.'}</div>
         <div class="receipt-grid">
           <div><span>Beneficiary</span><code>${escape(branch.beneficiary || branch.transfer?.beneficiary || '—')}</code></div>
           <div><span>Payout link</span><code>${link ? 'contract → beneficiary' : 'not present'}</code></div>
+          <div><span>Gross amount / obligation</span><code>${branch.transfer?.amount === null || branch.transfer?.amount === undefined ? 'unverified' : `${escape(near(branch.transfer.amount))} / ${escape(near(branch.transfer.obligation))} NEAR`}</code></div>
           <div><span>Gas / tokens</span><code>${escape(branch.claim?.gasBurnt || '—')} / ${escape(branch.claim?.tokensBurnt || '—')}</code></div>
         </div>
       </div>
-      ${link ? `<div class="receipt"><div class="receipt-top"><div class="receipt-title">Linked beneficiary receipt</div><div class="receipt-status ok">SuccessValue</div></div><div class="receipt-grid"><div><span>Contract receipt</span><code>${escape(link.contractReceiptId)}</code></div><div><span>Beneficiary receipt</span><code>${escape(link.beneficiaryReceiptId)}</code></div><div><span>Execution</span><code>${escape(link.beneficiaryExecutorId)}</code></div></div><div class="receipt-note">This is the contract’s SuccessReceiptId pointing at the beneficiary SuccessValue receipt. A separate gas-refund receipt does not satisfy this gate.</div></div>` : '<p class="notice">No contract-to-beneficiary SuccessValue link is present. A positive balance alone would not be accepted.</p>'}
+      ${link ? `<div class="receipt"><div class="receipt-top"><div class="receipt-title">Linked beneficiary receipt</div><div class="receipt-status ok">SuccessValue</div></div><div class="receipt-grid"><div><span>Contract receipt</span><code>${escape(link.contractReceiptId)}</code></div><div><span>Beneficiary receipt</span><code>${escape(link.beneficiaryReceiptId)}</code></div><div><span>Execution</span><code>${escape(link.beneficiaryExecutorId)}</code></div></div><div class="receipt-note">This is the contract’s SuccessReceiptId pointing at the beneficiary SuccessValue receipt. A separate gas-refund receipt does not satisfy this gate; the linked transfer amount must equal ${escape(near(branch.transfer?.obligation))} NEAR.</div></div>` : '<p class="notice">No contract-to-beneficiary SuccessValue link is present. A positive balance alone would not be accepted.</p>'}
       <h4 class="mini-label" style="margin-top:18px">Raw receipts</h4>
       ${receiptRows || '<p class="muted">No receipts recorded.</p>'}`;
   }

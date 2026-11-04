@@ -75,20 +75,22 @@ function verifyRefundReport(report, config, capture) {
       if (branch.entitlement?.afterMigration !== '0') fail(errors, 'bad migration did not clear entitlement');
       if (branch.claim?.failed !== true) fail(errors, 'bad claim did not fail');
       if (!JSON.stringify(branch.claim?.receiptFailures || []).includes('NO_REFUND')) fail(errors, 'bad claim failure is not structured NO_REFUND');
-      const link = transferEvidence(branch.claim, parsed.beneficiary);
+      const link = transferEvidence(branch.claim, parsed.beneficiary, parsed.amount, branch.claim?.transfers || []);
       if (link.linked) fail(errors, 'bad claim has a beneficiary transfer link');
       if (branch.balances?.status !== 'interim') fail(errors, 'bad branch balance is not marked interim');
     } else if (name === 'bad' && candidateOutcome === 'paid') {
       if (branch.claim?.succeeded !== true) fail(errors, 'paid candidate claim did not succeed');
-      const link = transferEvidence(branch.claim, parsed.beneficiary);
+      const link = transferEvidence(branch.claim, parsed.beneficiary, parsed.amount, branch.claim?.transfers || []);
       if (!link.linked) fail(errors, 'paid candidate lacks contract -> beneficiary transfer link');
+      if (!link.amountMatches) fail(errors, 'paid candidate gross transfer amount does not equal the inherited obligation');
       if (branch.balances?.status !== 'final') fail(errors, 'paid candidate balance is not final');
       if (!branch.balances?.user?.delta || BigInt(branch.balances.user.delta) <= 0n) fail(errors, 'paid candidate user delta is not positive');
       if (!branch.balances?.contract?.delta || BigInt(branch.balances.contract.delta) >= 0n) fail(errors, 'paid candidate contract delta is not negative');
     } else {
       if (branch.claim?.succeeded !== true) fail(errors, `${name} claim did not succeed`);
-      const link = transferEvidence(branch.claim, parsed.beneficiary);
+      const link = transferEvidence(branch.claim, parsed.beneficiary, parsed.amount, branch.claim?.transfers || []);
       if (!link.linked) fail(errors, `${name} lacks contract -> beneficiary transfer link`);
+      if (!link.amountMatches) fail(errors, `${name} gross transfer amount does not equal the inherited obligation`);
       if (branch.balances?.status !== 'final') fail(errors, `${name} balance is not final`);
       if (!branch.balances?.user?.delta || BigInt(branch.balances.user.delta) <= 0n) fail(errors, `${name} user delta is not positive`);
       if (!branch.balances?.contract?.delta || BigInt(branch.balances.contract.delta) >= 0n) fail(errors, `${name} contract delta is not negative`);

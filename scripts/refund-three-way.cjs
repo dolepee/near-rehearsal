@@ -249,12 +249,32 @@ function txEvidence(tx) {
   };
 }
 
+function extractTransfers(status, contractId, beneficiary) {
+  const receipts = Array.isArray(status?.receipts) ? status.receipts : [];
+  const transfers = [];
+  for (const receipt of receipts) {
+    const actions = receipt?.receipt?.Action?.actions || [];
+    for (const action of actions) {
+      const deposit = action?.Transfer?.deposit;
+      if (deposit === undefined) continue;
+      if (receipt.predecessor_id !== contractId || receipt.receiver_id !== beneficiary) continue;
+      transfers.push({
+        receiptId: receipt.receipt_id || null,
+        predecessorId: receipt.predecessor_id,
+        receiverId: receipt.receiver_id,
+        amount: String(deposit),
+      });
+    }
+  }
+  return transfers;
+}
+
 function failureText(tx) {
   return JSON.stringify(tx?.receiptFailureMessages || tx?.Failure || '');
 }
 
-function transferEvidence(claim, beneficiary) {
-  if (!claim?.receipts?.length) return {beneficiary, linked: false, links: []};
+function transferEvidence(claim, beneficiary, obligation = null, transfers = null) {
+  if (!claim?.receipts?.length) return {beneficiary, linked: false, links: [], transfers: transfers || [], amount: null, amountMatches: false};
   const links = [];
   for (const receipt of claim.receipts) {
     const next = receipt.status?.SuccessReceiptId;
@@ -271,11 +291,20 @@ function transferEvidence(claim, beneficiary) {
       });
     }
   }
+  const amountTransfers = Array.isArray(transfers) ? transfers : [];
+  const linkedTransfer = links.length === 1
+    ? amountTransfers.find((transfer) => transfer.receiptId === links[0].beneficiaryReceiptId)
+    : null;
+  const amount = linkedTransfer?.amount ?? null;
   return {
     beneficiary,
     linked: links.length === 1,
     links,
-    note: links.length > 1 ? 'multiple beneficiary links; refusing to pick one' : undefined,
+    transfers: amountTransfers,
+    amount,
+    obligation: obligation === null ? null : String(obligation),
+    amountMatches: amount !== null && obligation !== null && BigInt(amount) === BigInt(obligation),
+    note: links.length > 1 ? 'multiple beneficiary links; refusing to pick one' : amountTransfers.length > 1 ? 'multiple contract-to-beneficiary transfers; refusing to sum' : !linkedTransfer && links.length === 1 ? 'linked beneficiary receipt has no matching transfer action' : undefined,
   };
 }
 
@@ -432,7 +461,20 @@ async function runBranch(capture, config, candidate, expected) {
       throw new Inconclusive(`claim transport failed: ${error.message}`);
     }
     result.claim = txEvidence(claimTx);
-    result.transfer = transferEvidence(result.claim, parsedCapture.beneficiary);
+    let rawClaimStatus = null;
+    if (result.claim?.transactionHash) {
+      try {
+        rawClaimStatus = await worker.provider.sendJsonRpc('EXPERIMENTAL_tx_status', {
+          tx_hash: result.claim.transactionHash,
+          sender_account_id: user.accountId,
+        });
+      } catch (error) {
+        throw new Inconclusive(`transfer amount status failed: ${error.message}`);
+      }
+    }
+    const transfers = extractTransfers(rawClaimStatus, contract.accountId, parsedCapture.beneficiary);
+    result.claim.transfers = transfers;
+    result.transfer = transferEvidence(result.claim, parsedCapture.beneficiary, parsedCapture.amount, transfers);
     const expectsPayout = expected === 'success' || (expected === 'candidate' && claimTx.succeeded === true);
     result.entitlement.afterClaim = (await waitForEntitlement(worker, contract.accountId, (value) => expectsPayout ? value === 0n : true, config.operation.view)).toString();
 
@@ -454,6 +496,13 @@ async function runBranch(capture, config, candidate, expected) {
     if (expected === 'success' || (expected === 'candidate' && claimTx.succeeded === true)) {
       if (!claimTx.succeeded) throw new Error(`expected successful claim, got failure: ${failureText(claimTx)}`);
       if (!result.transfer.linked) throw new Error('successful claim lacks a contract SuccessReceiptId -> beneficiary SuccessValue link');
+      if (result.transfer.amount === null) throw new Inconclusive('successful claim transfer amount is unverified');
+      if (!result.transfer.amountMatches) {
+        result.status = 'amount-regression';
+        result.outcome = 'amount-regression';
+        result.error = `paid ${result.transfer.amount} yocto, inherited obligation ${result.transfer.obligation} yocto`;
+        return result;
+      }
       if (BigInt(result.balances.user.delta) <= 0n) throw new Error('successful claim did not increase beneficiary balance');
       if (BigInt(result.balances.contract.delta) >= 0n) throw new Error('successful claim did not decrease contract balance');
       if (result.entitlement.afterClaim !== '0') throw new Error('successful claim did not clear entitlement');
@@ -499,13 +548,15 @@ async function main() {
   const corrected = await runBranch(capture, config, config.candidates.corrected, config.expected.corrected);
 
   const expectedBranches = [baseline, bad, corrected];
-  const candidateOutcome = bad.status === 'completed' && bad.transfer?.linked === true
+  const candidateOutcome = bad.status === 'completed' && bad.transfer?.linked === true && bad.transfer?.amountMatches === true
     ? 'paid'
-    : bad.status === 'expected-failure'
-      && /NO_REFUND/.test(failureText({receiptFailureMessages: bad.claim?.receiptFailures || []}))
-      && bad.transfer?.linked === false
-      ? 'no-refund'
-      : 'inconclusive';
+    : bad.status === 'amount-regression'
+      ? 'amount-regression'
+      : bad.status === 'expected-failure'
+        && /NO_REFUND/.test(failureText({receiptFailureMessages: bad.claim?.receiptFailures || []}))
+        && bad.transfer?.linked === false
+        ? 'no-refund'
+        : 'inconclusive';
   const candidateClassified = candidateOutcome !== 'inconclusive';
   const branchOutcomesMatch = expectedBranches.every((branch) => {
     if (branch.expected === 'success') return branch.status === 'completed';
@@ -521,13 +572,17 @@ async function main() {
     branch.status === 'completed'
     && branch.transfer?.linked === true
     && branch.transfer?.beneficiary === capture.beneficiary
+    && branch.transfer?.amountMatches === true
     && BigInt(branch.balances.user.delta) > 0n
     && BigInt(branch.balances.contract.delta) < 0n);
-  const candidatePaidTransfer = candidateOutcome !== 'paid' || (bad.status === 'completed'
-    && bad.transfer?.linked === true
-    && BigInt(bad.balances.user.delta) > 0n
-    && BigInt(bad.balances.contract.delta) < 0n);
-  const claimTransferToBeneficiary = baselineCorrectedTransfer && candidatePaidTransfer;
+  const candidateTransferGate = candidateOutcome === 'paid'
+    ? (bad.status === 'completed'
+      && bad.transfer?.linked === true
+      && bad.transfer?.amountMatches === true
+      && BigInt(bad.balances.user.delta) > 0n
+      && BigInt(bad.balances.contract.delta) < 0n)
+    : candidateOutcome === 'no-refund';
+  const claimTransferToBeneficiary = baselineCorrectedTransfer && candidateTransferGate;
   const badFailureIsStructured = candidateOutcome === 'no-refund';
 
   const complete = branchOutcomesMatch && candidateClassified && sameStartingState && controls

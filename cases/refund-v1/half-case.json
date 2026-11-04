@@ -1,9 +1,9 @@
 {
   "schema": "near-rehearsal/release-case/v1",
   "id": "refund-v1",
-  "label": "Funded refund claim — authored local Sandbox example / refund-v2-bad.wasm",
-  "baselineWasm": "out/exports/refund-v1-cde2c7459bd2/inputs/refund-v1.wasm",
-  "capture": "out/exports/refund-v1-cde2c7459bd2/capture.json",
+  "label": "Funded refund claim — authored local Sandbox example",
+  "baselineWasm": "contracts/refund-v1.wasm",
+  "capture": "out/refund-capture.json",
   "migration": {
     "method": "migrate",
     "args": {}
@@ -15,15 +15,15 @@
   },
   "candidates": {
     "bad": {
-      "id": "supplied-candidate",
-      "label": "refund-v2-bad.wasm",
-      "wasm": "out/exports/refund-v1-cde2c7459bd2/inputs/candidate.wasm",
-      "sha256": "f6340e6d6ef72c2baa706e42c12c463d30d4df7da53a69870020de17cc027323"
+      "id": "half-payout-regression",
+      "label": "Half-payout regression — transfers 0.05 NEAR against a 0.10 entitlement",
+      "wasm": "contracts/refund-v2-half-payout.wasm",
+      "sha256": "53df51770f9bbeef6c6f89b27ad00110bb35ce26fc7c306ee2bc3b05fe1000ca"
     },
     "corrected": {
       "id": "corrected-v2",
       "label": "corrected v2 migration — preserves the refund entitlement",
-      "wasm": "out/exports/refund-v1-cde2c7459bd2/inputs/refund-v2-fixed.wasm",
+      "wasm": "contracts/refund-v2-fixed.wasm",
       "sha256": "bbdcdb9c2e12d5020831dfba548ade2a1cb1c4596d0fe6b086ea4eef428fad0d"
     }
   },
