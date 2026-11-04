@@ -11,7 +11,8 @@
     "verify": "node scripts/verify-report.cjs",
     "public": "node public-rehearse.cjs",
     "replay:public": "node public-rehearse.cjs --replay out/public-regression.json",
-    "verify:public": "node scripts/verify-public-report.cjs"
+    "verify:public": "node scripts/verify-public-report.cjs",
+    "verify:oracle": "node scripts/verify-oracle.cjs"
   },
   "dependencies": {
     "near-workspaces": "5.0.0"

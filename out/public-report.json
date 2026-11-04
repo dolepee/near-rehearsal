@@ -1,6 +1,6 @@
 {
   "schema": "near-rehearsal/public-report/v1",
-  "generatedAt": "2026-11-04T04:46:08.397Z",
+  "generatedAt": "2026-11-04T05:01:37.383Z",
   "sourceContract": "counter.testnet",
   "localContract": "counter.test.near",
   "capture": {
@@ -21,7 +21,28 @@
       "verification": "Public source was built with near-sdk-as 0.4.2 and matched the captured deployed bytes."
     }
   },
-  "operation": "old user: incrementCounter({value:1}); read: getCounter()",
+  "operation": {
+    "method": "incrementCounter",
+    "args": {
+      "value": 1
+    },
+    "view": "getCounter"
+  },
+  "capturedRuntime": null,
+  "regressionRuntime": {
+    "version": "2.6.2",
+    "build": "2.6.2",
+    "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+    "protocolVersion": 77,
+    "latestProtocolVersion": 77
+  },
+  "replayRuntime": {
+    "version": "2.6.2",
+    "build": "2.6.2",
+    "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+    "protocolVersion": 77,
+    "latestProtocolVersion": 77
+  },
   "runtime": {
     "version": "2.6.2",
     "build": "2.6.2",
@@ -29,6 +50,8 @@
     "protocolVersion": 77,
     "latestProtocolVersion": 77
   },
+  "runtimeMatch": true,
+  "status": "complete",
   "expected": {
     "baseline": {
       "succeeded": true,
@@ -47,6 +70,7 @@
       "id": "baseline",
       "label": "captured public contract",
       "candidate": null,
+      "status": "completed",
       "runtime": {
         "version": "2.6.2",
         "build": "2.6.2",
@@ -63,10 +87,11 @@
       },
       "migration": null,
       "operation": {
+        "status": "completed",
         "succeeded": true,
         "value": "292",
         "tx": {
-          "transactionHash": "spiE8CWmGEQhGosn3viQGCyU46R9UP1cF3VB9vBM6AZ",
+          "transactionHash": "D5zTU6hmLm3M1FXfyiaxBmVikSErvtUKJXTRAjKNgrTU",
           "status": {
             "SuccessValue": ""
           },
@@ -89,6 +114,7 @@
         "wasm": "contracts/counter-v2-buggy.wasm",
         "sha256": "f90bb60d0e5d4edcbe0e1c495db3b2b3be8e6373857fac6285bb6e3cc0558d64"
       },
+      "status": "contract-failure",
       "runtime": {
         "version": "2.6.2",
         "build": "2.6.2",
@@ -104,7 +130,7 @@
         "matches": true
       },
       "migration": {
-        "transactionHash": "BNCbQxHLsNZBtyopdhXD2StVHZaxKvJRKZaki9MVZk2v",
+        "transactionHash": "D5xB4jfLDKDJRPa7RLZ42qKpGAV87FDEGQbadbcf6VZn",
         "status": {
           "SuccessValue": ""
         },
@@ -115,13 +141,15 @@
         "receiptFailureMessages": [],
         "logs": [],
         "gasBurnt": "1315389447136",
-        "changedState": true,
-        "stateHash": "2789ac82b95c71f7fad3f5a6afbeaddf49051d8abc13c3a89094b215c2bff276"
+        "beforeState": "0c51bd223ce23d8c4decdddd1f7a113a4370610092d7e3fba56140f06d776926",
+        "afterState": "2789ac82b95c71f7fad3f5a6afbeaddf49051d8abc13c3a89094b215c2bff276",
+        "changedState": true
       },
       "operation": {
+        "status": "contract-failure",
         "succeeded": false,
         "tx": {
-          "transactionHash": "A3gxoE7YcvJtSqUAqLz2weXnfPX8AWhVPHDkrB8hGUkn",
+          "transactionHash": "BaZpimumccgpMaG3uA25QWbEhHyXEUWkK6FeCbCL1c47",
           "status": {
             "Failure": {
               "ActionError": {
@@ -173,6 +201,7 @@
         "wasm": "contracts/counter-v2-fixed.wasm",
         "sha256": "8a495216828da21fa27673e114c08c3c85aad98a3e387379408a8ec6a9071b4b"
       },
+      "status": "completed",
       "runtime": {
         "version": "2.6.2",
         "build": "2.6.2",
@@ -188,7 +217,7 @@
         "matches": true
       },
       "migration": {
-        "transactionHash": "EsG8oQ9tcaaTmNgf4jm62XmWr1y9XSVLui4uveUZ1PfM",
+        "transactionHash": "8n71kMv8YRHx5jHDMPkWENhjxdxV2gCzXk2U59TjqejD",
         "status": {
           "SuccessValue": ""
         },
@@ -199,14 +228,16 @@
         "receiptFailureMessages": [],
         "logs": [],
         "gasBurnt": "1315389447136",
-        "changedState": true,
-        "stateHash": "85b540ec1ea4d894cd285fd6dbc89ab54e3cbdbe2f42f4965601dfb4efd8b7c1"
+        "beforeState": "0c51bd223ce23d8c4decdddd1f7a113a4370610092d7e3fba56140f06d776926",
+        "afterState": "85b540ec1ea4d894cd285fd6dbc89ab54e3cbdbe2f42f4965601dfb4efd8b7c1",
+        "changedState": true
       },
       "operation": {
+        "status": "completed",
         "succeeded": true,
         "value": "292",
         "tx": {
-          "transactionHash": "B9sbmfmzmHRndtzTfWeKDcE65qAqkhtm3Bi5CU1rmQdi",
+          "transactionHash": "81wifwQ6s6anYRbKiy66QD9uPcECHafrSDYFGmcZYTJk",
           "status": {
             "SuccessValue": ""
           },
@@ -222,11 +253,13 @@
     }
   },
   "result": {
+    "status": "complete",
     "baseline": {
+      "status": "completed",
       "succeeded": true,
       "value": "292",
       "tx": {
-        "transactionHash": "spiE8CWmGEQhGosn3viQGCyU46R9UP1cF3VB9vBM6AZ",
+        "transactionHash": "D5zTU6hmLm3M1FXfyiaxBmVikSErvtUKJXTRAjKNgrTU",
         "status": {
           "SuccessValue": ""
         },
@@ -242,11 +275,13 @@
       }
     },
     "badSucceeded": false,
+    "badReceiptFailure": true,
     "corrected": {
+      "status": "completed",
       "succeeded": true,
       "value": "292",
       "tx": {
-        "transactionHash": "B9sbmfmzmHRndtzTfWeKDcE65qAqkhtm3Bi5CU1rmQdi",
+        "transactionHash": "81wifwQ6s6anYRbKiy66QD9uPcECHafrSDYFGmcZYTJk",
         "status": {
           "SuccessValue": ""
         },

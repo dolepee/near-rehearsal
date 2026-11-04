@@ -37,6 +37,16 @@ function runtimeOf(status) {
   };
 }
 
+function assertLocal(worker) {
+  const rpc = worker.config?.rpcAddr || worker.provider?.connection?.url;
+  if (!rpc) throw new Error('execution RPC address is missing');
+  let host;
+  try { host = new URL(rpc).hostname; } catch (e) { throw new Error(`invalid execution RPC: ${rpc}`); }
+  if (!['127.0.0.1', 'localhost', '::1'].includes(host)) {
+    throw new Error(`refusing non-local execution RPC: ${rpc}`);
+  }
+}
+
 async function stateHash(account) {
   const state = await account.viewStateRaw();
   const ordered = state.map(({ key, value }) => ({ key, value }))
@@ -51,8 +61,9 @@ async function finalStateHash(worker, account) {
 }
 
 async function captureBaseline() {
-  const worker = await Worker.init();
+  const worker = await Worker.init({ network: 'sandbox' });
   try {
+    assertLocal(worker);
     const status = await worker.provider.status();
     const account = await worker.rootAccount.createSubAccount('state', {
       initialBalance: parseNEAR('10'),
@@ -105,8 +116,9 @@ async function captureBaseline() {
 }
 
 async function replayBranch(capture, candidate, operation) {
-  const worker = await Worker.init();
+  const worker = await Worker.init({ network: 'sandbox' });
   try {
+    assertLocal(worker);
     const status = await worker.provider.status();
     const keyPair = KeyPair.fromRandom('ed25519');
     const account = await worker.rootAccount.createSubAccount('state', {
@@ -232,7 +244,9 @@ async function rehearse(capture) {
       stateHash: capture.stateHash,
       stateBytes: capture.stateBytes,
     },
-    runtime: capture.runtime,
+    capturedRuntime: capture.runtime,
+    replayRuntime: baseline.runtime,
+    runtime: baseline.runtime,
     operation: 'existing user: increment(); read: get()',
     branches: { baseline, buggy, fixed },
     result: {
@@ -251,6 +265,8 @@ async function rehearse(capture) {
     schema: 'near-rehearsal/regression/v1',
     command: 'node rehearse.cjs --replay out/capture.json',
     capture: 'out/capture.json',
+    captureSha256: require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(OUT, 'capture.json'))).digest('hex'),
+    runtime: report.replayRuntime,
     operation,
     expected: {
       baseline: { succeeded: true, value: (BigInt(capture.count) + 1n).toString() },
@@ -258,8 +274,8 @@ async function rehearse(capture) {
       fixed: { succeeded: true, value: (BigInt(capture.count) + 1n).toString() },
     },
     candidates: {
-      buggy: { wasm: 'contracts/state-v2-buggy.wasm', seeded: true },
-      fixed: { wasm: 'contracts/state-v2-fixed.wasm' },
+      buggy: { wasm: 'contracts/state-v2-buggy.wasm', sha256: sha256(read('contracts/state-v2-buggy.wasm')), seeded: true },
+      fixed: { wasm: 'contracts/state-v2-fixed.wasm', sha256: sha256(read('contracts/state-v2-fixed.wasm')) },
     },
   }, null, 2) + '\n');
   return report;

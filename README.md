@@ -29,6 +29,15 @@ The command is `npm run public`; replay is `npm run replay:public`; verification
 
 `out/public-report.json` retains the transaction hash, final status, receipt failures and structured failure for every operation. `out/public-regression.json` pins the capture hash, runtime, candidate WASM hashes and expected outcomes; `--replay` loads that file rather than hardcoding the current local WASMs.
 
+
+### Execution guard and replay integrity
+
+Every replay starts with `Worker.init({ network: 'sandbox' })`; after init, the runner requires the execution RPC host to be `127.0.0.1`, `localhost` or `::1` before it creates an account or deploys anything. A configured `NEAR_WORKSPACES_NETWORK=testnet` does not override this.
+
+The exported `operation` is validated, not ignored: this slice accepts only `incrementCounter({value:1})`/`getCounter()`, and rejects any other method, view or args before starting a sandbox. The migration records its before-state before `callRaw('migrate')` and its after-state after the receipt, so `changedState` is a true pre/post comparison. The report distinguishes `capturedRuntime`, `regressionRuntime` and `replayRuntime`.
+
+Transport, read and decode failures are marked `inconclusive`; they cannot become a contract regression. `regressionObserved` requires the bad branch's actual structured receipt failure (`tx.failed === true`), not merely a missing or failed read. The verifier rejects incomplete or inconclusive reports.
+
 ### Fair baseline and setup
 
 A competent `near-workspaces` maintainer can already call `importContract({ testnetContract: 'counter.testnet', withData: true })` for this 3-byte state. Import is not a unique advantage. The measured delta here is the packaged release-review workflow: pinned public block/code/state, three paired branches, structured receipt outcomes, migration comparison and a replayable export.

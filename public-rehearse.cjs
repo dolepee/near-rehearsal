@@ -124,11 +124,21 @@ async function currentRuntime(worker) {
   catch (e) { throw new InfrastructureError(`runtime status failed: ${e.message}`); }
 }
 
-async function readCounter(worker, accountId) {
+function assertLocal(worker) {
+  const rpc = worker.config?.rpcAddr || worker.provider?.connection?.url;
+  if (!rpc) throw new InfrastructureError('execution RPC address is missing');
+  let host;
+  try { host = new URL(rpc).hostname; } catch (e) { throw new InfrastructureError(`invalid execution RPC: ${rpc}`); }
+  if (!['127.0.0.1', 'localhost', '::1'].includes(host)) {
+    throw new InfrastructureError(`refusing non-local execution RPC: ${rpc}`);
+  }
+}
+
+async function readCounter(worker, accountId, view) {
   let r;
-  try { r = await worker.provider.viewCall(accountId, 'getCounter', {}, { finality: 'final' }); }
-  catch (e) { throw new InfrastructureError(`getCounter view failed: ${e.message}`); }
-  if (!r || !Array.isArray(r.result)) throw new InfrastructureError('getCounter returned no byte array');
+  try { r = await worker.provider.viewCall(accountId, view, {}, { finality: 'final' }); }
+  catch (e) { throw new InfrastructureError(`${view} view failed: ${e.message}`); }
+  if (!r || !Array.isArray(r.result)) throw new InfrastructureError(`${view} returned no byte array`);
   return decodeCounter(Buffer.from(r.result).toString('base64'));
 }
 
@@ -140,8 +150,9 @@ async function readState(worker, accountId) {
 }
 
 async function importPublic(capture) {
-  const worker = await Worker.init();
+  const worker = await Worker.init({ network: 'sandbox' });
   try {
+    assertLocal(worker);
     const runtime = await currentRuntime(worker);
     const keyPair = KeyPair.fromRandom('ed25519');
     const account = await worker.rootAccount.createSubAccount('counter', { keyPair, initialBalance: parseNEAR('10') });
@@ -179,90 +190,115 @@ async function importPublic(capture) {
   }
 }
 
-async function branch(capture, spec) {
-  const { worker, account, runtime, importCheck } = await importPublic(capture);
+async function branch(capture, spec, operation) {
+  let imported;
+  try { imported = await importPublic(capture); }
+  catch (e) {
+    return { ...spec, status: 'inconclusive', runtime: null, infrastructureError: e.message };
+  }
+  const { worker, account, runtime, importCheck } = imported;
   try {
     let migration = null;
     if (spec.candidate) {
       const candidateBytes = read(spec.candidate.wasm);
       const candidateSha = sha256(candidateBytes);
       if (candidateSha !== spec.candidate.sha256) throw new InfrastructureError(`candidate ${spec.candidate.wasm} hash mismatch`);
-      try { await account.deploy(candidateBytes); } catch (e) { throw new InfrastructureError(`candidate deploy failed: ${e.message}`); }
-      let tx;
-      try { tx = await account.callRaw(account, 'migrate', {}, { gas: GAS }); }
-      catch (e) { throw new InfrastructureError(`migrate transaction failed: ${e.message}`); }
+      await account.deploy(candidateBytes);
       const before = stateHash(await readState(worker, account.accountId));
+      const tx = await account.callRaw(account, 'migrate', {}, { gas: GAS });
       let after = null;
       for (let i = 0; i < 20; i++) {
         await new Promise((r) => setTimeout(r, 300));
         after = stateHash(await readState(worker, account.accountId));
         if (after !== before) break;
       }
-      migration = { ...txEvidence(tx), changedState: after !== before, stateHash: after };
+      migration = { ...txEvidence(tx), beforeState: before, afterState: after, changedState: after !== before };
       if (!migration.succeeded) throw new InfrastructureError(`migration did not execute: ${json(migration.failure)}`);
     }
 
-    let operation;
+    let opResult;
+    let evidence = null;
     try {
-      const tx = await account.callRaw(account, 'incrementCounter', { value: 1 }, { gas: GAS });
-      const evidence = txEvidence(tx);
+      const tx = await account.callRaw(account, operation.method, operation.args, { gas: GAS });
+      evidence = txEvidence(tx);
       if (tx.failed) {
-        operation = { succeeded: false, tx: evidence };
+        opResult = { status: 'contract-failure', succeeded: false, tx: evidence };
       } else {
         let value = null;
         for (let i = 0; i < 20; i++) {
           await new Promise((r) => setTimeout(r, 500));
-          value = await readCounter(worker, account.accountId);
+          value = await readCounter(worker, account.accountId, operation.view);
           if (BigInt(value) !== BigInt(capture.counter)) break;
         }
-        operation = { succeeded: true, value, tx: evidence };
+        opResult = { status: 'completed', succeeded: true, value, tx: evidence };
       }
     } catch (e) {
-      if (e instanceof InfrastructureError) throw e;
-      throw new InfrastructureError(`incrementCounter transaction failed: ${e.message}`);
+      opResult = { status: 'inconclusive', succeeded: null, tx: evidence, error: e.message };
     }
-    return { ...spec, runtime, importCheck, migration, operation };
+    return { ...spec, status: opResult.status, runtime, importCheck, migration, operation: opResult };
+  } catch (e) {
+    return { ...spec, status: 'inconclusive', runtime, importCheck, migration: null, operation: null, infrastructureError: e.message };
   } finally { await worker.tearDown(); }
 }
 
+function assertOperation(operation) {
+  if (!operation || operation.method !== 'incrementCounter' || operation.view !== 'getCounter'
+    || JSON.stringify(operation.args) !== JSON.stringify({ value: 1 })) {
+    throw new InfrastructureError(`unsupported exported operation: ${json(operation)}; this slice supports incrementCounter({value:1})/getCounter`);
+  }
+}
+
 async function runAll(capture, regression) {
+  const operation = regression ? regression.operation : { method: 'incrementCounter', args: { value: 1 }, view: 'getCounter' };
+  assertOperation(operation);
   const specs = regression ? regression.candidates : {
     baseline: { id: 'baseline', label: 'captured public contract', candidate: null },
     bad: { id: 'seeded-bad-v2', label: 'SEEDED bad v2 migration — writes version 1', candidate: { wasm: 'contracts/counter-v2-buggy.wasm', sha256: sha256(read('contracts/counter-v2-buggy.wasm')) } },
     corrected: { id: 'corrected-v2', label: 'corrected v2 migration — writes version 2', candidate: { wasm: 'contracts/counter-v2-fixed.wasm', sha256: sha256(read('contracts/counter-v2-fixed.wasm')) } },
   };
   const branches = {};
-  for (const key of ['baseline', 'bad', 'corrected']) branches[key] = await branch(capture, specs[key]);
+  for (const key of ['baseline', 'bad', 'corrected']) branches[key] = await branch(capture, specs[key], operation);
   const expected = regression ? regression.expected : {
     baseline: { succeeded: true, value: (BigInt(capture.counter) + 1n).toString() },
     bad: { succeeded: false },
     corrected: { succeeded: true, value: (BigInt(capture.counter) + 1n).toString() },
   };
+  const inconclusive = Object.values(branches).some((b) => b.status === 'inconclusive');
+  const status = inconclusive ? 'inconclusive' : 'complete';
   const expectedMatches = {
-    baseline: branches.baseline.operation.succeeded === expected.baseline.succeeded
+    baseline: branches.baseline.status === 'completed' && branches.baseline.operation?.succeeded === expected.baseline.succeeded
       && (!expected.baseline.succeeded || branches.baseline.operation.value === expected.baseline.value),
-    bad: branches.bad.operation.succeeded === expected.bad.succeeded,
-    corrected: branches.corrected.operation.succeeded === expected.corrected.succeeded
+    bad: branches.bad.status === 'contract-failure' && branches.bad.operation?.succeeded === expected.bad.succeeded
+      && branches.bad.operation.tx?.failed === true,
+    corrected: branches.corrected.status === 'completed' && branches.corrected.operation?.succeeded === expected.corrected.succeeded
       && (!expected.corrected.succeeded || branches.corrected.operation.value === expected.corrected.value),
   };
-  if (!Object.values(expectedMatches).every(Boolean)) {
+  if (status === 'complete' && !Object.values(expectedMatches).every(Boolean)) {
     throw new Error(`replay expected outcome mismatch: ${json({ expected, expectedMatches, branches })}`);
   }
-  if (regression?.runtime) {
-    const actual = branches.baseline.runtime;
-    const same = actual.version === regression.runtime.version && actual.protocolVersion === regression.runtime.protocolVersion && actual.commit === regression.runtime.commit;
-    if (!same) throw new InfrastructureError(`runtime mismatch: ${json({ expected: regression.runtime, actual })}`);
-  }
+  const actualRuntime = branches.baseline.runtime;
+  const runtimeMatch = !regression?.runtime
+    || (actualRuntime?.version === regression.runtime.version
+      && actualRuntime?.protocolVersion === regression.runtime.protocolVersion
+      && actualRuntime?.commit === regression.runtime.commit);
   return {
     branches,
+    operation,
     expected,
+    regressionRuntime: regression?.runtime ?? null,
+    actualRuntime,
+    runtimeMatch,
     result: {
+      status,
       baseline: branches.baseline.operation,
       badSucceeded: branches.bad.operation.succeeded,
+      badReceiptFailure: branches.bad.operation?.tx?.failed === true,
       corrected: branches.corrected.operation,
-      regressionObserved: branches.baseline.operation.succeeded && !branches.bad.operation.succeeded,
-      correctionObserved: branches.corrected.operation.succeeded && branches.corrected.operation.value === expected.corrected.value,
-      sameStartingState: Object.values(branches).every((b) => b.importCheck.matches),
+      regressionObserved: status === 'complete' && branches.baseline.operation?.succeeded === true
+        && branches.bad.status === 'contract-failure' && branches.bad.operation?.tx?.failed === true,
+      correctionObserved: status === 'complete' && branches.corrected.operation?.succeeded === true
+        && branches.corrected.operation.value === expected.corrected.value,
+      sameStartingState: Object.values(branches).every((b) => b.importCheck?.matches === true),
     },
   };
 }
@@ -279,8 +315,13 @@ function writeReport(capture, outcome) {
       stateHash: capture.stateHash, stateBytes: capture.stateBytes, counter: capture.counter,
       counterBytes: capture.counterBytes, source: capture.source,
     },
-    operation: 'old user: incrementCounter({value:1}); read: getCounter()',
-    runtime: outcome.branches.baseline.runtime,
+    operation: outcome.operation,
+    capturedRuntime: capture.runtime ?? null,
+    regressionRuntime: outcome.regressionRuntime,
+    replayRuntime: outcome.actualRuntime,
+    runtime: outcome.actualRuntime,
+    runtimeMatch: outcome.runtimeMatch,
+    status: outcome.result.status,
     expected: outcome.expected,
     branches: outcome.branches,
     result: outcome.result,
@@ -296,7 +337,7 @@ function buildRegression(capture, report) {
     command: 'node public-rehearse.cjs --replay out/public-regression.json',
     capture: 'out/public-capture.json',
     captureSha256: fileSha(CAPTURE_PATH),
-    runtime: report.runtime,
+    runtime: report.replayRuntime,
     operation: { method: 'incrementCounter', args: { value: 1 }, view: 'getCounter' },
     expected: {
       baseline: { succeeded: true, value: (BigInt(capture.counter) + 1n).toString() },
@@ -328,6 +369,7 @@ function buildRegression(capture, report) {
     buildRegression(capture, report);
   }
   console.log(json({ source: report.sourceContract, block: report.capture.blockHeight, result: report.result }));
+  if (report.result.status !== 'complete') process.exitCode = 1;
 })().catch((e) => {
   console.error(`${e instanceof InfrastructureError ? 'INFRASTRUCTURE' : 'ERROR'}: ${e.stack || e.message}`);
   process.exitCode = 1;

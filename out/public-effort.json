@@ -6,5 +6,8 @@
   "nearWorkspacesBaseline": "near-workspaces already supports importContract(testnetContract, withData:true) for this 3-byte state. A competent maintainer can import it and call the candidate, but still has to write the migration branch, state comparison, receipt/error handling, report and replay export.",
   "delta": "pinned public block/code/state, paired baseline/bad/corrected branches, structured receipt outcomes, and a replayable regression. Import is not claimed as unique.",
   "runtime": "NEAR Sandbox 2.6.2, protocol 77, commit 2f9ddb711ebd94a306eaec06030d87ef8dfc51fa; x86_64 binary under emulation on this arm64 host, so timings are not a native performance benchmark.",
-  "sourceBuild": "near-sdk-as 0.4.2 build produced SHA-256 5d4892a56646ca96f76a2632e7d21117ac541a4fc58f661ab2acff5bab7adcac, matching the captured deployed bytes."
+  "sourceBuild": "near-sdk-as 0.4.2 build produced SHA-256 5d4892a56646ca96f76a2632e7d21117ac541a4fc58f661ab2acff5bab7adcac, matching the captured deployed bytes.",
+  "executionGuard": "Worker.init({network:\"sandbox\"}) is forced; the execution RPC host is checked to be local before any account creation or deploy.",
+  "operationIntegrity": "The exported operation is validated and executed; unsupported method/view/args are rejected before sandbox start.",
+  "migrationComparison": "beforeState is read before callRaw(migrate); afterState follows the receipt; changedState is a true pre/post comparison."
 }
