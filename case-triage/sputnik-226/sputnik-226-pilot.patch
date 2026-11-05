@@ -1,7 +1,7 @@
 From d699fabd33d7cbdaec07a785e73216cf2234d35b Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Wed, 4 Nov 2026 20:30:48 +0000
-Subject: [PATCH 1/7] Add Sputnik 226 old-proposal pilot harness and dossier
+Subject: [PATCH 1/8] Add Sputnik 226 old-proposal pilot harness and dossier
 
 ---
  pilot/README.md               | 120 ++++++++++++++++++++++++++++++++++
@@ -337,7 +337,7 @@ index 0000000..a89d96e
 From 84c82dce91b2b7b71da5107d31686192d3ff15e8 Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:25 +0000
-Subject: [PATCH 2/7] Harden Sputnik 226 pilot harness against no-op votes
+Subject: [PATCH 2/8] Harden Sputnik 226 pilot harness against no-op votes
 
 Use Contract::call for the self-update, read old proposal state as raw JSON, compare full config, and assert persisted approval plus recipient balance.
 ---
@@ -548,7 +548,7 @@ index a89d96e..1ba6133 100644
 From 6ea5efc87f7cce6f927f87d52114a93bf037e61c Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:42 +0000
-Subject: [PATCH 3/7] Fix pilot deploy diagnostic accessor
+Subject: [PATCH 3/8] Fix pilot deploy diagnostic accessor
 
 ---
  pilot/old_proposal_upgrade.rs | 6 +++++-
@@ -578,7 +578,7 @@ index 1ba6133..b669401 100644
 From 461403ce62490968b1e307df7c3867135458fb62 Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:59 +0000
-Subject: [PATCH 4/7] Remove unused pilot import
+Subject: [PATCH 4/8] Remove unused pilot import
 
 ---
  pilot/old_proposal_upgrade.rs | 2 +-
@@ -604,7 +604,7 @@ index b669401..866344e 100644
 From 356756b304923198adea09693afcdbb70df4544a Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:36:22 +0000
-Subject: [PATCH 5/7] Correct dependency pin and add Node harness note
+Subject: [PATCH 5/8] Correct dependency pin and add Node harness note
 
 Distinguish declared caret ranges from Cargo.lock-resolved near-sdk 5.11.0; document the standalone Node CJS runner without changing lockfiles.
 ---
@@ -714,7 +714,7 @@ index e373a57..6e4c3e4 100644
 From 5929f8a31a84cb5012c32f8fabb738eff5554d0d Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:44:35 +0000
-Subject: [PATCH 6/7] Record native compile and near-workspaces API checks
+Subject: [PATCH 6/8] Record native compile and near-workspaces API checks
 
 Native Rust harness compiled on the owner's host; source WASM build still pending. Corrected the 5.0.0 API assumptions for signer, code decoding and amount normalization.
 ---
@@ -780,7 +780,7 @@ index 6e4c3e4..32d0bd1 100644
 From 70f4f3a8398709c29f37bf42f604add3b257f51a Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 08:06:13 +0000
-Subject: [PATCH 7/7] Use configured-factory update and add finality evidence
+Subject: [PATCH 7/8] Use configured-factory update and add finality evidence
 
 Root initializes so FactoryInfo.factory_id is root, then root calls update(raw candidate). Add bounded finality barriers and partial evidence; document Rust file vs Node directory sandbox paths.
 ---
@@ -1171,6 +1171,84 @@ index 866344e..ad1166a 100644
      );
  
 +    append_stage(&evidence, "complete", &approve.details);
+     Ok(())
+ }
+-- 
+2.47.3
+
+
+From 01f7d866d9bb1501d427bf059a7659aa3bfb9ee5 Mon Sep 17 00:00:00 2001
+From: Julian Saint <julian@saint.work>
+Date: Thu, 5 Nov 2026 08:06:45 +0000
+Subject: [PATCH 8/8] Fix finality evidence call on execution results
+
+CallTransaction returns ExecutionFinalResult; use its public outcomes/failures API and keep Execution<Account>.details only for deploy.
+---
+ pilot/old_proposal_upgrade.rs | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/pilot/old_proposal_upgrade.rs b/pilot/old_proposal_upgrade.rs
+index ad1166a..0ed02e3 100644
+--- a/pilot/old_proposal_upgrade.rs
++++ b/pilot/old_proposal_upgrade.rs
+@@ -107,9 +107,9 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         .max_gas()
+         .transact()
+         .await?;
+-    append_stage(&evidence, "init", &init.details);
+-    assert!(init.is_success(), "init failed: {:?}", init.details.failures());
+-    wait_finalized(&worker, &init.details).await?;
++    append_stage(&evidence, "init", &init);
++    assert!(init.is_success(), "init failed: {:?}", init.failures());
++    wait_finalized(&worker, &init).await?;
+ 
+     let config_before: Value = dao.view("get_config").await?.json()?;
+ 
+@@ -132,9 +132,9 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         .max_gas()
+         .transact()
+         .await?;
+-    append_stage(&evidence, "add_proposal", &add.details);
+-    assert!(add.is_success(), "add_proposal failed: {:?}", add.details.failures());
+-    wait_finalized(&worker, &add.details).await?;
++    append_stage(&evidence, "add_proposal", &add);
++    assert!(add.is_success(), "add_proposal failed: {:?}", add.failures());
++    wait_finalized(&worker, &add).await?;
+     let proposal_id: u64 = add.json()?;
+ 
+     // The old binary does not have the candidate's last_actions_log field.
+@@ -167,9 +167,9 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         .max_gas()
+         .transact()
+         .await?;
+-    append_stage(&evidence, "update", &upgrade.details);
+-    assert!(upgrade.is_success(), "update failed: {:?}", upgrade.details.failures());
+-    wait_finalized(&worker, &upgrade.details).await?;
++    append_stage(&evidence, "update", &upgrade);
++    assert!(upgrade.is_success(), "update failed: {:?}", upgrade.failures());
++    wait_finalized(&worker, &upgrade).await?;
+ 
+     let code = dao.view_code().await?;
+     assert_eq!(code, candidate_wasm, "candidate code hash mismatch");
+@@ -194,9 +194,9 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         .max_gas()
+         .transact()
+         .await?;
+-    append_stage(&evidence, "approve", &approve.details);
+-    assert!(approve.is_success(), "old proposal vote failed: {:?}", approve.details.failures());
+-    wait_finalized(&worker, &approve.details).await?;
++    append_stage(&evidence, "approve", &approve);
++    assert!(approve.is_success(), "old proposal vote failed: {:?}", approve.failures());
++    wait_finalized(&worker, &approve).await?;
+ 
+     let final_proposal: Value = dao
+         .view("get_proposal")
+@@ -217,6 +217,6 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         "transfer recipient balance did not increase by the proposal amount"
+     );
+ 
+-    append_stage(&evidence, "complete", &approve.details);
++    append_stage(&evidence, "complete", &approve);
      Ok(())
  }
 -- 

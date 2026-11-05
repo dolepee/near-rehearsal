@@ -107,9 +107,9 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         .max_gas()
         .transact()
         .await?;
-    append_stage(&evidence, "init", &init.details);
-    assert!(init.is_success(), "init failed: {:?}", init.details.failures());
-    wait_finalized(&worker, &init.details).await?;
+    append_stage(&evidence, "init", &init);
+    assert!(init.is_success(), "init failed: {:?}", init.failures());
+    wait_finalized(&worker, &init).await?;
 
     let config_before: Value = dao.view("get_config").await?.json()?;
 
@@ -132,9 +132,9 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         .max_gas()
         .transact()
         .await?;
-    append_stage(&evidence, "add_proposal", &add.details);
-    assert!(add.is_success(), "add_proposal failed: {:?}", add.details.failures());
-    wait_finalized(&worker, &add.details).await?;
+    append_stage(&evidence, "add_proposal", &add);
+    assert!(add.is_success(), "add_proposal failed: {:?}", add.failures());
+    wait_finalized(&worker, &add).await?;
     let proposal_id: u64 = add.json()?;
 
     // The old binary does not have the candidate's last_actions_log field.
@@ -167,9 +167,9 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         .max_gas()
         .transact()
         .await?;
-    append_stage(&evidence, "update", &upgrade.details);
-    assert!(upgrade.is_success(), "update failed: {:?}", upgrade.details.failures());
-    wait_finalized(&worker, &upgrade.details).await?;
+    append_stage(&evidence, "update", &upgrade);
+    assert!(upgrade.is_success(), "update failed: {:?}", upgrade.failures());
+    wait_finalized(&worker, &upgrade).await?;
 
     let code = dao.view_code().await?;
     assert_eq!(code, candidate_wasm, "candidate code hash mismatch");
@@ -194,9 +194,9 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         .max_gas()
         .transact()
         .await?;
-    append_stage(&evidence, "approve", &approve.details);
-    assert!(approve.is_success(), "old proposal vote failed: {:?}", approve.details.failures());
-    wait_finalized(&worker, &approve.details).await?;
+    append_stage(&evidence, "approve", &approve);
+    assert!(approve.is_success(), "old proposal vote failed: {:?}", approve.failures());
+    wait_finalized(&worker, &approve).await?;
 
     let final_proposal: Value = dao
         .view("get_proposal")
@@ -217,6 +217,6 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         "transfer recipient balance did not increase by the proposal amount"
     );
 
-    append_stage(&evidence, "complete", &approve.details);
+    append_stage(&evidence, "complete", &approve);
     Ok(())
 }
