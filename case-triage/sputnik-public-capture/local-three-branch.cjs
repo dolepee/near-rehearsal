@@ -17,6 +17,10 @@ const BASE = path.resolve(process.env.BASE_WASM || path.join(HERE, '..', 'sputni
 const CANDIDATE = path.resolve(process.env.CANDIDATE_WASM || path.join(HERE, 'artifacts', 'candidate-seeded-bad.wasm'));
 const CORRECTED = path.resolve(process.env.CORRECTED_WASM || path.join(HERE, '..', 'sputnik-226', 'verified-case', 'candidate.wasm'));
 const HEALTHY = path.resolve(process.env.HEALTHY_WASM || CORRECTED);
+const CANDIDATE_LABEL = process.env.CANDIDATE_LABEL || 'SEEDED bad candidate (default fixture)';
+const CANDIDATE_PROVENANCE = process.env.CANDIDATE_PROVENANCE || 'seeded fixture generated from verified candidate; act_proposal is unreachable';
+const CORRECTED_LABEL = process.env.CORRECTED_LABEL || 'verified good candidate (default correction)';
+const CORRECTED_PROVENANCE = process.env.CORRECTED_PROVENANCE || 'verified source-built candidate; also historical healthy candidate';
 const GAS = 300_000_000_000_000n;
 const BOND = parseNEAR('1');
 const DAO_ID = 'dao.test.near';
@@ -151,7 +155,7 @@ async function createTemplate() {
       source: 'local source-built Sputnik configured-factory fixture',
       network: 'sandbox',
       identities: { contract: DAO_ID, proposer: ACTOR_ID, recipient: RECIPIENT_ID, factory: root.accountId, proposerPublicKey: ACTOR_KEY.getPublicKey().toString() },
-      artifacts: { baseSha256: sha256(base), baseHash: hashContract(base), candidateSha256: sha256(fs.readFileSync(CANDIDATE)), candidateHash: hashContract(fs.readFileSync(CANDIDATE)), correctedSha256: sha256(fs.readFileSync(CORRECTED)), correctedHash: hashContract(fs.readFileSync(CORRECTED)), healthySha256: sha256(fs.readFileSync(HEALTHY)), healthyHash: hashContract(fs.readFileSync(HEALTHY)) },
+      artifacts: { baseSha256: sha256(base), baseHash: hashContract(base), candidateSha256: sha256(fs.readFileSync(CANDIDATE)), candidateHash: hashContract(fs.readFileSync(CANDIDATE)), candidateLabel: CANDIDATE_LABEL, candidateProvenance: CANDIDATE_PROVENANCE, correctedSha256: sha256(fs.readFileSync(CORRECTED)), correctedHash: hashContract(fs.readFileSync(CORRECTED)), correctedLabel: CORRECTED_LABEL, correctedProvenance: CORRECTED_PROVENANCE, healthySha256: sha256(fs.readFileSync(HEALTHY)), healthyHash: hashContract(fs.readFileSync(HEALTHY)) },
       contractAccount: { amount: contractView.amount, storage_usage: contractView.storage_usage, code_hash: contractView.code_hash, locked: contractView.locked },
       actorAccount: { amount: actorView.amount, storage_usage: actorView.storage_usage, code_hash: actorView.code_hash, locked: actorView.locked },
       recipientAmount,
@@ -255,6 +259,8 @@ async function snapshot(branch) {
     stateHash: stateHash(await readState(branch.worker, DAO_ID)),
     proposal: await viewJson(branch.worker, DAO_ID, 'get_proposal', { id: branch.bundle.proposalId }),
     recipientBalance: await viewAmount(branch.worker, RECIPIENT_ID),
+    contractBalance: await viewAmount(branch.worker, DAO_ID),
+    actorBalance: await viewAmount(branch.worker, ACTOR_ID),
   };
 }
 async function approve(branch) {
@@ -277,16 +283,21 @@ async function runBaseline(bundle) {
     const afterFirst = await snapshot(b);
     const retry = await approve(b);
     const afterRetry = await snapshot(b);
+    const failedContractCall = first.failed === true && (first.receipts || []).some((r) => r.status && r.status.Failure);
+    const noPayout = BigInt(afterFirst.recipientBalance) === BigInt(before.recipientBalance);
     const checks = {
       initialState: b.imported.stateHash,
       initialFacts: b.factsHash,
       operationSucceeded: first.succeeded === true && first.failed === false,
+      operationRegressed: failedContractCall && noPayout,
       payoutExactlyBond: BigInt(afterFirst.recipientBalance) - BigInt(before.recipientBalance) === BigInt(BOND),
       retryFailed: retry.failed === true,
       retryDidNotPay: afterRetry.recipientBalance === afterFirst.recipientBalance,
+      retryContractDeltaYocto: (BigInt(afterRetry.contractBalance) - BigInt(afterFirst.contractBalance)).toString(),
+      retryActorDeltaYocto: (BigInt(afterRetry.actorBalance) - BigInt(afterFirst.actorBalance)).toString(),
       stateChanged: afterFirst.stateHash !== before.stateHash,
     };
-    return { status: checks.operationSucceeded && checks.payoutExactlyBond && checks.retryFailed && checks.retryDidNotPay ? 'preserved' : 'inconclusive', initial: b.imported, localBlock: b.localBlock, before, first, afterFirst, retry, afterRetry, checks };
+    return { status: checks.operationSucceeded && checks.payoutExactlyBond && checks.retryFailed && checks.retryDidNotPay ? 'preserved' : (checks.operationSucceeded === false && checks.operationRegressed === true ? 'regressed' : 'inconclusive'), initial: b.imported, localBlock: b.localBlock, before, first, afterFirst, retry, afterRetry, checks };
   } finally { await close(b); }
 }
 async function runCandidate(bundle) {
@@ -312,6 +323,8 @@ async function runCandidate(bundle) {
       payoutExactlyBond: BigInt(afterFirst.recipientBalance) - BigInt(before.recipientBalance) === BigInt(BOND),
       retryFailed: retry.failed === true,
       retryDidNotPay: afterRetry.recipientBalance === afterFirst.recipientBalance,
+      retryContractDeltaYocto: (BigInt(afterRetry.contractBalance) - BigInt(afterFirst.contractBalance)).toString(),
+      retryActorDeltaYocto: (BigInt(afterRetry.actorBalance) - BigInt(afterFirst.actorBalance)).toString(),
     };
     const status = !checks.upgradeSucceeded || !checks.candidateCode ? 'inconclusive' : checks.operationRegressed ? 'regressed' : checks.operationSucceeded && checks.retryFailed && checks.retryDidNotPay ? 'preserved' : 'inconclusive';
     return { status, initial: b.imported, localBlock: b.localBlock, before, upgrade, afterUpgrade, first, afterFirst, retry, afterRetry, checks };
@@ -340,6 +353,8 @@ async function runCorrected(bundle) {
       payoutExactlyBond: BigInt(afterFirst.recipientBalance) - BigInt(before.recipientBalance) === BigInt(BOND),
       retryFailed: retry.failed === true,
       retryDidNotPay: afterRetry.recipientBalance === afterFirst.recipientBalance,
+      retryContractDeltaYocto: (BigInt(afterRetry.contractBalance) - BigInt(afterFirst.contractBalance)).toString(),
+      retryActorDeltaYocto: (BigInt(afterRetry.actorBalance) - BigInt(afterFirst.actorBalance)).toString(),
     };
     const status = !checks.upgradeSucceeded || !checks.correctedCode ? 'inconclusive' : checks.operationSucceeded && checks.retryFailed && checks.retryDidNotPay ? 'preserved' : checks.operationRegressed ? 'regressed' : 'inconclusive';
     return { status, initial: b.imported, localBlock: b.localBlock, before, upgrade, afterUpgrade, first, afterFirst, retry, afterRetry, checks };
@@ -382,13 +397,24 @@ async function runRecoveryExperiment(bundle) {
   const bundle = process.env.USE_FROZEN === '1' && fs.existsSync(FROZEN_PATH)
     ? JSON.parse(fs.readFileSync(FROZEN_PATH, 'utf8'))
     : await createTemplate();
+  if (process.env.USE_FROZEN === '1') fs.writeFileSync(path.join(OUT, 'local-frozen-bundle.json'), json(bundle) + '\n');
+  const inputManifest = {
+    schema: 'near-rehearsal/sputnik-input-manifest/v1',
+    family: 'sputnik-dao-v2',
+    candidate: { sha256: sha256(candidateBytes), bytes: candidateBytes.length, label: CANDIDATE_LABEL, provenance: CANDIDATE_PROVENANCE },
+    correction: { sha256: sha256(correctedBytes), bytes: correctedBytes.length, label: CORRECTED_LABEL, provenance: CORRECTED_PROVENANCE },
+  };
+  fs.writeFileSync(path.join(OUT, 'input-manifest.json'), json(inputManifest) + '\n');
+  if (process.env.CANDIDATE_WASM_SHA256 && sha256(candidateBytes) !== process.env.CANDIDATE_WASM_SHA256) throw new Error('CANDIDATE_WASM_SHA256 does not match candidate bytes');
+  if (process.env.CORRECTED_WASM_SHA256 && sha256(correctedBytes) !== process.env.CORRECTED_WASM_SHA256) throw new Error('CORRECTED_WASM_SHA256 does not match correction bytes');
   const result = {
     schema: 'near-rehearsal/local-sputnik-three-branch/v4',
     fixture: 'single frozen local configured-factory Sputnik inherited state; imported separately for each branch',
+    inputManifest,
     artifacts: {
       base: { sha256: sha256(baseBytes), hash: hashContract(baseBytes) },
-      candidate: { sha256: sha256(candidateBytes), hash: hashContract(candidateBytes), role: 'seeded-bad', label: 'SEEDED bad candidate: act_proposal replaced with unreachable; migration remains real candidate migration' },
-      corrected: { sha256: sha256(correctedBytes), hash: hashContract(correctedBytes), role: 'verified-good', label: 'verified candidate used as correction' },
+      candidate: { sha256: sha256(candidateBytes), hash: hashContract(candidateBytes), role: 'candidate', label: CANDIDATE_LABEL, provenance: CANDIDATE_PROVENANCE },
+      corrected: { sha256: sha256(correctedBytes), hash: hashContract(correctedBytes), role: 'correction', label: CORRECTED_LABEL, provenance: CORRECTED_PROVENANCE },
       healthy: { sha256: sha256(healthyBytes), hash: hashContract(healthyBytes), role: 'historical-healthy', label: 'historical healthy candidate, separate selectable case' },
     },
     frozenBundle: { stateHash: bundle.stateHash, codeHash: bundle.codeHash, contractBalance: bundle.contractAccount.amount, actorBalance: bundle.actorAccount.amount, recipientBalance: bundle.recipientAmount, identities: bundle.identities, context: bundle.context },

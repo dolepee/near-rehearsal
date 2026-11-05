@@ -1,0 +1,51 @@
+# Sputnik local rehearsal interface
+
+Consequence-first local page for the supported `sputnik-dao-v2` frozen-state
+case. It invokes the real `case-triage/sputnik-public-capture/local-three-branch.cjs`
+runner; it does not load a committed report as a fresh result.
+
+## Run
+
+```sh
+PORT=4174 npm run ui:sputnik
+```
+
+Open `http://127.0.0.1:4174`.
+
+Required local environment:
+
+```sh
+export NODE_PATH=/path/to/node_modules
+export NEAR_SANDBOX_BIN_PATH=/path/to/near-sandbox
+export NEAR_SANDBOX_BINARY_PATH="$NEAR_SANDBOX_BIN_PATH"
+```
+
+## Inputs
+
+- Candidate: the default seeded-bad fixture, the historical healthy candidate,
+  or an uploaded supported-family WASM.
+- Correction: the verified-good correction or an uploaded supported-family
+  WASM.
+
+The browser computes SHA-256; the server revalidates bytes and hashes and writes
+an input manifest. The runner labels each artifact from that manifest, not from
+a hardcoded filename. Alternate builds are accepted within the declared family
+exports (`update`, `migrate`, `act_proposal`).
+
+## Outcomes
+
+The default run is expected to show:
+
+- baseline: `preserved`
+- seeded candidate: `regressed` with a failed contract call and zero recipient payout
+- correction: `preserved`
+
+The verifier derives those statuses from receipts and balances. A healthy
+candidate can produce an all-green completed report; a broken correction stays
+`regressed`. Runtime/RPC failure is `inconclusive`.
+
+## Same-bundle rerun and export
+
+After a complete run, **Rerun correction from same frozen bundle** starts a new
+run with the original frozen bundle, not a rebuilt fixture. **Verify and export**
+runs the verifier and writes `export.json` under the run directory.

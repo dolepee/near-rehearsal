@@ -1,0 +1,16 @@
+{
+  "schema": "near-rehearsal/sputnik-input-manifest/v1",
+  "family": "sputnik-dao-v2",
+  "candidate": {
+    "sha256": "5005fe46d62e3f6cf1dd0c0b05a60343155a4fa9c6990d0428746f3dae0689c0",
+    "bytes": 424130,
+    "label": "SEEDED bad candidate (default fixture)",
+    "provenance": "seeded fixture generated from verified candidate; act_proposal is unreachable"
+  },
+  "correction": {
+    "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
+    "bytes": 430589,
+    "label": "verified good candidate (default correction)",
+    "provenance": "verified source-built candidate; also historical healthy candidate"
+  }
+}

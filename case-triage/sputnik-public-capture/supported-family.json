@@ -9,7 +9,8 @@
       "sha256": "d1269a7be654211172cde60bccfa05a76996a3163b55abaeb58737f8661aaebf",
       "roles": [
         "baseline"
-      ]
+      ],
+      "provenance": "verified source-built base"
     },
     "candidate": {
       "path": "artifacts/candidate-seeded-bad.wasm",
@@ -17,7 +18,8 @@
       "roles": [
         "candidate"
       ],
-      "label": "SEEDED bad candidate: act_proposal replaced with unreachable"
+      "label": "SEEDED bad candidate: act_proposal replaced with unreachable",
+      "provenance": "seeded test fixture generated from the verified candidate by replacing act_proposal with unreachable"
     },
     "corrected": {
       "path": "../sputnik-226/verified-case/candidate.wasm",
@@ -26,7 +28,8 @@
         "candidate",
         "correction",
         "healthy"
-      ]
+      ],
+      "provenance": "verified source-built candidate used as correction; historical healthy candidate is the same bytes"
     }
   },
   "inputContract": {

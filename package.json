@@ -24,7 +24,8 @@
     "replay:refund-export": "node scripts/replay-refund-export.cjs",
     "test:export": "node scripts/test-export-guards.cjs",
     "test:ui": "node scripts/test-ui-polling.cjs",
-    "test:amount": "node scripts/test-amount-regression.cjs"
+    "test:amount": "node scripts/test-amount-regression.cjs",
+    "ui:sputnik": "node ui/sputnik/server.cjs"
   },
   "dependencies": {
     "near-workspaces": "5.0.0"

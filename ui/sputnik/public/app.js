@@ -1,0 +1,193 @@
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const state = {supported: null, candidate: null, correction: null, run: null, tab: 'summary', poll: null, clock: null, export: null};
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const short = (v, n = 10) => v ? `${String(v).slice(0, n)}…${String(v).slice(-6)}` : '—';
+  const near = (v) => {
+    if (v === null || v === undefined) return '—';
+    const n = BigInt(v); const unit = 10n ** 24n;
+    const whole = n / unit; const fraction = (n % unit).toString().padStart(24, '0').slice(0, 6).replace(/0+$/, '');
+    return `${whole}${fraction ? `.${fraction}` : ''}`;
+  };
+  const bytesToB64 = (bytes) => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
+  const digest = async (bytes) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
+  const statusKind = (s) => s === 'preserved' ? 'good' : s === 'regressed' ? 'bad' : 'subtle';
+
+  function setStatus(text, kind = 'idle') { const el = $('status'); el.textContent = text; el.className = `status-pill ${kind}`; }
+  function show(id) { for (const k of ['empty-state', 'running-state', 'error-state', 'result-state']) $(k).hidden = k !== id; }
+  function renderChoiceMeta() {
+    const c = $('candidate-meta'); const g = $('correction-meta');
+    c.className = 'meta ready';
+    c.innerHTML = state.candidate ? `<b>${esc(state.candidate.filename)}</b><br>${state.candidate.role} · ${state.candidate.bytes ?? 'manifest'} bytes · <span class="mono">${esc(short(state.candidate.sha256, 16))}</span>` : 'No candidate selected.';
+    g.className = 'meta ready';
+    g.innerHTML = state.correction ? `<b>${esc(state.correction.filename)}</b><br>${state.correction.role} · ${state.correction.bytes ?? 'manifest'} bytes · <span class="mono">${esc(short(state.correction.sha256, 16))}</span>` : 'No correction selected.';
+    $('run-button').disabled = !state.candidate || !state.correction || state.run?.status === 'running';
+  }
+  async function setFile(which, file) {
+    if (!file) return;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (!bytes.length || bytes.length > 2 * 1024 * 1024) throw new Error('WASM must be between 1 byte and 2 MB.');
+    const sha256 = await digest(bytes);
+    const target = {filename: file.name, bytes: bytes.length, sha256, base64: bytesToB64(bytes), role: 'upload', label: file.name, provenance: 'uploaded WASM'};
+    if (which === 'candidate') state.candidate = target; else state.correction = target;
+    renderChoiceMeta();
+  }
+  function chooseArtifact(which, choice) {
+    if (choice === 'upload') { $(`${which}-file`).hidden = false; $(`${which}-file`).click(); return; }
+    $(`${which}-file`).hidden = true;
+    const a = state.supported.artifacts[choice];
+    if (!a) return;
+    const target = {filename: a.label || choice, bytes: null, sha256: a.sha256, role: choice, label: a.label || choice, provenance: a.provenance || `manifest artifact ${choice}`, base64: null};
+    if (which === 'candidate') state.candidate = target; else state.correction = target;
+    renderChoiceMeta();
+  }
+  async function loadSupported() {
+    const r = await fetch('/api/supported', {cache: 'no-store'});
+    if (!r.ok) throw new Error('Could not load the supported family manifest.');
+    state.supported = await r.json();
+    $('family-label').textContent = `${state.supported.family} · ${state.supported.label}`;
+    chooseArtifact('candidate', 'candidate');
+    chooseArtifact('correction', 'corrected');
+  }
+  function payloadChoice(which) {
+    const c = which === 'candidate' ? state.candidate : state.correction;
+    if (!c) throw new Error(`Select a ${which}.`);
+    if (c.role === 'upload') return {choice: 'upload', filename: c.filename, sha256: c.sha256, base64: c.base64, label: c.label, provenance: c.provenance};
+    return {choice: c.role};
+  }
+  async function startRun(kind = 'run') {
+    if (state.run?.status === 'running') return;
+    try {
+      const body = kind === 'correction'
+        ? {runId: state.run.id}
+        : {family: state.supported.family, candidate: payloadChoice('candidate'), correction: payloadChoice('correction')};
+      const r = await fetch(kind === 'correction' ? '/api/correction' : '/api/run', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Could not start run.');
+      state.run = data.run; state.export = null;
+      show('running-state'); renderRunning(); startPoll();
+    } catch (e) { setStatus('Run rejected', 'error'); show('error-state'); $('error-copy').textContent = e.message; $('error-log').textContent = ''; }
+  }
+  function startPoll() {
+    clearInterval(state.poll); clearInterval(state.clock);
+    state.poll = setInterval(poll, 1000);
+    state.clock = setInterval(() => { if (state.run?.status === 'running') $('elapsed').textContent = elapsed(); }, 1000);
+  }
+  function elapsed() {
+    if (!state.run?.startedAt) return '00:00';
+    const sec = Math.max(0, Math.floor((Date.now() - Date.parse(state.run.startedAt)) / 1000));
+    return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+  }
+  function renderRunning() {
+    $('running-title').textContent = 'Running baseline, seeded candidate and correction…';
+    $('running-copy').textContent = 'Real local Sandbox transactions are executing. A regressed candidate is a valid completed result; only runner/RPC failures are inconclusive.';
+    $('run-id').textContent = state.run?.id ? short(state.run.id, 8) : '';
+    $('elapsed').textContent = elapsed();
+    const logs = state.run?.logs || [];
+    $('logs').textContent = logs.slice(-24).join('\n') || 'Waiting for the runner…';
+    $('logs').scrollTop = $('logs').scrollHeight;
+    setStatus('Running / local Sandbox', 'running');
+  }
+  async function poll() {
+    if (!state.run?.id) return;
+    try {
+      const r = await fetch(`/api/runs/${state.run.id}`, {cache: 'no-store'});
+      if (!r.ok) return;
+      state.run = await r.json();
+      renderRunning();
+      if (state.run.status !== 'running') { clearInterval(state.poll); clearInterval(state.clock); renderTerminal(); }
+    } catch {}
+  }
+  function failureText(tx) {
+    if (!tx?.failure) return '—';
+    return tx.failure.ActionError?.kind?.FunctionCallError?.ExecutionError || JSON.stringify(tx.failure).slice(0, 220);
+  }
+  function card(name, label, b, role) {
+    const status = b?.status || 'missing';
+    const delta = b?.before && b?.afterFirst ? BigInt(b.afterFirst.recipientBalance) - BigInt(b.before.recipientBalance) : null;
+    const failed = b?.first?.failed === true;
+    const reason = failureText(b?.first);
+    return `<article class="branch-card ${statusKind(status)}" data-branch="${esc(name)}">
+      <div class="branch-head"><div><div class="eyebrow">${esc(label)}</div><h3>${esc(name === 'baseline' ? 'Old contract' : name === 'candidate' ? 'Seeded bad candidate' : 'Verified correction')}</h3></div><span class="badge ${statusKind(status)}">${esc(status)}</span></div>
+      <div class="consequence"><span>Recipient delta</span><strong>${delta === null ? '—' : `${delta >= 0n ? '+' : ''}${near(delta)} NEAR`}</strong></div>
+      <div class="mini-grid">
+        <div><span>Declared role</span><b>${esc(role)}</b></div>
+        <div><span>Operation</span><b>${failed ? 'failed' : b?.first?.succeeded ? 'succeeded' : '—'}</b></div>
+        <div><span>Code</span><b class="mono">${esc(short(b?.afterUpgrade?.codeHash || b?.before?.codeHash, 12))}</b></div>
+        <div><span>Frozen initial</span><b class="mono">${esc(short(b?.initial?.stateHash, 12))}</b></div>
+      </div>
+      ${failed ? `<p class="failure"><strong>Raw failure</strong> ${esc(reason)}</p>` : ''}
+      <button class="detail-link" data-detail="${esc(name)}" type="button">Inspect ${esc(name)}</button>
+    </article>`;
+  }
+  function renderTerminal() {
+    if (state.run.status !== 'complete') {
+      show('error-state');
+      $('error-copy').textContent = state.run.error || 'The run was inconclusive.';
+      $('error-log').textContent = (state.run.logs || []).slice(-30).join('\n');
+      setStatus('Inconclusive / not evidence', 'error');
+      return;
+    }
+    state.export = null;
+    const report = state.run.report;
+    const b = report.branches;
+    $('result-banner').className = 'result-banner ok';
+    $('result-banner').textContent = `Complete report. Candidate ${b.candidate.status}; correction ${b.corrected.status}. Outcomes are derived from receipts and balances; a red branch is not a runner failure.`;
+    $('frozen-summary').innerHTML = `<div><span>Frozen state</span><b class="mono">${esc(report.frozenBundle.stateHash)}</b></div><div><span>Same initial facts</span><b>${report.sameStartingState ? 'verified across all branches' : 'not verified'}</b></div><div><span>Frozen bundle</span><b>${esc(state.run.frozenBundle ? short(state.run.frozenBundle.stateHash, 16) : '—')}</b></div>`;
+    $('branch-grid').innerHTML = [
+      card('baseline', 'Old state → existing operation', b.baseline, 'baseline'),
+      card('candidate', `Old state → ${report.artifacts.candidate.label || 'candidate'} → operation`, b.candidate, 'candidate'),
+      card('corrected', `Old state → ${report.artifacts.corrected.label || 'correction'} → operation`, b.corrected, 'correction'),
+    ].join('');
+    for (const el of document.querySelectorAll('.detail-link')) el.addEventListener('click', () => { state.tab = 'summary'; state.detail = el.dataset.detail; renderDetails(); });
+    $('rerun-button').hidden = false;
+    $('rerun-button').disabled = false;
+    $('export-button').disabled = false;
+    $('run-button').disabled = false;
+    setStatus('Complete report', 'complete');
+    show('result-state');
+    renderDetails();
+  }
+  function renderDetails() {
+    const report = state.run?.report; if (!report) return;
+    const panel = $('detail-panel');
+    for (const t of document.querySelectorAll('.tab')) t.classList.toggle('active', t.dataset.tab === state.tab);
+    if (state.tab === 'raw') { panel.innerHTML = `<pre class="raw">${esc(JSON.stringify(report, null, 2))}</pre>`; return; }
+    if (state.tab === 'export') { panel.innerHTML = state.export ? `<pre class="raw">${esc(JSON.stringify(state.export, null, 2))}</pre>` : '<p class="muted">Run Verify and export after a complete report.</p>'; return; }
+    const b = report.branches[state.detail || 'candidate'];
+    panel.innerHTML = `<div class="kv-grid">
+      <div class="kv"><span>Current branch</span><b>${esc(state.detail || 'candidate')}</b></div>
+      <div class="kv"><span>Verdict</span><b>${esc(b.status)}</b></div>
+      <div class="kv"><span>Initial state hash</span><b class="mono">${esc(b.initial.stateHash)}</b></div>
+      <div class="kv"><span>After operation</span><b class="mono">${esc(short(b.afterFirst?.stateHash, 20))}</b></div>
+      <div class="kv"><span>Candidate code</span><b class="mono">${esc(short(b.afterUpgrade?.codeHash || b.before?.codeHash, 20))}</b></div>
+      <div class="kv"><span>Local block</span><b>${esc(b.localBlock.height)} / ${esc(short(b.localBlock.hash, 14))}</b></div>
+      <div class="kv"><span>Frozen bundle context</span><b>${esc(report.frozenBundle.context.frozenAtLocalBlock.height)} / ${esc(report.frozenBundle.context.frozenAtLocalBlock.timestamp)}</b></div>
+      <div class="kv"><span>Failure</span><b>${esc(failureText(b.first))}</b></div>
+    </div><p class="notice">${esc(report.fixture)}</p>`;
+  }
+  async function exportRun() {
+    if (!state.run?.id) return;
+    try {
+      const r = await fetch(`/api/runs/${state.run.id}/export`, {method: 'POST'});
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Export failed.');
+      state.export = data.export; state.tab = 'export'; renderDetails();
+      $('export-button').textContent = `Exported: ${data.exportPath}`;
+    } catch (e) { setStatus('Export rejected', 'error'); $('export-button').textContent = 'Export failed'; $('error-copy').textContent = e.message; }
+  }
+  function bind() {
+    $('candidate-choice').addEventListener('change', (e) => chooseArtifact('candidate', e.target.value));
+    $('correction-choice').addEventListener('change', (e) => chooseArtifact('correction', e.target.value));
+    $('candidate-file').addEventListener('change', (e) => setFile('candidate', e.target.files[0]).catch((err) => { $('candidate-meta').textContent = err.message; }));
+    $('correction-file').addEventListener('change', (e) => setFile('correction', e.target.files[0]).catch((err) => { $('correction-meta').textContent = err.message; }));
+    $('run-button').addEventListener('click', () => startRun('run'));
+    $('retry-button').addEventListener('click', () => startRun('run'));
+    $('rerun-button').addEventListener('click', () => startRun('correction'));
+    $('export-button').addEventListener('click', exportRun);
+    for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => { state.tab = t.dataset.tab; renderDetails(); });
+  }
+  bind();
+  loadSupported().catch((e) => { setStatus('Manifest error', 'error'); $('candidate-meta').textContent = e.message; });
+})();

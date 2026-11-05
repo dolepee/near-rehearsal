@@ -16,3 +16,6 @@ submission-checklist.*
 
 out/inputs/
 out/runs/
+
+# Local UI run output
+out/sputnik-ui/

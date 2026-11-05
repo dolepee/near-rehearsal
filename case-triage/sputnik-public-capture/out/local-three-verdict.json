@@ -1,9 +1,9 @@
 {
-  "schema": "near-rehearsal/local-sputnik-three-branch-verdict/v2",
+  "schema": "near-rehearsal/local-sputnik-three-branch-verdict/v3",
   "verdict": "local-three-branch-verified",
   "status": "complete",
   "frozenBundle": {
-    "stateHash": "ce60cada10042a590fd3fd98b1a8820db47592cc749955c6bf5a0bb7274fcb31",
+    "stateHash": "1207952dc7e010b857230b7aea8ed832a7e7bfefc4d29a1326c522e6a4190b9a",
     "codeHash": "F5SMJ8vKYwaH7Y8mYLmqxjfdNv3haZE82isFpQHnXFPC",
     "contractBalance": "100997020950425382000000000",
     "actorBalance": "98999771124799122700000000",
@@ -13,15 +13,31 @@
       "proposer": "proposer.test.near",
       "recipient": "recipient.test.near",
       "factory": "test.near",
-      "proposerPublicKey": "ed25519:AYsubzLQVDLgM4jTMcjCW3jbMDp2oER3krK3yizq7hoc"
+      "proposerPublicKey": "ed25519:2k95xTH2akPy1hMXx7ESGgD163dMP4wRK2goj9efh8su"
     },
     "context": {
       "frozenAtLocalBlock": {
-        "height": 43,
-        "hash": "At8h12ZCYLvWtbm6wnRHntGiAysxAY4kvufDNybNHMBe",
-        "timestamp": "1793891659282221476"
+        "height": 41,
+        "hash": "BqETBMuxTGwgL91VibhkAuS6Eyi1MSNjGPCpnHosSBXq",
+        "timestamp": "1793892867646681871"
       },
       "note": "Proposal submission timestamp is frozen in raw state. Fresh branch local block timestamps differ; this is recorded, not treated as the inherited timestamp."
+    }
+  },
+  "inputManifest": {
+    "schema": "near-rehearsal/sputnik-input-manifest/v1",
+    "family": "sputnik-dao-v2",
+    "candidate": {
+      "sha256": "5005fe46d62e3f6cf1dd0c0b05a60343155a4fa9c6990d0428746f3dae0689c0",
+      "bytes": 424130,
+      "label": "SEEDED bad candidate (default fixture)",
+      "provenance": "seeded fixture generated from verified candidate; act_proposal is unreachable"
+    },
+    "correction": {
+      "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
+      "bytes": 430589,
+      "label": "verified good candidate (default correction)",
+      "provenance": "verified source-built candidate; also historical healthy candidate"
     }
   },
   "artifacts": {
@@ -32,14 +48,16 @@
     "candidate": {
       "sha256": "5005fe46d62e3f6cf1dd0c0b05a60343155a4fa9c6990d0428746f3dae0689c0",
       "hash": "6PNv9RhppLX2PzPpZLypey91WzxVtb6QRsyXgpL7sb3u",
-      "role": "seeded-bad",
-      "label": "SEEDED bad candidate: act_proposal replaced with unreachable; migration remains real candidate migration"
+      "role": "candidate",
+      "label": "SEEDED bad candidate (default fixture)",
+      "provenance": "seeded fixture generated from verified candidate; act_proposal is unreachable"
     },
     "corrected": {
       "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
       "hash": "aNSiys9LXwH1MQ1S3frZFkmFiqNkjJiiouwapLo8P4N",
-      "role": "verified-good",
-      "label": "verified candidate used as correction"
+      "role": "correction",
+      "label": "verified good candidate (default correction)",
+      "provenance": "verified source-built candidate; also historical healthy candidate"
     },
     "healthy": {
       "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
@@ -47,6 +65,11 @@
       "role": "historical-healthy",
       "label": "historical healthy candidate, separate selectable case"
     }
+  },
+  "observed": {
+    "baseline": "preserved",
+    "candidate": "regressed",
+    "corrected": "preserved"
   },
   "primaryComparison": {
     "from": "frozen old state",
@@ -65,38 +88,46 @@
     "baseline": {
       "status": "preserved",
       "checks": {
-        "initialState": "ce60cada10042a590fd3fd98b1a8820db47592cc749955c6bf5a0bb7274fcb31",
-        "initialFacts": "c6a963b1f85353f22f1f21ab8dbdce0cb6ad991e8d44aa7bf3125e735d1c93bb",
+        "initialState": "1207952dc7e010b857230b7aea8ed832a7e7bfefc4d29a1326c522e6a4190b9a",
+        "initialFacts": "de1c002e34ffc586506447217e12d321c7f71fbe749a96dbc5b407e3e4429a45",
         "operationSucceeded": true,
         "payoutExactlyBond": true,
         "retryFailed": true,
         "retryDidNotPay": true,
+        "retryContractDeltaYocto": "27751280523700000000",
+        "retryActorDeltaYocto": "-212949826550900000000",
         "stateChanged": true
       },
       "localBlock": {
-        "height": 28,
-        "hash": "53ARQi8b2qj2NU2mW5Ree4uKUCU1K4z7ZZEQwsZJ9toG",
-        "timestamp": "1793891720860112117"
+        "height": 30,
+        "hash": "AvBySSyWW5yupCvm23at3xm23qQ2keAC2TfpNgGV57YT",
+        "timestamp": "1793892938022618762"
       },
-      "failure": null
+      "failure": null,
+      "retryBalances": {
+        "contractDeltaYocto": "27751280523700000000",
+        "actorDeltaYocto": "-212949826550900000000"
+      }
     },
     "candidate": {
       "status": "regressed",
       "checks": {
-        "initialState": "ce60cada10042a590fd3fd98b1a8820db47592cc749955c6bf5a0bb7274fcb31",
-        "initialFacts": "c6a963b1f85353f22f1f21ab8dbdce0cb6ad991e8d44aa7bf3125e735d1c93bb",
+        "initialState": "1207952dc7e010b857230b7aea8ed832a7e7bfefc4d29a1326c522e6a4190b9a",
+        "initialFacts": "de1c002e34ffc586506447217e12d321c7f71fbe749a96dbc5b407e3e4429a45",
         "upgradeSucceeded": true,
         "candidateCode": true,
         "operationSucceeded": false,
         "operationRegressed": true,
         "payoutExactlyBond": false,
         "retryFailed": true,
-        "retryDidNotPay": true
+        "retryDidNotPay": true,
+        "retryContractDeltaYocto": "13861366173500000000",
+        "retryActorDeltaYocto": "-166650112050000000000"
       },
       "localBlock": {
-        "height": 27,
-        "hash": "CKQx2JLfPkoLt7fVoFtFB4azDtREjpEs3iYGDeSbkBMV",
-        "timestamp": "1793891811339213579"
+        "height": 23,
+        "hash": "DhyqYwwwpnHrAfHkdbHSTnT5TySvsYFiB2dWbcY8C2Uy",
+        "timestamp": "1793893011363785363"
       },
       "failure": {
         "ActionError": {
@@ -107,33 +138,43 @@
             }
           }
         }
+      },
+      "retryBalances": {
+        "contractDeltaYocto": "13861366173500000000",
+        "actorDeltaYocto": "-166650112050000000000"
       }
     },
     "corrected": {
       "status": "preserved",
       "checks": {
-        "initialState": "ce60cada10042a590fd3fd98b1a8820db47592cc749955c6bf5a0bb7274fcb31",
-        "initialFacts": "c6a963b1f85353f22f1f21ab8dbdce0cb6ad991e8d44aa7bf3125e735d1c93bb",
+        "initialState": "1207952dc7e010b857230b7aea8ed832a7e7bfefc4d29a1326c522e6a4190b9a",
+        "initialFacts": "de1c002e34ffc586506447217e12d321c7f71fbe749a96dbc5b407e3e4429a45",
         "upgradeSucceeded": true,
         "correctedCode": true,
         "operationSucceeded": true,
         "operationRegressed": false,
         "payoutExactlyBond": true,
         "retryFailed": true,
-        "retryDidNotPay": true
+        "retryDidNotPay": true,
+        "retryContractDeltaYocto": "28761474876400000000",
+        "retryActorDeltaYocto": "-216317141059800000000"
       },
       "localBlock": {
         "height": 28,
-        "hash": "A8m32eRaK9EHU5W7Aas8znLBvkyZ1KaczvaNr17x8hrw",
-        "timestamp": "1793891959255361615"
+        "hash": "ChVh1kKegQuGj1buupUFAWUTahngAqhWx51s9cF6wnY6",
+        "timestamp": "1793893168762139839"
       },
-      "failure": null
+      "failure": null,
+      "retryBalances": {
+        "contractDeltaYocto": "28761474876400000000",
+        "actorDeltaYocto": "-216317141059800000000"
+      }
     }
   },
   "limitations": [
-    "Local Sandbox only; no public upgrade, deployment, or production recovery.",
-    "Locally constructed configured-factory fixture, not the public captured DAO and not governance UpgradeSelf.",
-    "The seeded bad artifact is a deliberately broken test fixture, not a historical release.",
-    "Historical healthy candidate is selectable separately; it is not labelled broken."
+    "Local Sandbox only; no public upgrade, deployment, production key or funds.",
+    "Locally constructed configured-factory fixture; not the public captured DAO and not governance UpgradeSelf.",
+    "Submitted candidate/correction metadata binds actual bytes; labels are provenance claims supplied with the inputs.",
+    "A failed contract call and zero payout is a valid regressed report, not an infrastructure failure."
   ]
 }
