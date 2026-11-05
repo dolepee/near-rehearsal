@@ -13,6 +13,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { Worker, KeyPair, parseNEAR, hashContract } = require('near-workspaces');
+const {structuredTransactionFailure} = require('./scripts/transaction-classification.cjs');
 
 const ROOT = __dirname;
 const OUT = path.join(ROOT, 'out');
@@ -117,9 +118,14 @@ async function captureBaseline() {
 
 async function replayBranch(capture, candidate, operation) {
   const worker = await Worker.init({ network: 'sandbox' });
+  let importCheck = null;
+  let migration = null;
+  let candidateHash = null;
+  let runtime = null;
   try {
     assertLocal(worker);
     const status = await worker.provider.status();
+    runtime = runtimeOf(status);
     const keyPair = KeyPair.fromRandom('ed25519');
     const account = await worker.rootAccount.createSubAccount('state', {
       keyPair,
@@ -144,7 +150,7 @@ async function replayBranch(capture, candidate, operation) {
     }
     if (!importedCode?.length) throw new Error('captured contract code did not appear after patch');
     const imported = await stateHash(account);
-    const importCheck = {
+    importCheck = {
       codeHash: hashContract(importedCode),
       codeSha256: sha256(importedCode),
       stateHash: imported.stateHash,
@@ -156,9 +162,8 @@ async function replayBranch(capture, candidate, operation) {
     if (candidate) {
       await account.deploy(read(candidate.wasm));
     }
-    const candidateHash = hashContract(await account.viewCode());
+    candidateHash = hashContract(await account.viewCode());
 
-    let migration = null;
     if (candidate && candidate.migrate) {
       const tx = await account.call(account, 'migrate', {}, { gas: GAS });
       let afterState = null;
@@ -194,8 +199,28 @@ async function replayBranch(capture, candidate, operation) {
         stateHashAfter: await finalStateHash(worker, account),
       };
     } catch (error) {
+      const structured = structuredTransactionFailure(error);
+      if (!structured) {
+        return {
+          branch: candidate ? candidate.id : 'baseline',
+          label: candidate ? candidate.label : 'captured baseline',
+          seeded: !!candidate?.seeded,
+          candidate: candidate ? { wasm: candidate.wasm, codeHash: candidateHash } : null,
+          importCheck,
+          migration,
+          operation: {
+            succeeded: false,
+            inconclusive: true,
+            error: String(error?.message ?? error).split('\n')[0].slice(0, 500),
+            stateHashAfter: null,
+          },
+          runtime,
+        };
+      }
       operationResult = {
         succeeded: false,
+        structuredFailure: true,
+        failure: structured.Failure ?? null,
         error: String(error?.message ?? error).split('\n')[0].slice(0, 500),
         stateHashAfter: (await stateHash(account)).stateHash,
       };
@@ -208,7 +233,7 @@ async function replayBranch(capture, candidate, operation) {
       importCheck,
       migration,
       operation: operationResult,
-      runtime: runtimeOf(status),
+      runtime,
     };
   } finally {
     await worker.tearDown();
@@ -255,7 +280,7 @@ async function rehearse(capture) {
       buggySucceeded: buggy.operation.succeeded,
       fixedValue: fixed.operation.value,
       sameStartingState: baseline.importCheck.matches && buggy.importCheck.matches && fixed.importCheck.matches,
-      regressionObserved: baseline.operation.succeeded && !buggy.operation.succeeded,
+      regressionObserved: baseline.operation.succeeded && buggy.operation.succeeded === false && buggy.operation.structuredFailure === true && buggy.operation.inconclusive !== true,
       correctionObserved: fixed.operation.succeeded && fixed.operation.value === (BigInt(capture.count) + 1n).toString(),
     },
     claimBoundary: 'Pinned local Sandbox execution only. The bad candidate is explicitly seeded. No live vulnerability, production authorization, or public-chain state capture is claimed.',

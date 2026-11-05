@@ -118,6 +118,16 @@
       "exit": 1
     },
     {
+      "name": "quarter-near-first-loss",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "quarter-near-retry-loss",
+      "rejected": true,
+      "exit": 1
+    },
+    {
       "name": "missing-bond-refund",
       "rejected": true,
       "exit": 1

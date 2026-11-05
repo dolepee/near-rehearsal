@@ -292,18 +292,20 @@ function transferEvidence(claim, beneficiary, obligation = null, transfers = nul
     }
   }
   const amountTransfers = Array.isArray(transfers) ? transfers : [];
-  const linkedTransfer = links.length === 1
+  const ambiguous = links.length !== 1 || amountTransfers.length !== 1;
+  const linkedTransfer = !ambiguous
     ? amountTransfers.find((transfer) => transfer.receiptId === links[0].beneficiaryReceiptId)
     : null;
   const amount = linkedTransfer?.amount ?? null;
   return {
     beneficiary,
     linked: links.length === 1,
+    ambiguous,
     links,
     transfers: amountTransfers,
     amount,
     obligation: obligation === null ? null : String(obligation),
-    amountMatches: amount !== null && obligation !== null && BigInt(amount) === BigInt(obligation),
+    amountMatches: !ambiguous && amount !== null && obligation !== null && BigInt(amount) === BigInt(obligation),
     note: links.length > 1 ? 'multiple beneficiary links; refusing to pick one' : amountTransfers.length > 1 ? 'multiple contract-to-beneficiary transfers; refusing to sum' : !linkedTransfer && links.length === 1 ? 'linked beneficiary receipt has no matching transfer action' : undefined,
   };
 }
@@ -369,6 +371,9 @@ async function runBranch(capture, config, candidate, expected) {
   const result = {
     branch: candidate?.id || 'baseline',
     candidateLabel: candidate?.label || null,
+    candidateSha256: candidate ? sha256(read(candidate.wasm)) : null,
+    candidateCodeHash: null,
+    deployedCodeHash: null,
     expected,
     status: 'inconclusive',
     runtime: null,
@@ -410,6 +415,8 @@ async function runBranch(capture, config, candidate, expected) {
       matches: !!importedCode && hashContract(importedCode) === capture.codeHash && stateHash(importedState) === capture.stateHash,
     };
     if (!result.importCheck.matches) throw new Inconclusive('captured code/state did not import identically');
+    result.deployedCodeHash = result.importCheck.codeHash;
+    if (candidate) result.candidateCodeHash = null;
 
     const user = await worker.rootAccount.createSubAccount(parsedCapture.beneficiary.split('.')[0], {initialBalance: parseNEAR('10')});
     if (user.accountId !== parsedCapture.beneficiary) throw new Error(`executed user ${user.accountId} does not match captured beneficiary ${parsedCapture.beneficiary}`);
@@ -424,6 +431,8 @@ async function runBranch(capture, config, candidate, expected) {
 
     if (candidate) {
       await contract.deploy(read(candidate.wasm));
+      result.candidateCodeHash = hashContract(await contract.viewCode());
+      result.deployedCodeHash = result.candidateCodeHash;
       const beforeMigrationState = await waitFor(worker, contract.accountId, () => true);
       const unauthorizedMigration = await user.callRaw(contract, config.migration.method, config.migration.args, {gas: GAS});
       result.controls.migrationAuthorityDenied = unauthorizedMigration.failed === true && /MIGRATION/.test(failureText(unauthorizedMigration));
@@ -645,4 +654,6 @@ module.exports = {
   runtimeOf,
   runtimePinMatches,
   stateHash,
+  hashContract,
+  sha256,
 };

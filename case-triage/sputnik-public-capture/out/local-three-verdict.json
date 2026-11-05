@@ -4,23 +4,40 @@
   "status": "complete",
   "scope": "offline consistency from supplied bytes, raw state and receipts; not cryptographic execution attestation",
   "frozenBundle": {
-    "stateHash": "1207952dc7e010b857230b7aea8ed832a7e7bfefc4d29a1326c522e6a4190b9a",
+    "stateHash": "edb49f1e1964115f6bd18b87f44a40d545202478132914fd50b71ed35c97e47b",
     "codeHash": "F5SMJ8vKYwaH7Y8mYLmqxjfdNv3haZE82isFpQHnXFPC",
     "contractBalance": "100997020950425382000000000",
     "actorBalance": "98999771124799122700000000",
     "recipientBalance": "10000000000000000000000000",
+    "proposal": {
+      "id": 0,
+      "proposer": "proposer.test.near",
+      "description": "pre-upgrade transfer proposal",
+      "kind": {
+        "Transfer": {
+          "token_id": "",
+          "receiver_id": "recipient.test.near",
+          "amount": "1000000000000000000000000",
+          "msg": null
+        }
+      },
+      "status": "InProgress",
+      "vote_counts": {},
+      "votes": {},
+      "submission_time": "1793915512736191310"
+    },
     "identities": {
       "contract": "dao.test.near",
       "proposer": "proposer.test.near",
       "recipient": "recipient.test.near",
       "factory": "test.near",
-      "proposerPublicKey": "ed25519:2k95xTH2akPy1hMXx7ESGgD163dMP4wRK2goj9efh8su"
+      "proposerPublicKey": "ed25519:GgAyAs8KYyPdh1GrFMurXRCDzFHuEEVjFQ4MH1G8Sa4h"
     },
     "context": {
       "frozenAtLocalBlock": {
-        "height": 41,
-        "hash": "BqETBMuxTGwgL91VibhkAuS6Eyi1MSNjGPCpnHosSBXq",
-        "timestamp": "1793892867646681871"
+        "height": 46,
+        "hash": "4JZzjx3S3oJkinbBfBzBqmWcTPaiciQaHhnH65yftXbG",
+        "timestamp": "1793915518382926330"
       },
       "note": "Proposal submission timestamp is frozen in raw state. Fresh branch local block timestamps differ; this is recorded, not treated as the inherited timestamp."
     }
@@ -31,14 +48,14 @@
     "candidate": {
       "sha256": "5005fe46d62e3f6cf1dd0c0b05a60343155a4fa9c6990d0428746f3dae0689c0",
       "bytes": 424130,
-      "label": "SEEDED bad candidate (default fixture)",
-      "provenance": "seeded fixture generated from verified candidate; act_proposal is unreachable"
+      "label": "SEEDED bad candidate: act_proposal replaced with unreachable",
+      "provenance": "seeded test fixture generated from the verified candidate by replacing act_proposal with unreachable"
     },
     "correction": {
       "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
       "bytes": 430589,
-      "label": "verified good candidate (default correction)",
-      "provenance": "verified source-built candidate; also historical healthy candidate"
+      "label": "verified good correction",
+      "provenance": "verified source-built candidate; same bytes are the historical healthy candidate"
     }
   },
   "artifacts": {
@@ -50,21 +67,15 @@
       "sha256": "5005fe46d62e3f6cf1dd0c0b05a60343155a4fa9c6990d0428746f3dae0689c0",
       "hash": "6PNv9RhppLX2PzPpZLypey91WzxVtb6QRsyXgpL7sb3u",
       "role": "candidate",
-      "label": "SEEDED bad candidate (default fixture)",
-      "provenance": "seeded fixture generated from verified candidate; act_proposal is unreachable"
+      "label": "SEEDED bad candidate: act_proposal replaced with unreachable",
+      "provenance": "seeded test fixture generated from the verified candidate by replacing act_proposal with unreachable"
     },
     "corrected": {
       "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
       "hash": "aNSiys9LXwH1MQ1S3frZFkmFiqNkjJiiouwapLo8P4N",
       "role": "correction",
-      "label": "verified good candidate (default correction)",
-      "provenance": "verified source-built candidate; also historical healthy candidate"
-    },
-    "healthy": {
-      "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
-      "hash": "aNSiys9LXwH1MQ1S3frZFkmFiqNkjJiiouwapLo8P4N",
-      "role": "historical-healthy",
-      "label": "historical healthy candidate, separate selectable case"
+      "label": "verified good correction",
+      "provenance": "verified source-built candidate; same bytes are the historical healthy candidate"
     }
   },
   "observed": {
@@ -89,9 +100,10 @@
     "baseline": {
       "status": "preserved",
       "checks": {
-        "initialState": "1207952dc7e010b857230b7aea8ed832a7e7bfefc4d29a1326c522e6a4190b9a",
-        "initialFacts": "de1c002e34ffc586506447217e12d321c7f71fbe749a96dbc5b407e3e4429a45",
+        "initialState": "edb49f1e1964115f6bd18b87f44a40d545202478132914fd50b71ed35c97e47b",
+        "initialFacts": "2dca684b975362ff6698e1bddf2671aae0e082888629c35285cb408a52f846b4",
         "operationSucceeded": true,
+        "operationRegressed": false,
         "payoutExactlyBond": true,
         "retryFailed": true,
         "retryDidNotPay": true,
@@ -100,9 +112,9 @@
         "stateChanged": true
       },
       "localBlock": {
-        "height": 30,
-        "hash": "AvBySSyWW5yupCvm23at3xm23qQ2keAC2TfpNgGV57YT",
-        "timestamp": "1793892938022618762"
+        "height": 33,
+        "hash": "4Su8SYXhiZ13tHRZ9XjsfBkW6UL8fGzxeWjGREnke1zz",
+        "timestamp": "1793915893721628401"
       },
       "failure": null,
       "retryBalances": {
@@ -113,8 +125,8 @@
     "candidate": {
       "status": "regressed",
       "checks": {
-        "initialState": "1207952dc7e010b857230b7aea8ed832a7e7bfefc4d29a1326c522e6a4190b9a",
-        "initialFacts": "de1c002e34ffc586506447217e12d321c7f71fbe749a96dbc5b407e3e4429a45",
+        "initialState": "edb49f1e1964115f6bd18b87f44a40d545202478132914fd50b71ed35c97e47b",
+        "initialFacts": "2dca684b975362ff6698e1bddf2671aae0e082888629c35285cb408a52f846b4",
         "upgradeSucceeded": true,
         "candidateCode": true,
         "operationSucceeded": false,
@@ -126,9 +138,9 @@
         "retryActorDeltaYocto": "-166650112050000000000"
       },
       "localBlock": {
-        "height": 23,
-        "hash": "DhyqYwwwpnHrAfHkdbHSTnT5TySvsYFiB2dWbcY8C2Uy",
-        "timestamp": "1793893011363785363"
+        "height": 28,
+        "hash": "77USakv58oYTB2LWSRVAurmuwhmWHjESuLFvCmmNeV4z",
+        "timestamp": "1793915977987515107"
       },
       "failure": {
         "ActionError": {
@@ -148,8 +160,8 @@
     "corrected": {
       "status": "preserved",
       "checks": {
-        "initialState": "1207952dc7e010b857230b7aea8ed832a7e7bfefc4d29a1326c522e6a4190b9a",
-        "initialFacts": "de1c002e34ffc586506447217e12d321c7f71fbe749a96dbc5b407e3e4429a45",
+        "initialState": "edb49f1e1964115f6bd18b87f44a40d545202478132914fd50b71ed35c97e47b",
+        "initialFacts": "2dca684b975362ff6698e1bddf2671aae0e082888629c35285cb408a52f846b4",
         "upgradeSucceeded": true,
         "correctedCode": true,
         "operationSucceeded": true,
@@ -161,9 +173,9 @@
         "retryActorDeltaYocto": "-216317141059800000000"
       },
       "localBlock": {
-        "height": 28,
-        "hash": "ChVh1kKegQuGj1buupUFAWUTahngAqhWx51s9cF6wnY6",
-        "timestamp": "1793893168762139839"
+        "height": 33,
+        "hash": "Hu8LvoYPJVoC2KZqsdfKa1YLvgBGkCkKzs2PMaHKfp3N",
+        "timestamp": "1793916159750785924"
       },
       "failure": null,
       "retryBalances": {

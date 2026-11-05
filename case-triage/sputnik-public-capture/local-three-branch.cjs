@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { Worker, KeyPair, parseNEAR, hashContract } = require('near-workspaces');
+const {classifyBranch} = require('./classification.cjs');
 
 const HERE = __dirname;
 const DEFAULT_OUT = path.join(HERE, 'out', 'jobs', `${new Date().toISOString().replace(/[:.]/g, '-')}-${process.pid}`);
@@ -244,11 +245,23 @@ async function importBundle(bundle) {
     try { recipientBalance = await viewAmount(worker, recipient.accountId); break; }
     catch (e) { if (i === 39) throw new Error(`recipient amount unavailable: ${e.message}`); await sleep(250); }
   }
+  let actorAmount = await viewAmount(worker, proposer.accountId);
+  if (BigInt(actorAmount) !== BigInt(bundle.actorAccount.amount)) {
+    const delta = BigInt(bundle.actorAccount.amount) - BigInt(actorAmount);
+    if (delta > 0n) await root.transfer(proposer.accountId, delta);
+    actorAmount = await viewAmount(worker, proposer.accountId);
+  }
+  let importedCode;
+  for (let i = 0; i < 80; i++) {
+    try { importedCode = await dao.viewCode(); if (importedCode?.length) break; } catch {}
+    await sleep(250);
+  }
+  if (!importedCode?.length) throw new Error('imported contract code did not appear');
   const imported = {
-    codeHash: hashContract(await dao.viewCode()),
+    codeHash: hashContract(importedCode),
     stateHash: stateHash(await readState(worker, dao.accountId)),
     contractBalance: (await dao.accountView()).amount,
-    actorBalance: (await proposer.accountView()).amount,
+    actorBalance: actorAmount,
     recipientBalance,
     policy: await viewJson(worker, dao.accountId, 'get_policy'),
     proposal: await viewJson(worker, dao.accountId, 'get_proposal', { id: bundle.proposalId }),
@@ -276,12 +289,14 @@ async function importBundle(bundle) {
 }
 async function close(branch) { try { await branch.worker.tearDown(); } catch {} }
 async function snapshot(branch) {
+  const contract = await branch.dao.accountView();
   return {
     codeHash: hashContract(await branch.dao.viewCode()),
     stateHash: stateHash(await readState(branch.worker, DAO_ID)),
     proposal: await viewJson(branch.worker, DAO_ID, 'get_proposal', { id: branch.bundle.proposalId }),
     recipientBalance: await viewAmount(branch.worker, RECIPIENT_ID),
-    contractBalance: await viewAmount(branch.worker, DAO_ID),
+    contractBalance: contract.amount,
+    contractStorageUsage: contract.storage_usage,
     actorBalance: await viewAmount(branch.worker, ACTOR_ID),
   };
 }
@@ -319,7 +334,7 @@ async function runBaseline(bundle) {
       retryActorDeltaYocto: (BigInt(afterRetry.actorBalance) - BigInt(afterFirst.actorBalance)).toString(),
       stateChanged: afterFirst.stateHash !== before.stateHash,
     };
-    return { status: checks.operationSucceeded && checks.payoutExactlyBond && checks.retryFailed && checks.retryDidNotPay ? 'preserved' : (checks.operationSucceeded === false && checks.operationRegressed === true ? 'regressed' : 'inconclusive'), initial: b.imported, localBlock: b.localBlock, before, first, afterFirst, retry, afterRetry, checks };
+    return { status: classifyBranch(checks, 'baseline'), initial: b.imported, localBlock: b.localBlock, before, first, afterFirst, retry, afterRetry, checks };
   } finally { await close(b); }
 }
 async function runCandidate(bundle) {
@@ -348,7 +363,7 @@ async function runCandidate(bundle) {
       retryContractDeltaYocto: (BigInt(afterRetry.contractBalance) - BigInt(afterFirst.contractBalance)).toString(),
       retryActorDeltaYocto: (BigInt(afterRetry.actorBalance) - BigInt(afterFirst.actorBalance)).toString(),
     };
-    const status = !checks.upgradeSucceeded || !checks.candidateCode ? 'inconclusive' : checks.operationRegressed ? 'regressed' : checks.operationSucceeded && checks.retryFailed && checks.retryDidNotPay ? 'preserved' : 'inconclusive';
+    const status = classifyBranch({...checks, codeMatches: checks.candidateCode}, 'candidate');
     return { status, initial: b.imported, localBlock: b.localBlock, before, upgrade, afterUpgrade, first, afterFirst, retry, afterRetry, checks };
   } finally { await close(b); }
 }
@@ -378,7 +393,7 @@ async function runCorrected(bundle) {
       retryContractDeltaYocto: (BigInt(afterRetry.contractBalance) - BigInt(afterFirst.contractBalance)).toString(),
       retryActorDeltaYocto: (BigInt(afterRetry.actorBalance) - BigInt(afterFirst.actorBalance)).toString(),
     };
-    const status = !checks.upgradeSucceeded || !checks.correctedCode ? 'inconclusive' : checks.operationSucceeded && checks.retryFailed && checks.retryDidNotPay ? 'preserved' : checks.operationRegressed ? 'regressed' : 'inconclusive';
+    const status = classifyBranch({...checks, codeMatches: checks.correctedCode}, 'corrected');
     return { status, initial: b.imported, localBlock: b.localBlock, before, upgrade, afterUpgrade, first, afterFirst, retry, afterRetry, checks };
   } finally { await close(b); }
 }

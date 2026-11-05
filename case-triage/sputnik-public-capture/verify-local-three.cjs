@@ -24,10 +24,12 @@ const required = (o, keys, label) => { for (const k of keys) if (!(k in (o || {}
 const asString = (v, label) => { if (typeof v !== 'string' || !v.length) fail(`${label} must be a non-empty string`); return v; };
 const asYocto = (v, label) => { try { return BigInt(asString(v, label)); } catch { fail(`${label} is not an integer yocto string`); } };
 const asNonNegativeYocto = (v, label) => { const n = asYocto(v, label); if (n < 0n) fail(`${label} must be non-negative`); return n; };
+const asStorageUsage = (v, label) => { const n = typeof v === 'number' ? v : Number(v); if (!Number.isSafeInteger(n) || n < 0) fail(`${label} must be a non-negative integer`); return BigInt(n); };
+const storageDeltaYocto = (after, before, label) => (asStorageUsage(after?.contractStorageUsage, `${label}.afterStorageUsage`) - asStorageUsage(before?.contractStorageUsage, `${label}.beforeStorageUsage`)) * STORAGE_BYTE_COST_YOCTO;
 const recognized = (s) => s && ['SuccessValue', 'SuccessReceiptId', 'Failure'].some((k) => Object.prototype.hasOwnProperty.call(s, k));
-// A code replacement can refund or charge storage. Keep this bounded so a
-// mutated report cannot hide an unexplained 50 NEAR balance change.
-const MAX_STORAGE_DELTA_YOCTO = 10n ** 24n;
+// NEAR storage is priced per byte; local account snapshots expose the exact
+// storage-usage change, so balance conservation does not need a broad tolerance.
+const STORAGE_BYTE_COST_YOCTO = 10n ** 19n;
 
 required(result, ['schema', 'status', 'completed', 'frozenBundle', 'inputManifest', 'artifacts', 'branches', 'sameStartingState', 'comparison', 'primaryComparison'], 'result');
 if (result.schema !== 'near-rehearsal/local-sputnik-three-branch/v4') fail('result schema mismatch');
@@ -221,8 +223,14 @@ function upgradeAccounting(b, label) {
   if (b.afterUpgrade.actorBalance !== b.before.actorBalance) fail(`${label} upgrade changed proposer balance`);
   if (b.afterUpgrade.recipientBalance !== b.before.recipientBalance) fail(`${label} upgrade changed recipient balance`);
   const contractDelta = BigInt(b.afterUpgrade.contractBalance) - BigInt(b.before.contractBalance);
-  if (contractDelta > MAX_STORAGE_DELTA_YOCTO || contractDelta < -MAX_STORAGE_DELTA_YOCTO) fail(`${label} upgrade contract balance change outside migration storage bound: ${contractDelta}`);
-  return {contractDeltaYocto: contractDelta.toString()};
+  const storageDelta = storageDeltaYocto(b.afterUpgrade, b.before, `${label}.upgrade`);
+  // Code replacement can refund or charge storage at the account level; the
+  // local runtime does not expose a single code-size ledger. Cap this migration
+  // movement at half a NEAR and require the candidate's first operation to
+  // carry the exact transfer/bond/storage accounting below.
+  const MAX_UPGRADE_CODE_STORAGE_YOCTO = 5n * 10n ** 23n;
+  if (contractDelta > MAX_UPGRADE_CODE_STORAGE_YOCTO || contractDelta < -MAX_UPGRADE_CODE_STORAGE_YOCTO) fail(`${label} upgrade contract balance change outside code/storage bound: ${contractDelta}`);
+  return {contractDeltaYocto: contractDelta.toString(), storageDeltaYocto: storageDelta.toString()};
 }
 
 function branchAccounting(b, label, keys) {
@@ -245,35 +253,36 @@ function branchAccounting(b, label, keys) {
   const firstPayout = BigInt(first.recipientBalance) - BigInt(before.recipientBalance);
   const firstContractDelta = BigInt(first.contractBalance) - BigInt(before.contractBalance);
   const firstActorDelta = BigInt(first.actorBalance) - BigInt(before.actorBalance);
+  const firstStorageDelta = storageDeltaYocto(first, before, `${label}.first`);
   const paid = b.status === 'preserved' || b.status === 'improved';
   const expectedPayout = paid ? declaredTransferYocto : 0n;
+  const firstStorageCharge = firstStorageDelta < 0n ? -firstStorageDelta : 0n;
   if (firstPayout !== expectedPayout) fail(`${label} first-operation recipient payout ${firstPayout} does not match derived status ${b.status}; expected ${expectedPayout}`);
   if (paid) {
     const expectedActor = declaredBondYocto - firstGas;
     if (firstActorDelta !== expectedActor) fail(`${label} preserved proposer delta ${firstActorDelta} does not equal bond ${declaredBondYocto} minus gas ${firstGas}`);
     if (firstContractDelta > -declaredTransferYocto) fail(`${label} preserved contract did not pay the declared transfer`);
-    if (firstContractDelta < -declaredTransferYocto - declaredBondYocto - MAX_STORAGE_DELTA_YOCTO) fail(`${label} preserved contract paid more than transfer plus bond plus allowed storage cost`);
+    if (firstContractDelta < -declaredTransferYocto - declaredBondYocto - firstStorageCharge) fail(`${label} preserved contract paid more than transfer, bond and storage charge`);
   } else if (b.status === 'regressed') {
     if (firstActorDelta !== -firstGas) fail(`${label} regressed proposer delta ${firstActorDelta} is not gas-only; bond may have been returned`);
     if (firstContractDelta <= -declaredTransferYocto) fail(`${label} regressed contract lost the declared transfer`);
+    if (firstContractDelta < -firstStorageCharge) fail(`${label} regressed contract lost more than storage charge`);
   }
-  const beforeSum = BigInt(before.contractBalance) + BigInt(before.actorBalance) + BigInt(before.recipientBalance);
-  const firstSum = BigInt(first.contractBalance) + BigInt(first.actorBalance) + BigInt(first.recipientBalance);
-  const storageDelta = firstSum - beforeSum + firstGas;
-  if (storageDelta > MAX_STORAGE_DELTA_YOCTO || storageDelta < -MAX_STORAGE_DELTA_YOCTO) fail(`${label} unexplained first-operation balance change outside storage bound: ${storageDelta}`);
   if (BigInt(after.recipientBalance) !== BigInt(first.recipientBalance)) fail(`${label} retry paid recipient`);
   if (BigInt(after.recipientBalance) !== BigInt(before.recipientBalance) + expectedPayout) fail(`${label} retry/snapshot recipient balance invariant failed`);
   const retryContractDelta = BigInt(after.contractBalance) - BigInt(first.contractBalance);
   const retryActorDelta = BigInt(after.actorBalance) - BigInt(first.actorBalance);
   const retryGas = asNonNegativeYocto(b.retry.totalTokensBurntYocto, `${label}.retry.totalTokensBurntYocto`);
-  const retryStorageDelta = retryContractDelta + retryActorDelta + retryGas;
-  if (retryStorageDelta > MAX_STORAGE_DELTA_YOCTO || retryStorageDelta < -MAX_STORAGE_DELTA_YOCTO) fail(`${label} unexplained retry balance change outside storage bound: ${retryStorageDelta}`);
+  const retryStorageDelta = storageDeltaYocto(after, first, `${label}.retry`);
+  const retryStorageCharge = retryStorageDelta < 0n ? -retryStorageDelta : 0n;
+  if (retryActorDelta !== -retryGas) fail(`${label} retry proposer delta ${retryActorDelta} is not gas-only`);
+  if (retryContractDelta < -retryStorageCharge) fail(`${label} retry contract lost more than storage charge`);
   if (retryContractDelta <= -declaredBondYocto / 2n) fail(`${label} retry lost bond-scale contract funds`);
   if (retryActorDelta > 0n) fail(`${label} retry increased proposer balance`);
   if (b.checks?.retryDidNotPay !== true) fail(`${label} retryDidNotPay check not true`);
   if (b.checks?.retryContractDeltaYocto !== retryContractDelta.toString()) fail(`${label} retry contract delta does not match snapshots`);
   if (b.checks?.retryActorDeltaYocto !== retryActorDelta.toString()) fail(`${label} retry actor delta does not match snapshots`);
-  return {grossPayoutYocto: firstPayout.toString(), bondRefundYocto: paid ? declaredBondYocto.toString() : '0', gasYocto: firstGas.toString(), contractDeltaYocto: firstContractDelta.toString(), actorDeltaYocto: firstActorDelta.toString(), storageDeltaYocto: storageDelta.toString(), retryContractDeltaYocto: retryContractDelta.toString(), retryActorDeltaYocto: retryActorDelta.toString()};
+  return {grossPayoutYocto: firstPayout.toString(), bondRefundYocto: paid ? declaredBondYocto.toString() : '0', gasYocto: firstGas.toString(), contractDeltaYocto: firstContractDelta.toString(), actorDeltaYocto: firstActorDelta.toString(), storageDeltaYocto: firstStorageDelta.toString(), retryContractDeltaYocto: retryContractDelta.toString(), retryActorDeltaYocto: retryActorDelta.toString()};
 }
 
 function retryBalances(b, label, keys = {before: 'before', retry: 'retry', first: 'afterFirst', after: 'afterRetry'}) {

@@ -11,9 +11,36 @@ const out = path.join(root, 'out');
 const reportPath = path.join(out, 'public-report.json');
 const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
 const reportBytes = fs.readFileSync(reportPath);
-const captureBytes = fs.readFileSync(path.join(out, 'public-capture.json'));
-const regressionBytes = fs.readFileSync(path.join(out, 'public-regression.json'));
+const capturePath = path.join(out, 'public-capture.json');
+const regressionPath = path.join(out, 'public-regression.json');
+const captureBytes = fs.readFileSync(capturePath);
+const regressionBytes = fs.readFileSync(regressionPath);
+const capture = JSON.parse(captureBytes.toString('utf8'));
+const regression = JSON.parse(regressionBytes.toString('utf8'));
 const sha256 = (b) => crypto.createHash('sha256').update(b).digest('hex');
+const sameRuntime = (a, b) => !!a && !!b
+  && a.version === b.version
+  && String(a.protocolVersion) === String(b.protocolVersion)
+  && a.commit === b.commit;
+const currentEvidence = {
+  captureHash: regression.captureSha256 === sha256(captureBytes),
+  captureIdentity: report.capture?.codeHash === capture.codeHash
+    && report.capture?.stateHash === capture.stateHash
+    && report.capture?.counter === capture.counter,
+  manifestRuntime: sameRuntime(report.replayRuntime, regression.runtime)
+    && report.runtimeMatch === true
+    && (report.regressionRuntime === null || sameRuntime(report.regressionRuntime, regression.runtime)),
+  candidateHashes: ['bad', 'corrected'].every((name) => {
+    const expected = regression.candidates?.[name]?.candidate;
+    return expected && sha256(fs.readFileSync(path.join(root, expected.wasm))) === expected.sha256;
+  }),
+  structuredBadFailure: report.branches?.bad?.operation?.tx?.failed === true
+    && report.branches?.bad?.operation?.succeeded === false
+    && !!report.branches?.bad?.operation?.tx?.failure,
+};
+if (Object.values(currentEvidence).some((value) => value !== true)) {
+  throw new Error(`release-review packet evidence does not match current files: ${JSON.stringify(currentEvidence)}`);
+}
 
 if (report.status !== 'complete' || report.result?.status !== 'complete') {
   throw new Error('release-review packet requires a complete public report');

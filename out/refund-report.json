@@ -159,7 +159,10 @@
       },
       "error": null,
       "beneficiary": "refunduser.test.near",
-      "outcome": "paid"
+      "outcome": "paid",
+      "candidateSha256": null,
+      "candidateCodeHash": null,
+      "deployedCodeHash": "M9iWHajvM2yhmna75kgZCxq9koaqKJFLXqNgFjfFGYm"
     },
     "bad": {
       "branch": "seeded-bad-v2",
@@ -286,7 +289,10 @@
       },
       "error": null,
       "beneficiary": "refunduser.test.near",
-      "outcome": "no-refund"
+      "outcome": "no-refund",
+      "candidateSha256": "f6340e6d6ef72c2baa706e42c12c463d30d4df7da53a69870020de17cc027323",
+      "candidateCodeHash": "Ha5LHiar9MH993Zo1SdmRRJtHs9fe8ncNvF3HY7JQ57G",
+      "deployedCodeHash": "Ha5LHiar9MH993Zo1SdmRRJtHs9fe8ncNvF3HY7JQ57G"
     },
     "corrected": {
       "branch": "corrected-v2",
@@ -437,7 +443,10 @@
       },
       "error": null,
       "beneficiary": "refunduser.test.near",
-      "outcome": "paid"
+      "outcome": "paid",
+      "candidateSha256": "bbdcdb9c2e12d5020831dfba548ade2a1cb1c4596d0fe6b086ea4eef428fad0d",
+      "candidateCodeHash": "DeLZuM9DKKN4tV3PPU2R5iztJJGFnfUMejb676jgYSfe",
+      "deployedCodeHash": "DeLZuM9DKKN4tV3PPU2R5iztJJGFnfUMejb676jgYSfe"
     }
   },
   "result": {

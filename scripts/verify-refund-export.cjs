@@ -31,10 +31,16 @@ function verifyBundle(bundleDir) {
   if (!caseEntry || !captureEntry || !reportEntry) {
     return [...errors, 'bundle needs case, capture and report inputs'];
   }
+  if (manifest.case?.path !== caseEntry.path) errors.push('manifest case path does not identify the verified case input');
+  if (manifest.capture?.path !== captureEntry.path) errors.push('manifest capture path does not identify the verified capture input');
+  const candidateEntry = (manifest.inputs || []).find((entry) => entry.role === 'input' && entry.path === manifest.candidate?.path);
+  if (!candidateEntry) errors.push('manifest candidate path is not a verified contained input');
+  if (candidateEntry && candidateEntry.sha256 !== manifest.candidate?.sha256) errors.push('manifest candidate hash does not match its verified input');
   const casePath = path.resolve(ROOT, caseEntry.path);
   const capturePath = path.resolve(ROOT, captureEntry.path);
   const reportPath = path.resolve(ROOT, reportEntry.path);
   const config = validateCase(casePath);
+  if (path.resolve(ROOT, config.capture) !== capturePath) errors.push('case capture reference does not resolve to the verified capture input');
   const capture = JSON.parse(fs.readFileSync(capturePath, 'utf8'));
   const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
   try { validateCapture(capture, config); } catch (error) { errors.push(`capture invalid: ${error.message}`); }

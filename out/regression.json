@@ -2,6 +2,14 @@
   "schema": "near-rehearsal/regression/v1",
   "command": "node rehearse.cjs --replay out/capture.json",
   "capture": "out/capture.json",
+  "captureSha256": "34f08094d23dff5b999d2841d573f90559becf6089502c8cf77545ca82bab1b9",
+  "runtime": {
+    "version": "2.6.2",
+    "build": "2.6.2",
+    "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+    "protocolVersion": 77,
+    "latestProtocolVersion": 77
+  },
   "operation": {
     "method": "increment",
     "args": {},
@@ -23,10 +31,12 @@
   "candidates": {
     "buggy": {
       "wasm": "contracts/state-v2-buggy.wasm",
+      "sha256": "c0ec130a693a470d7523aa16c47e209b31155b9ed44f4f51f8350650dfe2f968",
       "seeded": true
     },
     "fixed": {
-      "wasm": "contracts/state-v2-fixed.wasm"
+      "wasm": "contracts/state-v2-fixed.wasm",
+      "sha256": "995eb15a0ff0557b1a1edb155bfb6139ec1db13713a6d25a35a004416f98f31b"
     }
   }
 }

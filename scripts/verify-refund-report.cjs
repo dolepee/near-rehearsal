@@ -7,6 +7,7 @@ const {
   parseCaptureState,
   transferEvidence,
   runtimePinMatches,
+  hashContract,
 } = require('./refund-three-way.cjs');
 
 const ROOT = path.join(__dirname, '..');
@@ -61,7 +62,21 @@ function verifyRefundReport(report, config, capture) {
     if (branch.expected !== config.expected[name]) fail(errors, `${name} expected label mismatch`);
     if (branch.status !== expectedStatus[name]) fail(errors, `${name} status is ${branch.status}`);
     if (branch.runtimePinMatched !== true) fail(errors, `${name} runtime pin did not match`);
+    if (!branch.runtime || branch.runtime.version !== config.runtimePin.version
+      || String(branch.runtime.protocolVersion) !== String(config.runtimePin.protocolVersion)
+      || branch.runtime.commit !== config.runtimePin.commit) fail(errors, `${name} runtime evidence does not match the declared pin`);
     if (branch.importCheck?.matches !== true) fail(errors, `${name} import identity did not match`);
+    if (branch.importCheck?.codeHash !== capture.codeHash) fail(errors, `${name} import code hash does not match capture`);
+    if (branch.importCheck?.stateHash !== capture.stateHash) fail(errors, `${name} import state hash does not match capture`);
+    if (name === 'baseline') {
+      if (branch.deployedCodeHash !== capture.codeHash) fail(errors, 'baseline deployed code does not match capture');
+    } else {
+      const expected = config.candidates[name];
+      const expectedHash = hashContract(fs.readFileSync(path.resolve(ROOT, expected.wasm)));
+      if (branch.candidateSha256 !== expected.sha256) fail(errors, `${name} candidate bytes do not match the supplied case`);
+      if (branch.candidateCodeHash !== expectedHash) fail(errors, `${name} deployed candidate code hash does not match supplied bytes`);
+      if (branch.deployedCodeHash !== expectedHash) fail(errors, `${name} deployed code evidence does not match supplied bytes`);
+    }
     if (branch.beneficiary !== parsed.beneficiary) fail(errors, `${name} beneficiary does not match`);
     if (!branch.claim || !Array.isArray(branch.claim.receipts)) fail(errors, `${name} receipts are missing`);
     if (!branch.controls || branch.controls.outsiderDenied !== true || branch.controls.secondClaimDenied !== true) {

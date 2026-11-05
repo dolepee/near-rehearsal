@@ -2,6 +2,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const {validateCase} = require('./refund-three-way.cjs');
 const {verifyRefundReport} = require('./verify-refund-report.cjs');
 const {verifyBundle} = require('./verify-refund-export.cjs');
@@ -44,6 +45,27 @@ expectFail(() => {
   return verifyRefundReport(report, caseConfig, bad);
 }, 'tampered capture beneficiary');
 
+expectFail(() => {
+  const changed = clone(caseConfig);
+  changed.candidates.bad.wasm = caseConfig.candidates.corrected.wasm;
+  changed.candidates.bad.sha256 = caseConfig.candidates.corrected.sha256;
+  return verifyRefundReport(report, changed, capture);
+}, 'report executed candidate does not match supplied candidate');
+
+expectFail(() => {
+  const bad = clone(report);
+  bad.branches.corrected.runtime.version = '9.9.9';
+  bad.branches.corrected.runtimePinMatched = true;
+  return verifyRefundReport(bad, caseConfig, capture);
+}, 'runtime booleans do not replace runtime evidence');
+
+expectFail(() => {
+  const bad = clone(report);
+  bad.branches.corrected.importCheck.codeHash = '11111111111111111111111111111111';
+  bad.branches.corrected.importCheck.matches = true;
+  return verifyRefundReport(bad, caseConfig, capture);
+}, 'import booleans do not replace imported identity');
+
 const exportsRoot = path.join(ROOT, 'out/exports');
 const bundles = fs.existsSync(exportsRoot)
   ? fs.readdirSync(exportsRoot).filter((name) => name.startsWith('refund-v1-')).map((name) => path.join(exportsRoot, name))
@@ -51,4 +73,12 @@ const bundles = fs.existsSync(exportsRoot)
 for (const bundleDir of bundles) {
   assert.deepEqual(verifyBundle(bundleDir), []);
   console.log(`accepted: exported bundle hashes and evidence (${path.basename(bundleDir)})`);
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'refund-export-path-'));
+  fs.cpSync(bundleDir, temp, {recursive: true});
+  const manifestPath = path.join(temp, 'manifest.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  manifest.capture.path = manifest.inputs.find((entry) => entry.role === 'input').path;
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+  assert.ok(verifyBundle(temp).some((error) => /capture path|case capture reference/.test(error)), 'tampered replay path must reject');
+  console.log('rejected: manifest replay path outside verified inputs');
 }

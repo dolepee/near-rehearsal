@@ -1,6 +1,6 @@
 {
   "schema": "near-rehearsal/local-frozen-sputnik-bundle/v1",
-  "createdAt": "2026-11-05T15:34:29.474Z",
+  "createdAt": "2026-11-05T21:52:01.233Z",
   "source": "local source-built Sputnik configured-factory fixture",
   "network": "sandbox",
   "identities": {
@@ -8,19 +8,19 @@
     "proposer": "proposer.test.near",
     "recipient": "recipient.test.near",
     "factory": "test.near",
-    "proposerPublicKey": "ed25519:2k95xTH2akPy1hMXx7ESGgD163dMP4wRK2goj9efh8su"
+    "proposerPublicKey": "ed25519:GgAyAs8KYyPdh1GrFMurXRCDzFHuEEVjFQ4MH1G8Sa4h"
   },
   "artifacts": {
     "baseSha256": "d1269a7be654211172cde60bccfa05a76996a3163b55abaeb58737f8661aaebf",
     "baseHash": "F5SMJ8vKYwaH7Y8mYLmqxjfdNv3haZE82isFpQHnXFPC",
     "candidateSha256": "5005fe46d62e3f6cf1dd0c0b05a60343155a4fa9c6990d0428746f3dae0689c0",
     "candidateHash": "6PNv9RhppLX2PzPpZLypey91WzxVtb6QRsyXgpL7sb3u",
-    "candidateLabel": "SEEDED bad candidate (default fixture)",
-    "candidateProvenance": "seeded fixture generated from verified candidate; act_proposal is unreachable",
+    "candidateLabel": "SEEDED bad candidate: act_proposal replaced with unreachable",
+    "candidateProvenance": "seeded test fixture generated from the verified candidate by replacing act_proposal with unreachable",
     "correctedSha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
     "correctedHash": "aNSiys9LXwH1MQ1S3frZFkmFiqNkjJiiouwapLo8P4N",
-    "correctedLabel": "verified good candidate (default correction)",
-    "correctedProvenance": "verified source-built candidate; also historical healthy candidate",
+    "correctedLabel": "verified good correction",
+    "correctedProvenance": "verified source-built candidate; same bytes are the historical healthy candidate",
     "healthySha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
     "healthyHash": "aNSiys9LXwH1MQ1S3frZFkmFiqNkjJiiouwapLo8P4N"
   },
@@ -49,7 +49,7 @@
     },
     {
       "key": "AwAAAAAAAAAA",
-      "value": "ABIAAABwcm9wb3Nlci50ZXN0Lm5lYXIdAAAAcHJlLXVwZ3JhZGUgdHJhbnNmZXIgcHJvcG9zYWwHAAAAABMAAAByZWNpcGllbnQudGVzdC5uZWFyAAAAoe3MzhvC0wAAAAAAAAAAAAAAAAAAAADcpdGMDjDlGA=="
+      "value": "ABIAAABwcm9wb3Nlci50ZXN0Lm5lYXIdAAAAcHJlLXVwZ3JhZGUgdHJhbnNmZXIgcHJvcG9zYWwHAAAAABMAAAByZWNpcGllbnQudGVzdC5uZWFyAAAAoe3MzhvC0wAAAAAAAAAAAAAAAAAAAABOE7R9p0TlGA=="
     },
     {
       "key": "RkFDVE9SWQ==",
@@ -60,7 +60,7 @@
       "value": "AQAAAAABAAAAAQAAAKHtzM4bwtMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAQAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAc="
     }
   ],
-  "stateHash": "1207952dc7e010b857230b7aea8ed832a7e7bfefc4d29a1326c522e6a4190b9a",
+  "stateHash": "edb49f1e1964115f6bd18b87f44a40d545202478132914fd50b71ed35c97e47b",
   "codeHash": "F5SMJ8vKYwaH7Y8mYLmqxjfdNv3haZE82isFpQHnXFPC",
   "policy": {
     "roles": [
@@ -117,7 +117,7 @@
     "status": "InProgress",
     "vote_counts": {},
     "votes": {},
-    "submission_time": "1793892865627235804"
+    "submission_time": "1793915512736191310"
   },
   "proposalId": 0,
   "transferKind": {
@@ -130,15 +130,15 @@
   },
   "context": {
     "frozenAtLocalBlock": {
-      "height": 41,
-      "hash": "BqETBMuxTGwgL91VibhkAuS6Eyi1MSNjGPCpnHosSBXq",
-      "timestamp": "1793892867646681871"
+      "height": 46,
+      "hash": "4JZzjx3S3oJkinbBfBzBqmWcTPaiciQaHhnH65yftXbG",
+      "timestamp": "1793915518382926330"
     },
     "note": "Proposal submission timestamp is frozen in raw state. Fresh branch local block timestamps differ; this is recorded, not treated as the inherited timestamp."
   },
   "templateTransactions": {
     "deploy": {
-      "transactionHash": "DTBeg45fJNp1C7dWbg4Gnme7UCxNL5LFYy8NBokp7Sky",
+      "transactionHash": "Ey2uuok8bdiSCyt311eE9pEWXT8a1vnAocPLgeYXFP3G",
       "succeeded": true,
       "failed": false,
       "failure": null,
@@ -153,22 +153,22 @@
             }
           }
         ],
-        "transactionOutcomeBlockHash": "9McAynHwKH51ZuUZVyWTqjLiUKks6HVGSUfYFHdiCyWZ"
+        "transactionOutcomeBlockHash": "2iSqxHawdfitoho5eJkdRuyC12g2rgR1v6AkA2RyYHKz"
       },
       "receiptIds": [
-        "784u7V5gemXHj2wFyVezJkhPLo8xkpHyh4o3XqQBDhtW"
+        "4sWccuXeYQ8xGiSH82RxsAjTzVj3432FDDwPdHnGdu1E"
       ],
       "gasBurntUnits": "3138260656352",
       "transactionOutcomeTokensBurntYocto": "313826065635200000000",
       "receiptTokensBurntYocto": "2726158616571200000000",
       "totalTokensBurntYocto": "3039984682206400000000",
       "transactionOutcomeStatus": {
-        "SuccessReceiptId": "784u7V5gemXHj2wFyVezJkhPLo8xkpHyh4o3XqQBDhtW"
+        "SuccessReceiptId": "4sWccuXeYQ8xGiSH82RxsAjTzVj3432FDDwPdHnGdu1E"
       },
       "receipts": [
         {
-          "id": "784u7V5gemXHj2wFyVezJkhPLo8xkpHyh4o3XqQBDhtW",
-          "blockHash": "9McAynHwKH51ZuUZVyWTqjLiUKks6HVGSUfYFHdiCyWZ",
+          "id": "4sWccuXeYQ8xGiSH82RxsAjTzVj3432FDDwPdHnGdu1E",
+          "blockHash": "2iSqxHawdfitoho5eJkdRuyC12g2rgR1v6AkA2RyYHKz",
           "receiptIds": [],
           "executorId": "dao.test.near",
           "status": {
@@ -182,7 +182,7 @@
       "receiptFailures": []
     },
     "init": {
-      "transactionHash": "ETSPfWRD2w8M9x3ThTn8aiKw5paodBuQBm4MyLUgrv8",
+      "transactionHash": "CyHinLayPn1BYQ6bXXa7Z9TdesYzSiok3uGiWGQP6Lj5",
       "succeeded": true,
       "failed": false,
       "failure": null,
@@ -200,24 +200,24 @@
             }
           }
         ],
-        "transactionOutcomeBlockHash": "BWLsCzHN59LgA4QvzxWXfu1YeXvdHDddXk98UzwaiDF3"
+        "transactionOutcomeBlockHash": "8JUNadXzZaHNhsDsrCxfKH55CTGktnisvHKVeFd6mp1h"
       },
       "receiptIds": [
-        "Ez1eLLrX1WGbbwABKPJDT6ZqD1d3SWR6wTbnCaoQ41Vc"
+        "AaFwJkSaWmLM5fSGHES1fc7LR3ppGipAPXVMao8rhw9M"
       ],
       "gasBurntUnits": "314639852670",
       "transactionOutcomeTokensBurntYocto": "31463985267000000000",
       "receiptTokensBurntYocto": "183648987567700000000",
       "totalTokensBurntYocto": "215112972834700000000",
       "transactionOutcomeStatus": {
-        "SuccessReceiptId": "Ez1eLLrX1WGbbwABKPJDT6ZqD1d3SWR6wTbnCaoQ41Vc"
+        "SuccessReceiptId": "AaFwJkSaWmLM5fSGHES1fc7LR3ppGipAPXVMao8rhw9M"
       },
       "receipts": [
         {
-          "id": "Ez1eLLrX1WGbbwABKPJDT6ZqD1d3SWR6wTbnCaoQ41Vc",
-          "blockHash": "8T8KzVv4uv18juZ8LngGksk2CdfnVNFzJwhvYBEodzGo",
+          "id": "AaFwJkSaWmLM5fSGHES1fc7LR3ppGipAPXVMao8rhw9M",
+          "blockHash": "4FSsVJc5G7XRYeTnjjfwkL7o86reV15zj8RN92j1h1zY",
           "receiptIds": [
-            "GyZuX1vmT7mprY8PD4FfW252oaJcKMsKkXLspdtMFDof"
+            "4aoBjFNstmeBCkTjYQjiwpmTVHWJ6g4JWDtvzoRAF4UD"
           ],
           "executorId": "dao.test.near",
           "status": {
@@ -228,8 +228,8 @@
           "logs": []
         },
         {
-          "id": "GyZuX1vmT7mprY8PD4FfW252oaJcKMsKkXLspdtMFDof",
-          "blockHash": "9Er6pavWLQQH7VfoCmkeTKkfpXJM5pWR9FfEWDgfd87i",
+          "id": "4aoBjFNstmeBCkTjYQjiwpmTVHWJ6g4JWDtvzoRAF4UD",
+          "blockHash": "GRPy4b3EgfauRM9adf1LHH7y1dhqffqXbxQppHQ43DGS",
           "receiptIds": [],
           "executorId": "test.near",
           "status": {
@@ -243,7 +243,7 @@
       "receiptFailures": []
     },
     "add": {
-      "transactionHash": "GyKvbMhACaEcB5QUecWYXd7BVZwzrWBistLd4f7NWJaL",
+      "transactionHash": "8roD7FUKCtiM3ibHDryeQmxa5zVtfg6CSiymuKCkYZX2",
       "succeeded": true,
       "failed": false,
       "failure": null,
@@ -261,24 +261,24 @@
             }
           }
         ],
-        "transactionOutcomeBlockHash": "E8S65WBhkQC4fk3XHoum9wZoKEj22VwEj3qFFjbkpbqf"
+        "transactionOutcomeBlockHash": "W7zzksc3wbScabe6YEA5ZTaqzZS3LvyqQZCHPrfk3Px"
       },
       "receiptIds": [
-        "BaJSWkq3rRCbhd7ReaQjSp4U6QJLBFMTMe9MfmmaiGqh"
+        "41fYzaSRjfRxeR6omnSTKNiKtyWhYRjZFvtaMGUB2jZt"
       ],
       "gasBurntUnits": "317214773280",
       "transactionOutcomeTokensBurntYocto": "31721477328000000000",
       "receiptTokensBurntYocto": "197153723549300000000",
       "totalTokensBurntYocto": "228875200877300000000",
       "transactionOutcomeStatus": {
-        "SuccessReceiptId": "BaJSWkq3rRCbhd7ReaQjSp4U6QJLBFMTMe9MfmmaiGqh"
+        "SuccessReceiptId": "41fYzaSRjfRxeR6omnSTKNiKtyWhYRjZFvtaMGUB2jZt"
       },
       "receipts": [
         {
-          "id": "BaJSWkq3rRCbhd7ReaQjSp4U6QJLBFMTMe9MfmmaiGqh",
-          "blockHash": "79wmqPFGZoGSmkRxVGkjFZKbyeRpaHssdqFfs4ZMzxCo",
+          "id": "41fYzaSRjfRxeR6omnSTKNiKtyWhYRjZFvtaMGUB2jZt",
+          "blockHash": "H2T33MXgSemCNcWA1Ez9PjqNYEjN6S5kiTDGKUJ1BqDF",
           "receiptIds": [
-            "38HAvSN23HDFLRYrwcBWNByABVeppg7DUZVuqGo5iuWL"
+            "BSCC9FWTPEJFiBESXMMBLyBgiv6e5B3Tm6LAJ1cDuatE"
           ],
           "executorId": "dao.test.near",
           "status": {
@@ -289,8 +289,8 @@
           "logs": []
         },
         {
-          "id": "38HAvSN23HDFLRYrwcBWNByABVeppg7DUZVuqGo5iuWL",
-          "blockHash": "8jbQMGUFRgEdA9zLHGZBw5z43JZauVLCjh5jchxrSXYo",
+          "id": "BSCC9FWTPEJFiBESXMMBLyBgiv6e5B3Tm6LAJ1cDuatE",
+          "blockHash": "8K1dzTTb7qDiF5YzbfZ4zif7WnxsrQo8HuMPVqoZNWmi",
           "receiptIds": [],
           "executorId": "proposer.test.near",
           "status": {

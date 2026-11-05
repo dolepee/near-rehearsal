@@ -53,6 +53,8 @@ const cases = [
   run('preserved-correction-no-payout', (r) => { r.branches.corrected.afterFirst.recipientBalance = r.branches.corrected.before.recipientBalance; }),
   run('unexplained-balance-drain', (r) => { r.branches.corrected.afterUpgrade.contractBalance = String(BigInt(r.branches.corrected.afterUpgrade.contractBalance) - 50n * 10n ** 24n); }),
   run('first-operation-balance-drain', (r) => { r.branches.corrected.afterFirst.contractBalance = String(BigInt(r.branches.corrected.afterFirst.contractBalance) - 50n * 10n ** 24n); }),
+  run('quarter-near-first-loss', (r) => { r.branches.corrected.afterFirst.contractBalance = String(BigInt(r.branches.corrected.afterFirst.contractBalance) - 25n * 10n ** 22n); }),
+  run('quarter-near-retry-loss', (r) => { r.branches.corrected.afterRetry.contractBalance = String(BigInt(r.branches.corrected.afterRetry.contractBalance) - 25n * 10n ** 22n); }),
   run('missing-bond-refund', (r) => { r.branches.corrected.afterFirst.actorBalance = String(BigInt(r.branches.corrected.afterFirst.actorBalance) - 10n ** 24n); }),
   run('disconnected-receipt-cycle', (r) => { const t = r.branches.baseline.first; t.receipts.push({id: 'CYCLE_A', blockHash: 'a', receiptIds: ['CYCLE_B'], executorId: t.receipts[0].executorId, status: {SuccessValue: ''}, gasBurntUnits: '1', tokensBurntYocto: '1', logs: []}, {id: 'CYCLE_B', blockHash: 'b', receiptIds: ['CYCLE_A'], executorId: t.receipts[0].executorId, status: {SuccessValue: ''}, gasBurntUnits: '1', tokensBurntYocto: '1', logs: []}); }),
   run('receipt-self-loop', (r) => { const t = r.branches.baseline.first; t.receipts[0].receiptIds.push(t.receipts[0].id); }),

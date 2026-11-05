@@ -63,6 +63,21 @@ assert.equal(linked.links[0].contractReceiptId, 'contract');
 assert.equal(linked.links[0].beneficiaryReceiptId, 'beneficiary');
 console.log('accepted: contract SuccessReceiptId -> beneficiary SuccessValue link');
 
+const multipleTransfers = transferEvidence({
+  receipts: [
+    {id: 'contract', executorId: 'refund.test.near', status: {SuccessReceiptId: 'beneficiary'}},
+    {id: 'beneficiary', executorId: 'refunduser.test.near', status: {SuccessValue: ''}},
+  ],
+}, 'refunduser.test.near', '100', [
+  {receiptId: 'beneficiary', predecessorId: 'refund.test.near', receiverId: 'refunduser.test.near', amount: '100'},
+  {receiptId: 'beneficiary', predecessorId: 'refund.test.near', receiverId: 'refunduser.test.near', amount: '100'},
+]);
+assert.equal(multipleTransfers.linked, true);
+assert.equal(multipleTransfers.ambiguous, true);
+assert.equal(multipleTransfers.amountMatches, false);
+assert.match(multipleTransfers.note, /multiple contract-to-beneficiary transfers/);
+console.log('rejected: multiple refund transfers are ambiguous and not a payable match');
+
 const gasOnly = transferEvidence({
   receipts: [
     {id: 'contract', executorId: 'refund.test.near', status: {SuccessValue: ''}},
