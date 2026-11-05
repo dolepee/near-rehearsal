@@ -8,23 +8,26 @@ const {verifyRefundReport} = require('./verify-refund-report.cjs');
 const ROOT = path.join(__dirname, '..');
 const sha256 = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 
-function verifyBundle(bundleDir) {
+function verifyBundle(bundleDir, options = {}) {
   const errors = [];
-  const root = path.resolve(ROOT, bundleDir);
+  const rootBase = path.resolve(options.root || ROOT);
+  const root = path.resolve(rootBase, bundleDir);
   const manifestPath = path.join(root, 'manifest.json');
   if (!fs.existsSync(manifestPath)) return [`missing manifest: ${manifestPath}`];
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   if (manifest.schema !== 'near-rehearsal/refund-export/v1') errors.push('unsupported export schema');
   if (!manifest.bundleId || typeof manifest.bundleId !== 'string') errors.push('missing bundleId');
   if (!Array.isArray(manifest.inputs) || !manifest.inputs.length) errors.push('missing input list');
+  let unsafe = false;
   for (const entry of manifest.inputs || []) {
-    const file = path.resolve(ROOT, entry.path);
-    if (!file.startsWith(root + path.sep)) { errors.push(`input escapes bundle: ${entry.path}`); continue; }
-    if (!fs.existsSync(file)) { errors.push(`missing input: ${entry.path}`); continue; }
+    const file = path.resolve(rootBase, entry.path);
+    if (!file.startsWith(root + path.sep)) { errors.push(`input escapes bundle: ${entry.path}`); unsafe = true; continue; }
+    if (!fs.existsSync(file)) { errors.push(`missing input: ${entry.path}`); unsafe = true; continue; }
     const bytes = fs.readFileSync(file);
     if (bytes.length !== entry.bytes) errors.push(`size mismatch: ${entry.path}`);
     if (sha256(bytes) !== entry.sha256) errors.push(`hash mismatch: ${entry.path}`);
   }
+  if (unsafe) return errors;
   const caseEntry = (manifest.inputs || []).find((entry) => entry.role === 'case');
   const captureEntry = (manifest.inputs || []).find((entry) => entry.role === 'capture');
   const reportEntry = (manifest.inputs || []).find((entry) => entry.role === 'report');
@@ -36,11 +39,11 @@ function verifyBundle(bundleDir) {
   const candidateEntry = (manifest.inputs || []).find((entry) => entry.role === 'input' && entry.path === manifest.candidate?.path);
   if (!candidateEntry) errors.push('manifest candidate path is not a verified contained input');
   if (candidateEntry && candidateEntry.sha256 !== manifest.candidate?.sha256) errors.push('manifest candidate hash does not match its verified input');
-  const casePath = path.resolve(ROOT, caseEntry.path);
-  const capturePath = path.resolve(ROOT, captureEntry.path);
-  const reportPath = path.resolve(ROOT, reportEntry.path);
+  const casePath = path.resolve(rootBase, caseEntry.path);
+  const capturePath = path.resolve(rootBase, captureEntry.path);
+  const reportPath = path.resolve(rootBase, reportEntry.path);
   const config = validateCase(casePath);
-  if (path.resolve(ROOT, config.capture) !== capturePath) errors.push('case capture reference does not resolve to the verified capture input');
+  if (path.resolve(rootBase, config.capture) !== capturePath) errors.push('case capture reference does not resolve to the verified capture input');
   const capture = JSON.parse(fs.readFileSync(capturePath, 'utf8'));
   const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
   try { validateCapture(capture, config); } catch (error) { errors.push(`capture invalid: ${error.message}`); }

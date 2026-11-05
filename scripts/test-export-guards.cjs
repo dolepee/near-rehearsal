@@ -73,12 +73,26 @@ const bundles = fs.existsSync(exportsRoot)
 for (const bundleDir of bundles) {
   assert.deepEqual(verifyBundle(bundleDir), []);
   console.log(`accepted: exported bundle hashes and evidence (${path.basename(bundleDir)})`);
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'refund-export-path-'));
-  fs.cpSync(bundleDir, temp, {recursive: true});
-  const manifestPath = path.join(temp, 'manifest.json');
+  const relativeBundle = path.relative(ROOT, bundleDir);
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'refund-export-path-'));
+  const tempBundle = path.join(tempRoot, relativeBundle);
+  fs.mkdirSync(path.dirname(tempBundle), {recursive: true});
+  fs.cpSync(bundleDir, tempBundle, {recursive: true});
+  const manifestPath = path.join(tempBundle, 'manifest.json');
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   manifest.capture.path = manifest.inputs.find((entry) => entry.role === 'input').path;
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
-  assert.ok(verifyBundle(temp).some((error) => /capture path|case capture reference/.test(error)), 'tampered replay path must reject');
+  assert.ok(verifyBundle(relativeBundle, {root: tempRoot}).some((error) => /capture path|case capture reference/.test(error)), 'tampered replay path must reject');
   console.log('rejected: manifest replay path outside verified inputs');
+
+  const escapedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'refund-export-escape-'));
+  const escapedBundle = path.join(escapedRoot, relativeBundle);
+  fs.mkdirSync(path.dirname(escapedBundle), {recursive: true});
+  fs.cpSync(bundleDir, escapedBundle, {recursive: true});
+  const escapedManifestPath = path.join(escapedBundle, 'manifest.json');
+  const escapedManifest = JSON.parse(fs.readFileSync(escapedManifestPath, 'utf8'));
+  escapedManifest.inputs[0].path = '../outside-input.json';
+  fs.writeFileSync(escapedManifestPath, JSON.stringify(escapedManifest, null, 2) + '\n');
+  assert.ok(verifyBundle(relativeBundle, {root: escapedRoot}).some((error) => /escapes bundle/.test(error)), 'escaped input path must reject');
+  console.log('rejected: input path escapes the bundle');
 }
