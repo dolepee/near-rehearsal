@@ -61,7 +61,7 @@ node case-triage/rehearsal-repair/acceptance.cjs
 node case-triage/rehearsal-repair/acceptance-tests.cjs
 ```
 
-The first checks base/repaired artifact identity, healthy payout, failed status, base stranded bond, repaired zero contract delta and gas-only proposer delta, and identical starting state within each run. The second is the positive control plus five targeted rejections: hidden base bond, double refund, missing payout, false failed status, and changed artifact identity.
+The first checks base/repaired artifact identity, healthy payout and beneficiary/amount, failed status, base stranded bond, repaired zero contract delta and gas-only proposer delta, rejected unauthorized callback, and identical starting state within each run. The second is the positive control plus seven targeted rejections: hidden base bond, double refund, missing payout, false failed status, changed artifact identity, accepted unauthorized callback, and changed beneficiary.
 
 This is an authored deterministic patch, not a model-generated patch. The model
 provenance gate remains separate and blocked at authentication.

@@ -163,9 +163,19 @@ async function runBranch(worker, label, inputKind) {
     policy: await viewJson(worker, dao.accountId, 'get_policy'),
     proposal,
   };
+  let unauthorizedCallback;
+  try {
+    const tx = await proposer.callRaw(dao, 'on_proposal_callback', { proposal_id: proposalId }, { gas: GAS });
+    const final = await finalStatus(worker, tx, proposer.accountId);
+    unauthorizedCallback = summarize(final);
+  } catch (e) {
+    unauthorizedCallback = { error: String(e.message || e).slice(0, 500), succeeded: false };
+  }
+
   return {
     label,
     kind,
+    unauthorizedCallback,
     contractId: dao.accountId,
     proposerId: proposer.accountId,
     recipientId: recipient.accountId,

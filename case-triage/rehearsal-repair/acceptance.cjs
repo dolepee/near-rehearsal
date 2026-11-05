@@ -26,6 +26,12 @@ function verify(base, repaired) {
   for (const [name, report] of [['base', base], ['repaired', repaired]]) {
     if (JSON.stringify(report?.healthy?.before) !== JSON.stringify(report?.failed?.before)) fail(`${name} branches did not start from identical state`);
   }
+  for (const [name, report] of [['base', base], ['repaired', repaired]]) {
+    const callback = report?.healthy?.unauthorizedCallback;
+    if (!callback?.receipts?.some((receipt) => receipt.status?.Failure)) fail(`${name} unauthorized callback was not rejected on its receipt`);
+    if (report?.healthy?.kind?.Transfer?.receiver_id !== 'recipient.test.near') fail(`${name} healthy beneficiary changed`);
+    if (BigInt(report?.healthy?.kind?.Transfer?.amount ?? '0') !== TRANSFER) fail(`${name} healthy transfer amount changed`);
+  }
   if (base?.source?.wasmSha256 !== '5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578') fail('base artifact identity');
   if (repaired?.source?.wasmSha256 !== '41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5') fail('repaired artifact identity');
   if (BigInt(base?.failed?.deltas?.contract ?? '0') !== BOND) fail('base failed branch did not strand the bond');
