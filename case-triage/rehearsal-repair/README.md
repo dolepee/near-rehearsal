@@ -1,13 +1,20 @@
 # Rehearsal Repair checkpoint
 
-Status: **partial, blocked before issue #238 reproduction.**
+Status: **source-built issue #238 reproduction complete on local Sandbox 2.14.0; repair loop not yet implemented.**
 
 ## Pinned source
 
 - Repository: `https://github.com/near-daos/sputnik-dao-contract`
 - Commit: `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`
 - Toolchain: Rust `1.86.0`, target `wasm32-unknown-unknown`
-- Build command, from the source checkout:
+- Reproducible build entry, from the source checkout:
+
+```sh
+(cd sputnikdao2 && cargo near build reproducible-wasm)
+```
+
+The repository's `build.sh` uses the same `cargo near build reproducible-wasm`
+entry for each contract. The direct compile fallback is:
 
 ```sh
 cargo build --target wasm32-unknown-unknown --release --locked -p sputnikdao2
@@ -16,25 +23,25 @@ cargo build --target wasm32-unknown-unknown --release --locked -p sputnikdao2
 - Built artifact: `target/wasm32-unknown-unknown/release/sputnikdao2.wasm`
 - Artifact SHA-256: `5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578`
 
-## Current blocker
+## Reproduction result
 
-The source compiles. The compiled artifact does not initialize under the local
-near-sandbox runtimes tested here. The observed failure at `new` is:
+The pinned source build was run on near-sandbox `2.14.0`. Both branches executed
+from separately initialized local state:
 
-```text
-FunctionCallError: CompilationError: PrepareError: Deserialization
-```
+- Healthy control: proposal `Approved`; contract `-0.1 NEAR`; recipient `+0.1 NEAR`; proposer `-0.0008363133581916 NEAR`.
+- Failed async FunctionCall: proposal `Failed`; contract `+1 NEAR`; recipient `0`; proposer `-1.0008566935666626 NEAR`.
 
-This was reproduced with near-sandbox `2.6.2`, `2.10.0` and `2.11.0`. The
-prebuilt historical fixture deploys and runs, so this is a compatibility issue
-with this source build, not a generic RPC failure.
+The failed branch shows the inherited proposal bond staying in the contract
+while the proposer bears the bond plus gas. Raw receipts and deltas are in
+`out/issue238-local.json`.
 
-Do not treat issue #238 as reproduced until the compiled source initializes and
-the failed-async and healthy control branches have both executed from the same
-frozen state.
+The earlier `FunctionCallError: CompilationError: PrepareError: Deserialization`
+failures were specific to the older sandbox runtimes tested (`2.6.2`, `2.10.0`,
+`2.11.0`); the same artifact initializes on `2.14.0`. The runner now finalizes
+`new` and waits for the first view before creating a proposal.
 
 ## Next bounded step
 
-Resolve the runtime compatibility issue without changing proposal/refund
-semantics, then run `issue238-local.cjs` against the pinned compiled artifact and
-record the healthy and failed branches separately.
+Implement the source-only repair path and compile it without granting it test or
+predicate access. The current checkpoint establishes the reproduction and the
+healthy control; it is not a model-generated patch and not a repair claim.

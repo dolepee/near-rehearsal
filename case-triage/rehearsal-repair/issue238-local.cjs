@@ -113,10 +113,14 @@ async function runBranch(worker, label, inputKind) {
   const wasm = fs.readFileSync(WASM);
   const deploy = await dao.deploy(wasm);
   const deployFinal = await finalStatus(worker, deploy, root.accountId);
-  await root.callRaw(dao, 'new', {
+  const init = await root.callRaw(dao, 'new', {
     config: { name: 'issue238', purpose: 'bounded local source-built reproduction', metadata: '' },
     policy: [proposer.accountId],
   }, { gas: GAS });
+  await finalStatus(worker, init, root.accountId);
+  for (let i = 0; i < 40; i++) {
+    try { await viewJson(worker, dao.accountId, 'get_policy'); break; } catch { await sleep(250); }
+  }
 
   const before = {
     contract: await viewAmount(worker, dao.accountId),
@@ -227,6 +231,6 @@ async function runBranch(worker, label, inputKind) {
     fs.writeFileSync(path.join(OUT, 'issue238-local.json'), json(report));
     console.log(json(report));
   } finally {
-    await worker.teardown().catch(() => {});
+    await worker.tearDown?.().catch(() => {});
   }
 })().catch((e) => { console.error(e.stack || e); process.exit(1); });

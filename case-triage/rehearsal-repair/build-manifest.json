@@ -1,0 +1,23 @@
+{
+  "schema": "near-rehearsal/repair-build-manifest/v1",
+  "source": {
+    "repository": "https://github.com/near-daos/sputnik-dao-contract",
+    "commit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b"
+  },
+  "toolchain": {
+    "rust": "1.86.0",
+    "target": "wasm32-unknown-unknown"
+  },
+  "build": {
+    "command": "(cd sputnikdao2 && cargo near build reproducible-wasm)",
+    "fallback": "cargo build --target wasm32-unknown-unknown --release --locked -p sputnikdao2",
+    "artifact": "target/wasm32-unknown-unknown/release/sputnikdao2.wasm",
+    "artifactSha256": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578"
+  },
+  "localRuntime": {
+    "sandbox": "2.14.0",
+    "observation": "deploy, new and both branches succeeded; issue #238 failed-async reproduction recorded"
+  },
+  "status": "reproduced",
+  "issue238Reproduction": true
+}
