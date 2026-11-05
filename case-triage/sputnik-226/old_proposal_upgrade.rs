@@ -4,7 +4,13 @@
 
 use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::serde_json::{json, Value};
-use near_workspaces::types::NearToken;
+use near_workspaces::network::Sandbox;
+use near_workspaces::result::ExecutionFinalResult;
+use near_workspaces::types::{Finality, NearToken};
+use near_workspaces::Worker;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
 use sputnikdao2::{
     Action, Config, ProposalInput, ProposalKind, VersionedPolicy,
 };
@@ -15,6 +21,46 @@ fn read_wasm(var: &str) -> Vec<u8> {
     std::fs::read(&path).unwrap_or_else(|error| panic!("cannot read {path}: {error}"))
 }
 
+fn evidence_path() -> PathBuf {
+    PathBuf::from(std::env::var("EVIDENCE_PATH").unwrap_or_else(|_| "pilot/evidence.log".to_string()))
+}
+
+fn append_stage(path: &Path, stage_name: &str, execution: &ExecutionFinalResult) {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).expect("cannot create evidence directory");
+    }
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .expect("cannot open evidence file");
+    let record = json!({
+        "schema": "near-rehearsal/pilot/sputnik-226-rust-evidence/v1",
+        "stage": stage_name,
+        "execution": format!("{execution:#?}"),
+    });
+    writeln!(file, "{record}").expect("cannot write evidence");
+}
+
+async fn wait_finalized(
+    worker: &Worker<Sandbox>,
+    execution: &ExecutionFinalResult,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut target = 0u64;
+    for outcome in execution.outcomes() {
+        let block = worker.view_block().block_hash(outcome.block_hash).await?;
+        target = target.max(block.height());
+    }
+    for _ in 0..120 {
+        let finalized = worker.view_block().finality(Finality::Final).await?;
+        if finalized.height() >= target {
+            return Ok(());
+        }
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+    Err(format!("finality barrier timed out; target block {target}").into())
+}
+
 #[tokio::test]
 #[ignore = "requires source-built BASE_WASM/CANDIDATE_WASM and a local sandbox"]
 async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
@@ -23,6 +69,7 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
     let candidate_wasm = read_wasm("CANDIDATE_WASM");
 
     let worker = near_workspaces::sandbox().await?;
+    let evidence = evidence_path();
     let root = worker.root_account()?;
     let dao_account = root
         .create_subaccount("pilot-dao")
@@ -38,11 +85,13 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         .into_result()?;
 
     let deployment = dao_account.deploy(&base_wasm).await?;
+    append_stage(&evidence, "deploy", &deployment.details);
     assert!(
         deployment.is_success(),
         "base deploy failed: {:?}",
         deployment.details.failures()
     );
+    wait_finalized(&worker, &deployment.details).await?;
     let dao = deployment.result;
 
     let config = Config {
@@ -51,13 +100,16 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         metadata: Base64VecU8(vec![]),
     };
     let policy = VersionedPolicy::Default(vec![root.id().clone()]);
-    let init = dao
-        .call("new")
+    // Root calls new(), so FactoryInfo.factory_id is persisted as root.
+    let init = root
+        .call(dao.id(), "new")
         .args_json(json!({"config": config, "policy": policy}))
         .max_gas()
         .transact()
         .await?;
-    assert!(init.is_success(), "init failed: {:?}", init.failures());
+    append_stage(&evidence, "init", &init.details);
+    assert!(init.is_success(), "init failed: {:?}", init.details.failures());
+    wait_finalized(&worker, &init.details).await?;
 
     let config_before: Value = dao.view("get_config").await?.json()?;
 
@@ -80,7 +132,9 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         .max_gas()
         .transact()
         .await?;
-    assert!(add.is_success(), "add_proposal failed: {:?}", add.failures());
+    append_stage(&evidence, "add_proposal", &add.details);
+    assert!(add.is_success(), "add_proposal failed: {:?}", add.details.failures());
+    wait_finalized(&worker, &add.details).await?;
     let proposal_id: u64 = add.json()?;
 
     // The old binary does not have the candidate's last_actions_log field.
@@ -104,15 +158,18 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
 
     let recipient_before = recipient.view_account().await?.balance;
 
-    // Contract::call(function) is the self-call API: it signs as the DAO
-    // account and targets the contract's own account.
-    let upgrade = dao
-        .call("update")
+    // Honest fixture: root is the persisted factory. Root calls update() with
+    // raw candidate bytes, exercising the authorized factory branch. This is
+    // NOT governance UpgradeSelf and NOT the self-call/callback branch.
+    let upgrade = root
+        .call(dao.id(), "update")
         .args(candidate_wasm.clone())
         .max_gas()
         .transact()
         .await?;
-    assert!(upgrade.is_success(), "update failed: {:?}", upgrade.failures());
+    append_stage(&evidence, "update", &upgrade.details);
+    assert!(upgrade.is_success(), "update failed: {:?}", upgrade.details.failures());
+    wait_finalized(&worker, &upgrade.details).await?;
 
     let code = dao.view_code().await?;
     assert_eq!(code, candidate_wasm, "candidate code hash mismatch");
@@ -137,7 +194,9 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         .max_gas()
         .transact()
         .await?;
-    assert!(approve.is_success(), "old proposal vote failed: {:?}", approve.failures());
+    append_stage(&evidence, "approve", &approve.details);
+    assert!(approve.is_success(), "old proposal vote failed: {:?}", approve.details.failures());
+    wait_finalized(&worker, &approve.details).await?;
 
     let final_proposal: Value = dao
         .view("get_proposal")
@@ -158,5 +217,6 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         "transfer recipient balance did not increase by the proposal amount"
     );
 
+    append_stage(&evidence, "complete", &approve.details);
     Ok(())
 }

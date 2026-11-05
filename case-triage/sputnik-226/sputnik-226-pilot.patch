@@ -1,7 +1,7 @@
 From d699fabd33d7cbdaec07a785e73216cf2234d35b Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Wed, 4 Nov 2026 20:30:48 +0000
-Subject: [PATCH 1/6] Add Sputnik 226 old-proposal pilot harness and dossier
+Subject: [PATCH 1/7] Add Sputnik 226 old-proposal pilot harness and dossier
 
 ---
  pilot/README.md               | 120 ++++++++++++++++++++++++++++++++++
@@ -337,7 +337,7 @@ index 0000000..a89d96e
 From 84c82dce91b2b7b71da5107d31686192d3ff15e8 Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:25 +0000
-Subject: [PATCH 2/6] Harden Sputnik 226 pilot harness against no-op votes
+Subject: [PATCH 2/7] Harden Sputnik 226 pilot harness against no-op votes
 
 Use Contract::call for the self-update, read old proposal state as raw JSON, compare full config, and assert persisted approval plus recipient balance.
 ---
@@ -548,7 +548,7 @@ index a89d96e..1ba6133 100644
 From 6ea5efc87f7cce6f927f87d52114a93bf037e61c Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:42 +0000
-Subject: [PATCH 3/6] Fix pilot deploy diagnostic accessor
+Subject: [PATCH 3/7] Fix pilot deploy diagnostic accessor
 
 ---
  pilot/old_proposal_upgrade.rs | 6 +++++-
@@ -578,7 +578,7 @@ index 1ba6133..b669401 100644
 From 461403ce62490968b1e307df7c3867135458fb62 Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:59 +0000
-Subject: [PATCH 4/6] Remove unused pilot import
+Subject: [PATCH 4/7] Remove unused pilot import
 
 ---
  pilot/old_proposal_upgrade.rs | 2 +-
@@ -604,7 +604,7 @@ index b669401..866344e 100644
 From 356756b304923198adea09693afcdbb70df4544a Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:36:22 +0000
-Subject: [PATCH 5/6] Correct dependency pin and add Node harness note
+Subject: [PATCH 5/7] Correct dependency pin and add Node harness note
 
 Distinguish declared caret ranges from Cargo.lock-resolved near-sdk 5.11.0; document the standalone Node CJS runner without changing lockfiles.
 ---
@@ -714,7 +714,7 @@ index e373a57..6e4c3e4 100644
 From 5929f8a31a84cb5012c32f8fabb738eff5554d0d Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:44:35 +0000
-Subject: [PATCH 6/6] Record native compile and near-workspaces API checks
+Subject: [PATCH 6/7] Record native compile and near-workspaces API checks
 
 Native Rust harness compiled on the owner's host; source WASM build still pending. Corrected the 5.0.0 API assumptions for signer, code decoding and amount normalization.
 ---
@@ -772,6 +772,406 @@ index 6e4c3e4..32d0bd1 100644
 +    "viewCodeRaw": "returns base64 string; use viewCode() or Buffer.from(raw, \"base64\")",
 +    "proposalSigner": "add_proposal and act_proposal sign as the policy account root; update remains a DAO self-call"
    }
+ }
+-- 
+2.47.3
+
+
+From 70f4f3a8398709c29f37bf42f604add3b257f51a Mon Sep 17 00:00:00 2001
+From: Julian Saint <julian@saint.work>
+Date: Thu, 5 Nov 2026 08:06:13 +0000
+Subject: [PATCH 7/7] Use configured-factory update and add finality evidence
+
+Root initializes so FactoryInfo.factory_id is root, then root calls update(raw candidate). Add bounded finality barriers and partial evidence; document Rust file vs Node directory sandbox paths.
+---
+ pilot/README.md               | 37 +++++++++++-----
+ pilot/manifest.json           | 59 ++++++++++++++++---------
+ pilot/old_proposal_upgrade.rs | 82 ++++++++++++++++++++++++++++++-----
+ 3 files changed, 137 insertions(+), 41 deletions(-)
+
+diff --git a/pilot/README.md b/pilot/README.md
+index 7baafc1..5486e11 100644
+--- a/pilot/README.md
++++ b/pilot/README.md
+@@ -1,6 +1,6 @@
+ # Pilot: Sputnik #226 old-proposal upgrade
+ 
+-Status: **preparation only, not compiled or executed on this host**. This is a local pilot, not a product adapter and not a mainnet claim.
++Status: **source-built WASM prepared and native harness compiled; execution is being re-run after the configured-factory fixture correction**. This is a local pilot, not a product adapter, not governance `UpgradeSelf`, and not a mainnet claim.
+ 
+ ## Why #226
+ 
+@@ -21,13 +21,15 @@ Merged successor `#226` adds state-version handling and a real `migrate()`. This
+ 
+ ## What is locally constructed
+ 
+-The harness deploys a **source-built base** WASM to a fresh local Sandbox account, calls `new`, creates a transfer proposal, then self-calls the real `update()` entry point with **source-built candidate** bytes. `update()` deploys the candidate and calls `migrate()` in the same promise chain. The pre-upgrade transfer proposal is then approved.
++The harness deploys a **source-built base** WASM to a fresh local Sandbox account. Root calls `new()`, so the persisted `FactoryInfo.factory_id` is root. Root then calls the real `update()` entry point with **source-built candidate** bytes. This is the authorized configured-factory branch: `update()` deploys the candidate and calls `migrate()` in the same promise chain. It is **not** governance `UpgradeSelf` and **not** the self-call/callback branch; a direct DAO-to-DAO call would enter the callback path and consume `promise_result(0)` incorrectly.
+ 
+ This is deliberately not an import of mainnet state:
+ 
+ > Locally constructed Sputnik DAO state for a pre-upgrade transfer proposal; not captured public-chain state.
+ 
+-No live factory, no mainnet RPC, no public keys, no deployment and no real funds.
++No live external factory, no mainnet RPC, no public keys, no deployment and no real funds. The factory identity is a local test configuration (`root`), not a production factory.
++
++The pre-upgrade transfer proposal is created before the upgrade; after upgrade it is approved, the root vote must persist, and a separate recipient must receive the exact transfer amount.
+ 
+ ## Exact toolchain and dependencies
+ 
+@@ -44,7 +46,9 @@ Do **not** use the review machine’s Rust `1.96.1` or `1.97.1` as proof of the
+ 
+ ## Build base and candidate
+ 
+-Docker is absent on the review machine, so `reproducible-wasm` cannot be produced there yet. `cargo near build non-reproducible-wasm` is a local build and does not require Docker; it requires `cargo-near` to be installed. That artifact is **not** NEP-330 reproducible and must be labelled non-reproducible. It is acceptable for exercising the harness, not for claiming byte-identical historical output.
++Docker is absent on the review machine, so `reproducible-wasm` cannot be produced there yet. Actual owner-host execution used official `cargo-near 0.13.3` with `--locked --no-abi`; the output ran on Sandbox 2.6.2 after a required `wasm-opt` post-step. Plain Cargo/MVP builds failed with `Deserialization`. Historical source and `Cargo.lock` were unchanged; this is **not** a reproducibility claim.
++
++`cargo near build non-reproducible-wasm` is a local build and does not require Docker; it requires `cargo-near` to be installed. That artifact is **not** NEP-330 reproducible and must be labelled non-reproducible. It is acceptable for exercising the harness, not for claiming byte-identical historical output.
+ 
+ Install the historical toolchain and cargo-near:
+ 
+@@ -59,8 +63,9 @@ Create separate worktrees so the stale committed `res/` files cannot be mistaken
+ git worktree add ../sputnik-base a9a9ed1019d517b519ca214592388e7fdbf13ea5
+ git worktree add ../sputnik-candidate 8112278fc2874a3abc12fb056b2d4c97ff796431
+ 
+-(cd ../sputnik-base/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked)
+-(cd ../sputnik-candidate/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked)
++(cd ../sputnik-base/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked --no-abi)
++(cd ../sputnik-candidate/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked --no-abi)
++# Then run the owner-host-required wasm-opt post-step and record its exact flags.
+ 
+ cp ../sputnik-base/target/near/sputnikdao2/sputnikdao2.wasm pilot/base.wasm
+ cp ../sputnik-candidate/target/near/sputnikdao2/sputnikdao2.wasm pilot/candidate.wasm
+@@ -84,19 +89,29 @@ Copy the harness into the crate test directory on the pilot branch:
+ cp pilot/old_proposal_upgrade.rs sputnikdao2/tests/test_pilot_old_proposal_upgrade.rs
+ export BASE_WASM="$PWD/pilot/base.wasm"
+ export CANDIDATE_WASM="$PWD/pilot/candidate.wasm"
++export EVIDENCE_PATH="$PWD/pilot/evidence.log"
+ export NEAR_SANDBOX_BIN_PATH="/path/to/pinned/near-sandbox-directory"
+ export NEAR_SANDBOX_BINARY_PATH="$NEAR_SANDBOX_BIN_PATH"
+ ulimit -n 65535
+ cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ignored --nocapture
+ ```
+ 
+-The harness uses `near_workspaces::sandbox()` and no mainnet endpoint. The review machine’s pinned Sandbox 2.6.2 should be supplied through `NEAR_SANDBOX_BIN_PATH`; `near-sandbox-utils 0.13.0` wiring must be confirmed on that machine.
++The harness uses `near_workspaces::sandbox()` and no mainnet endpoint.
++
++**Sandbox path distinction:** Rust `near-sandbox-utils 0.13` expects `NEAR_SANDBOX_BIN_PATH` to be the sandbox executable **file**. The patched Node binding expects the **directory** containing it. Do not export one value and reuse it across both.
++
++```sh
++# Rust
++export NEAR_SANDBOX_BIN_PATH="/path/to/pinned/near-sandbox"
++# Node (separate value)
++export NODE_SANDBOX_BIN_DIR="/path/to/pinned/sandbox-directory"
++```
+ 
+ ## near-workspaces 5.0.0 API checks
+ 
+ - `parseNEAR('1')` returns a decimal **string** in 5.0.0. Convert it to `BigInt` for `initialBalance`, `attachedDeposit` and accounting; keep the wire `amount` as a string.
+ - `provider.viewCodeRaw()` returns the base64 **string** `code_base64`; use `provider.viewCode()` or `Buffer.from(raw, 'base64')` before comparing bytes.
+-- `add_proposal` and `act_proposal` must be signed by the policy account (`[root.accountId]`), not by the DAO. Keep the self-update signed by the DAO.
++- `add_proposal` and `act_proposal` must be signed by the policy account (`[root.accountId]`), not by the DAO. The configured-factory `update` is signed by root; do not use the DAO self-call callback path.
+ 
+ ## Standalone Node CJS equivalent
+ 
+@@ -109,11 +124,12 @@ export BASE_WASM="$PWD/pilot/base.wasm"
+ export BASE_WASM_SHA256="$(sha256sum "$BASE_WASM" | awk '{print $1}')"
+ export CANDIDATE_WASM="$PWD/pilot/candidate.wasm"
+ export CANDIDATE_WASM_SHA256="$(sha256sum "$CANDIDATE_WASM" | awk '{print $1}')"
++export NODE_SANDBOX_BIN_DIR="/path/to/pinned/sandbox-directory"  # directory, not the Rust file value
+ export EVIDENCE_PATH="$PWD/pilot/evidence.json"
+ node case-triage/sputnik-226/node-harness.cjs
+ ```
+ 
+-It fails closed on missing output or a failed receipt, then writes raw transaction/receipt evidence only after the config, code, proposal, vote and recipient-balance assertions pass.
++It waits, with a bounded 30-second barrier, for the finalized block to reach the highest transaction/receipt block before each final view. It persists partial or failed evidence with the failing stage and every completed raw transaction/receipt result; it only marks the run passed after the config, code, proposal, vote and recipient-balance assertions pass.
+ 
+ ## Comparator
+ 
+@@ -128,12 +144,13 @@ That test imports the live mainnet factory and remains the current-workflow comp
+ ## What to observe
+ 
+ - The transfer proposal exists before the upgrade; old-schema `get_proposal` is read as raw JSON and must not contain `last_actions_log`.
+-- `Contract::call("update")` self-call succeeds; this API signs as the DAO and targets its own account.
++- Root's configured-factory `update(raw candidate)` succeeds. This is not the governance `UpgradeSelf` or DAO self-call callback branch.
+ - Candidate code hash equals `pilot/candidate.wasm`.
+ - `migrate()` completes.
+ - Full `get_config` JSON is identical before and after.
+ - `act_proposal(id, VoteApprove)` on the old proposal succeeds.
+ - Final proposal status is `Approved` and the root vote is present.
++- The finalized-block barrier was satisfied after each state-changing transaction.
+ - The separate recipient’s balance increases by exactly the proposal amount.
+ 
+ If they pass, old proposal state and the real upgrade/migrate entry point survived for this locally constructed state. If they fail, record the exact transaction and error; do not infer a mainnet failure.
+diff --git a/pilot/manifest.json b/pilot/manifest.json
+index 32d0bd1..990c474 100644
+--- a/pilot/manifest.json
++++ b/pilot/manifest.json
+@@ -1,6 +1,6 @@
+ {
+   "schema": "near-rehearsal/pilot/sputnik-226-old-proposal/v1",
+-  "status": "native-rust-compiled; source-build-pending",
++  "status": "source-built-wasm-ready; configured-factory-harness-rerun-pending",
+   "repo": "https://github.com/near-daos/sputnik-dao-contract",
+   "pr": 226,
+   "baseCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5",
+@@ -10,8 +10,16 @@
+     "construction": "locally constructed",
+     "mainnetImport": false,
+     "liveFactoryImport": false,
+-    "description": "Fresh local Sandbox DAO deployed from source-built base WASM, initialised, given a transfer proposal before self-upgrade; a separate recipient verifies the post-upgrade transfer.",
+-    "notACapture": "This is not captured public-chain state and must never be labelled as such."
++    "description": "Fresh local Sandbox DAO deployed from source-built base WASM. Root calls new(), so FactoryInfo.factory_id is root; root then calls update(candidate bytes), exercising the authorized configured-factory branch. A separate recipient verifies the post-upgrade transfer.",
++    "notACapture": "This is not captured public-chain state and must never be labelled as such.",
++    "configuredFactory": {
++      "factoryId": "local root account",
++      "initializedBy": "root",
++      "mode": "local-configured-factory-update",
++      "governanceUpgradeSelf": false,
++      "selfCallCallback": false,
++      "note": "Not production factory behavior and not governance UpgradeSelf."
++    }
+   },
+   "artifacts": {
+     "base": {
+@@ -45,35 +53,40 @@
+     "nearWorkspaces": "0.17.0",
+     "nearSandboxUtils": "0.13.0",
+     "node": "20.17.0 (existing Ava tests only)",
+-    "sandbox": "pinned local 2.6.2 supplied by NEAR_SANDBOX_BIN_PATH"
++    "sandbox": "pinned local 2.6.2 supplied by NEAR_SANDBOX_BIN_PATH",
++    "sandboxRustEnv": "NEAR_SANDBOX_BIN_PATH must be the executable FILE for near-sandbox-utils 0.13",
++    "sandboxNodeEnv": "NODE_SANDBOX_BIN_DIR (or Node-side NEAR_SANDBOX_BIN_PATH) must be the DIRECTORY; do not reuse the Rust file value"
+   },
+   "operation": {
+-    "preUpgrade": "add_proposal({kind: Transfer{token_id:'', receiver_id:root, amount:'1', msg:null}})",
+-    "upgrade": "self-call update(candidate_wasm) -> deploy candidate -> migrate()",
+-    "postUpgrade": "act_proposal(id, VoteApprove, same Transfer kind)",
++    "preUpgrade": "add_proposal({kind: Transfer{token_id:'', receiver_id:separate_recipient, amount:'1', msg:null}})",
++    "upgrade": "root calls update(raw candidate_wasm) as the persisted configured factory -> deploy candidate -> migrate()",
++    "postUpgrade": "act_proposal(id, VoteApprove, same Transfer kind) signed by root",
+     "assertions": [
+       "old proposal raw view has InProgress status and no last_actions_log",
+-      "Contract::call('update') self-call succeeds",
+-      "candidate code hash equals built candidate",
++      "root's configured-factory update(raw candidate) succeeds",
++      "candidate code bytes equal built candidate",
+       "migrate completes",
+       "full get_config JSON unchanged",
+       "final proposal status Approved and root vote persisted",
+-      "recipient balance increases by the proposal amount",
+-      "standalone Node CJS runner writes raw receipt evidence only after all assertions pass"
++      "separate recipient balance increases by exactly the proposal amount",
++      "bounded finality barrier reaches the highest transaction/receipt block before each final view",
++      "partial or failed runs persist stage plus completed raw transaction/receipt receipts",
++      "standalone Node CJS runner marks passed only after all assertions pass"
+     ]
+   },
+   "commands": {
+     "installHistorical": "rustup toolchain install 1.84.1 --profile minimal --target wasm32-unknown-unknown && cargo install cargo-near --version 0.13.3 --locked",
+-    "buildBase": "git worktree add ../sputnik-base a9a9ed1019d517b519ca214592388e7fdbf13ea5 && (cd ../sputnik-base/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked)",
+-    "buildCandidate": "git worktree add ../sputnik-candidate 8112278fc2874a3abc12fb056b2d4c97ff796431 && (cd ../sputnik-candidate/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked)",
+-    "runPilot": "cp pilot/old_proposal_upgrade.rs sputnikdao2/tests/test_pilot_old_proposal_upgrade.rs && cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ignored --nocapture",
++    "buildBase": "git worktree add ../sputnik-base a9a9ed1019d517b519ca214592388e7fdbf13ea5 && (cd ../sputnik-base/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked --no-abi) # then required wasm-opt post-step",
++    "buildCandidate": "git worktree add ../sputnik-candidate 8112278fc2874a3abc12fb056b2d4c97ff796431 && (cd ../sputnik-candidate/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked --no-abi) # then required wasm-opt post-step",
++    "runPilot": "cp pilot/old_proposal_upgrade.rs sputnikdao2/tests/test_pilot_old_proposal_upgrade.rs && EVIDENCE_PATH=\"$PWD/pilot/evidence.log\" cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ignored --nocapture",
+     "comparator": "cargo +1.84.1 test -p sputnikdao-factory2 --test test_upgrade test_upgrade -- --nocapture",
+-    "nodeHarness": "BASE_WASM=... BASE_WASM_SHA256=... CANDIDATE_WASM=... CANDIDATE_WASM_SHA256=... EVIDENCE_PATH=... node case-triage/sputnik-226/node-harness.cjs"
++    "nodeHarness": "BASE_WASM=... BASE_WASM_SHA256=... CANDIDATE_WASM=... CANDIDATE_WASM_SHA256=... NODE_SANDBOX_BIN_DIR=... EVIDENCE_PATH=... node case-triage/sputnik-226/node-harness.cjs"
+   },
+   "blockers": [
+     "No Rust toolchain on the current triage host",
+-    "No source-built base/candidate artifacts yet",
+-    "Docker absent: reproducible-wasm cannot be produced; non-reproducible-wasm is local-only",
++    "Source-built base/candidate hashes still need to be recorded in this manifest; owner has the artifacts",
++    "Full harness pass pending rerun after the configured-factory fixture correction",
++    "Docker absent: reproducible-wasm cannot be produced; no reproducibility claim",
+     "near-workspaces 0.17.0 sandbox-utils 0.13.0 runtime wiring needs review-machine confirmation",
+     "Maintainer acceptance pending; no outreach from triage"
+   ],
+@@ -98,13 +111,19 @@
+       "wasmPass": false
+     },
+     "sourceWasm": {
+-      "state": "base and candidate cargo-near 0.13.3 builds in metadata stage",
+-      "wasmPass": false
++      "state": "built with official cargo-near 0.13.3, --locked --no-abi, required wasm-opt post-step; loaded on Sandbox 2.6.2",
++      "fullHarnessPass": false,
++      "reproducibleClaim": false
++    },
++    "priorFailure": {
++      "stage": "update",
++      "error": "Accessed invalid promise result index: 0",
++      "cause": "direct DAO-to-DAO call entered the callback branch; replaced with root configured-factory call"
+     }
+   },
+   "apiChecks": {
+     "parseNEAR": "returns decimal string; normalize to BigInt for initialBalance, attachedDeposit and accounting",
+     "viewCodeRaw": "returns base64 string; use viewCode() or Buffer.from(raw, \"base64\")",
+-    "proposalSigner": "add_proposal and act_proposal sign as the policy account root; update remains a DAO self-call"
++    "proposalSigner": "add_proposal and act_proposal sign as the policy account root; update signs as root for the configured-factory branch, not as a DAO self-call"
+   }
+ }
+diff --git a/pilot/old_proposal_upgrade.rs b/pilot/old_proposal_upgrade.rs
+index 866344e..ad1166a 100644
+--- a/pilot/old_proposal_upgrade.rs
++++ b/pilot/old_proposal_upgrade.rs
+@@ -4,7 +4,13 @@
+ 
+ use near_sdk::json_types::{Base64VecU8, U128};
+ use near_sdk::serde_json::{json, Value};
+-use near_workspaces::types::NearToken;
++use near_workspaces::network::Sandbox;
++use near_workspaces::result::ExecutionFinalResult;
++use near_workspaces::types::{Finality, NearToken};
++use near_workspaces::Worker;
++use std::io::Write;
++use std::path::{Path, PathBuf};
++use std::time::Duration;
+ use sputnikdao2::{
+     Action, Config, ProposalInput, ProposalKind, VersionedPolicy,
+ };
+@@ -15,6 +21,46 @@ fn read_wasm(var: &str) -> Vec<u8> {
+     std::fs::read(&path).unwrap_or_else(|error| panic!("cannot read {path}: {error}"))
+ }
+ 
++fn evidence_path() -> PathBuf {
++    PathBuf::from(std::env::var("EVIDENCE_PATH").unwrap_or_else(|_| "pilot/evidence.log".to_string()))
++}
++
++fn append_stage(path: &Path, stage_name: &str, execution: &ExecutionFinalResult) {
++    if let Some(parent) = path.parent() {
++        std::fs::create_dir_all(parent).expect("cannot create evidence directory");
++    }
++    let mut file = std::fs::OpenOptions::new()
++        .create(true)
++        .append(true)
++        .open(path)
++        .expect("cannot open evidence file");
++    let record = json!({
++        "schema": "near-rehearsal/pilot/sputnik-226-rust-evidence/v1",
++        "stage": stage_name,
++        "execution": format!("{execution:#?}"),
++    });
++    writeln!(file, "{record}").expect("cannot write evidence");
++}
++
++async fn wait_finalized(
++    worker: &Worker<Sandbox>,
++    execution: &ExecutionFinalResult,
++) -> Result<(), Box<dyn std::error::Error>> {
++    let mut target = 0u64;
++    for outcome in execution.outcomes() {
++        let block = worker.view_block().block_hash(outcome.block_hash).await?;
++        target = target.max(block.height());
++    }
++    for _ in 0..120 {
++        let finalized = worker.view_block().finality(Finality::Final).await?;
++        if finalized.height() >= target {
++            return Ok(());
++        }
++        tokio::time::sleep(Duration::from_millis(250)).await;
++    }
++    Err(format!("finality barrier timed out; target block {target}").into())
++}
++
+ #[tokio::test]
+ #[ignore = "requires source-built BASE_WASM/CANDIDATE_WASM and a local sandbox"]
+ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+@@ -23,6 +69,7 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+     let candidate_wasm = read_wasm("CANDIDATE_WASM");
+ 
+     let worker = near_workspaces::sandbox().await?;
++    let evidence = evidence_path();
+     let root = worker.root_account()?;
+     let dao_account = root
+         .create_subaccount("pilot-dao")
+@@ -38,11 +85,13 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         .into_result()?;
+ 
+     let deployment = dao_account.deploy(&base_wasm).await?;
++    append_stage(&evidence, "deploy", &deployment.details);
+     assert!(
+         deployment.is_success(),
+         "base deploy failed: {:?}",
+         deployment.details.failures()
+     );
++    wait_finalized(&worker, &deployment.details).await?;
+     let dao = deployment.result;
+ 
+     let config = Config {
+@@ -51,13 +100,16 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         metadata: Base64VecU8(vec![]),
+     };
+     let policy = VersionedPolicy::Default(vec![root.id().clone()]);
+-    let init = dao
+-        .call("new")
++    // Root calls new(), so FactoryInfo.factory_id is persisted as root.
++    let init = root
++        .call(dao.id(), "new")
+         .args_json(json!({"config": config, "policy": policy}))
+         .max_gas()
+         .transact()
+         .await?;
+-    assert!(init.is_success(), "init failed: {:?}", init.failures());
++    append_stage(&evidence, "init", &init.details);
++    assert!(init.is_success(), "init failed: {:?}", init.details.failures());
++    wait_finalized(&worker, &init.details).await?;
+ 
+     let config_before: Value = dao.view("get_config").await?.json()?;
+ 
+@@ -80,7 +132,9 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         .max_gas()
+         .transact()
+         .await?;
+-    assert!(add.is_success(), "add_proposal failed: {:?}", add.failures());
++    append_stage(&evidence, "add_proposal", &add.details);
++    assert!(add.is_success(), "add_proposal failed: {:?}", add.details.failures());
++    wait_finalized(&worker, &add.details).await?;
+     let proposal_id: u64 = add.json()?;
+ 
+     // The old binary does not have the candidate's last_actions_log field.
+@@ -104,15 +158,18 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+ 
+     let recipient_before = recipient.view_account().await?.balance;
+ 
+-    // Contract::call(function) is the self-call API: it signs as the DAO
+-    // account and targets the contract's own account.
+-    let upgrade = dao
+-        .call("update")
++    // Honest fixture: root is the persisted factory. Root calls update() with
++    // raw candidate bytes, exercising the authorized factory branch. This is
++    // NOT governance UpgradeSelf and NOT the self-call/callback branch.
++    let upgrade = root
++        .call(dao.id(), "update")
+         .args(candidate_wasm.clone())
+         .max_gas()
+         .transact()
+         .await?;
+-    assert!(upgrade.is_success(), "update failed: {:?}", upgrade.failures());
++    append_stage(&evidence, "update", &upgrade.details);
++    assert!(upgrade.is_success(), "update failed: {:?}", upgrade.details.failures());
++    wait_finalized(&worker, &upgrade.details).await?;
+ 
+     let code = dao.view_code().await?;
+     assert_eq!(code, candidate_wasm, "candidate code hash mismatch");
+@@ -137,7 +194,9 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         .max_gas()
+         .transact()
+         .await?;
+-    assert!(approve.is_success(), "old proposal vote failed: {:?}", approve.failures());
++    append_stage(&evidence, "approve", &approve.details);
++    assert!(approve.is_success(), "old proposal vote failed: {:?}", approve.details.failures());
++    wait_finalized(&worker, &approve.details).await?;
+ 
+     let final_proposal: Value = dao
+         .view("get_proposal")
+@@ -158,5 +217,6 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         "transfer recipient balance did not increase by the proposal amount"
+     );
+ 
++    append_stage(&evidence, "complete", &approve.details);
+     Ok(())
  }
 -- 
 2.47.3

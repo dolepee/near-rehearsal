@@ -1,6 +1,6 @@
 {
   "schema": "near-rehearsal/pilot/sputnik-226-old-proposal/v1",
-  "status": "native-rust-compiled; source-build-pending",
+  "status": "source-built-wasm-ready; configured-factory-harness-rerun-pending",
   "repo": "https://github.com/near-daos/sputnik-dao-contract",
   "pr": 226,
   "baseCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5",
@@ -10,8 +10,16 @@
     "construction": "locally constructed",
     "mainnetImport": false,
     "liveFactoryImport": false,
-    "description": "Fresh local Sandbox DAO deployed from source-built base WASM, initialised, given a transfer proposal before self-upgrade; a separate recipient verifies the post-upgrade transfer.",
-    "notACapture": "This is not captured public-chain state and must never be labelled as such."
+    "description": "Fresh local Sandbox DAO deployed from source-built base WASM. Root calls new(), so FactoryInfo.factory_id is root; root then calls update(candidate bytes), exercising the authorized configured-factory branch. A separate recipient verifies the post-upgrade transfer.",
+    "notACapture": "This is not captured public-chain state and must never be labelled as such.",
+    "configuredFactory": {
+      "factoryId": "local root account",
+      "initializedBy": "root",
+      "mode": "local-configured-factory-update",
+      "governanceUpgradeSelf": false,
+      "selfCallCallback": false,
+      "note": "Not production factory behavior and not governance UpgradeSelf."
+    }
   },
   "artifacts": {
     "base": {
@@ -45,35 +53,40 @@
     "nearWorkspaces": "0.17.0",
     "nearSandboxUtils": "0.13.0",
     "node": "20.17.0 (existing Ava tests only)",
-    "sandbox": "pinned local 2.6.2 supplied by NEAR_SANDBOX_BIN_PATH"
+    "sandbox": "pinned local 2.6.2 supplied by NEAR_SANDBOX_BIN_PATH",
+    "sandboxRustEnv": "NEAR_SANDBOX_BIN_PATH must be the executable FILE for near-sandbox-utils 0.13",
+    "sandboxNodeEnv": "NODE_SANDBOX_BIN_DIR (or Node-side NEAR_SANDBOX_BIN_PATH) must be the DIRECTORY; do not reuse the Rust file value"
   },
   "operation": {
-    "preUpgrade": "add_proposal({kind: Transfer{token_id:'', receiver_id:root, amount:'1', msg:null}})",
-    "upgrade": "self-call update(candidate_wasm) -> deploy candidate -> migrate()",
-    "postUpgrade": "act_proposal(id, VoteApprove, same Transfer kind)",
+    "preUpgrade": "add_proposal({kind: Transfer{token_id:'', receiver_id:separate_recipient, amount:'1', msg:null}})",
+    "upgrade": "root calls update(raw candidate_wasm) as the persisted configured factory -> deploy candidate -> migrate()",
+    "postUpgrade": "act_proposal(id, VoteApprove, same Transfer kind) signed by root",
     "assertions": [
       "old proposal raw view has InProgress status and no last_actions_log",
-      "Contract::call('update') self-call succeeds",
-      "candidate code hash equals built candidate",
+      "root's configured-factory update(raw candidate) succeeds",
+      "candidate code bytes equal built candidate",
       "migrate completes",
       "full get_config JSON unchanged",
       "final proposal status Approved and root vote persisted",
-      "recipient balance increases by the proposal amount",
-      "standalone Node CJS runner writes raw receipt evidence only after all assertions pass"
+      "separate recipient balance increases by exactly the proposal amount",
+      "bounded finality barrier reaches the highest transaction/receipt block before each final view",
+      "partial or failed runs persist stage plus completed raw transaction/receipt receipts",
+      "standalone Node CJS runner marks passed only after all assertions pass"
     ]
   },
   "commands": {
     "installHistorical": "rustup toolchain install 1.84.1 --profile minimal --target wasm32-unknown-unknown && cargo install cargo-near --version 0.13.3 --locked",
-    "buildBase": "git worktree add ../sputnik-base a9a9ed1019d517b519ca214592388e7fdbf13ea5 && (cd ../sputnik-base/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked)",
-    "buildCandidate": "git worktree add ../sputnik-candidate 8112278fc2874a3abc12fb056b2d4c97ff796431 && (cd ../sputnik-candidate/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked)",
-    "runPilot": "cp pilot/old_proposal_upgrade.rs sputnikdao2/tests/test_pilot_old_proposal_upgrade.rs && cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ignored --nocapture",
+    "buildBase": "git worktree add ../sputnik-base a9a9ed1019d517b519ca214592388e7fdbf13ea5 && (cd ../sputnik-base/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked --no-abi) # then required wasm-opt post-step",
+    "buildCandidate": "git worktree add ../sputnik-candidate 8112278fc2874a3abc12fb056b2d4c97ff796431 && (cd ../sputnik-candidate/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked --no-abi) # then required wasm-opt post-step",
+    "runPilot": "cp pilot/old_proposal_upgrade.rs sputnikdao2/tests/test_pilot_old_proposal_upgrade.rs && EVIDENCE_PATH=\"$PWD/pilot/evidence.log\" cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ignored --nocapture",
     "comparator": "cargo +1.84.1 test -p sputnikdao-factory2 --test test_upgrade test_upgrade -- --nocapture",
-    "nodeHarness": "BASE_WASM=... BASE_WASM_SHA256=... CANDIDATE_WASM=... CANDIDATE_WASM_SHA256=... EVIDENCE_PATH=... node case-triage/sputnik-226/node-harness.cjs"
+    "nodeHarness": "BASE_WASM=... BASE_WASM_SHA256=... CANDIDATE_WASM=... CANDIDATE_WASM_SHA256=... NODE_SANDBOX_BIN_DIR=... EVIDENCE_PATH=... node case-triage/sputnik-226/node-harness.cjs"
   },
   "blockers": [
     "No Rust toolchain on the current triage host",
-    "No source-built base/candidate artifacts yet",
-    "Docker absent: reproducible-wasm cannot be produced; non-reproducible-wasm is local-only",
+    "Source-built base/candidate hashes still need to be recorded in this manifest; owner has the artifacts",
+    "Full harness pass pending rerun after the configured-factory fixture correction",
+    "Docker absent: reproducible-wasm cannot be produced; no reproducibility claim",
     "near-workspaces 0.17.0 sandbox-utils 0.13.0 runtime wiring needs review-machine confirmation",
     "Maintainer acceptance pending; no outreach from triage"
   ],
@@ -98,13 +111,19 @@
       "wasmPass": false
     },
     "sourceWasm": {
-      "state": "base and candidate cargo-near 0.13.3 builds in metadata stage",
-      "wasmPass": false
+      "state": "built with official cargo-near 0.13.3, --locked --no-abi, required wasm-opt post-step; loaded on Sandbox 2.6.2",
+      "fullHarnessPass": false,
+      "reproducibleClaim": false
+    },
+    "priorFailure": {
+      "stage": "update",
+      "error": "Accessed invalid promise result index: 0",
+      "cause": "direct DAO-to-DAO call entered the callback branch; replaced with root configured-factory call"
     }
   },
   "apiChecks": {
     "parseNEAR": "returns decimal string; normalize to BigInt for initialBalance, attachedDeposit and accounting",
     "viewCodeRaw": "returns base64 string; use viewCode() or Buffer.from(raw, \"base64\")",
-    "proposalSigner": "add_proposal and act_proposal sign as the policy account root; update remains a DAO self-call"
+    "proposalSigner": "add_proposal and act_proposal sign as the policy account root; update signs as root for the configured-factory branch, not as a DAO self-call"
   }
 }

@@ -1,6 +1,6 @@
 # Pilot: Sputnik #226 old-proposal upgrade
 
-Status: **preparation only, not compiled or executed on this host**. This is a local pilot, not a product adapter and not a mainnet claim.
+Status: **source-built WASM prepared and native harness compiled; execution is being re-run after the configured-factory fixture correction**. This is a local pilot, not a product adapter, not governance `UpgradeSelf`, and not a mainnet claim.
 
 ## Why #226
 
@@ -21,13 +21,15 @@ Merged successor `#226` adds state-version handling and a real `migrate()`. This
 
 ## What is locally constructed
 
-The harness deploys a **source-built base** WASM to a fresh local Sandbox account, calls `new`, creates a transfer proposal, then self-calls the real `update()` entry point with **source-built candidate** bytes. `update()` deploys the candidate and calls `migrate()` in the same promise chain. The pre-upgrade transfer proposal is then approved.
+The harness deploys a **source-built base** WASM to a fresh local Sandbox account. Root calls `new()`, so the persisted `FactoryInfo.factory_id` is root. Root then calls the real `update()` entry point with **source-built candidate** bytes. This is the authorized configured-factory branch: `update()` deploys the candidate and calls `migrate()` in the same promise chain. It is **not** governance `UpgradeSelf` and **not** the self-call/callback branch; a direct DAO-to-DAO call would enter the callback path and consume `promise_result(0)` incorrectly.
 
 This is deliberately not an import of mainnet state:
 
 > Locally constructed Sputnik DAO state for a pre-upgrade transfer proposal; not captured public-chain state.
 
-No live factory, no mainnet RPC, no public keys, no deployment and no real funds.
+No live external factory, no mainnet RPC, no public keys, no deployment and no real funds. The factory identity is a local test configuration (`root`), not a production factory.
+
+The pre-upgrade transfer proposal is created before the upgrade; after upgrade it is approved, the root vote must persist, and a separate recipient must receive the exact transfer amount.
 
 ## Exact toolchain and dependencies
 
@@ -44,7 +46,9 @@ Do **not** use the review machine’s Rust `1.96.1` or `1.97.1` as proof of the 
 
 ## Build base and candidate
 
-Docker is absent on the review machine, so `reproducible-wasm` cannot be produced there yet. `cargo near build non-reproducible-wasm` is a local build and does not require Docker; it requires `cargo-near` to be installed. That artifact is **not** NEP-330 reproducible and must be labelled non-reproducible. It is acceptable for exercising the harness, not for claiming byte-identical historical output.
+Docker is absent on the review machine, so `reproducible-wasm` cannot be produced there yet. Actual owner-host execution used official `cargo-near 0.13.3` with `--locked --no-abi`; the output ran on Sandbox 2.6.2 after a required `wasm-opt` post-step. Plain Cargo/MVP builds failed with `Deserialization`. Historical source and `Cargo.lock` were unchanged; this is **not** a reproducibility claim.
+
+`cargo near build non-reproducible-wasm` is a local build and does not require Docker; it requires `cargo-near` to be installed. That artifact is **not** NEP-330 reproducible and must be labelled non-reproducible. It is acceptable for exercising the harness, not for claiming byte-identical historical output.
 
 Install the historical toolchain and cargo-near:
 
@@ -59,8 +63,9 @@ Create separate worktrees so the stale committed `res/` files cannot be mistaken
 git worktree add ../sputnik-base a9a9ed1019d517b519ca214592388e7fdbf13ea5
 git worktree add ../sputnik-candidate 8112278fc2874a3abc12fb056b2d4c97ff796431
 
-(cd ../sputnik-base/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked)
-(cd ../sputnik-candidate/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked)
+(cd ../sputnik-base/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked --no-abi)
+(cd ../sputnik-candidate/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked --no-abi)
+# Then run the owner-host-required wasm-opt post-step and record its exact flags.
 
 cp ../sputnik-base/target/near/sputnikdao2/sputnikdao2.wasm pilot/base.wasm
 cp ../sputnik-candidate/target/near/sputnikdao2/sputnikdao2.wasm pilot/candidate.wasm
@@ -84,19 +89,29 @@ Copy the harness into the crate test directory on the pilot branch:
 cp pilot/old_proposal_upgrade.rs sputnikdao2/tests/test_pilot_old_proposal_upgrade.rs
 export BASE_WASM="$PWD/pilot/base.wasm"
 export CANDIDATE_WASM="$PWD/pilot/candidate.wasm"
+export EVIDENCE_PATH="$PWD/pilot/evidence.log"
 export NEAR_SANDBOX_BIN_PATH="/path/to/pinned/near-sandbox-directory"
 export NEAR_SANDBOX_BINARY_PATH="$NEAR_SANDBOX_BIN_PATH"
 ulimit -n 65535
 cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ignored --nocapture
 ```
 
-The harness uses `near_workspaces::sandbox()` and no mainnet endpoint. The review machine’s pinned Sandbox 2.6.2 should be supplied through `NEAR_SANDBOX_BIN_PATH`; `near-sandbox-utils 0.13.0` wiring must be confirmed on that machine.
+The harness uses `near_workspaces::sandbox()` and no mainnet endpoint.
+
+**Sandbox path distinction:** Rust `near-sandbox-utils 0.13` expects `NEAR_SANDBOX_BIN_PATH` to be the sandbox executable **file**. The patched Node binding expects the **directory** containing it. Do not export one value and reuse it across both.
+
+```sh
+# Rust
+export NEAR_SANDBOX_BIN_PATH="/path/to/pinned/near-sandbox"
+# Node (separate value)
+export NODE_SANDBOX_BIN_DIR="/path/to/pinned/sandbox-directory"
+```
 
 ## near-workspaces 5.0.0 API checks
 
 - `parseNEAR('1')` returns a decimal **string** in 5.0.0. Convert it to `BigInt` for `initialBalance`, `attachedDeposit` and accounting; keep the wire `amount` as a string.
 - `provider.viewCodeRaw()` returns the base64 **string** `code_base64`; use `provider.viewCode()` or `Buffer.from(raw, 'base64')` before comparing bytes.
-- `add_proposal` and `act_proposal` must be signed by the policy account (`[root.accountId]`), not by the DAO. Keep the self-update signed by the DAO.
+- `add_proposal` and `act_proposal` must be signed by the policy account (`[root.accountId]`), not by the DAO. The configured-factory `update` is signed by root; do not use the DAO self-call callback path.
 
 ## Standalone Node CJS equivalent
 
@@ -109,11 +124,12 @@ export BASE_WASM="$PWD/pilot/base.wasm"
 export BASE_WASM_SHA256="$(sha256sum "$BASE_WASM" | awk '{print $1}')"
 export CANDIDATE_WASM="$PWD/pilot/candidate.wasm"
 export CANDIDATE_WASM_SHA256="$(sha256sum "$CANDIDATE_WASM" | awk '{print $1}')"
+export NODE_SANDBOX_BIN_DIR="/path/to/pinned/sandbox-directory"  # directory, not the Rust file value
 export EVIDENCE_PATH="$PWD/pilot/evidence.json"
 node case-triage/sputnik-226/node-harness.cjs
 ```
 
-It fails closed on missing output or a failed receipt, then writes raw transaction/receipt evidence only after the config, code, proposal, vote and recipient-balance assertions pass.
+It waits, with a bounded 30-second barrier, for the finalized block to reach the highest transaction/receipt block before each final view. It persists partial or failed evidence with the failing stage and every completed raw transaction/receipt result; it only marks the run passed after the config, code, proposal, vote and recipient-balance assertions pass.
 
 ## Comparator
 
@@ -128,12 +144,13 @@ That test imports the live mainnet factory and remains the current-workflow comp
 ## What to observe
 
 - The transfer proposal exists before the upgrade; old-schema `get_proposal` is read as raw JSON and must not contain `last_actions_log`.
-- `Contract::call("update")` self-call succeeds; this API signs as the DAO and targets its own account.
+- Root's configured-factory `update(raw candidate)` succeeds. This is not the governance `UpgradeSelf` or DAO self-call callback branch.
 - Candidate code hash equals `pilot/candidate.wasm`.
 - `migrate()` completes.
 - Full `get_config` JSON is identical before and after.
 - `act_proposal(id, VoteApprove)` on the old proposal succeeds.
 - Final proposal status is `Approved` and the root vote is present.
+- The finalized-block barrier was satisfied after each state-changing transaction.
 - The separate recipient’s balance increases by exactly the proposal amount.
 
 If they pass, old proposal state and the real upgrade/migrate entry point survived for this locally constructed state. If they fail, record the exact transaction and error; do not infer a mainnet failure.
