@@ -52,6 +52,8 @@ compiled with the same pinned toolchain and source revision.
 
 The base failed branch had contract `+1 NEAR` and proposer `-1.0008510133192634 NEAR`; the repair removes the stranded bond while preserving the healthy payout. Raw reports are in `out/issue238-local.json` and `out/issue238-repaired.json`.
 
+A deliberately partial source variant returned the bond only for `Transfer` failures. Its artifact SHA-256 is `3a1a8fb7929efd8fb1f0882c60844338ebea4c4505413080b2e9539013eec896`; its report is `out/issue238-partial.json`. The acceptance test rejects it because the `FunctionCall` branch still leaves the contract delta at `+1 NEAR`.
+
 Each branch runs in its own local worker with the same fixed account IDs, funding and initial state; the acceptance script checks `healthy.before` equals `failed.before`, not merely equivalent funding.
 
 ## Independent acceptance
@@ -61,7 +63,7 @@ node case-triage/rehearsal-repair/acceptance.cjs
 node case-triage/rehearsal-repair/acceptance-tests.cjs
 ```
 
-The first checks base/repaired artifact identity, healthy payout and beneficiary/amount, failed status, base stranded bond, repaired zero contract delta and gas-only proposer delta, rejected unauthorized callback, and identical starting state within each run. The second is the positive control plus seven targeted rejections: hidden base bond, double refund, missing payout, false failed status, changed artifact identity, accepted unauthorized callback, and changed beneficiary.
+The first checks base/repaired artifact identity, healthy payout and beneficiary/amount, failed status, base stranded bond, repaired zero contract delta and gas-only proposer delta, rejected unauthorized callback, and identical starting state within each run. The second is the positive control plus eight targeted rejections: hidden base bond, double refund, missing payout, false failed status, changed artifact identity, accepted unauthorized callback, changed beneficiary, and the partial source repair.
 
 This is an authored deterministic patch, not a model-generated patch. The model
 provenance gate remains separate and blocked at authentication.
