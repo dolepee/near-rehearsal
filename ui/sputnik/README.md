@@ -59,3 +59,21 @@ and verdict. The emitted verify command uses the run directory, not its `out`
 subdirectory. A server restart preserves completed reports and marks interrupted
 jobs inconclusive; the page turns repeated missing-job polls into a terminal
 retry message.
+
+
+## Portable export reproduction
+
+The downloaded export JSON is self-contained. Use the repo helper, not the
+command text embedded in an untrusted export:
+
+```sh
+node case-triage/sputnik-public-capture/export-helper.cjs verify   --export /path/to/sputnik-export.json --out /tmp/sputnik-verify
+
+node case-triage/sputnik-public-capture/export-helper.cjs replay   --export /path/to/sputnik-export.json --out /tmp/sputnik-replay   --sandbox-dir /path/to/directory-containing-near-sandbox
+```
+
+`--sandbox-dir` is the **directory** containing the patched `near-sandbox`
+binary, not the binary path itself. The helper unpacks the included frozen
+bundle, candidate/correction bytes, manifest and raw report, verifies them with
+the shared verifier, and only replays through the known runner. It does not
+execute shell text from the export.

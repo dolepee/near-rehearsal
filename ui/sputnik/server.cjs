@@ -246,6 +246,7 @@ const server = http.createServer(async (req, res) => {
       const verdict = verify(run);
       if (action[2] === 'verify') return send(res, 200, {verdict});
       const inputManifest = JSON.parse(fs.readFileSync(path.join(run.outDir, 'input-manifest.json'), 'utf8'));
+      const exportPath = path.join(run.runDir, 'export.json');
       const exportDoc = {
         schema: 'near-rehearsal/sputnik-export/v2', createdAt: new Date().toISOString(),
         family: FAMILY.family, runId: run.id, inputs: run.input,
@@ -256,12 +257,13 @@ const server = http.createServer(async (req, res) => {
         reportSha256: sha256(fs.readFileSync(run.reportPath)),
         verdictSha256: sha256(fs.readFileSync(path.join(run.outDir, 'local-three-verdict.json'))),
         verdict,
-        verifyCommand: `cd ${ROOT} && CASE_DIR=${run.runDir} ${process.execPath} ${VERIFIER}`,
-        replayCommand: `cd ${ROOT} && d=$(mktemp -d) && SPUTNIK_OUT_DIR="$d" USE_FROZEN=1 FROZEN_BUNDLE=${path.join(run.outDir, 'local-frozen-bundle.json')} CANDIDATE_WASM=${path.join(run.runDir, 'candidate.wasm')} CORRECTED_WASM=${path.join(run.runDir, 'correction.wasm')} ${process.execPath} ${RUNNER}`,
+        verifyCommand: `node case-triage/sputnik-public-capture/export-helper.cjs verify --export <download.json> --out <new-dir>`,
+        portableVerifyCommand: `node case-triage/sputnik-public-capture/export-helper.cjs verify --export <download.json> --out <new-dir>`,
+        replayCommand: `node case-triage/sputnik-public-capture/export-helper.cjs replay --export <download.json> --out <new-dir> --sandbox-dir <near-sandbox-directory>`,
+        portableReplayCommand: `node case-triage/sputnik-public-capture/export-helper.cjs replay --export <download.json> --out <new-dir> --sandbox-dir <near-sandbox-directory>`,
         downloadUrl: `/api/runs/${run.id}/export/download`,
         limitations: FAMILY.limitations,
       };
-      const exportPath = path.join(run.runDir, 'export.json');
       fs.writeFileSync(exportPath, JSON.stringify(exportDoc, null, 2) + '\n');
       return send(res, 200, {export: exportDoc, exportPath: rel(exportPath)});
     }

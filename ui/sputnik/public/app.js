@@ -148,8 +148,9 @@
     $('result-banner').textContent = `Complete report. Candidate ${b.candidate.status}; correction ${b.corrected.status}. Outcomes are derived from receipts and balances; a red branch is not a runner failure.`;
     const fb = report.frozenBundle || {};
     const obligation = fb.proposal || report.branches?.baseline?.before?.proposal || {};
+    const transfer = obligation.kind?.Transfer || report.branches?.baseline?.before?.proposal?.kind?.Transfer;
     const identities = fb.identities || {};
-    $('obligation-strip').innerHTML = `<div><span>Obligation</span><b>#${esc(obligation.id ?? '—')} · ${esc(obligation.status || '—')}</b></div><div><span>Declared recipient</span><b>${esc(identities.recipient || '—')}</b></div><div><span>Declared transfer</span><b>${near(fb.recipientBalance)} NEAR</b></div><div><span>Frozen state</span><b class="mono">${esc(short(fb.stateHash, 18))}</b></div>`;
+    $('obligation-strip').innerHTML = `<div><span>Obligation</span><b>#${esc(obligation.id ?? '—')} · ${esc(obligation.status || '—')}</b></div><div><span>Declared recipient</span><b>${esc(transfer?.receiver_id || '—')}</b></div><div><span>Declared transfer</span><b>${near(transfer?.amount)} NEAR</b></div><div><span>Frozen state</span><b class="mono">${esc(short(fb.stateHash, 18))}</b></div>`;
     $('frozen-summary').innerHTML = `<div><span>Frozen state</span><b class="mono">${esc(report.frozenBundle.stateHash)}</b></div><div><span>Same initial facts</span><b>${report.sameStartingState ? 'verified across all branches' : 'not verified'}</b></div><div><span>Frozen bundle</span><b>${esc(state.run.frozenBundle ? short(state.run.frozenBundle.stateHash, 16) : '—')}</b></div>`;
     $('branch-grid').innerHTML = [
       card('baseline', 'Old state → existing operation', b.baseline, 'baseline'),

@@ -79,7 +79,7 @@ for (const n of expectedNames) required(result.branches, [n], 'branches');
 const branchNames = Object.keys(result.branches);
 for (const n of branchNames) if (![...expectedNames, 'recoveryExperiment'].includes(n)) fail(`unexpected branch ${n}`);
 
-function tx(t, expected, label, signer) {
+function tx(t, expected, label, signer, expectedExecutors = []) {
   required(t, ['transactionHash', 'finalExecutionStatus', 'transaction', 'receiptIds', 'receipts', 'transactionOutcomeStatus', 'succeeded', 'failed', 'gasBurntUnits', 'transactionOutcomeTokensBurntYocto', 'receiptTokensBurntYocto', 'totalTokensBurntYocto'], label);
   asString(t.transactionHash, `${label}.transactionHash`);
   if (t.finalExecutionStatus !== 'FINAL') fail(`${label} is not FINAL`);
@@ -94,6 +94,12 @@ function tx(t, expected, label, signer) {
   if (!recognized(t.transactionOutcomeStatus)) fail(`${label} has no recognized transaction outcome`);
   const allowed = new Set([bundle.identities.contract, bundle.identities.proposer, bundle.identities.recipient, bundle.identities.factory, t.transaction.signerId, t.transaction.receiverId]);
   const receiptIds = new Set();
+  const references = new Map();
+  const refer = (id, where) => {
+    if (typeof id !== 'string' || !id) fail(`${label} ${where} has invalid receipt id`);
+    if (references.has(id)) fail(`${label} receipt ${id} referenced more than once (${references.get(id)} and ${where})`);
+    references.set(id, where);
+  };
   if (new Set(t.receiptIds).size !== t.receiptIds.length) fail(`${label} duplicate root receipt id`);
   for (const r of t.receipts) {
     if (!r.id) fail(`${label} receipt missing id`);
@@ -105,11 +111,14 @@ function tx(t, expected, label, signer) {
     if (!recognized(r.status)) fail(`${label} receipt status not recognized`);
     if (!allowed.has(r.executorId)) fail(`${label} receipt executor unbound: ${r.executorId}`);
   }
-  for (const id of t.receiptIds) if (!receiptIds.has(id)) fail(`${label} root receipt ${id} does not resolve exactly once`);
-  if (!t.receiptIds.some((id) => receiptIds.has(id))) fail(`${label} transaction outcome is not in receipt graph`);
+  for (const id of t.receiptIds) refer(id, 'root');
+  for (const r of t.receipts) for (const child of r.receiptIds) refer(child, `child of ${r.id}`);
+  for (const r of t.receipts) if (!references.has(r.id)) fail(`${label} receipt ${r.id} is not reachable from a root`);
+  for (const id of references.keys()) if (!receiptIds.has(id)) fail(`${label} referenced receipt ${id} is missing from graph`);
+  if (t.receiptIds.length !== 1) fail(`${label} expected exactly one transaction outcome root, got ${t.receiptIds.length}`);
   if (t.transactionOutcomeStatus?.SuccessReceiptId && !receiptIds.has(t.transactionOutcomeStatus.SuccessReceiptId)) fail(`${label} success receipt id is missing from graph`);
-  for (const r of t.receipts) for (const child of r.receiptIds) if (!receiptIds.has(child)) fail(`${label} child receipt ${child} is missing from graph`);
   if (!t.receipts.some((r) => r.executorId === bundle.identities.contract)) fail(`${label} no contract receipt`);
+  for (const executor of expectedExecutors || []) if (!t.receipts.some((r) => r.executorId === executor)) fail(`${label} missing expected executor ${executor}`);
   if (expected === 'success') {
     if (t.succeeded !== true || t.failed !== false || t.failure) fail(`${label} did not succeed`);
     if (t.receipts.some((r) => r.status?.Failure)) fail(`${label} has failed child receipt`);
@@ -165,20 +174,37 @@ function initialFacts(b, label) {
 const initialHashes = branchNames.map((n) => initialFacts(result.branches[n], n));
 if (new Set(initialHashes).size !== 1) fail('branches do not share initial facts');
 
-function retryBalances(b, label, keys = {retry: 'retry', first: 'afterFirst', after: 'afterRetry'}) {
-  required(b, [keys.retry, keys.first, keys.after], label);
-  for (const s of [b[keys.first], b[keys.after]]) for (const k of ['contractBalance', 'actorBalance', 'recipientBalance']) asYocto(s?.[k], `${label}.${k}`);
-  tx(b[keys.retry], 'failure', `${label}.${keys.retry}`, bundle.identities.proposer);
+function assertSnapshotRecipient(snapshot, label) {
+  const transfer = snapshot?.proposal?.kind?.Transfer;
+  if (!transfer) fail(`${label} snapshot has no Transfer obligation`);
+  if (transfer.receiver_id !== bundle.identities.recipient) fail(`${label} snapshot recipient is not frozen recipient`);
+  if (String(transfer.amount) !== String(bundle.proposal.kind.Transfer.amount)) fail(`${label} snapshot transfer amount changed`);
+}
+function retryBalances(b, label, keys = {before: 'before', retry: 'retry', first: 'afterFirst', after: 'afterRetry'}) {
+  required(b, [keys.before, keys.retry, keys.first, keys.after], label);
+  for (const k of [keys.before, keys.first, keys.after]) assertSnapshotRecipient(b[k], `${label}.${k}`);
+  for (const s of [b[keys.before], b[keys.first], b[keys.after]]) for (const k of ['contractBalance', 'actorBalance', 'recipientBalance']) asYocto(s?.[k], `${label}.${k}`);
+  tx(b[keys.retry], 'failure', `${label}.${keys.retry}`, bundle.identities.proposer, [bundle.identities.contract]);
+  const expectedPayout = b.status === 'preserved' ? unit : 0n;
+  const firstPayout = BigInt(b[keys.first].recipientBalance) - BigInt(b[keys.before].recipientBalance);
+  if (firstPayout !== expectedPayout) fail(`${label} first-operation recipient payout ${firstPayout} does not match derived status ${b.status}`);
   if (b[keys.after].recipientBalance !== b[keys.first].recipientBalance) fail(`${label} retry paid recipient`);
+  if (BigInt(b[keys.after].recipientBalance) !== BigInt(b[keys.before].recipientBalance) + expectedPayout) fail(`${label} retry/snapshot recipient balance invariant failed`);
   const contractDelta = BigInt(b[keys.after].contractBalance) - BigInt(b[keys.first].contractBalance);
   const actorDelta = BigInt(b[keys.after].actorBalance) - BigInt(b[keys.first].actorBalance);
   if (contractDelta <= -unit / 2n) fail(`${label} retry lost bond-scale contract funds`);
   if (actorDelta > 0n) fail(`${label} retry increased proposer balance`);
+  if (b.checks?.retryDidNotPay !== true) fail(`${label} retryDidNotPay check not true`);
+  if (b.checks?.retryContractDeltaYocto !== contractDelta.toString()) fail(`${label} retry contract delta does not match snapshots`);
+  if (b.checks?.retryActorDeltaYocto !== actorDelta.toString()) fail(`${label} retry actor delta does not match snapshots`);
   return {contractDeltaYocto: contractDelta.toString(), actorDeltaYocto: actorDelta.toString()};
 }
 function derivedStatus(b, role) {
-  if (role !== 'baseline' && b.checks.upgradeSucceeded !== true) return 'inconclusive';
-  if (role !== 'baseline' && b.afterUpgrade.codeHash !== result.artifacts[role === 'candidate' ? 'candidate' : 'corrected'].hash) return 'inconclusive';
+  if (role !== 'baseline') {
+    const upgrade = b.upgrade;
+    const upgradeOk = upgrade?.succeeded === true && upgrade?.failed === false && !upgrade?.failure;
+    if (!upgradeOk || b.afterUpgrade?.codeHash !== result.artifacts[role === 'candidate' ? 'candidate' : 'corrected'].hash) return 'inconclusive';
+  }
   const first = b.first;
   if (!first) return 'inconclusive';
   const payout = b.before && b.afterFirst ? BigInt(b.afterFirst.recipientBalance) - BigInt(b.before.recipientBalance) : null;
@@ -194,7 +220,7 @@ for (const n of expectedNames) {
 }
 if (result.branches.baseline.status === 'inconclusive') fail('baseline is inconclusive');
 const baseline = result.branches.baseline;
-tx(baseline.first, 'success', 'baseline.first', bundle.identities.proposer);
+tx(baseline.first, 'success', 'baseline.first', bundle.identities.proposer, [bundle.identities.contract, bundle.identities.recipient]);
 checkOperation(baseline.first, 'baseline.first', bundle.identities.proposer);
 checkOperation(baseline.retry, 'baseline.retry', bundle.identities.proposer);
 retryBalances(baseline, 'baseline');
@@ -202,9 +228,9 @@ if (baseline.checks.retryDidNotPay !== true) fail('baseline retry check not true
 
 const candidate = result.branches.candidate;
 if (candidate.afterUpgrade.codeHash !== result.artifacts.candidate.hash) fail('candidate code not deployed');
-tx(candidate.upgrade, 'success', 'candidate.upgrade', bundle.identities.factory);
+tx(candidate.upgrade, 'success', 'candidate.upgrade', bundle.identities.factory, [bundle.identities.factory, bundle.identities.contract]);
 checkUpgrade(candidate.upgrade, 'candidate.upgrade', suppliedCandidate, bundle.identities.factory);
-tx(candidate.first, candidate.status === 'regressed' ? 'failure' : 'success', 'candidate.first', bundle.identities.proposer);
+tx(candidate.first, candidate.status === 'regressed' ? 'failure' : 'success', 'candidate.first', bundle.identities.proposer, [bundle.identities.contract]);
 checkOperation(candidate.first, 'candidate.first', bundle.identities.proposer);
 checkOperation(candidate.retry, 'candidate.retry', bundle.identities.proposer);
 retryBalances(candidate, 'candidate');
@@ -212,9 +238,9 @@ if (candidate.status === 'regressed' && BigInt(candidate.afterFirst.recipientBal
 
 const corrected = result.branches.corrected;
 if (corrected.afterUpgrade.codeHash !== result.artifacts.corrected.hash) fail('corrected code not deployed');
-tx(corrected.upgrade, 'success', 'corrected.upgrade', bundle.identities.factory);
+tx(corrected.upgrade, 'success', 'corrected.upgrade', bundle.identities.factory, [bundle.identities.factory, bundle.identities.contract]);
 checkUpgrade(corrected.upgrade, 'corrected.upgrade', suppliedCorrection, bundle.identities.factory);
-tx(corrected.first, corrected.status === 'regressed' ? 'failure' : 'success', 'corrected.first', bundle.identities.proposer);
+tx(corrected.first, corrected.status === 'regressed' ? 'failure' : 'success', 'corrected.first', bundle.identities.proposer, [bundle.identities.contract]);
 checkOperation(corrected.first, 'corrected.first', bundle.identities.proposer);
 checkOperation(corrected.retry, 'corrected.retry', bundle.identities.proposer);
 retryBalances(corrected, 'corrected');
@@ -236,6 +262,10 @@ const derivedPrimary = {from: 'frozen old state', baseline: observed.baseline, c
 const derivedComparison = {baseline: observed.baseline, candidate: observed.candidate, corrected: observed.corrected, ...(result.branches.recoveryExperiment ? {recoveryExperiment: result.branches.recoveryExperiment.status} : {}), sameStartingState: true};
 if (JSON.stringify(result.primaryComparison) !== JSON.stringify(derivedPrimary)) fail('primary comparison does not match derived outcomes');
 if (JSON.stringify(result.comparison) !== JSON.stringify(derivedComparison)) fail('comparison does not match derived outcomes');
+if (result.summary !== undefined) {
+  for (const n of expectedNames) if (result.summary?.[n] !== observed[n]) fail(`summary ${n} does not match derived outcome`);
+  if (result.summary.sameStartingState !== true) fail('summary sameStartingState is not true');
+}
 
 const verdict = {
   schema: 'near-rehearsal/local-sputnik-three-branch-verdict/v3',

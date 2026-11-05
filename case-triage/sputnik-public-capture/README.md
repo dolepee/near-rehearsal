@@ -187,3 +187,19 @@ It does not prove:
 - public recovery of production funds;
 - exact production block/time context;
 - that a fresh public operation is currently authorized or funded.
+
+
+## Portable export
+
+An export JSON is self-contained. From a clean checkout:
+
+```sh
+npm ci
+node case-triage/sputnik-public-capture/export-helper.cjs verify   --export /path/to/sputnik-export.json --out /tmp/sputnik-verify
+node case-triage/sputnik-public-capture/export-helper.cjs replay   --export /path/to/sputnik-export.json --out /tmp/sputnik-replay   --sandbox-dir /path/to/directory-containing-near-sandbox
+```
+
+The sandbox argument is the runtime directory, not the binary file. The helper
+unpacks the exported state, report, manifest and actual WASMs, calls the shared
+verifier, and only replays with the known local runner. Export command strings
+are informational and are never executed.
