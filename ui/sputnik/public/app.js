@@ -36,9 +36,20 @@
   function chooseArtifact(which, choice) {
     if (choice === 'upload') { $(`${which}-file`).hidden = false; $(`${which}-file`).click(); return; }
     $(`${which}-file`).hidden = true;
-    const a = state.supported.artifacts[choice];
-    if (!a) return;
-    const target = {filename: a.label || choice, bytes: null, sha256: a.sha256, role: choice, label: a.label || choice, provenance: a.provenance || `manifest artifact ${choice}`, base64: null};
+    const artifacts = state.supported?.artifacts || {};
+    // Older manifests may expose the healthy bytes only under `corrected`.
+    const key = choice === 'healthy' && !artifacts.healthy && artifacts.corrected?.roles?.includes('candidate') ? 'corrected' : choice;
+    const a = artifacts[key];
+    const roleAllowed = a && Array.isArray(a.roles) ? a.roles.includes(which) : !!a;
+    if (!a || !roleAllowed) {
+      if (which === 'candidate') state.candidate = null; else state.correction = null;
+      $(`${which}-choice`).value = '';
+      renderChoiceMeta();
+      $(`${which}-meta`).className = 'meta bad';
+      $(`${which}-meta`).textContent = `Unsupported ${which} selection. Choose a manifest artifact or upload a WASM.`;
+      return;
+    }
+    const target = {filename: a.label || key, bytes: null, sha256: a.sha256, role: key, label: a.label || key, provenance: a.provenance || `manifest artifact ${key}`, base64: null};
     if (which === 'candidate') state.candidate = target; else state.correction = target;
     renderChoiceMeta();
   }
@@ -53,7 +64,11 @@
   function payloadChoice(which) {
     const c = which === 'candidate' ? state.candidate : state.correction;
     if (!c) throw new Error(`Select a ${which}.`);
-    if (c.role === 'upload') return {choice: 'upload', filename: c.filename, sha256: c.sha256, base64: c.base64, label: c.label, provenance: c.provenance};
+    if (!/^[a-f0-9]{64}$/.test(c.sha256 || '')) throw new Error(`Selected ${which} has no valid SHA-256.`);
+    if (c.role === 'upload') {
+      if (!c.base64 || !c.bytes) throw new Error(`Uploaded ${which} bytes are missing.`);
+      return {choice: 'upload', filename: c.filename, sha256: c.sha256, base64: c.base64, label: c.label, provenance: c.provenance};
+    }
     return {choice: c.role};
   }
   async function startRun(kind = 'run') {
@@ -66,7 +81,8 @@
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Could not start run.');
       state.run = data.run; state.export = null; state.pollFailures = 0;
-      show('running-state'); renderRunning(); startPoll();
+      resetExportUi();
+      show('running-state'); renderRunning(); renderChoiceMeta(); startPoll();
     } catch (e) { setStatus('Run rejected', 'error'); show('error-state'); $('error-copy').textContent = e.message; $('error-log').textContent = ''; }
   }
   function startPoll() {
@@ -79,14 +95,25 @@
     const sec = Math.max(0, Math.floor((Date.now() - Date.parse(state.run.startedAt)) / 1000));
     return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
   }
+  function resetExportUi() {
+    $('export-button').textContent = 'Verify and export';
+    $('export-button').disabled = true;
+    $('rerun-button').disabled = true;
+    $('rerun-button').hidden = true;
+  }
   function renderRunning() {
-    $('running-title').textContent = 'Running baseline, seeded candidate and correction…';
-    $('running-copy').textContent = 'Real local Sandbox transactions are executing. A regressed candidate is a valid completed result; only runner/RPC failures are inconclusive.';
+    $('running-title').textContent = 'Running baseline, candidate and correction…';
+    $('running-copy').textContent = 'Real local Sandbox transactions are executing. Candidate and correction outcomes are derived from receipts; only runner/RPC failures are inconclusive.';
     $('run-id').textContent = state.run?.id ? short(state.run.id, 8) : '';
     $('elapsed').textContent = elapsed();
     const logs = state.run?.logs || [];
     $('logs').textContent = logs.slice(-24).join('\n') || 'Waiting for the runner…';
     $('logs').scrollTop = $('logs').scrollHeight;
+    $('export-button').disabled = true;
+    $('export-button').textContent = 'Verify and export';
+    $('rerun-button').disabled = true;
+    $('rerun-button').hidden = true;
+    $('run-button').disabled = true;
     setStatus('Running / local Sandbox', 'running');
   }
   async function poll() {

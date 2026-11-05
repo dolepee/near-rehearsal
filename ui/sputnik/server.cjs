@@ -101,8 +101,15 @@ function recoverRuns() {
     if (fs.existsSync(reportPath)) {
       try {
         run.report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-        run.status = run.report.status === 'complete' ? 'complete' : 'inconclusive';
-        if (run.status !== 'complete') run.error = 'Persisted report is inconclusive.';
+        // Only a run that reached its own clean terminal state can be recovered as complete.
+        if (meta.status === 'complete' && run.report.status === 'complete') {
+          run.status = 'complete';
+        } else {
+          run.status = 'inconclusive';
+          run.error = meta.status === 'running'
+            ? 'Server restarted before this run completed; the interrupted job is not evidence.'
+            : (meta.error || 'Persisted report is not a clean completed run.');
+        }
       } catch (e) { run.error = `Persisted report is invalid: ${e.message}`; }
     } else {
       run.status = 'inconclusive';
@@ -177,6 +184,15 @@ function startRun(input, frozenBundle = null) {
     if (run.report) {
       run.frozenBundle = fs.existsSync(path.join(outDir, 'local-frozen-bundle.json'))
         ? JSON.parse(fs.readFileSync(path.join(outDir, 'local-frozen-bundle.json'), 'utf8')) : null;
+      for (const role of ['candidate', 'correction']) {
+        const expected = run.input?.[role]?.sha256;
+        const actual = run.report?.artifacts?.[role]?.sha256;
+        if (expected && actual && expected !== actual) {
+          run.report = null;
+          run.error = `Report ${role} bytes ${actual} do not match submitted ${expected}.`;
+          break;
+        }
+      }
     }
     const cleanExit = code === 0 && !signal && !timedOut;
     if (run.report && cleanExit && run.report.status === 'complete') {
@@ -185,7 +201,7 @@ function startRun(input, frozenBundle = null) {
       run.status = 'inconclusive';
       if (timedOut) run.error = 'Runner exceeded the local 12-minute limit; this run is not evidence.';
       else if (signal) run.error = `Runner stopped by ${signal}; this run is not evidence.`;
-      else if (!run.report) run.error = `Runner exited ${code ?? 'without a report'}; this run is not evidence.`;
+      else if (!run.report && !run.error) run.error = `Runner exited ${code ?? 'without a report'}; this run is not evidence.`;
       else if (run.report.status !== 'complete') run.error = run.report.error?.message || 'Runner reported an inconclusive result.';
       else run.error = `Runner exited ${code}; a complete report from an unclean exit is not accepted.`;
     }
@@ -266,6 +282,11 @@ const server = http.createServer(async (req, res) => {
         candidate: {filename: run.input.candidate.filename, sha256: run.input.candidate.sha256, label: run.input.candidate.label, provenance: run.input.candidate.provenance, bytesBase64: fs.readFileSync(path.join(run.runDir, 'candidate.wasm')).toString('base64')},
         correction: {filename: run.input.correction.filename, sha256: run.input.correction.sha256, label: run.input.correction.label, provenance: run.input.correction.provenance, bytesBase64: fs.readFileSync(path.join(run.runDir, 'correction.wasm')).toString('base64')},
         inputManifest, frozenBundle: run.frozenBundle,
+        obligation: (() => {
+          const proposal = run.frozenBundle?.proposal || run.report?.frozenBundle?.proposal || {};
+          const transfer = proposal.kind?.Transfer || {};
+          return {proposalId: proposal.id ?? null, status: proposal.status ?? null, recipient: transfer.receiver_id ?? null, amount: transfer.amount ?? null};
+        })(),
         report: run.report,
         reportSha256: sha256(fs.readFileSync(run.reportPath)),
         verdictSha256: sha256(fs.readFileSync(path.join(run.outDir, 'local-three-verdict.json'))),

@@ -46,6 +46,13 @@ const correction = bytes('correction');
 if (!exportDoc.inputManifest || !exportDoc.frozenBundle || !exportDoc.report) fail('export is missing manifest, frozen state or report');
 if (exportDoc.inputManifest.candidate.sha256 !== exportDoc.candidate.sha256) fail('candidate manifest mismatch');
 if (exportDoc.inputManifest.correction.sha256 !== exportDoc.correction.sha256) fail('correction manifest mismatch');
+const transfer = exportDoc.frozenBundle?.proposal?.kind?.Transfer;
+if (!transfer) fail('export frozen proposal has no Transfer obligation');
+if (exportDoc.obligation) {
+  if (String(exportDoc.obligation.amount) !== String(transfer.amount)) fail('declared transfer amount mismatch');
+  if (exportDoc.obligation.recipient !== transfer.receiver_id) fail('declared transfer recipient mismatch');
+  if (String(exportDoc.obligation.proposalId) !== String(exportDoc.frozenBundle.proposal.id)) fail('declared proposal id mismatch');
+}
 const reportRaw = json(exportDoc.report);
 if (exportDoc.reportSha256 && sha256(reportRaw) !== exportDoc.reportSha256) fail('export report sha256 mismatch');
 if (exportDoc.verdict && exportDoc.verdictSha256 && sha256(json(exportDoc.verdict)) !== exportDoc.verdictSha256) fail('export verdict sha256 mismatch');

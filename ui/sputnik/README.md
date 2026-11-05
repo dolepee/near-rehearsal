@@ -28,7 +28,8 @@ export NEAR_SANDBOX_BINARY_PATH="$NEAR_SANDBOX_BIN_PATH"
   WASM.
 
 The browser computes SHA-256; the server revalidates bytes and hashes and writes
-an input manifest. The runner labels each artifact from that manifest, not from
+an input manifest. The `healthy` selection resolves to the verified good artifact;
+invalid selections clear the old input instead of reusing it. The runner labels each artifact from that manifest, not from
 a hardcoded filename. Alternate builds are accepted within the declared family
 exports (`update`, `migrate`, `act_proposal`).
 
