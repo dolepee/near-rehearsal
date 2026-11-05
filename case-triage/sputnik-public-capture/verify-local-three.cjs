@@ -2,6 +2,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+function base58(buf) {
+  const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  let n = BigInt('0x' + Buffer.from(buf).toString('hex'));
+  let out = '';
+  while (n > 0n) { const r = Number(n % 58n); n /= 58n; out = alphabet[r] + out; }
+  for (const b of buf) { if (b !== 0) break; out = '1' + out; }
+  return out || '1';
+}
+const hashContract = (bytes) => base58(crypto.createHash('sha256').update(bytes).digest());
 const HERE = process.env.CASE_DIR ? path.resolve(process.env.CASE_DIR) : __dirname;
 const OUT = path.join(HERE, 'out');
 const sha256 = (b) => crypto.createHash('sha256').update(b).digest('hex');
@@ -25,6 +34,17 @@ if (result.frozenBundle.codeHash !== bundle.codeHash) fail('frozen code hash mis
 if (result.frozenBundle.contractBalance !== bundle.contractAccount.amount) fail('frozen contract balance mismatch');
 if (result.frozenBundle.actorBalance !== bundle.actorAccount.amount) fail('frozen actor balance mismatch');
 if (result.frozenBundle.recipientBalance !== bundle.recipientAmount) fail('frozen recipient balance mismatch');
+const frozenCode = Buffer.from(asString(bundle.code, 'bundle.code'), 'base64');
+if (sha256(frozenCode) !== bundle.artifacts?.baseSha256) fail('frozen raw code sha256 mismatch');
+if (hashContract(frozenCode) !== bundle.codeHash) fail('frozen raw code hash mismatch');
+if (bundle.artifacts?.baseHash !== bundle.codeHash) fail('bundle base code hash mismatch');
+const sortedState = bundle.state.map(({key, value}) => ({key, value})).sort((a, b) => a.key.localeCompare(b.key));
+if (sha256(JSON.stringify(sortedState)) !== bundle.stateHash) fail('frozen raw state hash mismatch');
+if (!Array.isArray(bundle.state) || bundle.state.length === 0) fail('frozen raw state missing');
+required(bundle, ['proposal', 'identities', 'contractAccount', 'actorAccount'], 'bundle');
+const obligation = bundle.proposal?.kind?.Transfer;
+if (!obligation) fail('frozen proposal has no Transfer obligation');
+const obligationId = Number(bundle.proposal.id);
 required(input, ['schema', 'candidate', 'correction'], 'input-manifest');
 if (input.schema !== 'near-rehearsal/sputnik-input-manifest/v1') fail('input manifest schema mismatch');
 for (const [role, artifactKey] of [['candidate', 'candidate'], ['correction', 'corrected']]) {
@@ -40,6 +60,19 @@ for (const [role, artifactKey] of [['candidate', 'candidate'], ['correction', 'c
 }
 if (result.artifacts.candidate.role !== 'candidate') fail('candidate role is not candidate');
 if (result.artifacts.corrected.role !== 'correction') fail('correction role is not correction');
+function suppliedBytes(name) {
+  const candidatePath = path.join(OUT, name);
+  const fallback = path.join(HERE, name);
+  const file = fs.existsSync(candidatePath) ? candidatePath : fallback;
+  if (!fs.existsSync(file)) fail(`supplied ${name} bytes are missing`);
+  return fs.readFileSync(file);
+}
+const suppliedCandidate = suppliedBytes('candidate.wasm');
+const suppliedCorrection = suppliedBytes('correction.wasm');
+if (suppliedCandidate.length !== input.candidate.bytes || sha256(suppliedCandidate) !== input.candidate.sha256) fail('supplied candidate bytes do not match manifest');
+if (suppliedCorrection.length !== input.correction.bytes || sha256(suppliedCorrection) !== input.correction.sha256) fail('supplied correction bytes do not match manifest');
+if (hashContract(suppliedCandidate) !== result.artifacts.candidate.hash) fail('supplied candidate code hash does not match artifact');
+if (hashContract(suppliedCorrection) !== result.artifacts.corrected.hash) fail('supplied correction code hash does not match artifact');
 
 const expectedNames = ['baseline', 'candidate', 'corrected'];
 for (const n of expectedNames) required(result.branches, [n], 'branches');
@@ -61,14 +94,18 @@ function tx(t, expected, label, signer) {
   if (!recognized(t.transactionOutcomeStatus)) fail(`${label} has no recognized transaction outcome`);
   const allowed = new Set([bundle.identities.contract, bundle.identities.proposer, bundle.identities.recipient, bundle.identities.factory, t.transaction.signerId, t.transaction.receiverId]);
   const receiptIds = new Set();
+  if (new Set(t.receiptIds).size !== t.receiptIds.length) fail(`${label} duplicate root receipt id`);
   for (const r of t.receipts) {
     if (!r.id) fail(`${label} receipt missing id`);
+    if (receiptIds.has(r.id)) fail(`${label} duplicate receipt id ${r.id}`);
     receiptIds.add(r.id);
     if (!r.blockHash) fail(`${label} receipt missing block hash`);
     if (!Array.isArray(r.receiptIds)) fail(`${label} receipt missing child ids`);
+    if (new Set(r.receiptIds).size !== r.receiptIds.length) fail(`${label} duplicate child receipt id`);
     if (!recognized(r.status)) fail(`${label} receipt status not recognized`);
     if (!allowed.has(r.executorId)) fail(`${label} receipt executor unbound: ${r.executorId}`);
   }
+  for (const id of t.receiptIds) if (!receiptIds.has(id)) fail(`${label} root receipt ${id} does not resolve exactly once`);
   if (!t.receiptIds.some((id) => receiptIds.has(id))) fail(`${label} transaction outcome is not in receipt graph`);
   if (t.transactionOutcomeStatus?.SuccessReceiptId && !receiptIds.has(t.transactionOutcomeStatus.SuccessReceiptId)) fail(`${label} success receipt id is missing from graph`);
   for (const r of t.receipts) for (const child of r.receiptIds) if (!receiptIds.has(child)) fail(`${label} child receipt ${child} is missing from graph`);
@@ -85,6 +122,29 @@ function tx(t, expected, label, signer) {
   asYocto(t.totalTokensBurntYocto, `${label}.totalTokensBurntYocto`);
   if (BigInt(t.transactionOutcomeTokensBurntYocto) + BigInt(t.receiptTokensBurntYocto) !== BigInt(t.totalTokensBurntYocto)) fail(`${label} token totals disagree`);
   asString(t.gasBurntUnits, `${label}.gasBurntUnits`);
+}
+function checkOperation(t, label, signer) {
+  required(t, ['transaction'], label);
+  const action = t.transaction.actions?.[0]?.FunctionCall;
+  if (!action || action.method_name !== 'act_proposal') fail(`${label} operation is not act_proposal`);
+  if (t.transaction.signerId !== signer) fail(`${label} operation signer mismatch`);
+  let args;
+  try { args = JSON.parse(Buffer.from(action.args, 'base64').toString('utf8')); } catch { fail(`${label} operation args are not JSON`); }
+  if (args.id !== obligationId) fail(`${label} proposal id does not match frozen obligation`);
+  if (args.action !== 'VoteApprove') fail(`${label} operation action is not VoteApprove`);
+  const transfer = args.proposal?.Transfer;
+  if (!transfer) fail(`${label} operation proposal is not Transfer`);
+  if (transfer.receiver_id !== obligation.receiver_id) fail(`${label} operation recipient does not match frozen obligation`);
+  if (String(transfer.amount) !== String(obligation.amount)) fail(`${label} operation amount does not match frozen obligation`);
+  if ((transfer.token_id || '') !== (obligation.token_id || '')) fail(`${label} operation token does not match frozen obligation`);
+  if ((transfer.msg ?? null) !== (obligation.msg ?? null)) fail(`${label} operation message does not match frozen obligation`);
+}
+function checkUpgrade(t, label, bytes, signer) {
+  required(t, ['transaction'], label);
+  const action = t.transaction.actions?.[0]?.FunctionCall;
+  if (!action || action.method_name !== 'update') fail(`${label} upgrade is not update`);
+  if (t.transaction.signerId !== signer) fail(`${label} upgrade signer mismatch`);
+  if (sha256(Buffer.from(action.args, 'base64')) !== sha256(bytes)) fail(`${label} upgrade bytes do not match supplied artifact`);
 }
 function initialFacts(b, label) {
   required(b, ['initial', 'localBlock', 'checks'], label);
@@ -135,20 +195,28 @@ for (const n of expectedNames) {
 if (result.branches.baseline.status === 'inconclusive') fail('baseline is inconclusive');
 const baseline = result.branches.baseline;
 tx(baseline.first, 'success', 'baseline.first', bundle.identities.proposer);
+checkOperation(baseline.first, 'baseline.first', bundle.identities.proposer);
+checkOperation(baseline.retry, 'baseline.retry', bundle.identities.proposer);
 retryBalances(baseline, 'baseline');
 if (baseline.checks.retryDidNotPay !== true) fail('baseline retry check not true');
 
 const candidate = result.branches.candidate;
 if (candidate.afterUpgrade.codeHash !== result.artifacts.candidate.hash) fail('candidate code not deployed');
 tx(candidate.upgrade, 'success', 'candidate.upgrade', bundle.identities.factory);
+checkUpgrade(candidate.upgrade, 'candidate.upgrade', suppliedCandidate, bundle.identities.factory);
 tx(candidate.first, candidate.status === 'regressed' ? 'failure' : 'success', 'candidate.first', bundle.identities.proposer);
+checkOperation(candidate.first, 'candidate.first', bundle.identities.proposer);
+checkOperation(candidate.retry, 'candidate.retry', bundle.identities.proposer);
 retryBalances(candidate, 'candidate');
 if (candidate.status === 'regressed' && BigInt(candidate.afterFirst.recipientBalance) !== BigInt(candidate.before.recipientBalance)) fail('regressed candidate paid recipient');
 
 const corrected = result.branches.corrected;
 if (corrected.afterUpgrade.codeHash !== result.artifacts.corrected.hash) fail('corrected code not deployed');
 tx(corrected.upgrade, 'success', 'corrected.upgrade', bundle.identities.factory);
+checkUpgrade(corrected.upgrade, 'corrected.upgrade', suppliedCorrection, bundle.identities.factory);
 tx(corrected.first, corrected.status === 'regressed' ? 'failure' : 'success', 'corrected.first', bundle.identities.proposer);
+checkOperation(corrected.first, 'corrected.first', bundle.identities.proposer);
+checkOperation(corrected.retry, 'corrected.retry', bundle.identities.proposer);
 retryBalances(corrected, 'corrected');
 
 if (result.branches.recoveryExperiment) {
@@ -173,6 +241,7 @@ const verdict = {
   schema: 'near-rehearsal/local-sputnik-three-branch-verdict/v3',
   verdict: 'local-three-branch-verified',
   status: 'complete',
+  scope: 'offline consistency from supplied bytes, raw state and receipts; not cryptographic execution attestation',
   frozenBundle: result.frozenBundle,
   inputManifest: input,
   artifacts: result.artifacts,

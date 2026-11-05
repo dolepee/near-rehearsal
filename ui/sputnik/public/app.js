@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = {supported: null, candidate: null, correction: null, run: null, tab: 'summary', poll: null, clock: null, export: null};
+  const state = {supported: null, candidate: null, correction: null, run: null, tab: 'summary', poll: null, clock: null, export: null, pollFailures: 0};
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
   const short = (v, n = 10) => v ? `${String(v).slice(0, n)}…${String(v).slice(-6)}` : '—';
   const near = (v) => {
@@ -60,12 +60,12 @@
     if (state.run?.status === 'running') return;
     try {
       const body = kind === 'correction'
-        ? {runId: state.run.id}
+        ? {runId: state.run.id, correction: payloadChoice('correction')}
         : {family: state.supported.family, candidate: payloadChoice('candidate'), correction: payloadChoice('correction')};
       const r = await fetch(kind === 'correction' ? '/api/correction' : '/api/run', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Could not start run.');
-      state.run = data.run; state.export = null;
+      state.run = data.run; state.export = null; state.pollFailures = 0;
       show('running-state'); renderRunning(); startPoll();
     } catch (e) { setStatus('Run rejected', 'error'); show('error-state'); $('error-copy').textContent = e.message; $('error-log').textContent = ''; }
   }
@@ -93,23 +93,35 @@
     if (!state.run?.id) return;
     try {
       const r = await fetch(`/api/runs/${state.run.id}`, {cache: 'no-store'});
-      if (!r.ok) return;
+      if (!r.ok) {
+        state.pollFailures += 1;
+        if (state.pollFailures >= 3) throw new Error('Run state is no longer available (the review server may have restarted). Start a new run.');
+        return;
+      }
+      state.pollFailures = 0;
       state.run = await r.json();
       renderRunning();
       if (state.run.status !== 'running') { clearInterval(state.poll); clearInterval(state.clock); renderTerminal(); }
-    } catch {}
+    } catch (e) {
+      clearInterval(state.poll); clearInterval(state.clock);
+      state.run = {...state.run, status: 'error'};
+      show('error-state'); $('error-copy').textContent = e.message; $('error-log').textContent = (state.run.logs || []).slice(-20).join('\n'); setStatus('Run state unavailable', 'error');
+    }
   }
   function failureText(tx) {
     if (!tx?.failure) return '—';
     return tx.failure.ActionError?.kind?.FunctionCallError?.ExecutionError || JSON.stringify(tx.failure).slice(0, 220);
   }
   function card(name, label, b, role) {
+    const artifact = name === 'candidate' ? state.run?.report?.artifacts?.candidate : name === 'corrected' ? state.run?.report?.artifacts?.corrected : null;
+    const title = name === 'baseline' ? 'Old contract' : artifact?.label || role;
+    const provenance = artifact?.provenance || '';
     const status = b?.status || 'missing';
     const delta = b?.before && b?.afterFirst ? BigInt(b.afterFirst.recipientBalance) - BigInt(b.before.recipientBalance) : null;
     const failed = b?.first?.failed === true;
     const reason = failureText(b?.first);
     return `<article class="branch-card ${statusKind(status)}" data-branch="${esc(name)}">
-      <div class="branch-head"><div><div class="eyebrow">${esc(label)}</div><h3>${esc(name === 'baseline' ? 'Old contract' : name === 'candidate' ? 'Seeded bad candidate' : 'Verified correction')}</h3></div><span class="badge ${statusKind(status)}">${esc(status)}</span></div>
+      <div class="branch-head"><div><div class="eyebrow">${esc(label)}</div><h3>${esc(title)}</h3>${provenance ? `<small class="provenance">${esc(provenance)}</small>` : ''}</div><span class="badge ${statusKind(status)}">${esc(status)}</span></div>
       <div class="consequence"><span>Recipient delta</span><strong>${delta === null ? '—' : `${delta >= 0n ? '+' : ''}${near(delta)} NEAR`}</strong></div>
       <div class="mini-grid">
         <div><span>Declared role</span><b>${esc(role)}</b></div>
@@ -134,6 +146,10 @@
     const b = report.branches;
     $('result-banner').className = 'result-banner ok';
     $('result-banner').textContent = `Complete report. Candidate ${b.candidate.status}; correction ${b.corrected.status}. Outcomes are derived from receipts and balances; a red branch is not a runner failure.`;
+    const fb = report.frozenBundle || {};
+    const obligation = fb.proposal || report.branches?.baseline?.before?.proposal || {};
+    const identities = fb.identities || {};
+    $('obligation-strip').innerHTML = `<div><span>Obligation</span><b>#${esc(obligation.id ?? '—')} · ${esc(obligation.status || '—')}</b></div><div><span>Declared recipient</span><b>${esc(identities.recipient || '—')}</b></div><div><span>Declared transfer</span><b>${near(fb.recipientBalance)} NEAR</b></div><div><span>Frozen state</span><b class="mono">${esc(short(fb.stateHash, 18))}</b></div>`;
     $('frozen-summary').innerHTML = `<div><span>Frozen state</span><b class="mono">${esc(report.frozenBundle.stateHash)}</b></div><div><span>Same initial facts</span><b>${report.sameStartingState ? 'verified across all branches' : 'not verified'}</b></div><div><span>Frozen bundle</span><b>${esc(state.run.frozenBundle ? short(state.run.frozenBundle.stateHash, 16) : '—')}</b></div>`;
     $('branch-grid').innerHTML = [
       card('baseline', 'Old state → existing operation', b.baseline, 'baseline'),
@@ -154,7 +170,7 @@
     const panel = $('detail-panel');
     for (const t of document.querySelectorAll('.tab')) t.classList.toggle('active', t.dataset.tab === state.tab);
     if (state.tab === 'raw') { panel.innerHTML = `<pre class="raw">${esc(JSON.stringify(report, null, 2))}</pre>`; return; }
-    if (state.tab === 'export') { panel.innerHTML = state.export ? `<pre class="raw">${esc(JSON.stringify(state.export, null, 2))}</pre>` : '<p class="muted">Run Verify and export after a complete report.</p>'; return; }
+    if (state.tab === 'export') { const shown = state.export ? {...state.export, candidate: {...state.export.candidate, bytesBase64: '[included in download]'}, correction: {...state.export.correction, bytesBase64: '[included in download]'}} : null; panel.innerHTML = shown ? `<p class="notice">Self-contained JSON includes frozen state, candidate/correction bytes, input manifest, raw report and verdict.</p><a class="download-link" href="/api/runs/${encodeURIComponent(state.run.id)}/export/download" download>Download self-contained export JSON</a><pre class="raw">${esc(JSON.stringify(shown, null, 2))}</pre>` : '<p class="muted">Run Verify and export after a complete report.</p>'; return; }
     const b = report.branches[state.detail || 'candidate'];
     panel.innerHTML = `<div class="kv-grid">
       <div class="kv"><span>Current branch</span><b>${esc(state.detail || 'candidate')}</b></div>
@@ -188,6 +204,19 @@
     $('export-button').addEventListener('click', exportRun);
     for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => { state.tab = t.dataset.tab; renderDetails(); });
   }
+  async function loadExistingRun(id) {
+    try {
+      const r = await fetch(`/api/runs/${encodeURIComponent(id)}`, {cache: 'no-store'});
+      if (!r.ok) throw new Error('Run not found.');
+      state.run = await r.json();
+      if (state.run.status === 'running') { show('running-state'); renderRunning(); startPoll(); return; }
+      if (state.run.status === 'complete') { renderTerminal(); return; }
+      show('error-state'); $('error-copy').textContent = state.run.error || 'Run was inconclusive.'; $('error-log').textContent = (state.run.logs || []).slice(-20).join('\n');
+    } catch (e) { setStatus('Run unavailable', 'error'); $('error-copy').textContent = e.message; show('error-state'); }
+  }
   bind();
-  loadSupported().catch((e) => { setStatus('Manifest error', 'error'); $('candidate-meta').textContent = e.message; });
+  loadSupported().then(() => {
+    const requested = new URLSearchParams(location.search).get('run');
+    if (requested) loadExistingRun(requested);
+  }).catch((e) => { setStatus('Manifest error', 'error'); $('candidate-meta').textContent = e.message; });
 })();

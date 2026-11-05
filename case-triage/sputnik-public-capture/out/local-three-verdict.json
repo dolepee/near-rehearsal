@@ -2,6 +2,7 @@
   "schema": "near-rehearsal/local-sputnik-three-branch-verdict/v3",
   "verdict": "local-three-branch-verified",
   "status": "complete",
+  "scope": "offline consistency from supplied bytes, raw state and receipts; not cryptographic execution attestation",
   "frozenBundle": {
     "stateHash": "1207952dc7e010b857230b7aea8ed832a7e7bfefc4d29a1326c522e6a4190b9a",
     "codeHash": "F5SMJ8vKYwaH7Y8mYLmqxjfdNv3haZE82isFpQHnXFPC",

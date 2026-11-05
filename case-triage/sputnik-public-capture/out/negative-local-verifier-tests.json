@@ -66,6 +66,31 @@
       "name": "primary-all-green",
       "rejected": true,
       "exit": 1
+    },
+    {
+      "name": "raw-state-value-stale-hash",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "raw-code-stale-hash",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "missing-root-receipt",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "duplicate-receipt-id",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "operation-recipient-args",
+      "rejected": true,
+      "exit": 1
     }
   ]
 }

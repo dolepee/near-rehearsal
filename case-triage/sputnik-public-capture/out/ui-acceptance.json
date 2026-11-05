@@ -1,0 +1,43 @@
+{
+  "schema": "near-rehearsal/sputnik-ui-acceptance/v2",
+  "ui": "ui/sputnik/server.cjs",
+  "initialRun": {
+    "id": "7300501c-235f-40de-87b6-a85c61423861",
+    "stateHash": "ec7fcf76dd3a6b5334a3721190b54a5bd1fcd7189288527c84b766d5c430f255",
+    "observed": {
+      "baseline": "preserved",
+      "candidate": "regressed",
+      "corrected": "preserved"
+    }
+  },
+  "sameBundleRerun": {
+    "id": "75027fda-6eea-49da-acf2-896506968057",
+    "stateHash": "ec7fcf76dd3a6b5334a3721190b54a5bd1fcd7189288527c84b766d5c430f255",
+    "observed": {
+      "baseline": "preserved",
+      "candidate": "regressed",
+      "corrected": "preserved"
+    },
+    "sameState": true
+  },
+  "selectedCorrectionRerun": {
+    "id": "9f52a673-e157-40a9-87e0-78cc19be2cc8",
+    "stateHash": "ec7fcf76dd3a6b5334a3721190b54a5bd1fcd7189288527c84b766d5c430f255",
+    "observed": {
+      "baseline": "preserved",
+      "candidate": "regressed",
+      "corrected": "regressed"
+    },
+    "sameState": true,
+    "correction": {
+      "filename": "candidate-seeded-bad.wasm",
+      "sha256": "5005fe46d62e3f6cf1dd0c0b05a60343155a4fa9c6990d0428746f3dae0689c0",
+      "role": "correction",
+      "label": "uploaded bad correction",
+      "provenance": "selected for same-bundle correction rerun"
+    },
+    "reportSha256": "478c4c2044eef643554a92a8df9401a51fe56ffc869b8eb73e824f8c09513b90",
+    "verdictSha256": "dc270f0680a1decbd7b489fb87b5aad9141bb6d8e68afdb3c8fedc7750c15a3a",
+    "exportSha256": "8b8fffbfcf3129a597e82ffebc6d4866573d711b67f9926c48fddaec86f93d8c"
+  }
+}

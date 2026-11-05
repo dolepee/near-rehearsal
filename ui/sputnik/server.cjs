@@ -18,6 +18,7 @@ const MAX_LOG = 180;
 const MAX_RUN_MS = 12 * 60 * 1000;
 
 const runs = new Map();
+const RUNS_ROOT = path.join(ROOT, 'out/sputnik-ui/runs');
 let activeId = null;
 const sha256 = (b) => crypto.createHash('sha256').update(b).digest('hex');
 const rel = (f) => path.relative(ROOT, f).split(path.sep).join('/');
@@ -70,8 +71,49 @@ function publicRun(run) {
     id: run.id, status: run.status, startedAt: run.startedAt, finishedAt: run.finishedAt,
     logs: run.logs, report: run.report, verdict: run.verdict, error: run.error,
     exitCode: run.exitCode, input: run.input,
-    frozenBundle: run.frozenBundle ? {stateHash: run.frozenBundle.stateHash, codeHash: run.frozenBundle.codeHash, contractBalance: run.frozenBundle.contractAccount.amount, actorBalance: run.frozenBundle.actorAccount.amount, recipientBalance: run.frozenBundle.recipientAmount} : null,
+    frozenBundle: run.frozenBundle ? {stateHash: run.frozenBundle.stateHash, codeHash: run.frozenBundle.codeHash, contractBalance: run.frozenBundle.contractAccount.amount, actorBalance: run.frozenBundle.actorAccount.amount, recipientBalance: run.frozenBundle.recipientAmount, proposal: run.frozenBundle.proposal, identities: run.frozenBundle.identities} : null,
   };
+}
+
+function writeRunMeta(run) {
+  const meta = {
+    id: run.id, status: run.status, startedAt: run.startedAt, finishedAt: run.finishedAt,
+    error: run.error, exitCode: run.exitCode, input: run.input, frozenBundlePath: run.input.frozenBundle,
+  };
+  try { fs.writeFileSync(path.join(run.runDir, 'run.json'), JSON.stringify(meta, null, 2) + '\n'); } catch {}
+}
+
+function recoverRuns() {
+  if (!fs.existsSync(RUNS_ROOT)) return;
+  for (const id of fs.readdirSync(RUNS_ROOT)) {
+    const runDir = path.join(RUNS_ROOT, id);
+    if (!fs.statSync(runDir).isDirectory()) continue;
+    const outDir = path.join(runDir, 'out');
+    const reportPath = path.join(outDir, 'local-three-branch.json');
+    let meta = null;
+    try { meta = JSON.parse(fs.readFileSync(path.join(runDir, 'run.json'), 'utf8')); } catch {}
+    if (!meta) continue;
+    const run = {
+      id, status: 'inconclusive', startedAt: meta.startedAt, finishedAt: new Date().toISOString(),
+      logs: [], report: null, verdict: null, error: null, exitCode: null,
+      runDir, outDir, reportPath, frozenBundle: null, input: meta.input,
+    };
+    if (fs.existsSync(reportPath)) {
+      try {
+        run.report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+        run.status = run.report.status === 'complete' ? 'complete' : 'inconclusive';
+        if (run.status !== 'complete') run.error = 'Persisted report is inconclusive.';
+      } catch (e) { run.error = `Persisted report is invalid: ${e.message}`; }
+    } else {
+      run.status = 'inconclusive';
+      run.error = 'Server restarted before this run completed; the interrupted job is not evidence.';
+    }
+    const bundlePath = path.join(outDir, 'local-frozen-bundle.json');
+    if (fs.existsSync(bundlePath)) { try { run.frozenBundle = JSON.parse(fs.readFileSync(bundlePath, 'utf8')); } catch {} }
+    const verdictPath = path.join(outDir, 'local-three-verdict.json');
+    if (fs.existsSync(verdictPath)) { try { run.verdict = JSON.parse(fs.readFileSync(verdictPath, 'utf8')); } catch {} }
+    runs.set(id, run);
+  }
 }
 
 function startRun(input, frozenBundle = null) {
@@ -101,6 +143,7 @@ function startRun(input, frozenBundle = null) {
   };
   runs.set(id, run);
   activeId = id;
+  writeRunMeta(run);
   const env = {
     ...process.env,
     CANDIDATE_WASM: candidatePath,
@@ -139,6 +182,7 @@ function startRun(input, frozenBundle = null) {
       if (!run.error) run.error = `Runner exited ${code ?? signal ?? 'without a report'}.`;
     }
     if (signal) run.error = run.error || `Runner stopped by ${signal}.`;
+    writeRunMeta(run);
   };
   child.stdout.on('data', add);
   child.stderr.on('data', add);
@@ -183,9 +227,10 @@ const server = http.createServer(async (req, res) => {
       const payload = JSON.parse(await readBody(req) || '{}');
       const previous = runs.get(payload.runId);
       if (!previous?.frozenBundle) throw new Error('That run has no frozen bundle to reuse.');
+      if (!payload.correction) throw new Error('Correct this run with an explicit correction selection.');
       const candidate = {bytes: fs.readFileSync(path.join(previous.runDir, 'candidate.wasm')), ...previous.input.candidate};
-      const correction = {bytes: fs.readFileSync(path.join(previous.runDir, 'correction.wasm')), ...previous.input.correction};
-      const run = startRun({candidate, correction, candidateRole: candidate.role, correctionRole: correction.role}, previous.frozenBundle);
+      const correction = payload.correction.sha256 ? validateWasm(payload.correction, 'correction') : artifact('correction', payload.correction.choice || 'corrected');
+      const run = startRun({candidate, correction, candidateRole: candidate.role, correctionRole: payload.correction.choice || 'correction'}, previous.frozenBundle);
       return send(res, 202, {run: publicRun(run)});
     }
     const match = url.pathname.match(/^\/api\/runs\/([0-9a-f-]+)$/);
@@ -200,19 +245,37 @@ const server = http.createServer(async (req, res) => {
       if (!run) return send(res, 404, {error: 'Run not found.'});
       const verdict = verify(run);
       if (action[2] === 'verify') return send(res, 200, {verdict});
+      const inputManifest = JSON.parse(fs.readFileSync(path.join(run.outDir, 'input-manifest.json'), 'utf8'));
       const exportDoc = {
-        schema: 'near-rehearsal/sputnik-export/v1', createdAt: new Date().toISOString(),
-        family: FAMILY.family, runId: run.id, inputs: run.input, frozenBundle: run.frozenBundle,
+        schema: 'near-rehearsal/sputnik-export/v2', createdAt: new Date().toISOString(),
+        family: FAMILY.family, runId: run.id, inputs: run.input,
+        candidate: {filename: run.input.candidate.filename, sha256: run.input.candidate.sha256, label: run.input.candidate.label, provenance: run.input.candidate.provenance, bytesBase64: fs.readFileSync(path.join(run.runDir, 'candidate.wasm')).toString('base64')},
+        correction: {filename: run.input.correction.filename, sha256: run.input.correction.sha256, label: run.input.correction.label, provenance: run.input.correction.provenance, bytesBase64: fs.readFileSync(path.join(run.runDir, 'correction.wasm')).toString('base64')},
+        inputManifest, frozenBundle: run.frozenBundle,
+        report: run.report,
         reportSha256: sha256(fs.readFileSync(run.reportPath)),
         verdictSha256: sha256(fs.readFileSync(path.join(run.outDir, 'local-three-verdict.json'))),
         verdict,
-        rerunCommand: `SPUTNIK_OUT_DIR=<new-dir> USE_FROZEN=1 FROZEN_BUNDLE=${rel(path.join(run.outDir, 'local-frozen-bundle.json'))} CANDIDATE_WASM=${rel(path.join(run.runDir, 'candidate.wasm'))} CORRECTED_WASM=${rel(path.join(run.runDir, 'correction.wasm'))} node case-triage/sputnik-public-capture/local-three-branch.cjs`,
-        verifyCommand: `CASE_DIR=${rel(run.outDir)} node case-triage/sputnik-public-capture/verify-local-three.cjs`,
+        verifyCommand: `cd ${ROOT} && CASE_DIR=${run.runDir} ${process.execPath} ${VERIFIER}`,
+        replayCommand: `cd ${ROOT} && SPUTNIK_OUT_DIR=<new-dir> USE_FROZEN=1 FROZEN_BUNDLE=${path.join(run.outDir, 'local-frozen-bundle.json')} CANDIDATE_WASM=${path.join(run.runDir, 'candidate.wasm')} CORRECTED_WASM=${path.join(run.runDir, 'correction.wasm')} ${process.execPath} ${RUNNER}`,
+        downloadUrl: `/api/runs/${run.id}/export/download`,
         limitations: FAMILY.limitations,
       };
       const exportPath = path.join(run.runDir, 'export.json');
       fs.writeFileSync(exportPath, JSON.stringify(exportDoc, null, 2) + '\n');
       return send(res, 200, {export: exportDoc, exportPath: rel(exportPath)});
+    }
+    const download = url.pathname.match(/^\/api\/runs\/([0-9a-f-]+)\/export\/download$/);
+    if (download && req.method === 'GET') {
+      const run = runs.get(download[1]);
+      if (!run) return send(res, 404, {error: 'Run not found.'});
+      verify(run);
+      const exportPath = path.join(run.runDir, 'export.json');
+      if (!fs.existsSync(exportPath)) return send(res, 404, {error: 'Export not created.'});
+      const data = fs.readFileSync(exportPath);
+      res.writeHead(200, {'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="sputnik-export-${run.id}.json"`, 'content-length': data.length, 'cache-control': 'no-store'});
+      res.end(data);
+      return;
     }
     if (url.pathname === '/' || url.pathname === '/index.html') return file(res, 'index.html');
     if (['/app.js', '/styles.css'].includes(url.pathname)) return file(res, url.pathname.slice(1));
@@ -221,4 +284,5 @@ const server = http.createServer(async (req, res) => {
     return send(res, 400, {error: e.message});
   }
 });
+recoverRuns();
 server.listen(PORT, HOST, () => console.log(`Sputnik rehearsal UI: http://${HOST}:${PORT}`));

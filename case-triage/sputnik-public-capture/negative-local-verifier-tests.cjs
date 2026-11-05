@@ -13,9 +13,13 @@ function run(name, mutate) {
   const dir = path.join(root, name);
   fs.mkdirSync(path.join(dir, 'out'), {recursive: true});
   fs.writeFileSync(path.join(dir, 'out', 'local-frozen-bundle.json'), JSON.stringify(baseBundle, null, 2));
+  fs.copyFileSync(path.join(out, 'candidate.wasm'), path.join(dir, 'out', 'candidate.wasm'));
+  fs.copyFileSync(path.join(out, 'correction.wasm'), path.join(dir, 'out', 'correction.wasm'));
   const r = JSON.parse(JSON.stringify(baseResult));
-  mutate(r);
+  const b = JSON.parse(JSON.stringify(baseBundle));
+  mutate(r, b);
   fs.writeFileSync(path.join(dir, 'out', 'local-three-branch.json'), JSON.stringify(r, null, 2));
+  fs.writeFileSync(path.join(dir, 'out', 'local-frozen-bundle.json'), JSON.stringify(b, null, 2));
   const p = spawnSync(process.execPath, [verifier], {env: {...process.env, CASE_DIR: dir}, encoding: 'utf8'});
   return {name, rejected: p.status !== 0, exit: p.status};
 }
@@ -33,6 +37,11 @@ const cases = [
   run('token-total-mismatch', (r) => { r.branches.baseline.first.totalTokensBurntYocto = '1'; }),
   run('inconclusive-status', (r) => { r.status = 'inconclusive'; r.completed = false; }),
   run('primary-all-green', (r) => { r.primaryComparison.candidate = 'preserved'; }),
+  run('raw-state-value-stale-hash', (r, b) => { b.state[0].value = 'AAAA'; }),
+  run('raw-code-stale-hash', (r, b) => { b.code = 'AAAA'; }),
+  run('missing-root-receipt', (r) => { r.branches.candidate.first.receiptIds.push('MISSING_ROOT'); }),
+  run('duplicate-receipt-id', (r) => { r.branches.candidate.first.receipts.push(JSON.parse(JSON.stringify(r.branches.candidate.first.receipts[0]))); }),
+  run('operation-recipient-args', (r) => { const a = r.branches.baseline.first.transaction.actions[0].FunctionCall; const decoded = JSON.parse(Buffer.from(a.args, 'base64').toString('utf8')); decoded.proposal.Transfer.receiver_id = 'attacker.test.near'; a.args = Buffer.from(JSON.stringify(decoded)).toString('base64'); }),
 ];
 const result = {schema: 'near-rehearsal/local-verifier-negative-tests/v2', allRejected: cases.every((c) => c.rejected), cases};
 fs.writeFileSync(path.join(out, 'negative-local-verifier-tests.json'), JSON.stringify(result, null, 2) + '\n');

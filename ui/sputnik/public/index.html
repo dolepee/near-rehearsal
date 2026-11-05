@@ -26,8 +26,8 @@
             <option value="upload">Upload candidate WASM</option>
           </select>
         </label>
-        <input id="candidate-file" type="file" accept=".wasm,application/wasm" hidden>
-        <div id="candidate-meta" class="meta">Loading manifest…</div>
+        <label class="field"><span>Candidate WASM file</span><input id="candidate-file" type="file" accept=".wasm,application/wasm" aria-label="Candidate WASM file"></label>
+        <div id="candidate-meta" class="meta" role="status" aria-live="polite">Loading manifest…</div>
 
         <label class="field"><span>Correction</span>
           <select id="correction-choice">
@@ -35,8 +35,8 @@
             <option value="upload">Upload correction WASM</option>
           </select>
         </label>
-        <input id="correction-file" type="file" accept=".wasm,application/wasm" hidden>
-        <div id="correction-meta" class="meta">Loading manifest…</div>
+        <label class="field"><span>Correction WASM file</span><input id="correction-file" type="file" accept=".wasm,application/wasm" aria-label="Correction WASM file"></label>
+        <div id="correction-meta" class="meta" role="status" aria-live="polite">Loading manifest…</div>
 
         <div class="fixed-inputs">
           <div><span>Family</span><b id="family-label">—</b></div>
@@ -48,7 +48,7 @@
         <button id="rerun-button" class="secondary" type="button" hidden>Rerun correction from same frozen bundle</button>
         <button id="export-button" class="secondary" type="button" disabled>Verify and export</button>
         <p class="hint">Each branch imports the same frozen code, raw state, contract balance, proposer identity and recipient balance before any upgrade. The candidate is expected to fail the existing obligation; the correction is expected to preserve it.</p>
-        <div class="boundary"><strong>Local Sandbox only</strong><p>No public upgrade, deployment, production key or funds.</p></div>
+        <div class="boundary"><strong>Local constructed fixture only</strong><p>Locally constructed configured-factory Sputnik state, not a public capture. No public upgrade, deployment, production key or funds.</p></div>
       </aside>
 
       <section class="workspace">
@@ -56,7 +56,7 @@
           <div class="empty-mark" aria-hidden="true">⌁</div>
           <div class="eyebrow">No result yet</div>
           <h2>Start from the frozen old DAO.</h2>
-          <p>Run the actual local runner. A correctly observed contract regression is a completed report, not an error.</p>
+          <p>Run the actual local runner against a locally constructed configured-factory fixture. A correctly observed contract regression is a completed report, not an error.</p>
         </section>
 
         <section id="running-state" class="running panel" hidden>
@@ -74,6 +74,7 @@
 
         <section id="result-state" hidden>
           <div id="result-banner" class="result-banner"></div>
+          <div id="obligation-strip" class="obligation-strip"></div>
           <div id="frozen-summary" class="frozen-summary"></div>
           <section class="comparison">
             <div class="section-head"><div><div class="eyebrow">Same frozen bundle</div><h3>Existing obligation consequence</h3></div><span class="muted small">Recipient delta and raw transaction outcome.</span></div>

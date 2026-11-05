@@ -405,6 +405,8 @@ async function runRecoveryExperiment(bundle) {
     correction: { sha256: sha256(correctedBytes), bytes: correctedBytes.length, label: CORRECTED_LABEL, provenance: CORRECTED_PROVENANCE },
   };
   fs.writeFileSync(path.join(OUT, 'input-manifest.json'), json(inputManifest) + '\n');
+  fs.writeFileSync(path.join(OUT, 'candidate.wasm'), candidateBytes);
+  fs.writeFileSync(path.join(OUT, 'correction.wasm'), correctedBytes);
   if (process.env.CANDIDATE_WASM_SHA256 && sha256(candidateBytes) !== process.env.CANDIDATE_WASM_SHA256) throw new Error('CANDIDATE_WASM_SHA256 does not match candidate bytes');
   if (process.env.CORRECTED_WASM_SHA256 && sha256(correctedBytes) !== process.env.CORRECTED_WASM_SHA256) throw new Error('CORRECTED_WASM_SHA256 does not match correction bytes');
   const result = {
@@ -417,7 +419,7 @@ async function runRecoveryExperiment(bundle) {
       corrected: { sha256: sha256(correctedBytes), hash: hashContract(correctedBytes), role: 'correction', label: CORRECTED_LABEL, provenance: CORRECTED_PROVENANCE },
       healthy: { sha256: sha256(healthyBytes), hash: hashContract(healthyBytes), role: 'historical-healthy', label: 'historical healthy candidate, separate selectable case' },
     },
-    frozenBundle: { stateHash: bundle.stateHash, codeHash: bundle.codeHash, contractBalance: bundle.contractAccount.amount, actorBalance: bundle.actorAccount.amount, recipientBalance: bundle.recipientAmount, identities: bundle.identities, context: bundle.context },
+    frozenBundle: { stateHash: bundle.stateHash, codeHash: bundle.codeHash, contractBalance: bundle.contractAccount.amount, actorBalance: bundle.actorAccount.amount, recipientBalance: bundle.recipientAmount, proposal: bundle.proposal, identities: bundle.identities, context: bundle.context },
     branches: {},
   };
   result.branches.baseline = await runBaseline(bundle);

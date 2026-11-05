@@ -47,5 +47,15 @@ candidate can produce an all-green completed report; a broken correction stays
 ## Same-bundle rerun and export
 
 After a complete run, **Rerun correction from same frozen bundle** starts a new
-run with the original frozen bundle, not a rebuilt fixture. **Verify and export**
-runs the verifier and writes `export.json` under the run directory.
+run with the original candidate and frozen bundle, and the **current Correction
+selection** (including an uploaded correction). The selected bytes are validated
+and written into the new run; the previous report remains addressable by its run
+ID.
+
+**Verify and export** runs the verifier and writes `export.json` under the run
+directory. The export is a self-contained JSON download containing the frozen
+state, actual candidate/correction bytes and hashes, input manifest, raw report
+and verdict. The emitted verify command uses the run directory, not its `out`
+subdirectory. A server restart preserves completed reports and marks interrupted
+jobs inconclusive; the page turns repeated missing-job polls into a terminal
+retry message.

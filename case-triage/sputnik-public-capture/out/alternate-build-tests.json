@@ -1,0 +1,58 @@
+{
+  "schema": "near-rehearsal/sputnik-alternate-build-tests/v2",
+  "allPassed": true,
+  "cases": {
+    "alt-healthy": {
+      "observed": {
+        "baseline": "preserved",
+        "candidate": "preserved",
+        "corrected": "preserved"
+      },
+      "sameStartingState": true,
+      "verdict": "local-three-branch-verified",
+      "scope": "offline consistency from supplied bytes, raw state and receipts; not cryptographic execution attestation",
+      "input": {
+        "schema": "near-rehearsal/sputnik-input-manifest/v1",
+        "family": "sputnik-dao-v2",
+        "candidate": {
+          "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
+          "bytes": 430589,
+          "label": "historical healthy candidate",
+          "provenance": "verified source-built candidate"
+        },
+        "correction": {
+          "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
+          "bytes": 430589,
+          "label": "verified good correction",
+          "provenance": "verified source-built candidate"
+        }
+      }
+    },
+    "alt-broken-correction": {
+      "observed": {
+        "baseline": "preserved",
+        "candidate": "preserved",
+        "corrected": "regressed"
+      },
+      "sameStartingState": true,
+      "verdict": "local-three-branch-verified",
+      "scope": "offline consistency from supplied bytes, raw state and receipts; not cryptographic execution attestation",
+      "input": {
+        "schema": "near-rehearsal/sputnik-input-manifest/v1",
+        "family": "sputnik-dao-v2",
+        "candidate": {
+          "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
+          "bytes": 430589,
+          "label": "historical healthy candidate",
+          "provenance": "verified source-built candidate"
+        },
+        "correction": {
+          "sha256": "5005fe46d62e3f6cf1dd0c0b05a60343155a4fa9c6990d0428746f3dae0689c0",
+          "bytes": 424130,
+          "label": "broken correction fixture",
+          "provenance": "seeded bad bytes submitted as correction"
+        }
+      }
+    }
+  }
+}
