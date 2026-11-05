@@ -34,6 +34,25 @@ const MAX_WAIT_MS = 60_000;
 const ACTOR_KEY = KeyPair.fromRandom('ed25519');
 const sha256 = (b) => crypto.createHash('sha256').update(b).digest('hex');
 const json = (v) => JSON.stringify(v, (_, x) => typeof x === 'bigint' ? x.toString() : x, 2);
+function profile(bytes, role, fallbackLabel, fallbackProvenance) {
+  const h = sha256(bytes);
+  if (h === '5005fe46d62e3f6cf1dd0c0b05a60343155a4fa9c6990d0428746f3dae0689c0') {
+    return role === 'correction'
+      ? {sha256: h, label: 'SEEDED bad bytes submitted as correction', provenance: 'seeded bad candidate used as a failed correction fixture'}
+      : {sha256: h, label: 'SEEDED bad candidate: act_proposal replaced with unreachable', provenance: 'seeded test fixture generated from the verified candidate by replacing act_proposal with unreachable'};
+  }
+  if (h === '088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3') {
+    return role === 'correction'
+      ? {sha256: h, label: 'verified good correction', provenance: 'verified source-built candidate; same bytes are the historical healthy candidate'}
+      : role === 'candidate'
+        ? {sha256: h, label: 'verified healthy candidate', provenance: 'verified source-built candidate; same bytes are the historical healthy candidate'}
+        : {sha256: h, label: 'historical healthy candidate', provenance: 'verified source-built candidate'};
+  }
+  return {sha256: h, label: fallbackLabel, provenance: fallbackProvenance};
+}
+const CANDIDATE_PROFILE = profile(fs.readFileSync(CANDIDATE), 'candidate', CANDIDATE_LABEL, CANDIDATE_PROVENANCE);
+const CORRECTED_PROFILE = profile(fs.readFileSync(CORRECTED), 'correction', CORRECTED_LABEL, CORRECTED_PROVENANCE);
+const HEALTHY_PROFILE = profile(fs.readFileSync(HEALTHY), 'healthy', 'historical healthy candidate', 'verified source-built candidate');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sorted = (items) => items.map(({ key, value }) => ({ key, value })).sort((a, b) => a.key.localeCompare(b.key));
 const stateHash = (items) => sha256(JSON.stringify(sorted(items)));
@@ -159,7 +178,7 @@ async function createTemplate() {
       source: 'local source-built Sputnik configured-factory fixture',
       network: 'sandbox',
       identities: { contract: DAO_ID, proposer: ACTOR_ID, recipient: RECIPIENT_ID, factory: root.accountId, proposerPublicKey: ACTOR_KEY.getPublicKey().toString() },
-      artifacts: { baseSha256: sha256(base), baseHash: hashContract(base), candidateSha256: sha256(fs.readFileSync(CANDIDATE)), candidateHash: hashContract(fs.readFileSync(CANDIDATE)), candidateLabel: CANDIDATE_LABEL, candidateProvenance: CANDIDATE_PROVENANCE, correctedSha256: sha256(fs.readFileSync(CORRECTED)), correctedHash: hashContract(fs.readFileSync(CORRECTED)), correctedLabel: CORRECTED_LABEL, correctedProvenance: CORRECTED_PROVENANCE, healthySha256: sha256(fs.readFileSync(HEALTHY)), healthyHash: hashContract(fs.readFileSync(HEALTHY)) },
+      artifacts: { baseSha256: sha256(base), baseHash: hashContract(base), candidateSha256: sha256(fs.readFileSync(CANDIDATE)), candidateHash: hashContract(fs.readFileSync(CANDIDATE)), candidateLabel: CANDIDATE_PROFILE.label, candidateProvenance: CANDIDATE_PROFILE.provenance, correctedSha256: sha256(fs.readFileSync(CORRECTED)), correctedHash: hashContract(fs.readFileSync(CORRECTED)), correctedLabel: CORRECTED_PROFILE.label, correctedProvenance: CORRECTED_PROFILE.provenance, healthySha256: sha256(fs.readFileSync(HEALTHY)), healthyHash: hashContract(fs.readFileSync(HEALTHY)) },
       contractAccount: { amount: contractView.amount, storage_usage: contractView.storage_usage, code_hash: contractView.code_hash, locked: contractView.locked },
       actorAccount: { amount: actorView.amount, storage_usage: actorView.storage_usage, code_hash: actorView.code_hash, locked: actorView.locked },
       recipientAmount,
@@ -405,8 +424,8 @@ async function runRecoveryExperiment(bundle) {
   const inputManifest = {
     schema: 'near-rehearsal/sputnik-input-manifest/v1',
     family: 'sputnik-dao-v2',
-    candidate: { sha256: sha256(candidateBytes), bytes: candidateBytes.length, label: CANDIDATE_LABEL, provenance: CANDIDATE_PROVENANCE },
-    correction: { sha256: sha256(correctedBytes), bytes: correctedBytes.length, label: CORRECTED_LABEL, provenance: CORRECTED_PROVENANCE },
+    candidate: { sha256: CANDIDATE_PROFILE.sha256, bytes: candidateBytes.length, label: CANDIDATE_PROFILE.label, provenance: CANDIDATE_PROFILE.provenance },
+    correction: { sha256: CORRECTED_PROFILE.sha256, bytes: correctedBytes.length, label: CORRECTED_PROFILE.label, provenance: CORRECTED_PROFILE.provenance },
   };
   fs.writeFileSync(path.join(OUT, 'input-manifest.json'), json(inputManifest) + '\n');
   fs.writeFileSync(path.join(OUT, 'candidate.wasm'), candidateBytes);
@@ -419,9 +438,9 @@ async function runRecoveryExperiment(bundle) {
     inputManifest,
     artifacts: {
       base: { sha256: sha256(baseBytes), hash: hashContract(baseBytes) },
-      candidate: { sha256: sha256(candidateBytes), hash: hashContract(candidateBytes), role: 'candidate', label: CANDIDATE_LABEL, provenance: CANDIDATE_PROVENANCE },
-      corrected: { sha256: sha256(correctedBytes), hash: hashContract(correctedBytes), role: 'correction', label: CORRECTED_LABEL, provenance: CORRECTED_PROVENANCE },
-      healthy: { sha256: sha256(healthyBytes), hash: hashContract(healthyBytes), role: 'historical-healthy', label: 'historical healthy candidate, separate selectable case' },
+      candidate: { sha256: CANDIDATE_PROFILE.sha256, hash: hashContract(candidateBytes), role: 'candidate', label: CANDIDATE_PROFILE.label, provenance: CANDIDATE_PROFILE.provenance },
+      corrected: { sha256: CORRECTED_PROFILE.sha256, hash: hashContract(correctedBytes), role: 'correction', label: CORRECTED_PROFILE.label, provenance: CORRECTED_PROFILE.provenance },
+      healthy: { sha256: HEALTHY_PROFILE.sha256, hash: hashContract(healthyBytes), role: 'historical-healthy', label: HEALTHY_PROFILE.label, provenance: HEALTHY_PROFILE.provenance },
     },
     frozenBundle: { stateHash: bundle.stateHash, codeHash: bundle.codeHash, contractBalance: bundle.contractAccount.amount, actorBalance: bundle.actorAccount.amount, recipientBalance: bundle.recipientAmount, proposal: bundle.proposal, identities: bundle.identities, context: bundle.context },
     branches: {},

@@ -29,7 +29,19 @@
         "correction",
         "healthy"
       ],
-      "provenance": "verified source-built candidate used as correction; historical healthy candidate is the same bytes"
+      "provenance": "verified source-built candidate; same bytes are the historical healthy candidate",
+      "label": "verified good correction"
+    },
+    "healthy": {
+      "path": "../sputnik-226/verified-case/candidate.wasm",
+      "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
+      "roles": [
+        "candidate",
+        "correction",
+        "healthy"
+      ],
+      "label": "historical healthy candidate",
+      "provenance": "verified source-built candidate; also the verified good correction"
     }
   },
   "inputContract": {
