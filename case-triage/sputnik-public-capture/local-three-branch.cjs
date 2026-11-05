@@ -52,7 +52,6 @@ function profile(bytes, role, fallbackLabel, fallbackProvenance) {
 }
 const CANDIDATE_PROFILE = profile(fs.readFileSync(CANDIDATE), 'candidate', CANDIDATE_LABEL, CANDIDATE_PROVENANCE);
 const CORRECTED_PROFILE = profile(fs.readFileSync(CORRECTED), 'correction', CORRECTED_LABEL, CORRECTED_PROVENANCE);
-const HEALTHY_PROFILE = profile(fs.readFileSync(HEALTHY), 'healthy', 'historical healthy candidate', 'verified source-built candidate');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sorted = (items) => items.map(({ key, value }) => ({ key, value })).sort((a, b) => a.key.localeCompare(b.key));
 const stateHash = (items) => sha256(JSON.stringify(sorted(items)));
@@ -440,7 +439,6 @@ async function runRecoveryExperiment(bundle) {
       base: { sha256: sha256(baseBytes), hash: hashContract(baseBytes) },
       candidate: { sha256: CANDIDATE_PROFILE.sha256, hash: hashContract(candidateBytes), role: 'candidate', label: CANDIDATE_PROFILE.label, provenance: CANDIDATE_PROFILE.provenance },
       corrected: { sha256: CORRECTED_PROFILE.sha256, hash: hashContract(correctedBytes), role: 'correction', label: CORRECTED_PROFILE.label, provenance: CORRECTED_PROFILE.provenance },
-      healthy: { sha256: HEALTHY_PROFILE.sha256, hash: hashContract(healthyBytes), role: 'historical-healthy', label: HEALTHY_PROFILE.label, provenance: HEALTHY_PROFILE.provenance },
     },
     frozenBundle: { stateHash: bundle.stateHash, codeHash: bundle.codeHash, contractBalance: bundle.contractAccount.amount, actorBalance: bundle.actorAccount.amount, recipientBalance: bundle.recipientAmount, proposal: bundle.proposal, identities: bundle.identities, context: bundle.context },
     branches: {},
