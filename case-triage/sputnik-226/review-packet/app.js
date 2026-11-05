@@ -30,7 +30,7 @@ function render(packet) {
   const result = packet.result;
   const checks = packet.checks || {};
   statusPill.className = 'status-pill';
-  statusPill.textContent = packet.status;
+  statusPill.textContent = `${packet.label} · ${packet.status}`;
   document.title = `Sputnik #226 — ${packet.status}`;
 
   const source = packet.provenance.sourceRepo;
@@ -124,6 +124,7 @@ function render(packet) {
               <div class="kv"><span>Both retries rejected</span><b>${esc(checks.bothRetriesRejected)}</b></div>
               <div class="kv"><span>No second transfer</span><b>${esc(checks.noSecondTransfer)}</b></div>
               <div class="kv"><span>Finality targets reached</span><b>${esc(checks.finalityTargetsReached)}</b></div>
+              <div class="kv"><span>Required child receipts succeeded</span><b>${esc(checks.receiptGraphsSucceeded)}</b></div>
             </div>
             <p class="note">Native stage order: ${esc(nativeStages)}.</p>
             <p class="note"><strong>Offline consistency is not cryptographic proof of execution.</strong> The verifier checks hashes and recorded state; rerun the harness for an execution check.</p>
@@ -138,7 +139,7 @@ function render(packet) {
     </section>
 
     <section class="section">
-      <div class="section-head"><div><div class="eyebrow">Execution check</div><h3>Rerun with the supplied source-built WASM</h3></div><p>Read-only packet; there is no Run button and no upload flow.</p></div>
+      <div class="section-head"><div><div class="eyebrow">Recorded case review</div><h3>Rerun with the supplied source-built WASM</h3></div><p>Recorded case review. Use the command below to rerun outside this page.</p></div>
       <div class="command">
         <div class="command-head"><span>Node harness · existing near-workspaces 5.0 deps</span><button class="copy" type="button" data-copy="rerun-command">Copy command</button></div>
         <pre id="rerun-command">${esc(rerun.command)}</pre>

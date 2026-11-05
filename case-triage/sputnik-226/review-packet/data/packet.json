@@ -1,7 +1,8 @@
 {
   "schema": "near-rehearsal/review-packet/sputnik-226/v1",
   "generatedFrom": "92c338a40b24d60e428e6ca94c0110c64c4b690c",
-  "generatedAt": "2026-11-05T08:33:59.912Z",
+  "generatedAt": "2026-11-05T08:40:45.172Z",
+  "label": "Recorded case review",
   "status": "recorded local run passed",
   "headline": "An inherited Sputnik proposal survives the upgrade and pays exactly once.",
   "summary": "Proposal 0 survived migration. It paid exactly 1 local NEAR. Two retry routes were rejected, the recipient stayed at 2 NEAR total, and the DAO config stayed unchanged.",
@@ -32,13 +33,13 @@
         "id": "replay",
         "label": "Duplicate VoteApprove",
         "status": "rejected",
-        "error": "Smart contract panicked: panicked at sputnikdao2/src/proposals.rs:634:17:\nERR_PROPOSAL_NOT_READY_FOR_VOTE"
+        "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at sputnikdao2/src/proposals.rs:634:17:\\nERR_PROPOSAL_NOT_READY_FOR_VOTE\"}}}}"
       },
       {
         "id": "finalizeRetry",
         "label": "Finalize retry",
         "status": "rejected",
-        "error": "Smart contract panicked: panicked at sputnikdao2/src/policy.rs:394:9:\nERR_PROPOSAL_NOT_IN_PROGRESS"
+        "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at sputnikdao2/src/policy.rs:394:9:\\nERR_PROPOSAL_NOT_IN_PROGRESS\"}}}}"
       }
     ]
   },
@@ -120,7 +121,7 @@
       "label": "Retry VoteApprove",
       "transaction": "F6mQGe7c6n5HCqNZpLJagTAg6sWDdmnBH67GZ9aF7zZb",
       "result": "failure",
-      "error": "Smart contract panicked: panicked at sputnikdao2/src/proposals.rs:634:17:\nERR_PROPOSAL_NOT_READY_FOR_VOTE",
+      "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at sputnikdao2/src/proposals.rs:634:17:\\nERR_PROPOSAL_NOT_READY_FOR_VOTE\"}}}}",
       "finality": {
         "target": 37,
         "finalized": 37,
@@ -133,7 +134,7 @@
       "label": "Retry Finalize",
       "transaction": "7zjvaUmHAXT7GmtNnkoHYtBmbtTBgT3SVjCbhAj8mErK",
       "result": "failure",
-      "error": "Smart contract panicked: panicked at sputnikdao2/src/policy.rs:394:9:\nERR_PROPOSAL_NOT_IN_PROGRESS",
+      "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at sputnikdao2/src/policy.rs:394:9:\\nERR_PROPOSAL_NOT_IN_PROGRESS\"}}}}",
       "finality": {
         "target": 42,
         "finalized": 42,
@@ -170,7 +171,6 @@
       "Existing CI already builds contracts before upgrade tests; unchanged committed WASM is not proof CI uses stale code.",
       "Native near-workspaces can express these same assertions. Workflow packaging/reviewer effort is the hypothesis, not a unique execution primitive.",
       "No maintainer acceptance, measured preference or time savings.",
-      "Standalone pilot case is not integrated into the refund-family app yet.",
       "Tests cover two retry routes; not universal exactly-once or upgrade-safety proof."
     ]
   },
@@ -209,7 +209,8 @@
     "firstPaymentExact": true,
     "bothRetriesRejected": true,
     "noSecondTransfer": true,
-    "finalityTargetsReached": true
+    "finalityTargetsReached": true,
+    "receiptGraphsSucceeded": true
   },
   "negativeControls": [
     {
@@ -279,9 +280,8 @@
     }
   ],
   "limits": [
-    "This is a local historical-source pilot, not a current product integration.",
-    "The contract still holds funds in the bad-case family; this packet is the Sputnik upgrade case, not the refund app.",
-    "No maintainer acceptance, measured preference, time saving, or production safety is claimed.",
+    "Local historical-source pilot, not current product integration.",
+    "No maintainer acceptance, measured preference, time saving, or production safety claim.",
     "Native near-workspaces can express the same invariant; the hypothesis is reviewer effort and packaging, not a unique execution primitive."
   ]
 }

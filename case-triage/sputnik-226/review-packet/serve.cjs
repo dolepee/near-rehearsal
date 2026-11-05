@@ -6,6 +6,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const {verifyPacket} = require('./packet-model.cjs');
 
 const root = __dirname;
 const portArg = process.argv.find((arg) => arg.startsWith('--port='));
@@ -29,6 +30,13 @@ function resolve(urlPath) {
   const file = path.resolve(root, relative);
   if (file !== root && !file.startsWith(root + path.sep)) return null;
   return file;
+}
+
+try {
+  verifyPacket(__dirname);
+} catch (error) {
+  console.error(`REFUSING TO SERVE invalid packet: ${error.message}`);
+  process.exit(1);
 }
 
 const server = http.createServer((req, res) => {
