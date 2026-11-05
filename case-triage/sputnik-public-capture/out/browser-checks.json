@@ -1,0 +1,31 @@
+{
+  "schema": "near-rehearsal/sputnik-ui-browser-checks/v1",
+  "browser": "headless Chromium via local CDP",
+  "healthySelection": {
+    "selectedOption": "healthy",
+    "metaText": "historical healthy candidate · manifest bytes · 088c69b79aaf6c7b…94daf3",
+    "candidateSha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
+    "postedBody": {
+      "family": "sputnik-dao-v2",
+      "candidate": {"choice": "healthy"},
+      "correction": {"choice": "corrected"}
+    },
+    "passed": true
+  },
+  "declaredObligation": {
+    "proposalId": 0,
+    "recipient": "recipient.test.near",
+    "amountYocto": "1000000000000000000000000",
+    "displayedTransfer": "1 NEAR",
+    "passed": true
+  },
+  "runControls": {
+    "exportLabelAfterCompletedRun": "Exported: out/sputnik-ui/runs/9f52a673-e157-40a9-87e0-78cc19be2cc8/export.json",
+    "exportLabelWhileRunning": "Verify and export",
+    "exportDisabledWhileRunning": true,
+    "rerunHiddenWhileRunning": true,
+    "runningTitle": "Running baseline, candidate and correction…",
+    "passed": true
+  },
+  "scope": "UI state and POST body observed in the local browser; not a completion claim for a new native run."
+}

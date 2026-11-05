@@ -1,0 +1,21 @@
+node_modules/
+out/run.log
+*.log
+.DS_Store
+out/*.log
+.npm/
+.local/
+
+# Private strategy and recording notes stay outside the repository.
+/substrate/BUILD_BRIEF.txt
+DEMO_SCRIPT.md
+demo-script.*
+*-demo-script.*
+SUBMISSION_CHECKLIST.md
+submission-checklist.*
+
+out/inputs/
+out/runs/
+
+# Local UI run output
+out/sputnik-ui/

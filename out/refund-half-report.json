@@ -1,0 +1,482 @@
+{
+  "schema": "near-rehearsal/refund-report/v1",
+  "case": "refund-v1",
+  "label": "Funded refund claim — authored local Sandbox example",
+  "generatedAt": "2026-11-04T18:56:51.303Z",
+  "boundary": "Local Sandbox only. Authored seeded migration example; not a public-chain capture, upgrade authorization, or production custody claim.",
+  "capture": {
+    "contract": "refund.test.near",
+    "blockHeight": 10,
+    "blockHash": "J1mQxfc2UkimCTobZCMR3ckwKjU8LGeidso4gLqoXnD3",
+    "codeHash": "M9iWHajvM2yhmna75kgZCxq9koaqKJFLXqNgFjfFGYm",
+    "codeSha256": "0529788fcf3127ae8545b26ae3280b1eedf35aa5297852adc9633f15e0c24d1e",
+    "stateHash": "9d19a407e2b0b9283ccdd0084fd51f598eafc05c887dfd7a90a2293e88018e62",
+    "stateBytes": 96,
+    "entitlement": "100000000000000000000000",
+    "beneficiary": "refunduser.test.near",
+    "fundedNear": "1",
+    "grossEntitlementNear": "0.1",
+    "runtime": {
+      "version": "2.6.2",
+      "build": "2.6.2",
+      "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+      "protocolVersion": 77,
+      "latestProtocolVersion": 77
+    },
+    "claimBoundary": "Local Sandbox only. Authored seeded migration example; not a public-chain capture, upgrade authorization, or production custody claim."
+  },
+  "operation": {
+    "method": "claim_refund",
+    "args": {},
+    "view": "get_refundable"
+  },
+  "migration": {
+    "method": "migrate",
+    "args": {}
+  },
+  "branches": {
+    "baseline": {
+      "branch": "baseline",
+      "candidateLabel": null,
+      "expected": "success",
+      "status": "completed",
+      "runtime": {
+        "version": "2.6.2",
+        "build": "2.6.2",
+        "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+        "protocolVersion": 77,
+        "latestProtocolVersion": 77
+      },
+      "runtimePinMatched": true,
+      "importCheck": {
+        "codeHash": "M9iWHajvM2yhmna75kgZCxq9koaqKJFLXqNgFjfFGYm",
+        "stateHash": "9d19a407e2b0b9283ccdd0084fd51f598eafc05c887dfd7a90a2293e88018e62",
+        "matches": true
+      },
+      "migration": null,
+      "claim": {
+        "transactionHash": "2EMLXPqcMgqtUJasKmAmHSVTUUq34o6dWe5pUcc31Snc",
+        "succeeded": true,
+        "failed": false,
+        "status": {
+          "SuccessValue": ""
+        },
+        "gasBurnt": 308727072010,
+        "tokensBurnt": "30872707201000000000",
+        "receiptFailures": [],
+        "receipts": [
+          {
+            "id": "DWyPww1ZQAnoTQ2FAb5VVhDHPMypoBDjSDfdArY9hsv7",
+            "executorId": "refund.test.near",
+            "status": {
+              "SuccessReceiptId": "1SXHCwjqQGnbbDYTv9sXcR6g1t5HinWLiGwBrb8pQnw"
+            },
+            "gasBurnt": 1345900264594,
+            "tokensBurnt": "134590026459400000000",
+            "logs": []
+          },
+          {
+            "id": "1SXHCwjqQGnbbDYTv9sXcR6g1t5HinWLiGwBrb8pQnw",
+            "executorId": "refunduser.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurnt": 223182562500,
+            "tokensBurnt": "22318256250000000000",
+            "logs": []
+          },
+          {
+            "id": "4of9A6v6bVxLitJTfdNqk7y5cubTcCQQRAj1Gvq4gR35",
+            "executorId": "refunduser.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurnt": 223182562500,
+            "tokensBurnt": "0",
+            "logs": []
+          }
+        ],
+        "transfers": [
+          {
+            "receiptId": "1SXHCwjqQGnbbDYTv9sXcR6g1t5HinWLiGwBrb8pQnw",
+            "predecessorId": "refund.test.near",
+            "receiverId": "refunduser.test.near",
+            "amount": "100000000000000000000000"
+          }
+        ]
+      },
+      "transfer": {
+        "beneficiary": "refunduser.test.near",
+        "linked": true,
+        "links": [
+          {
+            "contractReceiptId": "DWyPww1ZQAnoTQ2FAb5VVhDHPMypoBDjSDfdArY9hsv7",
+            "beneficiaryReceiptId": "1SXHCwjqQGnbbDYTv9sXcR6g1t5HinWLiGwBrb8pQnw",
+            "beneficiaryExecutorId": "refunduser.test.near",
+            "beneficiaryStatus": {
+              "SuccessValue": ""
+            },
+            "gasBurnt": 223182562500,
+            "tokensBurnt": "22318256250000000000"
+          }
+        ],
+        "transfers": [
+          {
+            "receiptId": "1SXHCwjqQGnbbDYTv9sXcR6g1t5HinWLiGwBrb8pQnw",
+            "predecessorId": "refund.test.near",
+            "receiverId": "refunduser.test.near",
+            "amount": "100000000000000000000000"
+          }
+        ],
+        "amount": "100000000000000000000000",
+        "obligation": "100000000000000000000000",
+        "amountMatches": true
+      },
+      "controls": {
+        "outsiderDenied": true,
+        "migrationAuthorityDenied": null,
+        "secondClaimDenied": true
+      },
+      "entitlement": {
+        "beforeMigration": "100000000000000000000000",
+        "afterMigration": "100000000000000000000000",
+        "afterClaim": "0"
+      },
+      "balances": {
+        "status": "final",
+        "contract": {
+          "initial": "981687329979124904421104",
+          "beforeClaim": "981689795062480504421104",
+          "after": "881703529346326004421104",
+          "delta": "-99986265716154500000000"
+        },
+        "user": {
+          "initial": "10000000000000000000000000",
+          "beforeClaim": "10000000000000000000000000",
+          "after": "10099793018735202673875000",
+          "delta": "99793018735202673875000"
+        }
+      },
+      "error": null,
+      "beneficiary": "refunduser.test.near",
+      "outcome": "paid"
+    },
+    "bad": {
+      "branch": "half-payout-regression",
+      "candidateLabel": "Half-payout regression — transfers 0.05 NEAR against a 0.10 entitlement",
+      "expected": "candidate",
+      "status": "amount-regression",
+      "runtime": {
+        "version": "2.6.2",
+        "build": "2.6.2",
+        "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+        "protocolVersion": 77,
+        "latestProtocolVersion": 77
+      },
+      "runtimePinMatched": true,
+      "importCheck": {
+        "codeHash": "M9iWHajvM2yhmna75kgZCxq9koaqKJFLXqNgFjfFGYm",
+        "stateHash": "9d19a407e2b0b9283ccdd0084fd51f598eafc05c887dfd7a90a2293e88018e62",
+        "matches": true
+      },
+      "migration": {
+        "transactionHash": "6MDHbSbz5rvhAtdK4jzqqf2sSbGQd3AybbweTqBNdaK3",
+        "succeeded": true,
+        "failed": false,
+        "status": {
+          "SuccessValue": ""
+        },
+        "gasBurnt": 308079623406,
+        "tokensBurnt": "30807962340600000000",
+        "receiptFailures": [],
+        "receipts": [
+          {
+            "id": "3eHyrsgrNLwyzAZFNVZeyhLSBHnaKPcgdsEtYuNL7atv",
+            "executorId": "refund.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurnt": 1107054087062,
+            "tokensBurnt": "110705408706200000000",
+            "logs": []
+          }
+        ],
+        "beforeStateHash": "9d19a407e2b0b9283ccdd0084fd51f598eafc05c887dfd7a90a2293e88018e62",
+        "afterStateHash": "05a9b39e226eb23a25d12c5254d63270ed025af04a094a2818e1599ed584a862",
+        "changedState": true
+      },
+      "claim": {
+        "transactionHash": "2hV66YyJHAKN74QnKnDFpx69oaciptojLUErNX2YYJ64",
+        "succeeded": true,
+        "failed": false,
+        "status": {
+          "SuccessValue": ""
+        },
+        "gasBurnt": 308727072010,
+        "tokensBurnt": "30872707201000000000",
+        "receiptFailures": [],
+        "receipts": [
+          {
+            "id": "Gwo1bnoBF7MbpXLtmeACFgBRVfd7QH9FhmQnDfPUznZW",
+            "executorId": "refund.test.near",
+            "status": {
+              "SuccessReceiptId": "7g5sP3Xyv8TTLYM15arAdoRxoXiEXEutmfSoSMgVa5ZK"
+            },
+            "gasBurnt": 1346042452300,
+            "tokensBurnt": "134604245230000000000",
+            "logs": []
+          },
+          {
+            "id": "7g5sP3Xyv8TTLYM15arAdoRxoXiEXEutmfSoSMgVa5ZK",
+            "executorId": "refunduser.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurnt": 223182562500,
+            "tokensBurnt": "22318256250000000000",
+            "logs": []
+          },
+          {
+            "id": "5pVpBAXquWhaNHe7H5NoEkHb3NTzFnUhLZA2creG111S",
+            "executorId": "refunduser.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurnt": 223182562500,
+            "tokensBurnt": "0",
+            "logs": []
+          }
+        ],
+        "transfers": [
+          {
+            "receiptId": "7g5sP3Xyv8TTLYM15arAdoRxoXiEXEutmfSoSMgVa5ZK",
+            "predecessorId": "refund.test.near",
+            "receiverId": "refunduser.test.near",
+            "amount": "50000000000000000000000"
+          }
+        ]
+      },
+      "transfer": {
+        "beneficiary": "refunduser.test.near",
+        "linked": true,
+        "links": [
+          {
+            "contractReceiptId": "Gwo1bnoBF7MbpXLtmeACFgBRVfd7QH9FhmQnDfPUznZW",
+            "beneficiaryReceiptId": "7g5sP3Xyv8TTLYM15arAdoRxoXiEXEutmfSoSMgVa5ZK",
+            "beneficiaryExecutorId": "refunduser.test.near",
+            "beneficiaryStatus": {
+              "SuccessValue": ""
+            },
+            "gasBurnt": 223182562500,
+            "tokensBurnt": "22318256250000000000"
+          }
+        ],
+        "transfers": [
+          {
+            "receiptId": "7g5sP3Xyv8TTLYM15arAdoRxoXiEXEutmfSoSMgVa5ZK",
+            "predecessorId": "refund.test.near",
+            "receiverId": "refunduser.test.near",
+            "amount": "50000000000000000000000"
+          }
+        ],
+        "amount": "50000000000000000000000",
+        "obligation": "100000000000000000000000",
+        "amountMatches": false
+      },
+      "controls": {
+        "outsiderDenied": true,
+        "migrationAuthorityDenied": true,
+        "secondClaimDenied": true
+      },
+      "entitlement": {
+        "beforeMigration": "100000000000000000000000",
+        "afterMigration": "100000000000000000000000",
+        "afterClaim": "0"
+      },
+      "balances": {
+        "status": "final",
+        "contract": {
+          "initial": "981687329979124904421104",
+          "beforeClaim": "981490480009132704421104",
+          "after": "931504218558609404421104",
+          "delta": "-49986261450523300000000"
+        },
+        "user": {
+          "initial": "10000000000000000000000000",
+          "beforeClaim": "9999872321378003600000000",
+          "after": "10049665325894435673875000",
+          "delta": "49793004516432073875000"
+        }
+      },
+      "error": "paid 50000000000000000000000 yocto, inherited obligation 100000000000000000000000 yocto",
+      "beneficiary": "refunduser.test.near",
+      "outcome": "amount-regression"
+    },
+    "corrected": {
+      "branch": "corrected-v2",
+      "candidateLabel": "corrected v2 migration — preserves the refund entitlement",
+      "expected": "success",
+      "status": "completed",
+      "runtime": {
+        "version": "2.6.2",
+        "build": "2.6.2",
+        "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+        "protocolVersion": 77,
+        "latestProtocolVersion": 77
+      },
+      "runtimePinMatched": true,
+      "importCheck": {
+        "codeHash": "M9iWHajvM2yhmna75kgZCxq9koaqKJFLXqNgFjfFGYm",
+        "stateHash": "9d19a407e2b0b9283ccdd0084fd51f598eafc05c887dfd7a90a2293e88018e62",
+        "matches": true
+      },
+      "migration": {
+        "transactionHash": "8DqN7W5NTEgWZgYXSD1UA6A4kgoCQDGNesHY3ovDNqHC",
+        "succeeded": true,
+        "failed": false,
+        "status": {
+          "SuccessValue": ""
+        },
+        "gasBurnt": 308079623406,
+        "tokensBurnt": "30807962340600000000",
+        "receiptFailures": [],
+        "receipts": [
+          {
+            "id": "4NgoaEddxW697CkMnpmP1uEi5TxfWtmnRCABAqmsubLU",
+            "executorId": "refund.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurnt": 1107025765392,
+            "tokensBurnt": "110702576539200000000",
+            "logs": []
+          }
+        ],
+        "beforeStateHash": "9d19a407e2b0b9283ccdd0084fd51f598eafc05c887dfd7a90a2293e88018e62",
+        "afterStateHash": "05a9b39e226eb23a25d12c5254d63270ed025af04a094a2818e1599ed584a862",
+        "changedState": true
+      },
+      "claim": {
+        "transactionHash": "85hSgLt8zjjch4zQuwzvjttxbWRSWwkurV8uxQbD2tUh",
+        "succeeded": true,
+        "failed": false,
+        "status": {
+          "SuccessValue": ""
+        },
+        "gasBurnt": 308727072010,
+        "tokensBurnt": "30872707201000000000",
+        "receiptFailures": [],
+        "receipts": [
+          {
+            "id": "cF3c3JWY4jmvN7XfigANhsMMeeJiYsP7yTGY5Pk4T9A",
+            "executorId": "refund.test.near",
+            "status": {
+              "SuccessReceiptId": "AM1LScV65WdiLZRDgZb9V79sDabskgBM7bTkStyZW7Xt"
+            },
+            "gasBurnt": 1346009194094,
+            "tokensBurnt": "134600919409400000000",
+            "logs": []
+          },
+          {
+            "id": "AM1LScV65WdiLZRDgZb9V79sDabskgBM7bTkStyZW7Xt",
+            "executorId": "refunduser.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurnt": 223182562500,
+            "tokensBurnt": "22318256250000000000",
+            "logs": []
+          },
+          {
+            "id": "Fb8V7mhushZbBiTTmiFH6FRG6LhbwQbHXbMT3PvskFpP",
+            "executorId": "refunduser.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurnt": 223182562500,
+            "tokensBurnt": "0",
+            "logs": []
+          }
+        ],
+        "transfers": [
+          {
+            "receiptId": "AM1LScV65WdiLZRDgZb9V79sDabskgBM7bTkStyZW7Xt",
+            "predecessorId": "refund.test.near",
+            "receiverId": "refunduser.test.near",
+            "amount": "100000000000000000000000"
+          }
+        ]
+      },
+      "transfer": {
+        "beneficiary": "refunduser.test.near",
+        "linked": true,
+        "links": [
+          {
+            "contractReceiptId": "cF3c3JWY4jmvN7XfigANhsMMeeJiYsP7yTGY5Pk4T9A",
+            "beneficiaryReceiptId": "AM1LScV65WdiLZRDgZb9V79sDabskgBM7bTkStyZW7Xt",
+            "beneficiaryExecutorId": "refunduser.test.near",
+            "beneficiaryStatus": {
+              "SuccessValue": ""
+            },
+            "gasBurnt": 223182562500,
+            "tokensBurnt": "22318256250000000000"
+          }
+        ],
+        "transfers": [
+          {
+            "receiptId": "AM1LScV65WdiLZRDgZb9V79sDabskgBM7bTkStyZW7Xt",
+            "predecessorId": "refund.test.near",
+            "receiverId": "refunduser.test.near",
+            "amount": "100000000000000000000000"
+          }
+        ],
+        "amount": "100000000000000000000000",
+        "obligation": "100000000000000000000000",
+        "amountMatches": true
+      },
+      "controls": {
+        "outsiderDenied": true,
+        "migrationAuthorityDenied": true,
+        "secondClaimDenied": true
+      },
+      "entitlement": {
+        "beforeMigration": "100000000000000000000000",
+        "afterMigration": "100000000000000000000000",
+        "afterClaim": "0"
+      },
+      "balances": {
+        "status": "final",
+        "contract": {
+          "initial": "981687329979124904421104",
+          "beforeClaim": "981490665895801204421104",
+          "after": "881504403447531704421104",
+          "delta": "-99986262448269500000000"
+        },
+        "user": {
+          "initial": "10000000000000000000000000",
+          "beforeClaim": "9999872324210170600000000",
+          "after": "10099665332052423273875000",
+          "delta": "99793007842252673875000"
+        }
+      },
+      "error": null,
+      "beneficiary": "refunduser.test.near",
+      "outcome": "paid"
+    }
+  },
+  "result": {
+    "status": "incomplete",
+    "expected": {
+      "baseline": "success",
+      "bad": "candidate",
+      "corrected": "success"
+    },
+    "sameStartingState": true,
+    "controls": true,
+    "badFailureIsStructured": false,
+    "candidateOutcome": "amount-regression",
+    "candidateClassified": true,
+    "claimTransferToBeneficiary": false,
+    "runtimePinned": true
+  }
+}

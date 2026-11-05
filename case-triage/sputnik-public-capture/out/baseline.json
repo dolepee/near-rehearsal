@@ -1,0 +1,446 @@
+{
+  "schema": "near-rehearsal/public-capture-baseline/v2",
+  "source": "aya.sputnikv2.testnet",
+  "block": {
+    "height": 276345877,
+    "hash": "HVF4oi1E1NBPdjdDY8bYHQJXdre6ZpVzvqZucFfhXfwj",
+    "timestamp": "1793884499674135814",
+    "epochId": "HbM6N16QDpBgam1mxFQNjDX7HdWhcTz5HxewWgYgjcHk",
+    "timestampNanosec": "1793884499674135814"
+  },
+  "captureHashes": {
+    "code": "8RMeZ5cXDap6TENxaJKtigRYf3n139iHmTRe8ZUNey6N",
+    "state": "ccf05075e2a4ec999945640a9bff19fea2c5168b8ef1350018ebb30d396156e4",
+    "codeSha256": "6e3f1814d40769d8f57b9a7af689d22aaab96d3232cec4d861311829c1d2318f"
+  },
+  "checks": {
+    "baselineSucceeded": true,
+    "proposalResolved": true,
+    "contractFundsDecreased": true,
+    "actorFundsChanged": true,
+    "stateChanged": true,
+    "retryDidNotPayAgain": true,
+    "unauthorizedFailedWithoutMutation": true
+  },
+  "evidence": {},
+  "execution": {
+    "rpc": "http://127.0.0.1:21508",
+    "runtime": {
+      "version": "2.6.2",
+      "build": "2.6.2",
+      "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+      "protocolVersion": 77,
+      "latestProtocolVersion": 77
+    },
+    "localBlock": {
+      "height": 0,
+      "hash": "6juVYN8ZjxYqHmSi6EvVReMnQipapdjF5brhEG8wWDMR",
+      "timestamp": "1793888508277870811"
+    },
+    "capturedBlock": {
+      "height": 276345877,
+      "hash": "HVF4oi1E1NBPdjdDY8bYHQJXdre6ZpVzvqZucFfhXfwj",
+      "timestamp": "1793884499674135814"
+    }
+  },
+  "import": {
+    "codeHash": "8RMeZ5cXDap6TENxaJKtigRYf3n139iHmTRe8ZUNey6N",
+    "codeSha256": "6e3f1814d40769d8f57b9a7af689d22aaab96d3232cec4d861311829c1d2318f",
+    "stateHash": "ccf05075e2a4ec999945640a9bff19fea2c5168b8ef1350018ebb30d396156e4",
+    "stateBytes": 829,
+    "stateCount": 5,
+    "balance": "7000395442672319400000000",
+    "storageUsage": 470959,
+    "matches": true
+  },
+  "actor": {
+    "account": "nima.testnet",
+    "capturedAmountYocto": "200765607938634197700000000",
+    "localFundingYocto": "60000000000000000000000000",
+    "capturedBalancePreserved": false,
+    "publicKey": "ed25519:E3xn26Y2fciFzuCz1Q1TBFmYo38b3AX1abtqVr4H5cHb",
+    "keyStorePublicKey": "ed25519:E3xn26Y2fciFzuCz1Q1TBFmYo38b3AX1abtqVr4H5cHb",
+    "accessKeyView": {
+      "block_hash": "4otSX4boLjorQvEMfi4bUeg8Zz895Zo4gvLSjqNvHwNf",
+      "block_height": 9,
+      "nonce": 0,
+      "permission": "FullAccess"
+    },
+    "impersonation": "Local access key created for the captured proposer/council account; no production key used."
+  },
+  "views": {
+    "policyBefore": {
+      "roles": [
+        {
+          "name": "all",
+          "kind": "Everyone",
+          "permissions": [
+            "*:AddProposal"
+          ],
+          "vote_policy": {}
+        },
+        {
+          "name": "council",
+          "kind": {
+            "Group": [
+              "nima.testnet"
+            ]
+          },
+          "permissions": [
+            "*:Finalize",
+            "*:AddProposal",
+            "*:VoteApprove",
+            "*:VoteReject",
+            "*:VoteRemove"
+          ],
+          "vote_policy": {}
+        }
+      ],
+      "default_vote_policy": {
+        "weight_kind": "RoleWeight",
+        "quorum": "0",
+        "threshold": [
+          1,
+          2
+        ]
+      },
+      "proposal_bond": "1000000000000000000000000",
+      "proposal_period": "604800000000000",
+      "bounty_bond": "1000000000000000000000000",
+      "bounty_forgiveness_period": "86400000000000"
+    },
+    "proposalBefore": {
+      "id": 0,
+      "proposer": "nima.testnet",
+      "description": "testing this thing",
+      "kind": {
+        "FunctionCall": {
+          "receiver_id": "nima.testnet",
+          "actions": [
+            {
+              "method_name": "create_token",
+              "args": "eyJhcmdzIjp7Im93bmVyX2lkIjoibmltYS50ZXN0bmV0IiwidG90YWxfc3VwcGx5IjoiNjY2MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwibWV0YWRhdGEiOnsic3BlYyI6ImZ0LTEuMC4wIiwibmFtZSI6IjY2NiIsInN5bWJvbCI6IjY2NiIsImljb24iOiJodHRwczovL3Bicy50d2ltZy5jb20vY2FyZF9pbWcvMTQwMDEwMTA4ODY5OTYzMzY2NC9iemJocDNxaz9mb3JtYXQ9anBnJm5hbWU9bWVkaXVtIiwiZGVjaW1hbHMiOjY2Nn19fQ==",
+              "deposit": "5000000000000000000000000",
+              "gas": "150000000000000"
+            }
+          ]
+        }
+      },
+      "status": "InProgress",
+      "vote_counts": {},
+      "votes": {},
+      "submission_time": "1622665541332966908"
+    }
+  },
+  "baseline": {
+    "operation": "Finalize on captured expired proposal",
+    "tx": {
+      "succeeded": true,
+      "failed": false,
+      "failure": null,
+      "transactionHash": "UgsKcrU2qmkQ7rvmC6tFWaTWHA9oymJSxpdXmc9cnPg",
+      "finalExecutionStatus": "FINAL",
+      "transaction": {
+        "signerId": "nima.testnet",
+        "receiverId": "aya.sputnikv2.testnet",
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJpZCI6MCwiYWN0aW9uIjoiRmluYWxpemUiLCJwcm9wb3NhbCI6eyJGdW5jdGlvbkNhbGwiOnsicmVjZWl2ZXJfaWQiOiJuaW1hLnRlc3RuZXQiLCJhY3Rpb25zIjpbeyJtZXRob2RfbmFtZSI6ImNyZWF0ZV90b2tlbiIsImFyZ3MiOiJleUpoY21keklqcDdJbTkzYm1WeVgybGtJam9pYm1sdFlTNTBaWE4wYm1WMElpd2lkRzkwWVd4ZmMzVndjR3g1SWpvaU5qWTJNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd0lpd2liV1YwWVdSaGRHRWlPbnNpYzNCbFl5STZJbVowTFRFdU1DNHdJaXdpYm1GdFpTSTZJalkyTmlJc0luTjViV0p2YkNJNklqWTJOaUlzSW1samIyNGlPaUpvZEhSd2N6b3ZMM0JpY3k1MGQybHRaeTVqYjIwdlkyRnlaRjlwYldjdk1UUXdNREV3TVRBNE9EWTVPVFl6TXpZMk5DOWllbUpvY0ROeGF6OW1iM0p0WVhROWFuQm5KbTVoYldVOWJXVmthWFZ0SWl3aVpHVmphVzFoYkhNaU9qWTJObjE5ZlE9PSIsImRlcG9zaXQiOiI1MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwiZ2FzIjoiMTUwMDAwMDAwMDAwMDAwIn1dfX0sIm1lbW8iOm51bGx9",
+              "deposit": "0",
+              "gas": 100000000000000,
+              "method_name": "act_proposal"
+            }
+          }
+        ]
+      },
+      "receiptIds": [
+        "99ffTcwhktodiJAFX5tvjxyrTorwaKcP2JRM8k9kkp3A"
+      ],
+      "gasBurntUnits": "334667012970",
+      "transactionOutcomeTokensBurntYocto": "33466701297000000000",
+      "receiptTokensBurntYocto": "282924523934700000000",
+      "totalTokensBurntYocto": "316391225231700000000",
+      "receipts": [
+        {
+          "id": "99ffTcwhktodiJAFX5tvjxyrTorwaKcP2JRM8k9kkp3A",
+          "executorId": "aya.sputnikv2.testnet",
+          "gasBurntUnits": "2606062676847",
+          "tokensBurntYocto": "260606267684700000000",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": []
+        },
+        {
+          "id": "FwcNo1LQQd6fgVMNRBKTHAxfbd5b7ANqTZgtEtkP3Ppp",
+          "executorId": "nima.testnet",
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "22318256250000000000",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": []
+        },
+        {
+          "id": "7rnoHwrBJLnCXVA5T7L7kx2QyfgBHnvgQSm2KZbAq1UV",
+          "executorId": "nima.testnet",
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": []
+        },
+        {
+          "id": "8MVwq22zKzCeFUWCoPGmv1sChFQwXYeBDpoBXpuBQZpT",
+          "executorId": "nima.testnet",
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": []
+        }
+      ],
+      "transactionOutcomeStatus": {
+        "SuccessReceiptId": "99ffTcwhktodiJAFX5tvjxyrTorwaKcP2JRM8k9kkp3A"
+      },
+      "logs": [],
+      "receiptFailures": [],
+      "receiptFailureMessages": []
+    },
+    "balances": {
+      "contractBefore": "7000395442672319400000000",
+      "contractAfter": "6000446945338089600000000",
+      "actorBefore": "60000000000000000000000000",
+      "actorAfter": "60999683608774768300000000"
+    },
+    "proposalAfter": {
+      "id": 0,
+      "proposer": "nima.testnet",
+      "description": "testing this thing",
+      "kind": {
+        "FunctionCall": {
+          "receiver_id": "nima.testnet",
+          "actions": [
+            {
+              "method_name": "create_token",
+              "args": "eyJhcmdzIjp7Im93bmVyX2lkIjoibmltYS50ZXN0bmV0IiwidG90YWxfc3VwcGx5IjoiNjY2MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwibWV0YWRhdGEiOnsic3BlYyI6ImZ0LTEuMC4wIiwibmFtZSI6IjY2NiIsInN5bWJvbCI6IjY2NiIsImljb24iOiJodHRwczovL3Bicy50d2ltZy5jb20vY2FyZF9pbWcvMTQwMDEwMTA4ODY5OTYzMzY2NC9iemJocDNxaz9mb3JtYXQ9anBnJm5hbWU9bWVkaXVtIiwiZGVjaW1hbHMiOjY2Nn19fQ==",
+              "deposit": "5000000000000000000000000",
+              "gas": "150000000000000"
+            }
+          ]
+        }
+      },
+      "status": "Expired",
+      "vote_counts": {},
+      "votes": {},
+      "submission_time": "1622665541332966908"
+    },
+    "stateHashAfter": "7740b11c6348bf688ea785d1b01df014b649f2d37b56309992c2f7b5a337d4c8",
+    "payout": {
+      "recipient": "nima.testnet",
+      "declaredBondYocto": "1000000000000000000000000",
+      "contractDeltaYocto": "-999948497334229800000000",
+      "actorDeltaYocto": "999683608774768300000000",
+      "gasBurntUnits": "334667012970",
+      "transactionOutcomeTokensBurntYocto": "33466701297000000000",
+      "receiptTokensBurntYocto": "282924523934700000000",
+      "totalTokensBurntYocto": "316391225231700000000"
+    }
+  },
+  "retry": {
+    "tx": {
+      "succeeded": false,
+      "failed": true,
+      "failure": {
+        "ActionError": {
+          "index": 0,
+          "kind": {
+            "FunctionCallError": {
+              "ExecutionError": "Smart contract panicked: panicked at 'assertion failed: `(left == right)`\n  left: `Expired`,\n right: `InProgress`: ERR_PROPOSAL_NOT_IN_PROGRESS', src/policy.rs:346:9"
+            }
+          }
+        }
+      },
+      "transactionHash": "Fe9AhimoExzDMZALg4zf9eMTSmij1EGdDenHsmF4NJRo",
+      "finalExecutionStatus": "FINAL",
+      "transaction": {
+        "signerId": "nima.testnet",
+        "receiverId": "aya.sputnikv2.testnet",
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJpZCI6MCwiYWN0aW9uIjoiRmluYWxpemUiLCJwcm9wb3NhbCI6eyJGdW5jdGlvbkNhbGwiOnsicmVjZWl2ZXJfaWQiOiJuaW1hLnRlc3RuZXQiLCJhY3Rpb25zIjpbeyJtZXRob2RfbmFtZSI6ImNyZWF0ZV90b2tlbiIsImFyZ3MiOiJleUpoY21keklqcDdJbTkzYm1WeVgybGtJam9pYm1sdFlTNTBaWE4wYm1WMElpd2lkRzkwWVd4ZmMzVndjR3g1SWpvaU5qWTJNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd0lpd2liV1YwWVdSaGRHRWlPbnNpYzNCbFl5STZJbVowTFRFdU1DNHdJaXdpYm1GdFpTSTZJalkyTmlJc0luTjViV0p2YkNJNklqWTJOaUlzSW1samIyNGlPaUpvZEhSd2N6b3ZMM0JpY3k1MGQybHRaeTVqYjIwdlkyRnlaRjlwYldjdk1UUXdNREV3TVRBNE9EWTVPVFl6TXpZMk5DOWllbUpvY0ROeGF6OW1iM0p0WVhROWFuQm5KbTVoYldVOWJXVmthWFZ0SWl3aVpHVmphVzFoYkhNaU9qWTJObjE5ZlE9PSIsImRlcG9zaXQiOiI1MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwiZ2FzIjoiMTUwMDAwMDAwMDAwMDAwIn1dfX0sIm1lbW8iOm51bGx9",
+              "deposit": "0",
+              "gas": 100000000000000,
+              "method_name": "act_proposal"
+            }
+          }
+        ]
+      },
+      "receiptIds": [
+        "DbiZaxxYfimWyb6QpunM6i7u2PwWouh5jBxduJru28at"
+      ],
+      "gasBurntUnits": "334667012970",
+      "transactionOutcomeTokensBurntYocto": "33466701297000000000",
+      "receiptTokensBurntYocto": "199848586332900000000",
+      "totalTokensBurntYocto": "233315287629900000000",
+      "receipts": [
+        {
+          "id": "DbiZaxxYfimWyb6QpunM6i7u2PwWouh5jBxduJru28at",
+          "executorId": "aya.sputnikv2.testnet",
+          "gasBurntUnits": "1998485863329",
+          "tokensBurntYocto": "199848586332900000000",
+          "status": {
+            "Failure": {
+              "ActionError": {
+                "index": 0,
+                "kind": {
+                  "FunctionCallError": {
+                    "ExecutionError": "Smart contract panicked: panicked at 'assertion failed: `(left == right)`\n  left: `Expired`,\n right: `InProgress`: ERR_PROPOSAL_NOT_IN_PROGRESS', src/policy.rs:346:9"
+                  }
+                }
+              }
+            }
+          },
+          "logs": []
+        },
+        {
+          "id": "AzRVPgh2JZYoKeiT4fEZZbaCDACSFJZpoy6SQxjhTTcK",
+          "executorId": "nima.testnet",
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": []
+        }
+      ],
+      "transactionOutcomeStatus": {
+        "SuccessReceiptId": "DbiZaxxYfimWyb6QpunM6i7u2PwWouh5jBxduJru28at"
+      },
+      "logs": [],
+      "receiptFailures": [
+        {
+          "ActionError": {
+            "index": 0,
+            "kind": {
+              "FunctionCallError": {
+                "ExecutionError": "Smart contract panicked: panicked at 'assertion failed: `(left == right)`\n  left: `Expired`,\n right: `InProgress`: ERR_PROPOSAL_NOT_IN_PROGRESS', src/policy.rs:346:9"
+              }
+            }
+          }
+        }
+      ],
+      "receiptFailureMessages": [
+        "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at 'assertion failed: `(left == right)`\\n  left: `Expired`,\\n right: `InProgress`: ERR_PROPOSAL_NOT_IN_PROGRESS', src/policy.rs:346:9\"}}}}"
+      ]
+    },
+    "stateUnchanged": true,
+    "contractBefore": "6000446945338089600000000",
+    "contractAfter": "6000480220699454300000000",
+    "contractDeltaYocto": "33275361364700000000",
+    "actorDeltaYocto": "-233315287629900000000",
+    "stateHashBefore": "7740b11c6348bf688ea785d1b01df014b649f2d37b56309992c2f7b5a337d4c8",
+    "stateHashAfter": "7740b11c6348bf688ea785d1b01df014b649f2d37b56309992c2f7b5a337d4c8"
+  },
+  "unauthorized": {
+    "tx": {
+      "succeeded": false,
+      "failed": true,
+      "failure": {
+        "ActionError": {
+          "index": 0,
+          "kind": {
+            "FunctionCallError": {
+              "ExecutionError": "Smart contract panicked: panicked at 'ERR_PERMISSION_DENIED', src/proposals.rs:447:9"
+            }
+          }
+        }
+      },
+      "transactionHash": "9a9Ca36aGP6FvgZGkMKnEa6KUf7n9nh9Xi9GNWr5G7mh",
+      "finalExecutionStatus": "FINAL",
+      "transaction": {
+        "signerId": "intruder.test.near",
+        "receiverId": "aya.sputnikv2.testnet",
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJpZCI6MCwiYWN0aW9uIjoiRmluYWxpemUiLCJwcm9wb3NhbCI6eyJGdW5jdGlvbkNhbGwiOnsicmVjZWl2ZXJfaWQiOiJuaW1hLnRlc3RuZXQiLCJhY3Rpb25zIjpbeyJtZXRob2RfbmFtZSI6ImNyZWF0ZV90b2tlbiIsImFyZ3MiOiJleUpoY21keklqcDdJbTkzYm1WeVgybGtJam9pYm1sdFlTNTBaWE4wYm1WMElpd2lkRzkwWVd4ZmMzVndjR3g1SWpvaU5qWTJNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd0lpd2liV1YwWVdSaGRHRWlPbnNpYzNCbFl5STZJbVowTFRFdU1DNHdJaXdpYm1GdFpTSTZJalkyTmlJc0luTjViV0p2YkNJNklqWTJOaUlzSW1samIyNGlPaUpvZEhSd2N6b3ZMM0JpY3k1MGQybHRaeTVqYjIwdlkyRnlaRjlwYldjdk1UUXdNREV3TVRBNE9EWTVPVFl6TXpZMk5DOWllbUpvY0ROeGF6OW1iM0p0WVhROWFuQm5KbTVoYldVOWJXVmthWFZ0SWl3aVpHVmphVzFoYkhNaU9qWTJObjE5ZlE9PSIsImRlcG9zaXQiOiI1MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwiZ2FzIjoiMTUwMDAwMDAwMDAwMDAwIn1dfX0sIm1lbW8iOm51bGx9",
+              "deposit": "0",
+              "gas": 100000000000000,
+              "method_name": "act_proposal"
+            }
+          }
+        ]
+      },
+      "receiptIds": [
+        "GGsUjPfZhuPnWbDuo5MzG66DmmKcacfomHgaWegHsJSQ"
+      ],
+      "gasBurntUnits": "334667012970",
+      "transactionOutcomeTokensBurntYocto": "33466701297000000000",
+      "receiptTokensBurntYocto": "193720570110300000000",
+      "totalTokensBurntYocto": "227187271407300000000",
+      "receipts": [
+        {
+          "id": "GGsUjPfZhuPnWbDuo5MzG66DmmKcacfomHgaWegHsJSQ",
+          "executorId": "aya.sputnikv2.testnet",
+          "gasBurntUnits": "1937205701103",
+          "tokensBurntYocto": "193720570110300000000",
+          "status": {
+            "Failure": {
+              "ActionError": {
+                "index": 0,
+                "kind": {
+                  "FunctionCallError": {
+                    "ExecutionError": "Smart contract panicked: panicked at 'ERR_PERMISSION_DENIED', src/proposals.rs:447:9"
+                  }
+                }
+              }
+            }
+          },
+          "logs": []
+        },
+        {
+          "id": "5FCtM8qQBzqLj16x9anW6Cun5r9mkZciEDNDHar5toxq",
+          "executorId": "intruder.test.near",
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": []
+        }
+      ],
+      "transactionOutcomeStatus": {
+        "SuccessReceiptId": "GGsUjPfZhuPnWbDuo5MzG66DmmKcacfomHgaWegHsJSQ"
+      },
+      "logs": [],
+      "receiptFailures": [
+        {
+          "ActionError": {
+            "index": 0,
+            "kind": {
+              "FunctionCallError": {
+                "ExecutionError": "Smart contract panicked: panicked at 'ERR_PERMISSION_DENIED', src/proposals.rs:447:9"
+              }
+            }
+          }
+        }
+      ],
+      "receiptFailureMessages": [
+        "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at 'ERR_PERMISSION_DENIED', src/proposals.rs:447:9\"}}}}"
+      ]
+    },
+    "stateUnchanged": true,
+    "contractBefore": "6000480220699454300000000",
+    "contractAfter": "6000511657655952200000000",
+    "contractDeltaYocto": "31436956497900000000",
+    "proposerUnchanged": true,
+    "stateHashBefore": "7740b11c6348bf688ea785d1b01df014b649f2d37b56309992c2f7b5a337d4c8",
+    "stateHashAfter": "7740b11c6348bf688ea785d1b01df014b649f2d37b56309992c2f7b5a337d4c8"
+  },
+  "verdict": "capture-baseline-verified"
+}

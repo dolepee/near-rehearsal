@@ -1,0 +1,131 @@
+{
+  "schema": "near-rehearsal/report/v1",
+  "generatedAt": "2026-11-04T01:55:52.504Z",
+  "contract": "state.test.near",
+  "capture": {
+    "blockHeight": 19,
+    "blockHash": "7mGLgxRWvCuP3W7gksjtdkrA5zdXTexbjbUE5HRuTQfw",
+    "codeHash": "ATAnoAtxXJks8XDQcaLDrKg3fvoACvT6HH6Vu28QTxrN",
+    "codeSha256": "8c6d5a3d12f1c9ea0253ae97628ba186974ba9ab350d03f5ae0605182f49200b",
+    "stateHash": "48d17bf1f1c1b15e659ea34c07e9cc213467bb6477326608654f701faa7584c3",
+    "stateBytes": 8
+  },
+  "runtime": {
+    "version": "2.6.2",
+    "build": "2.6.2",
+    "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+    "protocolVersion": 77,
+    "latestProtocolVersion": 77
+  },
+  "operation": "existing user: increment(); read: get()",
+  "branches": {
+    "baseline": {
+      "branch": "baseline",
+      "label": "captured baseline",
+      "seeded": false,
+      "candidate": null,
+      "importCheck": {
+        "codeHash": "ATAnoAtxXJks8XDQcaLDrKg3fvoACvT6HH6Vu28QTxrN",
+        "codeSha256": "8c6d5a3d12f1c9ea0253ae97628ba186974ba9ab350d03f5ae0605182f49200b",
+        "stateHash": "48d17bf1f1c1b15e659ea34c07e9cc213467bb6477326608654f701faa7584c3",
+        "stateBytes": 8,
+        "matches": true
+      },
+      "migration": null,
+      "operation": {
+        "succeeded": true,
+        "value": "6",
+        "transactionHash": null,
+        "stateHashAfter": "6ceb743132058d1720158363111d5557eebcd3ea77c725cea83cbe617db1a026"
+      },
+      "runtime": {
+        "version": "2.6.2",
+        "build": "2.6.2",
+        "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+        "protocolVersion": 77,
+        "latestProtocolVersion": 77
+      }
+    },
+    "buggy": {
+      "branch": "seeded-bad-migration",
+      "label": "SEEDED bad v2 migration — writes 8-byte v1 layout",
+      "seeded": true,
+      "candidate": {
+        "wasm": "contracts/state-v2-buggy.wasm",
+        "codeHash": "Dz64g6f4PmrpyYLJrwDhkdpLvU1LMr1DPXS6ZctWLxnK"
+      },
+      "importCheck": {
+        "codeHash": "ATAnoAtxXJks8XDQcaLDrKg3fvoACvT6HH6Vu28QTxrN",
+        "codeSha256": "8c6d5a3d12f1c9ea0253ae97628ba186974ba9ab350d03f5ae0605182f49200b",
+        "stateHash": "48d17bf1f1c1b15e659ea34c07e9cc213467bb6477326608654f701faa7584c3",
+        "stateBytes": 8,
+        "matches": true
+      },
+      "migration": {
+        "applied": true,
+        "transactionHash": null,
+        "status": null,
+        "afterState": "48d17bf1f1c1b15e659ea34c07e9cc213467bb6477326608654f701faa7584c3",
+        "changedState": false
+      },
+      "operation": {
+        "succeeded": false,
+        "error": "{\"result\":{\"final_execution_status\":\"EXECUTED_OPTIMISTIC\",\"receipts_outcome\":[{\"block_hash\":\"9k4AiKReKjKJqRrgybLyLS6PNPzLTFfkxw7KyH5dMn9c\",\"id\":\"A38sPvocfmWpyG8HW5i3x1yW3Fib73hLXpgATCfopEaH\",\"outcome\":{\"executor_id\":\"state.test.near\",\"gas_burnt\":965726224805,\"logs\":[],\"metadata\":{\"gas_profile\":[{\"cost\":\"BASE\",\"cost_category\":\"WASM_HOST_COST\",\"gas_used\":\"794304333\"},{\"cost\":\"CONTRACT_LOADING_BASE\",\"cost_category\":\"WASM_HOST_COST\",\"gas_used\":\"35445963\"},{\"cost\":\"CONTRACT_LOADING_BYTES\",\"cost_categ",
+        "stateHashAfter": "48d17bf1f1c1b15e659ea34c07e9cc213467bb6477326608654f701faa7584c3"
+      },
+      "runtime": {
+        "version": "2.6.2",
+        "build": "2.6.2",
+        "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+        "protocolVersion": 77,
+        "latestProtocolVersion": 77
+      }
+    },
+    "fixed": {
+      "branch": "corrected-migration",
+      "label": "corrected v2 migration — writes version + count",
+      "seeded": false,
+      "candidate": {
+        "wasm": "contracts/state-v2-fixed.wasm",
+        "codeHash": "BKh8DvoLmabmjwUz74TY9xAchPmKFxBYwrxCYdp6Ehw8"
+      },
+      "importCheck": {
+        "codeHash": "ATAnoAtxXJks8XDQcaLDrKg3fvoACvT6HH6Vu28QTxrN",
+        "codeSha256": "8c6d5a3d12f1c9ea0253ae97628ba186974ba9ab350d03f5ae0605182f49200b",
+        "stateHash": "48d17bf1f1c1b15e659ea34c07e9cc213467bb6477326608654f701faa7584c3",
+        "stateBytes": 8,
+        "matches": true
+      },
+      "migration": {
+        "applied": true,
+        "transactionHash": null,
+        "status": null,
+        "afterState": "56ac77491e98ff6c4a5561b0b7c84ad3ea6b1a5ebad4247887811a347419d607",
+        "changedState": true
+      },
+      "operation": {
+        "succeeded": true,
+        "value": "6",
+        "transactionHash": null,
+        "stateHashAfter": "00223255eabc8ba46cfc62e046274f2c7af900e0e3158954cfd83846f631a216"
+      },
+      "runtime": {
+        "version": "2.6.2",
+        "build": "2.6.2",
+        "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+        "protocolVersion": 77,
+        "latestProtocolVersion": 77
+      }
+    }
+  },
+  "result": {
+    "expectedAfterOneMore": "6",
+    "baselineValue": "6",
+    "buggySucceeded": false,
+    "fixedValue": "6",
+    "sameStartingState": true,
+    "regressionObserved": true,
+    "correctionObserved": true
+  },
+  "claimBoundary": "Pinned local Sandbox execution only. The bad candidate is explicitly seeded. No live vulnerability, production authorization, or public-chain state capture is claimed."
+}

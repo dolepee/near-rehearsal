@@ -1,0 +1,8 @@
+#!/bin/sh
+# Wrapper for a current NEAR Sandbox x86_64 binary on a non-x86_64 host.
+# Set NEAR_SANDBOX_REAL_BIN, NEAR_SANDBOX_QEMU and NEAR_SANDBOX_QEMU_LD_PREFIX.
+set -eu
+: "${NEAR_SANDBOX_REAL_BIN:?set NEAR_SANDBOX_REAL_BIN to the near-sandbox executable}"
+: "${NEAR_SANDBOX_QEMU:?set NEAR_SANDBOX_QEMU to qemu-x86_64}"
+: "${NEAR_SANDBOX_QEMU_LD_PREFIX:?set NEAR_SANDBOX_QEMU_LD_PREFIX to the x86_64 sysroot}"
+exec env QEMU_LD_PREFIX="$NEAR_SANDBOX_QEMU_LD_PREFIX" "$NEAR_SANDBOX_QEMU" "$NEAR_SANDBOX_REAL_BIN" "$@"

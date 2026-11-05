@@ -1,0 +1,32 @@
+{
+  "schema": "near-rehearsal/regression/v1",
+  "command": "node rehearse.cjs --replay out/capture.json",
+  "capture": "out/capture.json",
+  "operation": {
+    "method": "increment",
+    "args": {},
+    "view": "get"
+  },
+  "expected": {
+    "baseline": {
+      "succeeded": true,
+      "value": "6"
+    },
+    "buggy": {
+      "succeeded": false
+    },
+    "fixed": {
+      "succeeded": true,
+      "value": "6"
+    }
+  },
+  "candidates": {
+    "buggy": {
+      "wasm": "contracts/state-v2-buggy.wasm",
+      "seeded": true
+    },
+    "fixed": {
+      "wasm": "contracts/state-v2-fixed.wasm"
+    }
+  }
+}
