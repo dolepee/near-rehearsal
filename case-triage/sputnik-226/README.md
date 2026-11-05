@@ -103,12 +103,14 @@ That test imports the live mainnet factory and remains the current-workflow comp
 
 ## What to observe
 
-- The transfer proposal exists before the upgrade.
-- `update()` self-call succeeds.
+- The transfer proposal exists before the upgrade; old-schema `get_proposal` is read as raw JSON and must not contain `last_actions_log`.
+- `Contract::call("update")` self-call succeeds; this API signs as the DAO and targets its own account.
 - Candidate code hash equals `pilot/candidate.wasm`.
 - `migrate()` completes.
-- `get_config()` is unchanged.
-- `act_proposal(id, VoteApprove)` on the old transfer proposal succeeds after the upgrade.
+- Full `get_config` JSON is identical before and after.
+- `act_proposal(id, VoteApprove)` on the old proposal succeeds.
+- Final proposal status is `Approved` and the root vote is present.
+- The separate recipient’s balance increases by exactly the proposal amount.
 
 If they pass, old proposal state and the real upgrade/migrate entry point survived for this locally constructed state. If they fail, record the exact transaction and error; do not infer a mainnet failure.
 

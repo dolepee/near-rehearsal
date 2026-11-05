@@ -10,12 +10,22 @@
     "construction": "locally constructed",
     "mainnetImport": false,
     "liveFactoryImport": false,
-    "description": "Fresh local Sandbox DAO deployed from source-built base WASM, initialised, then given a transfer proposal before self-upgrade.",
+    "description": "Fresh local Sandbox DAO deployed from source-built base WASM, initialised, given a transfer proposal before self-upgrade; a separate recipient verifies the post-upgrade transfer.",
     "notACapture": "This is not captured public-chain state and must never be labelled as such."
   },
   "artifacts": {
-    "base": { "path": "pilot/base.wasm", "sourceCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5", "buildRequired": true, "sha256": null },
-    "candidate": { "path": "pilot/candidate.wasm", "sourceCommit": "8112278fc2874a3abc12fb056b2d4c97ff796431", "buildRequired": true, "sha256": null },
+    "base": {
+      "path": "pilot/base.wasm",
+      "sourceCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5",
+      "buildRequired": true,
+      "sha256": null
+    },
+    "candidate": {
+      "path": "pilot/candidate.wasm",
+      "sourceCommit": "8112278fc2874a3abc12fb056b2d4c97ff796431",
+      "buildRequired": true,
+      "sha256": null
+    },
     "committedRes": {
       "path": "sputnikdao2/res/sputnikdao2.wasm",
       "bytes": 417124,
@@ -39,11 +49,13 @@
     "upgrade": "self-call update(candidate_wasm) -> deploy candidate -> migrate()",
     "postUpgrade": "act_proposal(id, VoteApprove, same Transfer kind)",
     "assertions": [
+      "old proposal raw view has InProgress status and no last_actions_log",
+      "Contract::call('update') self-call succeeds",
       "candidate code hash equals built candidate",
       "migrate completes",
-      "get_config unchanged",
-      "transfer proposal remains readable",
-      "act_proposal succeeds"
+      "full get_config JSON unchanged",
+      "final proposal status Approved and root vote persisted",
+      "recipient balance increases by the proposal amount"
     ]
   },
   "commands": {

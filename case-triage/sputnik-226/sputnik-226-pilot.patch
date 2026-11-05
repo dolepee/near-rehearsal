@@ -1,7 +1,7 @@
 From d699fabd33d7cbdaec07a785e73216cf2234d35b Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Wed, 4 Nov 2026 20:30:48 +0000
-Subject: [PATCH] Add Sputnik 226 old-proposal pilot harness and dossier
+Subject: [PATCH 1/4] Add Sputnik 226 old-proposal pilot harness and dossier
 
 ---
  pilot/README.md               | 120 ++++++++++++++++++++++++++++++++++
@@ -330,6 +330,273 @@ index 0000000..a89d96e
 +
 +    Ok(())
 +}
+-- 
+2.47.3
+
+
+From 84c82dce91b2b7b71da5107d31686192d3ff15e8 Mon Sep 17 00:00:00 2001
+From: Julian Saint <julian@saint.work>
+Date: Thu, 5 Nov 2026 07:28:25 +0000
+Subject: [PATCH 2/4] Harden Sputnik 226 pilot harness against no-op votes
+
+Use Contract::call for the self-update, read old proposal state as raw JSON, compare full config, and assert persisted approval plus recipient balance.
+---
+ pilot/README.md               | 10 +++---
+ pilot/manifest.json           | 24 +++++++++----
+ pilot/old_proposal_upgrade.rs | 65 ++++++++++++++++++++++++++++-------
+ 3 files changed, 77 insertions(+), 22 deletions(-)
+
+diff --git a/pilot/README.md b/pilot/README.md
+index 7d07636..37460de 100644
+--- a/pilot/README.md
++++ b/pilot/README.md
+@@ -103,12 +103,14 @@ That test imports the live mainnet factory and remains the current-workflow comp
+ 
+ ## What to observe
+ 
+-- The transfer proposal exists before the upgrade.
+-- `update()` self-call succeeds.
++- The transfer proposal exists before the upgrade; old-schema `get_proposal` is read as raw JSON and must not contain `last_actions_log`.
++- `Contract::call("update")` self-call succeeds; this API signs as the DAO and targets its own account.
+ - Candidate code hash equals `pilot/candidate.wasm`.
+ - `migrate()` completes.
+-- `get_config()` is unchanged.
+-- `act_proposal(id, VoteApprove)` on the old transfer proposal succeeds after the upgrade.
++- Full `get_config` JSON is identical before and after.
++- `act_proposal(id, VoteApprove)` on the old proposal succeeds.
++- Final proposal status is `Approved` and the root vote is present.
++- The separate recipient’s balance increases by exactly the proposal amount.
+ 
+ If they pass, old proposal state and the real upgrade/migrate entry point survived for this locally constructed state. If they fail, record the exact transaction and error; do not infer a mainnet failure.
+ 
+diff --git a/pilot/manifest.json b/pilot/manifest.json
+index ef9e6c7..e373a57 100644
+--- a/pilot/manifest.json
++++ b/pilot/manifest.json
+@@ -10,12 +10,22 @@
+     "construction": "locally constructed",
+     "mainnetImport": false,
+     "liveFactoryImport": false,
+-    "description": "Fresh local Sandbox DAO deployed from source-built base WASM, initialised, then given a transfer proposal before self-upgrade.",
++    "description": "Fresh local Sandbox DAO deployed from source-built base WASM, initialised, given a transfer proposal before self-upgrade; a separate recipient verifies the post-upgrade transfer.",
+     "notACapture": "This is not captured public-chain state and must never be labelled as such."
+   },
+   "artifacts": {
+-    "base": { "path": "pilot/base.wasm", "sourceCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5", "buildRequired": true, "sha256": null },
+-    "candidate": { "path": "pilot/candidate.wasm", "sourceCommit": "8112278fc2874a3abc12fb056b2d4c97ff796431", "buildRequired": true, "sha256": null },
++    "base": {
++      "path": "pilot/base.wasm",
++      "sourceCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5",
++      "buildRequired": true,
++      "sha256": null
++    },
++    "candidate": {
++      "path": "pilot/candidate.wasm",
++      "sourceCommit": "8112278fc2874a3abc12fb056b2d4c97ff796431",
++      "buildRequired": true,
++      "sha256": null
++    },
+     "committedRes": {
+       "path": "sputnikdao2/res/sputnikdao2.wasm",
+       "bytes": 417124,
+@@ -39,11 +49,13 @@
+     "upgrade": "self-call update(candidate_wasm) -> deploy candidate -> migrate()",
+     "postUpgrade": "act_proposal(id, VoteApprove, same Transfer kind)",
+     "assertions": [
++      "old proposal raw view has InProgress status and no last_actions_log",
++      "Contract::call('update') self-call succeeds",
+       "candidate code hash equals built candidate",
+       "migrate completes",
+-      "get_config unchanged",
+-      "transfer proposal remains readable",
+-      "act_proposal succeeds"
++      "full get_config JSON unchanged",
++      "final proposal status Approved and root vote persisted",
++      "recipient balance increases by the proposal amount"
+     ]
+   },
+   "commands": {
+diff --git a/pilot/old_proposal_upgrade.rs b/pilot/old_proposal_upgrade.rs
+index a89d96e..1ba6133 100644
+--- a/pilot/old_proposal_upgrade.rs
++++ b/pilot/old_proposal_upgrade.rs
+@@ -6,7 +6,7 @@ use near_sdk::json_types::{Base64VecU8, U128};
+ use near_sdk::serde_json::{json, Value};
+ use near_workspaces::types::NearToken;
+ use sputnikdao2::{
+-    Action, Config, ProposalInput, ProposalKind, ProposalOutput, ProposalStatus, VersionedPolicy,
++    Action, Config, ProposalInput, ProposalKind, ProposalStatus, VersionedPolicy,
+ };
+ 
+ fn read_wasm(var: &str) -> Vec<u8> {
+@@ -30,6 +30,12 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         .transact()
+         .await?
+         .into_result()?;
++    let recipient = root
++        .create_subaccount("pilot-recipient")
++        .initial_balance(NearToken::from_near(1))
++        .transact()
++        .await?
++        .into_result()?;
+ 
+     let deployment = dao_account.deploy(&base_wasm).await?;
+     assert!(deployment.is_success(), "base deploy failed: {:?}", deployment.failures());
+@@ -49,10 +55,13 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         .await?;
+     assert!(init.is_success(), "init failed: {:?}", init.failures());
+ 
++    let config_before: Value = dao.view("get_config").await?.json()?;
++
++    let transfer_amount = NearToken::from_near(1);
+     let transfer_kind = ProposalKind::Transfer {
+         token_id: "".to_string(),
+-        receiver_id: root.id().clone(),
+-        amount: U128(1),
++        receiver_id: recipient.id().clone(),
++        amount: U128(transfer_amount.as_yoctonear()),
+         msg: None,
+     };
+     let add = root
+@@ -70,17 +79,31 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+     assert!(add.is_success(), "add_proposal failed: {:?}", add.failures());
+     let proposal_id: u64 = add.json()?;
+ 
+-    let before: ProposalOutput = dao
++    // The old binary does not have the candidate's last_actions_log field.
++    // Read the pre-upgrade view as raw JSON instead of forcing it into the
++    // candidate ProposalOutput schema.
++    let before: Value = dao
+         .view("get_proposal")
+         .args_json(json!({"id": proposal_id}))
+         .await?
+         .json()?;
+-    assert_eq!(before.proposal.status, ProposalStatus::InProgress);
++    assert_eq!(before["status"], "InProgress", "old proposal status: {before}");
++    assert_eq!(
++        before["kind"]["Transfer"]["receiver_id"],
++        recipient.id().as_str(),
++        "old proposal kind: {before}"
++    );
++    assert!(
++        before.get("last_actions_log").is_none(),
++        "old schema unexpectedly has last_actions_log: {before}"
++    );
++
++    let recipient_before = recipient.view_account().await?.balance;
+ 
+-    // Real contract entry point: the DAO calls its own update() with the
+-    // candidate bytes. update() deploys the code and invokes migrate().
++    // Contract::call(function) is the self-call API: it signs as the DAO
++    // account and targets the contract's own account.
+     let upgrade = dao
+-        .call(dao.id(), "update")
++        .call("update")
+         .args(candidate_wasm.clone())
+         .max_gas()
+         .transact()
+@@ -90,15 +113,15 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+     let code = dao.view_code().await?;
+     assert_eq!(code, candidate_wasm, "candidate code hash mismatch");
+ 
+-    let after: ProposalOutput = dao
++    let after: Value = dao
+         .view("get_proposal")
+         .args_json(json!({"id": proposal_id}))
+         .await?
+         .json()?;
+-    assert_eq!(after.proposal.status, ProposalStatus::InProgress);
++    assert_eq!(after["status"], "InProgress", "post-upgrade proposal status: {after}");
+ 
+     let config_after: Value = dao.view("get_config").await?.json()?;
+-    assert_eq!(config_after["name"], "pilot");
++    assert_eq!(config_after, config_before, "get_config changed across upgrade");
+ 
+     let approve = root
+         .call(dao.id(), "act_proposal")
+@@ -111,7 +134,25 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         .transact()
+         .await?;
+     assert!(approve.is_success(), "old proposal vote failed: {:?}", approve.failures());
+-    assert_eq!(approve.failures().len(), 0);
++
++    let final_proposal: Value = dao
++        .view("get_proposal")
++        .args_json(json!({"id": proposal_id}))
++        .await?
++        .json()?;
++    assert_eq!(final_proposal["status"], "Approved", "proposal was not approved: {final_proposal}");
++    assert_eq!(
++        final_proposal["votes"][root.id().as_str()],
++        "Approve",
++        "root vote did not persist: {final_proposal}"
++    );
++
++    let recipient_after = recipient.view_account().await?.balance;
++    assert_eq!(
++        recipient_after.as_yoctonear(),
++        recipient_before.as_yoctonear() + transfer_amount.as_yoctonear(),
++        "transfer recipient balance did not increase by the proposal amount"
++    );
+ 
+     Ok(())
+ }
+-- 
+2.47.3
+
+
+From 6ea5efc87f7cce6f927f87d52114a93bf037e61c Mon Sep 17 00:00:00 2001
+From: Julian Saint <julian@saint.work>
+Date: Thu, 5 Nov 2026 07:28:42 +0000
+Subject: [PATCH 3/4] Fix pilot deploy diagnostic accessor
+
+---
+ pilot/old_proposal_upgrade.rs | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/pilot/old_proposal_upgrade.rs b/pilot/old_proposal_upgrade.rs
+index 1ba6133..b669401 100644
+--- a/pilot/old_proposal_upgrade.rs
++++ b/pilot/old_proposal_upgrade.rs
+@@ -38,7 +38,11 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         .into_result()?;
+ 
+     let deployment = dao_account.deploy(&base_wasm).await?;
+-    assert!(deployment.is_success(), "base deploy failed: {:?}", deployment.failures());
++    assert!(
++        deployment.is_success(),
++        "base deploy failed: {:?}",
++        deployment.details.failures()
++    );
+     let dao = deployment.result;
+ 
+     let config = Config {
+-- 
+2.47.3
+
+
+From 461403ce62490968b1e307df7c3867135458fb62 Mon Sep 17 00:00:00 2001
+From: Julian Saint <julian@saint.work>
+Date: Thu, 5 Nov 2026 07:28:59 +0000
+Subject: [PATCH 4/4] Remove unused pilot import
+
+---
+ pilot/old_proposal_upgrade.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/pilot/old_proposal_upgrade.rs b/pilot/old_proposal_upgrade.rs
+index b669401..866344e 100644
+--- a/pilot/old_proposal_upgrade.rs
++++ b/pilot/old_proposal_upgrade.rs
+@@ -6,7 +6,7 @@ use near_sdk::json_types::{Base64VecU8, U128};
+ use near_sdk::serde_json::{json, Value};
+ use near_workspaces::types::NearToken;
+ use sputnikdao2::{
+-    Action, Config, ProposalInput, ProposalKind, ProposalStatus, VersionedPolicy,
++    Action, Config, ProposalInput, ProposalKind, VersionedPolicy,
+ };
+ 
+ fn read_wasm(var: &str) -> Vec<u8> {
 -- 
 2.47.3
 
