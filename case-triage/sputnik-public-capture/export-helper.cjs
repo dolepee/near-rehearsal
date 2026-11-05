@@ -31,7 +31,10 @@ const exportDoc = JSON.parse(fs.readFileSync(exportPath, 'utf8'));
 if (exportDoc.schema !== 'near-rehearsal/sputnik-export/v2') fail('unsupported export schema');
 const outDir = path.resolve(outArg || fs.mkdtempSync(path.join(os.tmpdir(), 'sputnik-export-')));
 const out = path.join(outDir, 'out');
-if (fs.existsSync(outDir) && fs.readdirSync(outDir).length && !outArg) fail('temporary output unexpectedly exists');
+if (fs.existsSync(outDir)) {
+  if (!fs.statSync(outDir).isDirectory()) fail('output path exists and is not a directory');
+  if (fs.readdirSync(outDir).length) fail('output directory is not empty; refusing to overwrite earlier proof');
+}
 fs.mkdirSync(out, {recursive: true});
 
 function bytes(role) {
