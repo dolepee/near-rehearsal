@@ -11,8 +11,12 @@ const crypto = require('node:crypto');
 const { Worker, KeyPair, parseNEAR, hashContract } = require('near-workspaces');
 
 const HERE = __dirname;
-const OUT = path.resolve(process.env.SPUTNIK_OUT_DIR || path.join(HERE, 'out'));
-const FROZEN_PATH = process.env.FROZEN_BUNDLE ? path.resolve(process.env.FROZEN_BUNDLE) : path.join(OUT, 'local-frozen-bundle.json');
+const DEFAULT_OUT = path.join(HERE, 'out', 'jobs', `${new Date().toISOString().replace(/[:.]/g, '-')}-${process.pid}`);
+const OUT = path.resolve(process.env.SPUTNIK_OUT_DIR || DEFAULT_OUT);
+const FROZEN_OUT = path.resolve(process.env.FROZEN_BUNDLE_OUT || path.join(OUT, 'local-frozen-bundle.json'));
+const FROZEN_PATH = process.env.FROZEN_BUNDLE ? path.resolve(process.env.FROZEN_BUNDLE) : FROZEN_OUT;
+fs.mkdirSync(OUT, {recursive: true});
+fs.mkdirSync(path.dirname(FROZEN_OUT), {recursive: true});
 const BASE = path.resolve(process.env.BASE_WASM || path.join(HERE, '..', 'sputnik-226', 'verified-case', 'base.wasm'));
 const CANDIDATE = path.resolve(process.env.CANDIDATE_WASM || path.join(HERE, 'artifacts', 'candidate-seeded-bad.wasm'));
 const CORRECTED = path.resolve(process.env.CORRECTED_WASM || path.join(HERE, '..', 'sputnik-226', 'verified-case', 'candidate.wasm'));
@@ -173,7 +177,7 @@ async function createTemplate() {
       },
       templateTransactions: { deploy: txSummary(deploy, deployFinal), init: txSummary(init, initFinal), add: txSummary(add, addFinal) },
     };
-    fs.writeFileSync(path.join(OUT, 'local-frozen-bundle.json'), json(bundle) + '\n');
+    fs.writeFileSync(FROZEN_OUT, json(bundle) + '\n');
     console.error('frozen', JSON.stringify({ stateHash: bundle.stateHash, codeHash: bundle.codeHash, contractBalance: bundle.contractAccount.amount, actorBalance: bundle.actorAccount.amount, proposal: { id: proposalId, status: proposal.status } }));
     return bundle;
   } finally { await worker.tearDown(); }
@@ -397,7 +401,7 @@ async function runRecoveryExperiment(bundle) {
   const bundle = process.env.USE_FROZEN === '1' && fs.existsSync(FROZEN_PATH)
     ? JSON.parse(fs.readFileSync(FROZEN_PATH, 'utf8'))
     : await createTemplate();
-  if (process.env.USE_FROZEN === '1') fs.writeFileSync(path.join(OUT, 'local-frozen-bundle.json'), json(bundle) + '\n');
+  if (process.env.USE_FROZEN === '1') fs.writeFileSync(FROZEN_OUT, json(bundle) + '\n');
   const inputManifest = {
     schema: 'near-rehearsal/sputnik-input-manifest/v1',
     family: 'sputnik-dao-v2',

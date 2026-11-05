@@ -155,6 +155,7 @@ function startRun(input, frozenBundle = null) {
     CORRECTED_LABEL: input.correction.label || input.correction.filename,
     CORRECTED_PROVENANCE: input.correction.provenance || 'supplied correction',
     SPUTNIK_OUT_DIR: outDir,
+    FROZEN_BUNDLE_OUT: path.join(outDir, 'local-frozen-bundle.json'),
     ...(frozenPath ? {USE_FROZEN: '1', FROZEN_BUNDLE: frozenPath} : {}),
   };
   const child = spawn(process.execPath, [RUNNER], {cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe']});
@@ -163,6 +164,7 @@ function startRun(input, frozenBundle = null) {
     if (run.logs.length > MAX_LOG) run.logs.splice(0, run.logs.length - MAX_LOG);
   };
   let ended = false;
+  let timedOut = false;
   const finish = (code, signal) => {
     if (ended) return;
     ended = true;
@@ -175,20 +177,31 @@ function startRun(input, frozenBundle = null) {
     if (run.report) {
       run.frozenBundle = fs.existsSync(path.join(outDir, 'local-frozen-bundle.json'))
         ? JSON.parse(fs.readFileSync(path.join(outDir, 'local-frozen-bundle.json'), 'utf8')) : null;
-      run.status = run.report.status === 'complete' ? 'complete' : 'inconclusive';
-      if (run.status !== 'complete') run.error = run.report.error?.message || 'Runner reported an inconclusive result.';
-    } else {
-      run.status = 'error';
-      if (!run.error) run.error = `Runner exited ${code ?? signal ?? 'without a report'}.`;
     }
-    if (signal) run.error = run.error || `Runner stopped by ${signal}.`;
+    const cleanExit = code === 0 && !signal && !timedOut;
+    if (run.report && cleanExit && run.report.status === 'complete') {
+      run.status = 'complete';
+    } else {
+      run.status = 'inconclusive';
+      if (timedOut) run.error = 'Runner exceeded the local 12-minute limit; this run is not evidence.';
+      else if (signal) run.error = `Runner stopped by ${signal}; this run is not evidence.`;
+      else if (!run.report) run.error = `Runner exited ${code ?? 'without a report'}; this run is not evidence.`;
+      else if (run.report.status !== 'complete') run.error = run.report.error?.message || 'Runner reported an inconclusive result.';
+      else run.error = `Runner exited ${code}; a complete report from an unclean exit is not accepted.`;
+    }
     writeRunMeta(run);
   };
   child.stdout.on('data', add);
   child.stderr.on('data', add);
   child.on('error', (e) => { run.error = e.message; finish(null, null); });
   child.on('close', finish);
-  const timer = setTimeout(() => { run.error = 'Runner exceeded the local 12-minute limit.'; run.status = 'error'; activeId = null; child.kill('SIGKILL'); }, MAX_RUN_MS);
+  const timer = setTimeout(() => {
+    timedOut = true;
+    run.error = 'Runner exceeded the local 12-minute limit; this run is not evidence.';
+    run.status = 'inconclusive';
+    activeId = null;
+    child.kill('SIGKILL');
+  }, MAX_RUN_MS);
   child.on('close', () => clearTimeout(timer));
   return run;
 }

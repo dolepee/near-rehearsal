@@ -203,3 +203,13 @@ The sandbox argument is the runtime directory, not the binary file. The helper
 unpacks the exported state, report, manifest and actual WASMs, calls the shared
 verifier, and only replays with the known local runner. Export command strings
 are informational and are never executed.
+
+
+## Runner job isolation
+
+`local-three-branch.cjs` writes only to an explicit `SPUTNIK_OUT_DIR`. If it is
+omitted, it creates a fresh `out/jobs/<timestamp>-<pid>` directory rather than
+using the recorded `out/` proof. `FROZEN_BUNDLE` is the input bundle and
+`FROZEN_BUNDLE_OUT` is the output path (default `$SPUTNIK_OUT_DIR/local-frozen-bundle.json`).
+The UI server allocates a unique run directory per invocation, supplies a distinct
+candidate/correction WASM and never reuses a previous report.
