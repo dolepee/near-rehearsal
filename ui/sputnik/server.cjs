@@ -257,7 +257,7 @@ const server = http.createServer(async (req, res) => {
         verdictSha256: sha256(fs.readFileSync(path.join(run.outDir, 'local-three-verdict.json'))),
         verdict,
         verifyCommand: `cd ${ROOT} && CASE_DIR=${run.runDir} ${process.execPath} ${VERIFIER}`,
-        replayCommand: `cd ${ROOT} && SPUTNIK_OUT_DIR=<new-dir> USE_FROZEN=1 FROZEN_BUNDLE=${path.join(run.outDir, 'local-frozen-bundle.json')} CANDIDATE_WASM=${path.join(run.runDir, 'candidate.wasm')} CORRECTED_WASM=${path.join(run.runDir, 'correction.wasm')} ${process.execPath} ${RUNNER}`,
+        replayCommand: `cd ${ROOT} && d=$(mktemp -d) && SPUTNIK_OUT_DIR="$d" USE_FROZEN=1 FROZEN_BUNDLE=${path.join(run.outDir, 'local-frozen-bundle.json')} CANDIDATE_WASM=${path.join(run.runDir, 'candidate.wasm')} CORRECTED_WASM=${path.join(run.runDir, 'correction.wasm')} ${process.execPath} ${RUNNER}`,
         downloadUrl: `/api/runs/${run.id}/export/download`,
         limitations: FAMILY.limitations,
       };
