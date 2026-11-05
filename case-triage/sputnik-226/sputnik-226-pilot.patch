@@ -1,7 +1,7 @@
 From d699fabd33d7cbdaec07a785e73216cf2234d35b Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Wed, 4 Nov 2026 20:30:48 +0000
-Subject: [PATCH 1/5] Add Sputnik 226 old-proposal pilot harness and dossier
+Subject: [PATCH 1/6] Add Sputnik 226 old-proposal pilot harness and dossier
 
 ---
  pilot/README.md               | 120 ++++++++++++++++++++++++++++++++++
@@ -337,7 +337,7 @@ index 0000000..a89d96e
 From 84c82dce91b2b7b71da5107d31686192d3ff15e8 Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:25 +0000
-Subject: [PATCH 2/5] Harden Sputnik 226 pilot harness against no-op votes
+Subject: [PATCH 2/6] Harden Sputnik 226 pilot harness against no-op votes
 
 Use Contract::call for the self-update, read old proposal state as raw JSON, compare full config, and assert persisted approval plus recipient balance.
 ---
@@ -548,7 +548,7 @@ index a89d96e..1ba6133 100644
 From 6ea5efc87f7cce6f927f87d52114a93bf037e61c Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:42 +0000
-Subject: [PATCH 3/5] Fix pilot deploy diagnostic accessor
+Subject: [PATCH 3/6] Fix pilot deploy diagnostic accessor
 
 ---
  pilot/old_proposal_upgrade.rs | 6 +++++-
@@ -578,7 +578,7 @@ index 1ba6133..b669401 100644
 From 461403ce62490968b1e307df7c3867135458fb62 Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:59 +0000
-Subject: [PATCH 4/5] Remove unused pilot import
+Subject: [PATCH 4/6] Remove unused pilot import
 
 ---
  pilot/old_proposal_upgrade.rs | 2 +-
@@ -604,7 +604,7 @@ index b669401..866344e 100644
 From 356756b304923198adea09693afcdbb70df4544a Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:36:22 +0000
-Subject: [PATCH 5/5] Correct dependency pin and add Node harness note
+Subject: [PATCH 5/6] Correct dependency pin and add Node harness note
 
 Distinguish declared caret ranges from Cargo.lock-resolved near-sdk 5.11.0; document the standalone Node CJS runner without changing lockfiles.
 ---
@@ -706,6 +706,72 @@ index e373a57..6e4c3e4 100644
 +    },
 +    "rule": "Do not edit Cargo.lock or silently force near-sdk 5.10.0."
 +  }
+ }
+-- 
+2.47.3
+
+
+From 5929f8a31a84cb5012c32f8fabb738eff5554d0d Mon Sep 17 00:00:00 2001
+From: Julian Saint <julian@saint.work>
+Date: Thu, 5 Nov 2026 07:44:35 +0000
+Subject: [PATCH 6/6] Record native compile and near-workspaces API checks
+
+Native Rust harness compiled on the owner's host; source WASM build still pending. Corrected the 5.0.0 API assumptions for signer, code decoding and amount normalization.
+---
+ pilot/README.md     |  6 ++++++
+ pilot/manifest.json | 18 +++++++++++++++++-
+ 2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/pilot/README.md b/pilot/README.md
+index 733b22b..7baafc1 100644
+--- a/pilot/README.md
++++ b/pilot/README.md
+@@ -92,6 +92,12 @@ cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ig
+ 
+ The harness uses `near_workspaces::sandbox()` and no mainnet endpoint. The review machine’s pinned Sandbox 2.6.2 should be supplied through `NEAR_SANDBOX_BIN_PATH`; `near-sandbox-utils 0.13.0` wiring must be confirmed on that machine.
+ 
++## near-workspaces 5.0.0 API checks
++
++- `parseNEAR('1')` returns a decimal **string** in 5.0.0. Convert it to `BigInt` for `initialBalance`, `attachedDeposit` and accounting; keep the wire `amount` as a string.
++- `provider.viewCodeRaw()` returns the base64 **string** `code_base64`; use `provider.viewCode()` or `Buffer.from(raw, 'base64')` before comparing bytes.
++- `add_proposal` and `act_proposal` must be signed by the policy account (`[root.accountId]`), not by the DAO. Keep the self-update signed by the DAO.
++
+ ## Standalone Node CJS equivalent
+ 
+ For an executable check using the Rehearsal dependencies already installed on the review machine, use the private-pilot copy at `case-triage/sputnik-226/node-harness.cjs` in `dolepee/near-rehearsal` branch `pilot/sputnik-226-old-proposal`. It uses `near-workspaces 5.0.0` and the pinned local Sandbox 2.6.2. It is a thin pilot runner, not a product adapter.
+diff --git a/pilot/manifest.json b/pilot/manifest.json
+index 6e4c3e4..32d0bd1 100644
+--- a/pilot/manifest.json
++++ b/pilot/manifest.json
+@@ -1,6 +1,6 @@
+ {
+   "schema": "near-rehearsal/pilot/sputnik-226-old-proposal/v1",
+-  "status": "preparation-uncompiled",
++  "status": "native-rust-compiled; source-build-pending",
+   "repo": "https://github.com/near-daos/sputnik-dao-contract",
+   "pr": 226,
+   "baseCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5",
+@@ -90,5 +90,21 @@
+       "nearSandboxUtils": "0.13.0"
+     },
+     "rule": "Do not edit Cargo.lock or silently force near-sdk 5.10.0."
++  },
++  "verification": {
++    "nativeRustHarness": {
++      "state": "compiled on owner review host",
++      "hostToolchain": "stable 1.96",
++      "wasmPass": false
++    },
++    "sourceWasm": {
++      "state": "base and candidate cargo-near 0.13.3 builds in metadata stage",
++      "wasmPass": false
++    }
++  },
++  "apiChecks": {
++    "parseNEAR": "returns decimal string; normalize to BigInt for initialBalance, attachedDeposit and accounting",
++    "viewCodeRaw": "returns base64 string; use viewCode() or Buffer.from(raw, \"base64\")",
++    "proposalSigner": "add_proposal and act_proposal sign as the policy account root; update remains a DAO self-call"
+   }
  }
 -- 
 2.47.3

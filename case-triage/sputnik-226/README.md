@@ -92,6 +92,12 @@ cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ig
 
 The harness uses `near_workspaces::sandbox()` and no mainnet endpoint. The review machine’s pinned Sandbox 2.6.2 should be supplied through `NEAR_SANDBOX_BIN_PATH`; `near-sandbox-utils 0.13.0` wiring must be confirmed on that machine.
 
+## near-workspaces 5.0.0 API checks
+
+- `parseNEAR('1')` returns a decimal **string** in 5.0.0. Convert it to `BigInt` for `initialBalance`, `attachedDeposit` and accounting; keep the wire `amount` as a string.
+- `provider.viewCodeRaw()` returns the base64 **string** `code_base64`; use `provider.viewCode()` or `Buffer.from(raw, 'base64')` before comparing bytes.
+- `add_proposal` and `act_proposal` must be signed by the policy account (`[root.accountId]`), not by the DAO. Keep the self-update signed by the DAO.
+
 ## Standalone Node CJS equivalent
 
 For an executable check using the Rehearsal dependencies already installed on the review machine, use the private-pilot copy at `case-triage/sputnik-226/node-harness.cjs` in `dolepee/near-rehearsal` branch `pilot/sputnik-226-old-proposal`. It uses `near-workspaces 5.0.0` and the pinned local Sandbox 2.6.2. It is a thin pilot runner, not a product adapter.

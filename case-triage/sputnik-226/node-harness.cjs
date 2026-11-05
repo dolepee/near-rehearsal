@@ -13,8 +13,8 @@ const assert = require('node:assert/strict');
 const {Worker, parseNEAR} = require('near-workspaces');
 
 const GAS = 100_000_000_000_000n;
-const TRANSFER = parseNEAR('1');
-const ROOT = process.cwd();
+const near = (value) => BigInt(parseNEAR(value));
+const TRANSFER = near('1');
 const EVIDENCE = path.resolve(process.env.EVIDENCE_PATH || 'case-triage/sputnik-226/evidence.json');
 const sha256 = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const json = (value) => JSON.stringify(value, (_, item) => typeof item === 'bigint' ? item.toString() : item, 2);
@@ -52,8 +52,8 @@ async function main() {
     worker = await Worker.init({network: 'sandbox'});
     assertLocal(worker);
     const root = worker.rootAccount;
-    const dao = await root.createSubAccount('pilot-dao', {initialBalance: parseNEAR('100')});
-    const recipient = await root.createSubAccount('pilot-recipient', {initialBalance: parseNEAR('1')});
+    const dao = await root.createSubAccount('pilot-dao', {initialBalance: near('100')});
+    const recipient = await root.createSubAccount('pilot-recipient', {initialBalance: near('1')});
     await dao.deploy(baseWasm);
 
     const initTx = await dao.callRaw(dao, 'new', {
@@ -66,9 +66,9 @@ async function main() {
     const transferKind = {
       Transfer: {token_id: '', receiver_id: recipient.accountId, amount: TRANSFER.toString(), msg: null},
     };
-    const addTx = await dao.callRaw(dao, 'add_proposal', {
+    const addTx = await root.callRaw(dao, 'add_proposal', {
       proposal: {description: 'pre-upgrade transfer proposal', kind: transferKind},
-    }, {gas: GAS, attachedDeposit: parseNEAR('1')});
+    }, {gas: GAS, attachedDeposit: TRANSFER});
     assertSuccess(addTx, 'add_proposal');
     const proposalId = addTx.parseResult();
     if (!Number.isSafeInteger(Number(proposalId))) throw new Error(`unsafe proposal id: ${proposalId}`);
@@ -84,7 +84,8 @@ async function main() {
     const updateTx = await dao.callRaw(dao, 'update', candidateWasm, {gas: GAS});
     assertSuccess(updateTx, 'update');
 
-    const code = await worker.provider.viewCodeRaw(dao.accountId, {finality: 'final'});
+    const rawCode = await worker.provider.viewCodeRaw(dao.accountId, {finality: 'final'});
+    const code = Buffer.isBuffer(rawCode) ? rawCode : Buffer.from(rawCode, 'base64');
     assert.equal(Buffer.compare(code, candidateWasm), 0, 'candidate code bytes mismatch');
 
     const after = await viewJson(worker, dao.accountId, 'get_proposal', {id: Number(proposalId)});
@@ -92,7 +93,7 @@ async function main() {
     const configAfter = await viewJson(worker, dao.accountId, 'get_config');
     assert.deepEqual(configAfter, configBefore, 'get_config changed across upgrade');
 
-    const approveTx = await dao.callRaw(dao, 'act_proposal', {
+    const approveTx = await root.callRaw(dao, 'act_proposal', {
       id: Number(proposalId), action: 'VoteApprove', proposal: transferKind,
     }, {gas: GAS});
     assertSuccess(approveTx, 'act_proposal');

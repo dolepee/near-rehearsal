@@ -1,6 +1,6 @@
 {
   "schema": "near-rehearsal/pilot/sputnik-226-old-proposal/v1",
-  "status": "preparation-uncompiled",
+  "status": "native-rust-compiled; source-build-pending",
   "repo": "https://github.com/near-daos/sputnik-dao-contract",
   "pr": 226,
   "baseCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5",
@@ -90,5 +90,21 @@
       "nearSandboxUtils": "0.13.0"
     },
     "rule": "Do not edit Cargo.lock or silently force near-sdk 5.10.0."
+  },
+  "verification": {
+    "nativeRustHarness": {
+      "state": "compiled on owner review host",
+      "hostToolchain": "stable 1.96",
+      "wasmPass": false
+    },
+    "sourceWasm": {
+      "state": "base and candidate cargo-near 0.13.3 builds in metadata stage",
+      "wasmPass": false
+    }
+  },
+  "apiChecks": {
+    "parseNEAR": "returns decimal string; normalize to BigInt for initialBalance, attachedDeposit and accounting",
+    "viewCodeRaw": "returns base64 string; use viewCode() or Buffer.from(raw, \"base64\")",
+    "proposalSigner": "add_proposal and act_proposal sign as the policy account root; update remains a DAO self-call"
   }
 }
