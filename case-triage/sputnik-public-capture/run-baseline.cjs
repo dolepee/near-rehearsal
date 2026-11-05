@@ -67,25 +67,38 @@ async function finalStatus(worker, tx, senderAccountId) {
   throw new Error(`transaction ${hash} did not reach FINAL: ${JSON.stringify(last)}`);
 }
 function summarizeTx(tx, status) {
-  const outcome = status?.transaction_outcome?.outcome;
+  const txOutcome = status?.transaction_outcome;
+  const outcome = txOutcome?.outcome;
+  const receipts = (status?.receipts_outcome || []).map((r) => ({
+    id: r.id,
+    executorId: r.outcome?.executor_id ?? null,
+    gasBurntUnits: r.outcome?.gas_burnt?.toString() ?? null,
+    tokensBurntYocto: r.outcome?.tokens_burnt?.toString() ?? null,
+    status: r.outcome?.status ?? null,
+    logs: r.outcome?.logs ?? [],
+  }));
+  const txTokens = BigInt(outcome?.tokens_burnt ?? 0);
+  const receiptTokens = receipts.reduce((n, r) => n + BigInt(r.tokensBurntYocto ?? 0), 0n);
   return {
     succeeded: tx?.succeeded === true,
     failed: tx?.failed === true,
     failure: tx?.Failure ?? null,
     transactionHash: tx?.transactionReceipt?.hash ?? null,
     finalExecutionStatus: status?.final_execution_status ?? null,
+    transaction: {
+      signerId: status?.transaction?.signer_id ?? null,
+      receiverId: status?.transaction?.receiver_id ?? null,
+      actions: status?.transaction?.actions ?? [],
+      transactionOutcomeBlockHash: txOutcome?.block_hash ?? null,
+    },
+    receiptIds: outcome?.receipt_ids ?? [],
     gasBurntUnits: outcome?.gas_burnt?.toString() ?? null,
-    tokensBurntYocto: outcome?.tokens_burnt?.toString() ?? null,
-    receipts: (status?.receipts_outcome || []).map((r) => ({
-      id: r.id,
-      executorId: r.outcome?.executor_id ?? null,
-      gasBurntUnits: r.outcome?.gas_burnt?.toString() ?? null,
-      tokensBurntYocto: r.outcome?.tokens_burnt?.toString() ?? null,
-      status: r.outcome?.status ?? null,
-      logs: r.outcome?.logs ?? [],
-    })),
+    transactionOutcomeTokensBurntYocto: txTokens.toString(),
+    receiptTokensBurntYocto: receiptTokens.toString(),
+    totalTokensBurntYocto: (txTokens + receiptTokens).toString(),
+    receipts,
     transactionOutcomeStatus: outcome?.status ?? null,
-    logs: status?.transaction_outcome?.outcome?.logs ?? tx?.logs ?? [],
+    logs: outcome?.logs ?? tx?.logs ?? [],
     receiptFailures: tx?.receiptFailures ?? [],
     receiptFailureMessages: tx?.receiptFailureMessages ?? [],
   };
@@ -229,7 +242,9 @@ async function main() {
         contractDeltaYocto: (BigInt(contractAfter.amount) - BigInt(contractBefore.amount)).toString(),
         actorDeltaYocto: (BigInt(actorAfter.amount) - BigInt(actorBefore.amount)).toString(),
         gasBurntUnits: txStatus?.transaction_outcome?.outcome?.gas_burnt?.toString() ?? null,
-        tokensBurntYocto: txStatus?.transaction_outcome?.outcome?.tokens_burnt?.toString() ?? null,
+        transactionOutcomeTokensBurntYocto: txStatus?.transaction_outcome?.outcome?.tokens_burnt?.toString() ?? null,
+        receiptTokensBurntYocto: summarizeTx(tx, txStatus).receiptTokensBurntYocto,
+        totalTokensBurntYocto: summarizeTx(tx, txStatus).totalTokensBurntYocto,
       },
     };
     result.checks.baselineSucceeded = tx.succeeded === true && tx.failed === false && txStatus?.transaction_outcome?.outcome?.status !== undefined;

@@ -45,7 +45,8 @@ if (baseline.source !== capture.sourceAccount) fail('baseline source does not ma
 if (!same(baseline.block, capture.block)) fail('baseline block does not match capture');
 if (!same(baseline.captureHashes, { code: capture.code.hash, state: capture.state.hash, codeSha256: capture.code.sha256 })) fail('capture hash binding mismatch');
 if (baseline.execution?.runtime?.version !== '2.6.2') fail('sandbox runtime is not 2.6.2');
-if (!baseline.execution?.localBlock?.height === undefined) fail('local block missing');
+if (baseline.execution?.localBlock?.height === undefined) fail('local block height missing');
+if (!baseline.execution?.localBlock?.hash) fail('local block hash missing');
 asString(baseline.execution.localBlock.timestamp, 'local block timestamp');
 if (baseline.import?.codeHash !== capture.code.hash) fail('import code hash mismatch');
 if (baseline.import?.stateHash !== capture.state.hash) fail('import state hash mismatch');
@@ -57,15 +58,29 @@ if (baseline.actor?.publicKey !== baseline.actor?.keyStorePublicKey) fail('actor
 if (!baseline.actor?.accessKeyView?.block_hash || baseline.actor?.accessKeyView?.block_height === undefined) fail('finalized actor access-key view is missing block context');
 if (baseline.actor?.accessKeyView?.permission !== 'FullAccess') fail('actor access key is not full access');
 
-function tx(t, expected, label) {
-  required(t, ['transactionHash', 'finalExecutionStatus', 'receipts', 'transactionOutcomeStatus', 'succeeded', 'failed'], label);
+const recognizedStatus = (s) => s && ['SuccessValue', 'SuccessReceiptId', 'Failure'].some((k) => Object.prototype.hasOwnProperty.call(s, k));
+function tx(t, expected, label, signerId) {
+  required(t, ['transactionHash', 'finalExecutionStatus', 'transaction', 'receiptIds', 'receipts', 'transactionOutcomeStatus', 'succeeded', 'failed', 'gasBurntUnits', 'transactionOutcomeTokensBurntYocto', 'receiptTokensBurntYocto', 'totalTokensBurntYocto'], label);
   asString(t.transactionHash, `${label}.transactionHash`);
   if (t.finalExecutionStatus !== 'FINAL') fail(`${label} is not FINAL`);
+  required(t.transaction, ['signerId', 'receiverId', 'actions'], `${label}.transaction`);
+  asString(t.transaction.signerId, `${label}.transaction.signerId`);
+  asString(t.transaction.receiverId, `${label}.transaction.receiverId`);
+  if (t.transaction.receiverId !== capture.sourceAccount) fail(`${label} receiver is not the captured contract`);
+  if (signerId && t.transaction.signerId !== signerId) fail(`${label} signer mismatch`);
+  if (!Array.isArray(t.transaction.actions) || t.transaction.actions.length === 0) fail(`${label} has no transaction actions`);
+  if (!Array.isArray(t.receiptIds) || t.receiptIds.length === 0) fail(`${label} has no transaction outcome receipt ids`);
   if (!Array.isArray(t.receipts) || t.receipts.length === 0) fail(`${label} has no child receipts`);
-  if (t.transactionOutcomeStatus == null) fail(`${label} has no transaction outcome status`);
+  if (!recognizedStatus(t.transactionOutcomeStatus)) fail(`${label} has no recognized transaction outcome status`);
+  const allowedExecutors = new Set([capture.sourceAccount, capture.proposal.proposer, t.transaction.signerId, t.transaction.receiverId]);
   for (const r of t.receipts) {
-    if (!r.status) fail(`${label} child receipt has no status`);
+    if (!r.id) fail(`${label} child receipt has no id`);
+    if (!recognizedStatus(r.status)) fail(`${label} child receipt has no recognized status`);
+    if (!allowedExecutors.has(r.executorId)) fail(`${label} receipt executor is not bound: ${r.executorId}`);
   }
+  if (!t.receiptIds.some((id) => t.receipts.some((r) => r.id === id))) fail(`${label} receipt graph is not closed`);
+  if (!t.receipts.some((r) => r.executorId === capture.sourceAccount)) fail(`${label} has no contract execution receipt`);
+  if (!t.receipts.some((r) => r.executorId === t.transaction.signerId || r.executorId === capture.proposal.proposer)) fail(`${label} has no actor execution receipt`);
   if (expected === 'success') {
     if (t.succeeded !== true || t.failed !== false) fail(`${label} did not succeed`);
     if (t.failure) fail(`${label} carries a failure`);
@@ -75,12 +90,15 @@ function tx(t, expected, label) {
     if (!t.failure) fail(`${label} has no failure evidence`);
     if (!t.receipts.some((r) => r.status?.Failure)) fail(`${label} has no failed child receipt`);
   }
-  asString(t.tokensBurntYocto, `${label}.tokensBurntYocto`);
+  asYocto(t.transactionOutcomeTokensBurntYocto, `${label}.transactionOutcomeTokensBurntYocto`);
+  asYocto(t.receiptTokensBurntYocto, `${label}.receiptTokensBurntYocto`);
+  asYocto(t.totalTokensBurntYocto, `${label}.totalTokensBurntYocto`);
+  if (BigInt(t.transactionOutcomeTokensBurntYocto) + BigInt(t.receiptTokensBurntYocto) !== BigInt(t.totalTokensBurntYocto)) fail(`${label} token-burn total contradicts components`);
   asString(t.gasBurntUnits, `${label}.gasBurntUnits`);
 }
-tx(baseline.baseline?.tx, 'success', 'baseline.tx');
-tx(baseline.retry?.tx, 'failure', 'retry.tx');
-tx(baseline.unauthorized?.tx, 'failure', 'unauthorized.tx');
+tx(baseline.baseline?.tx, 'success', 'baseline.tx', baseline.actor?.account);
+tx(baseline.retry?.tx, 'failure', 'retry.tx', baseline.actor?.account);
+tx(baseline.unauthorized?.tx, 'failure', 'unauthorized.tx', null);
 
 const b = baseline.baseline;
 required(b, ['balances', 'payout', 'proposalAfter', 'stateHashAfter'], 'baseline.baseline');
@@ -88,7 +106,9 @@ for (const k of ['contractBefore', 'contractAfter', 'actorBefore', 'actorAfter']
 asYocto(b.payout?.contractDeltaYocto, 'payout.contractDeltaYocto');
 asYocto(b.payout?.actorDeltaYocto, 'payout.actorDeltaYocto');
 asYocto(b.payout?.declaredBondYocto, 'payout.declaredBondYocto');
-asYocto(b.payout?.tokensBurntYocto, 'payout.tokensBurntYocto');
+asYocto(b.payout?.transactionOutcomeTokensBurntYocto, 'payout.transactionOutcomeTokensBurntYocto');
+asYocto(b.payout?.receiptTokensBurntYocto, 'payout.receiptTokensBurntYocto');
+asYocto(b.payout?.totalTokensBurntYocto, 'payout.totalTokensBurntYocto');
 if (b.payout.recipient !== capture.proposal.proposer) fail('payout recipient mismatch');
 if (b.payout.declaredBondYocto !== capture.policy.proposal_bond) fail('declared bond mismatch');
 const contractDelta = BigInt(b.balances.contractAfter) - BigInt(b.balances.contractBefore);

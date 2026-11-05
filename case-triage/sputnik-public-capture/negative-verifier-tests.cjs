@@ -31,6 +31,10 @@ const cases = [
   run('changed-source-and-block', (b) => { b.source = 'other.near'; b.block.hash = '11111111111111111111111111111111'; }),
   run('contradictory-actor-balance', (b) => { b.baseline.balances.actorAfter = b.baseline.balances.actorBefore; }),
   run('missing-finality', (b) => { b.baseline.tx.finalExecutionStatus = 'NOT_FINAL'; }),
+  run('empty-receipt-status', (b) => { b.baseline.tx.receipts[0].status = {}; }),
+  run('unbound-receipt-executor', (b) => { b.baseline.tx.receipts[0].executorId = 'other.testnet'; }),
+  run('missing-local-block-height', (b) => { delete b.execution.localBlock.height; }),
+  run('missing-transaction-graph', (b) => { delete b.baseline.tx.transaction; delete b.baseline.tx.receiptIds; }),
 ];
 const result = { schema: 'near-rehearsal/public-verifier-negative-tests/v1', allRejected: cases.every((c) => c.rejected), cases };
 fs.writeFileSync(path.join(out, 'negative-verifier-tests.json'), JSON.stringify(result, null, 2) + '\n');

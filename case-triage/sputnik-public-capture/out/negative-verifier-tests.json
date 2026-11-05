@@ -43,6 +43,30 @@
       "rejected": true,
       "exit": 1,
       "stderr": "Node.js v24.22.1"
+    },
+    {
+      "name": "empty-receipt-status",
+      "rejected": true,
+      "exit": 1,
+      "stderr": "Node.js v24.22.1"
+    },
+    {
+      "name": "unbound-receipt-executor",
+      "rejected": true,
+      "exit": 1,
+      "stderr": "Node.js v24.22.1"
+    },
+    {
+      "name": "missing-local-block-height",
+      "rejected": true,
+      "exit": 1,
+      "stderr": "Node.js v24.22.1"
+    },
+    {
+      "name": "missing-transaction-graph",
+      "rejected": true,
+      "exit": 1,
+      "stderr": "Node.js v24.22.1"
     }
   ]
 }

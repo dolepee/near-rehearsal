@@ -1,0 +1,51 @@
+{
+  "schema": "near-rehearsal/local-verifier-negative-tests/v1",
+  "allRejected": true,
+  "cases": [
+    {
+      "name": "baseline-operation-failed",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "candidate-code-mismatch",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "corrected-not-direct",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "empty-receipt-status",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "unbound-executor",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "initial-state-mismatch",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "recovery-bad-operation-paid",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "missing-local-block",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "token-total-mismatch",
+      "rejected": true,
+      "exit": 1
+    }
+  ]
+}

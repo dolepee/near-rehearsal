@@ -52,8 +52,8 @@
   },
   "localBlock": {
     "height": 0,
-    "hash": "Gqpq28BNk5P2rWtDbvZkb2xavbkYztUZsVYJi6JHHkFg",
-    "timestamp": "1793886768194715357"
+    "hash": "6juVYN8ZjxYqHmSi6EvVReMnQipapdjF5brhEG8wWDMR",
+    "timestamp": "1793888508277870811"
   },
   "capturedBlockContext": {
     "height": 276345877,
@@ -75,10 +75,10 @@
     "capturedAmountYocto": "200765607938634197700000000",
     "localFundingYocto": "60000000000000000000000000",
     "capturedBalancePreserved": false,
-    "publicKey": "ed25519:6ia3Z7oMX5yitTWSEALsynXjZifRxPk66ve3aqXtdxSY",
-    "keyStorePublicKey": "ed25519:6ia3Z7oMX5yitTWSEALsynXjZifRxPk66ve3aqXtdxSY",
+    "publicKey": "ed25519:E3xn26Y2fciFzuCz1Q1TBFmYo38b3AX1abtqVr4H5cHb",
+    "keyStorePublicKey": "ed25519:E3xn26Y2fciFzuCz1Q1TBFmYo38b3AX1abtqVr4H5cHb",
     "accessKeyView": {
-      "block_hash": "AxeKS96XwzyVcf3xV81n2W8snuinCg8bq8m8faw2GiZV",
+      "block_hash": "4otSX4boLjorQvEMfi4bUeg8Zz895Zo4gvLSjqNvHwNf",
       "block_height": 9,
       "nonce": 0,
       "permission": "FullAccess"
@@ -92,7 +92,9 @@
     "contractDeltaYocto": "-999948497334229800000000",
     "actorDeltaYocto": "999683608774768300000000",
     "gasBurntUnits": "334667012970",
-    "tokensBurntYocto": "33466701297000000000"
+    "transactionOutcomeTokensBurntYocto": "33466701297000000000",
+    "receiptTokensBurntYocto": "282924523934700000000",
+    "totalTokensBurntYocto": "316391225231700000000"
   },
   "retry": {
     "failed": true,

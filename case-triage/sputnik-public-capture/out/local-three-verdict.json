@@ -1,0 +1,137 @@
+{
+  "schema": "near-rehearsal/local-sputnik-three-branch-verdict/v1",
+  "verdict": "local-three-branch-verified",
+  "frozenBundle": {
+    "stateHash": "232f1d92e33a7e9d148f168aa1441738e54b2465cbc00d5c15b34a999f057742",
+    "codeHash": "F5SMJ8vKYwaH7Y8mYLmqxjfdNv3haZE82isFpQHnXFPC",
+    "contractBalance": "100997020950425382000000000",
+    "actorBalance": "98999771124799122700000000",
+    "recipientBalance": "10000000000000000000000000",
+    "identities": {
+      "contract": "dao.test.near",
+      "proposer": "proposer.test.near",
+      "recipient": "recipient.test.near",
+      "factory": "test.near",
+      "proposerPublicKey": "ed25519:6vqcsAaN12unWW4uksRhTxFDreMC2C78x7FbdhoMw2Gs"
+    },
+    "context": {
+      "frozenAtLocalBlock": {
+        "height": 40,
+        "hash": "YieMnvucRnBPpxdrLuD9pc4V8ggzayYAAESzYyAZc8S",
+        "timestamp": "1793889472438713543"
+      },
+      "note": "Proposal submission timestamp is frozen in raw state. Fresh branch local block timestamps differ; this is recorded, not treated as the inherited timestamp."
+    }
+  },
+  "artifacts": {
+    "base": {
+      "sha256": "d1269a7be654211172cde60bccfa05a76996a3163b55abaeb58737f8661aaebf",
+      "hash": "F5SMJ8vKYwaH7Y8mYLmqxjfdNv3haZE82isFpQHnXFPC"
+    },
+    "candidate": {
+      "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
+      "hash": "aNSiys9LXwH1MQ1S3frZFkmFiqNkjJiiouwapLo8P4N"
+    },
+    "seededBad": {
+      "sha256": "5005fe46d62e3f6cf1dd0c0b05a60343155a4fa9c6990d0428746f3dae0689c0",
+      "hash": "6PNv9RhppLX2PzPpZLypey91WzxVtb6QRsyXgpL7sb3u",
+      "label": "SEEDED bad candidate: act_proposal replaced with unreachable; migration remains real candidate migration"
+    }
+  },
+  "primaryComparison": {
+    "from": "frozen old state",
+    "baseline": "preserved",
+    "corrected": "preserved",
+    "sameStartingState": true
+  },
+  "comparison": {
+    "baseline": "preserved",
+    "candidate": "preserved",
+    "corrected": "preserved",
+    "recoveryExperiment": "improved",
+    "sameStartingState": true
+  },
+  "branches": {
+    "baseline": {
+      "status": "preserved",
+      "checks": {
+        "initialState": "232f1d92e33a7e9d148f168aa1441738e54b2465cbc00d5c15b34a999f057742",
+        "initialFacts": "37cc084e1601703f6217d566389b508acaa7c426c4a5a7ccce8f2b5d28c7bf04",
+        "operationSucceeded": true,
+        "payoutExactlyBond": true,
+        "retryFailed": true,
+        "retryDidNotPay": true,
+        "stateChanged": true
+      },
+      "localBlock": {
+        "height": 28,
+        "hash": "92Peiy2E2k5uod6fRASfgpNQxuJYxrPEVvWtMFfjgcLt",
+        "timestamp": "1793890390143701635"
+      }
+    },
+    "candidate": {
+      "status": "preserved",
+      "checks": {
+        "initialState": "232f1d92e33a7e9d148f168aa1441738e54b2465cbc00d5c15b34a999f057742",
+        "initialFacts": "37cc084e1601703f6217d566389b508acaa7c426c4a5a7ccce8f2b5d28c7bf04",
+        "upgradeSucceeded": true,
+        "candidateCode": true,
+        "operationSucceeded": true,
+        "payoutExactlyBond": true,
+        "retryFailed": true,
+        "retryDidNotPay": true
+      },
+      "localBlock": {
+        "height": 29,
+        "hash": "EhygJVchTmsfK2AuKGLdcC9xtrGVQCykyLVPoowUV4Ao",
+        "timestamp": "1793890474528864070"
+      }
+    },
+    "corrected": {
+      "status": "preserved",
+      "checks": {
+        "initialState": "232f1d92e33a7e9d148f168aa1441738e54b2465cbc00d5c15b34a999f057742",
+        "initialFacts": "37cc084e1601703f6217d566389b508acaa7c426c4a5a7ccce8f2b5d28c7bf04",
+        "upgradeSucceeded": true,
+        "correctedCode": true,
+        "operationSucceeded": true,
+        "payoutExactlyBond": true,
+        "retryFailed": true,
+        "retryDidNotPay": true
+      },
+      "localBlock": {
+        "height": 28,
+        "hash": "8EAezdWx6rCD8LU66Y568vApoE2JtzgmujWp2hkJi512",
+        "timestamp": "1793890632291297994"
+      }
+    },
+    "recoveryExperiment": {
+      "status": "improved",
+      "checks": {
+        "initialState": "232f1d92e33a7e9d148f168aa1441738e54b2465cbc00d5c15b34a999f057742",
+        "initialFacts": "37cc084e1601703f6217d566389b508acaa7c426c4a5a7ccce8f2b5d28c7bf04",
+        "seededBadUpgradeSucceeded": true,
+        "seededBadCode": true,
+        "seededBadOperationFailed": true,
+        "seededBadDidNotPay": true,
+        "correctionSucceeded": true,
+        "correctedOperationSucceeded": true,
+        "correctedPayoutExactlyBond": true,
+        "correctedRetryFailed": true,
+        "correctedRetryDidNotPay": true
+      },
+      "localBlock": {
+        "height": 29,
+        "hash": "k498iP11geGWFY9pZnhfzv1uzrqGwC9Hqrv6F3CHEUs",
+        "timestamp": "1793890790336270771"
+      }
+    }
+  },
+  "limitations": [
+    "Local Sandbox only; no public write, production key, deploy, merge or recovery.",
+    "The fixture is a local source-built Sputnik old proposal on a configured factory route, not the public captured DAO and not a production upgrade.",
+    "All branches import the same frozen raw code/state/account bundle; local block timestamps differ and are recorded.",
+    "The seeded bad candidate is a labelled execution fixture, not a historical release: its act_proposal body is unreachable.",
+    "Payout is exactly 1 NEAR to the frozen recipient; retry and unauthorized/negative paths are recorded separately."
+  ]
+}
