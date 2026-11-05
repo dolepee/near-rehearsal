@@ -6,19 +6,20 @@ use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::serde_json::{json, Value};
 use near_workspaces::network::Sandbox;
 use near_workspaces::result::ExecutionFinalResult;
-use near_workspaces::types::{Finality, NearToken};
+use near_workspaces::types::NearToken;
 use near_workspaces::Worker;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::process::Command;
+use std::time::{Duration, Instant};
 use sputnikdao2::{
     Action, Config, ProposalInput, ProposalKind, VersionedPolicy,
 };
 
 fn read_wasm(var: &str) -> Vec<u8> {
     let path = std::env::var(var)
-        .unwrap_or_else(|_| panic!("{var} must point to a source-built WASM"));
-    std::fs::read(&path).unwrap_or_else(|error| panic!("cannot read {path}: {error}"))
+        .unwrap_or_else(|_| panic!("{} must point to a source-built WASM", var));
+    std::fs::read(&path).unwrap_or_else(|error| panic!("cannot read {}: {}", path, error))
 }
 
 fn evidence_path() -> PathBuf {
@@ -37,9 +38,37 @@ fn append_stage(path: &Path, stage_name: &str, execution: &ExecutionFinalResult)
     let record = json!({
         "schema": "near-rehearsal/pilot/sputnik-226-rust-evidence/v1",
         "stage": stage_name,
-        "execution": format!("{execution:#?}"),
+        "execution": format!("{:#?}", execution),
     });
     writeln!(file, "{record}").expect("cannot write evidence");
+}
+
+fn loopback_rpc(worker: &Worker<Sandbox>) -> Result<String, Box<dyn std::error::Error>> {
+    let rpc = worker.rpc_addr();
+    let loopback = rpc.starts_with("http://127.0.0.1:")
+        || rpc.starts_with("http://localhost:")
+        || rpc.starts_with("http://[::1]:");
+    if !loopback {
+        return Err(format!("refusing non-loopback execution RPC: {}", rpc).into());
+    }
+    Ok(rpc)
+}
+
+fn final_block_height(rpc: &str) -> Result<u64, Box<dyn std::error::Error>> {
+    // near-workspaces 0.17 Query<ViewBlock> has no finality() because ViewBlock
+    // uses RpcBlockRequest, not RpcQueryRequest. Use the local node's plain
+    // block RPC directly; this is still a finalized-block query.
+    let body = r#"{"jsonrpc":"2.0","id":"pilot-finality","method":"block","params":{"finality":"final"}}"#;
+    let output = Command::new("curl")
+        .args(["-sS", "--max-time", "2", "-H", "content-type: application/json", "--data", body, rpc])
+        .output()?;
+    if !output.status.success() {
+        return Err(format!("final block RPC failed via curl: {}", output.status).into());
+    }
+    let response: Value = near_sdk::serde_json::from_slice(&output.stdout)?;
+    response["result"]["header"]["height"]
+        .as_u64()
+        .ok_or_else(|| "final block RPC response has no result.header.height".into())
 }
 
 async fn wait_finalized(
@@ -51,14 +80,15 @@ async fn wait_finalized(
         let block = worker.view_block().block_hash(outcome.block_hash).await?;
         target = target.max(block.height());
     }
-    for _ in 0..120 {
-        let finalized = worker.view_block().finality(Finality::Final).await?;
-        if finalized.height() >= target {
+    let rpc = loopback_rpc(worker)?;
+    let started = Instant::now();
+    while started.elapsed() < Duration::from_secs(30) {
+        if final_block_height(&rpc)? >= target {
             return Ok(());
         }
         tokio::time::sleep(Duration::from_millis(250)).await;
     }
-    Err(format!("finality barrier timed out; target block {target}").into())
+    Err(format!("finality barrier timed out; target block {}", target).into())
 }
 
 #[tokio::test]
@@ -145,15 +175,15 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         .args_json(json!({"id": proposal_id}))
         .await?
         .json()?;
-    assert_eq!(before["status"], "InProgress", "old proposal status: {before}");
+    assert_eq!(before["status"], "InProgress", "old proposal status: {}", before);
     assert_eq!(
         before["kind"]["Transfer"]["receiver_id"],
         recipient.id().as_str(),
-        "old proposal kind: {before}"
+        "old proposal kind: {}", before
     );
     assert!(
         before.get("last_actions_log").is_none(),
-        "old schema unexpectedly has last_actions_log: {before}"
+        "old schema unexpectedly has last_actions_log: {}", before
     );
 
     let recipient_before = recipient.view_account().await?.balance;
@@ -179,7 +209,7 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         .args_json(json!({"id": proposal_id}))
         .await?
         .json()?;
-    assert_eq!(after["status"], "InProgress", "post-upgrade proposal status: {after}");
+    assert_eq!(after["status"], "InProgress", "post-upgrade proposal status: {}", after);
 
     let config_after: Value = dao.view("get_config").await?.json()?;
     assert_eq!(config_after, config_before, "get_config changed across upgrade");
@@ -203,11 +233,11 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         .args_json(json!({"id": proposal_id}))
         .await?
         .json()?;
-    assert_eq!(final_proposal["status"], "Approved", "proposal was not approved: {final_proposal}");
+    assert_eq!(final_proposal["status"], "Approved", "proposal was not approved: {}", final_proposal);
     assert_eq!(
         final_proposal["votes"][root.id().as_str()],
         "Approve",
-        "root vote did not persist: {final_proposal}"
+        "root vote did not persist: {}", final_proposal
     );
 
     let recipient_after = recipient.view_account().await?.balance;

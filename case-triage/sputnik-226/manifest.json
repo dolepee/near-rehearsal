@@ -85,10 +85,10 @@
   "blockers": [
     "No Rust toolchain on the current triage host",
     "Source-built base/candidate hashes still need to be recorded in this manifest; owner has the artifacts",
-    "Full harness pass pending rerun after the configured-factory fixture correction",
     "Docker absent: reproducible-wasm cannot be produced; no reproducibility claim",
     "near-workspaces 0.17.0 sandbox-utils 0.13.0 runtime wiring needs review-machine confirmation",
-    "Maintainer acceptance pending; no outreach from triage"
+    "Maintainer acceptance pending; no outreach from triage",
+    "Native comparator finality helper needs rerun after the Query<ViewBlock> API fix; no full native pass claimed"
   ],
   "dependencies": {
     "declared": {
@@ -108,7 +108,8 @@
     "nativeRustHarness": {
       "state": "compiled on owner review host",
       "hostToolchain": "stable 1.96",
-      "wasmPass": false
+      "wasmPass": false,
+      "finalityApi": "near-workspaces 0.17 Query<ViewBlock> has no finality(); local plain block RPC via curl with finality=final, loopback-only, 30s bound"
     },
     "sourceWasm": {
       "state": "built with official cargo-near 0.13.3, --locked --no-abi, required wasm-opt post-step; loaded on Sandbox 2.6.2",
@@ -119,6 +120,12 @@
       "stage": "update",
       "error": "Accessed invalid promise result index: 0",
       "cause": "direct DAO-to-DAO call entered the callback branch; replaced with root configured-factory call"
+    },
+    "nodeHarness": {
+      "state": "owner-run pass at f38c7b9 with official optimized historical base/candidate artifacts",
+      "evidence": "preserved locally by owner",
+      "governanceFlowClaim": false,
+      "customerPreferenceClaim": false
     }
   },
   "apiChecks": {

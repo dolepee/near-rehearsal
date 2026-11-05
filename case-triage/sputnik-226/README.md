@@ -129,7 +129,7 @@ export EVIDENCE_PATH="$PWD/pilot/evidence.json"
 node case-triage/sputnik-226/node-harness.cjs
 ```
 
-It waits, with a bounded 30-second barrier, for the finalized block to reach the highest transaction/receipt block before each final view. It persists partial or failed evidence with the failing stage and every completed raw transaction/receipt result; it only marks the run passed after the config, code, proposal, vote and recipient-balance assertions pass.
+Rust 0.17 `Query<ViewBlock>` has no `.finality()` because `ViewBlock` uses `RpcBlockRequest`; the harness therefore reads the local node's plain `block` RPC with `finality: "final"` through `curl`, after a loopback-only check. The loop is bounded to 30 seconds. Node keeps its existing provider barrier. Both wait for the finalized block to reach the highest transaction/receipt block before each final view. It persists partial or failed evidence with the failing stage and every completed raw transaction/receipt result; it only marks the run passed after the config, code, proposal, vote and recipient-balance assertions pass.
 
 ## Comparator
 
