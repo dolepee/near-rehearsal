@@ -6,8 +6,9 @@
   "block": {
     "height": 276345877,
     "hash": "HVF4oi1E1NBPdjdDY8bYHQJXdre6ZpVzvqZucFfhXfwj",
-    "timestamp": 1793884499674135800,
-    "epochId": "HbM6N16QDpBgam1mxFQNjDX7HdWhcTz5HxewWgYgjcHk"
+    "timestamp": "1793884499674135814",
+    "epochId": "HbM6N16QDpBgam1mxFQNjDX7HdWhcTz5HxewWgYgjcHk",
+    "timestampNanosec": "1793884499674135814"
   },
   "account": {
     "amount": "7000395442672319400000000",

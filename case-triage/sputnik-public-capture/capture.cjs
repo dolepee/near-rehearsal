@@ -83,7 +83,7 @@ async function capture() {
     sourceAccount: SOURCE,
     network: 'testnet',
     capturedAt: new Date().toISOString(),
-    block: { height, hash, timestamp: block.header.timestamp, epochId: block.header.epoch_id },
+    block: { height, hash, timestamp: String(block.header.timestamp_nanosec ?? block.header.timestamp), timestampNanosec: String(block.header.timestamp_nanosec ?? block.header.timestamp), epochId: block.header.epoch_id },
     account,
     code: { hash: hashContract(code), sha256: sha256(code), bytes: code.length, base64: code.toString('base64') },
     state: { hash: stateHash(stateItems), bytes: stateBytes, count: stateItems.length, items: stateItems },

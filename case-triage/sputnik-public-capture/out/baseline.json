@@ -1,11 +1,12 @@
 {
-  "schema": "near-rehearsal/public-capture-baseline/v1",
+  "schema": "near-rehearsal/public-capture-baseline/v2",
   "source": "aya.sputnikv2.testnet",
   "block": {
     "height": 276345877,
     "hash": "HVF4oi1E1NBPdjdDY8bYHQJXdre6ZpVzvqZucFfhXfwj",
-    "timestamp": 1793884499674135800,
-    "epochId": "HbM6N16QDpBgam1mxFQNjDX7HdWhcTz5HxewWgYgjcHk"
+    "timestamp": "1793884499674135814",
+    "epochId": "HbM6N16QDpBgam1mxFQNjDX7HdWhcTz5HxewWgYgjcHk",
+    "timestampNanosec": "1793884499674135814"
   },
   "captureHashes": {
     "code": "8RMeZ5cXDap6TENxaJKtigRYf3n139iHmTRe8ZUNey6N",
@@ -23,7 +24,7 @@
   },
   "evidence": {},
   "execution": {
-    "rpc": "http://127.0.0.1:19687",
+    "rpc": "http://127.0.0.1:15226",
     "runtime": {
       "version": "2.6.2",
       "build": "2.6.2",
@@ -33,13 +34,13 @@
     },
     "localBlock": {
       "height": 0,
-      "hash": "8znibXChsmLJvprwqDLxdn3QTyk1KjLZktpFsPcmGG4S",
-      "timestamp": 1793885968103269600
+      "hash": "Gqpq28BNk5P2rWtDbvZkb2xavbkYztUZsVYJi6JHHkFg",
+      "timestamp": "1793886768194715357"
     },
     "capturedBlock": {
       "height": 276345877,
       "hash": "HVF4oi1E1NBPdjdDY8bYHQJXdre6ZpVzvqZucFfhXfwj",
-      "timestamp": 1793884499674135800
+      "timestamp": "1793884499674135814"
     }
   },
   "import": {
@@ -54,9 +55,17 @@
   },
   "actor": {
     "account": "nima.testnet",
-    "capturedAmount": "200765607938634197700000000",
+    "capturedAmountYocto": "200765607938634197700000000",
     "localFundingYocto": "60000000000000000000000000",
     "capturedBalancePreserved": false,
+    "publicKey": "ed25519:6ia3Z7oMX5yitTWSEALsynXjZifRxPk66ve3aqXtdxSY",
+    "keyStorePublicKey": "ed25519:6ia3Z7oMX5yitTWSEALsynXjZifRxPk66ve3aqXtdxSY",
+    "accessKeyView": {
+      "block_hash": "AxeKS96XwzyVcf3xV81n2W8snuinCg8bq8m8faw2GiZV",
+      "block_height": 9,
+      "nonce": 0,
+      "permission": "FullAccess"
+    },
     "impersonation": "Local access key created for the captured proposer/council account; no production key used."
   },
   "views": {
@@ -129,7 +138,55 @@
       "succeeded": true,
       "failed": false,
       "failure": null,
-      "transactionHash": "9r1SLu9nqD4CZzpueq2JZ2VaS4d7jEsBnC317TKmgjft",
+      "transactionHash": "Cd154DNsv3d93rQf1ZBT81yJySdbqjB6YppRbDZLJ5BG",
+      "finalExecutionStatus": "FINAL",
+      "gasBurntUnits": "334667012970",
+      "tokensBurntYocto": "33466701297000000000",
+      "receipts": [
+        {
+          "id": "T6nFPmEhCNt2Md1NcqrFDx8meYS16no4UWVTFbjAUwf",
+          "executorId": "aya.sputnikv2.testnet",
+          "gasBurntUnits": "2606062676847",
+          "tokensBurntYocto": "260606267684700000000",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": []
+        },
+        {
+          "id": "7wvD6Ak5BnwUR3ZCToAavq8HAGz8UBpiAFkEKvsqyzTj",
+          "executorId": "nima.testnet",
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "22318256250000000000",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": []
+        },
+        {
+          "id": "9yHQpuGkqmguY93xTyvxEdBuaBtiNwce83aAPniDzd2a",
+          "executorId": "nima.testnet",
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": []
+        },
+        {
+          "id": "4gX7z1cGKd9t8WijEdbnprHBhupDRva8QLe9kKBSbtFL",
+          "executorId": "nima.testnet",
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": []
+        }
+      ],
+      "transactionOutcomeStatus": {
+        "SuccessReceiptId": "T6nFPmEhCNt2Md1NcqrFDx8meYS16no4UWVTFbjAUwf"
+      },
       "logs": [],
       "receiptFailures": [],
       "receiptFailureMessages": []
@@ -138,8 +195,7 @@
       "contractBefore": "7000395442672319400000000",
       "contractAfter": "6000446945338089600000000",
       "actorBefore": "60000000000000000000000000",
-      "actorAfter": "60999683608774768300000000",
-      "gasBurnt": "3610277377317"
+      "actorAfter": "60999683608774768300000000"
     },
     "proposalAfter": {
       "id": 0,
@@ -166,306 +222,166 @@
     "stateHashAfter": "7740b11c6348bf688ea785d1b01df014b649f2d37b56309992c2f7b5a337d4c8",
     "payout": {
       "recipient": "nima.testnet",
-      "declaredBond": "1000000000000000000000000",
+      "declaredBondYocto": "1000000000000000000000000",
       "contractDeltaYocto": "-999948497334229800000000",
       "actorDeltaYocto": "999683608774768300000000",
-      "gasBurntYocto": "3610277377317"
-    },
-    "txStatus": {
-      "final_execution_status": "FINAL",
-      "receipts_outcome": [
-        {
-          "block_hash": "3PgWsKgqK6vJv8mSNpFtuJdvTV5B8waoHEZXCjqeeqwY",
-          "id": "FbDedMWx8WrgJGHtgqNF6HUsCajcnnnpCxH1VNj4xgTV",
-          "outcome": {
-            "executor_id": "aya.sputnikv2.testnet",
-            "gas_burnt": 2606062676847,
-            "logs": [],
-            "metadata": {
-              "gas_profile": [
-                {
-                  "cost": "NEW_ACTION_RECEIPT",
-                  "cost_category": "ACTION_COST",
-                  "gas_used": "108059500000"
-                },
-                {
-                  "cost": "TRANSFER",
-                  "cost_category": "ACTION_COST",
-                  "gas_used": "115123062500"
-                },
-                {
-                  "cost": "BASE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "7148738997"
-                },
-                {
-                  "cost": "CONTRACT_LOADING_BASE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "35445963"
-                },
-                {
-                  "cost": "CONTRACT_LOADING_BYTES",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "511666915285"
-                },
-                {
-                  "cost": "READ_CACHED_TRIE_NODE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "13680000000"
-                },
-                {
-                  "cost": "READ_MEMORY_BASE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "26098632000"
-                },
-                {
-                  "cost": "READ_MEMORY_BYTE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "2018507823"
-                },
-                {
-                  "cost": "READ_REGISTER_BASE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "17620156302"
-                },
-                {
-                  "cost": "READ_REGISTER_BYTE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "161148870"
-                },
-                {
-                  "cost": "STORAGE_READ_BASE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "225427382996"
-                },
-                {
-                  "cost": "STORAGE_READ_KEY_BYTE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "990481056"
-                },
-                {
-                  "cost": "STORAGE_READ_VALUE_BYTE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "3910869788"
-                },
-                {
-                  "cost": "STORAGE_WRITE_BASE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "128393472000"
-                },
-                {
-                  "cost": "STORAGE_WRITE_EVICTED_BYTE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "14677609299"
-                },
-                {
-                  "cost": "STORAGE_WRITE_KEY_BYTE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "986760138"
-                },
-                {
-                  "cost": "STORAGE_WRITE_VALUE_BYTE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "14175472323"
-                },
-                {
-                  "cost": "TOUCHING_TRIE_NODE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "144917603334"
-                },
-                {
-                  "cost": "UTF8_DECODING_BASE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "3111779061"
-                },
-                {
-                  "cost": "UTF8_DECODING_BYTE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "3498965748"
-                },
-                {
-                  "cost": "WASM_INSTRUCTION",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "318647639508"
-                },
-                {
-                  "cost": "WRITE_MEMORY_BASE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "22430358888"
-                },
-                {
-                  "cost": "WRITE_MEMORY_BYTE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "4496947572"
-                },
-                {
-                  "cost": "WRITE_REGISTER_BASE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "22924179888"
-                },
-                {
-                  "cost": "WRITE_REGISTER_BYTE",
-                  "cost_category": "WASM_HOST_COST",
-                  "gas_used": "6553896336"
-                }
-              ],
-              "version": 3
-            },
-            "receipt_ids": [
-              "62ZM6AVfA4ReiHSFAwFWb5YpMQvdZZ2sPXUusoih176B",
-              "6QhZLqoQnLWT94eAavi1Cp9MQKByEBfNVNqYVBAEos2p"
-            ],
-            "status": {
-              "SuccessValue": ""
-            },
-            "tokens_burnt": "260606267684700000000"
-          },
-          "proof": []
-        },
-        {
-          "block_hash": "7FJMcyHRMLTYzsNHXGUAyLyMfZmKHWVtbqJk479TwTCx",
-          "id": "62ZM6AVfA4ReiHSFAwFWb5YpMQvdZZ2sPXUusoih176B",
-          "outcome": {
-            "executor_id": "nima.testnet",
-            "gas_burnt": 223182562500,
-            "logs": [],
-            "metadata": {
-              "gas_profile": [],
-              "version": 3
-            },
-            "receipt_ids": [
-              "G9HgRa6LCSBBZ5tP5ojgfCn8QzrftPhe4DymJzZ4hcN8"
-            ],
-            "status": {
-              "SuccessValue": ""
-            },
-            "tokens_burnt": "22318256250000000000"
-          },
-          "proof": [
-            {
-              "direction": "Right",
-              "hash": "99E5K4xn1VrgmU6toQbfVkJJvHEJtmsCG8rvcPJw2mHE"
-            }
-          ]
-        },
-        {
-          "block_hash": "2BtrJQiY5Vd3bUEkC4d62g49hgc5vHkquBru2213vCWi",
-          "id": "G9HgRa6LCSBBZ5tP5ojgfCn8QzrftPhe4DymJzZ4hcN8",
-          "outcome": {
-            "executor_id": "nima.testnet",
-            "gas_burnt": 223182562500,
-            "logs": [],
-            "metadata": {
-              "gas_profile": [],
-              "version": 3
-            },
-            "receipt_ids": [],
-            "status": {
-              "SuccessValue": ""
-            },
-            "tokens_burnt": "0"
-          },
-          "proof": []
-        },
-        {
-          "block_hash": "7FJMcyHRMLTYzsNHXGUAyLyMfZmKHWVtbqJk479TwTCx",
-          "id": "6QhZLqoQnLWT94eAavi1Cp9MQKByEBfNVNqYVBAEos2p",
-          "outcome": {
-            "executor_id": "nima.testnet",
-            "gas_burnt": 223182562500,
-            "logs": [],
-            "metadata": {
-              "gas_profile": [],
-              "version": 3
-            },
-            "receipt_ids": [],
-            "status": {
-              "SuccessValue": ""
-            },
-            "tokens_burnt": "0"
-          },
-          "proof": [
-            {
-              "direction": "Left",
-              "hash": "HFyu1HfoV1YirBpYdi1NR6rhzULdx5DCtQxR5rAcgUsA"
-            }
-          ]
-        }
-      ],
-      "status": {
-        "SuccessValue": ""
-      },
-      "transaction": {
-        "actions": [
-          {
-            "FunctionCall": {
-              "args": "eyJpZCI6MCwiYWN0aW9uIjoiRmluYWxpemUiLCJwcm9wb3NhbCI6eyJGdW5jdGlvbkNhbGwiOnsicmVjZWl2ZXJfaWQiOiJuaW1hLnRlc3RuZXQiLCJhY3Rpb25zIjpbeyJtZXRob2RfbmFtZSI6ImNyZWF0ZV90b2tlbiIsImFyZ3MiOiJleUpoY21keklqcDdJbTkzYm1WeVgybGtJam9pYm1sdFlTNTBaWE4wYm1WMElpd2lkRzkwWVd4ZmMzVndjR3g1SWpvaU5qWTJNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd0lpd2liV1YwWVdSaGRHRWlPbnNpYzNCbFl5STZJbVowTFRFdU1DNHdJaXdpYm1GdFpTSTZJalkyTmlJc0luTjViV0p2YkNJNklqWTJOaUlzSW1samIyNGlPaUpvZEhSd2N6b3ZMM0JpY3k1MGQybHRaeTVqYjIwdlkyRnlaRjlwYldjdk1UUXdNREV3TVRBNE9EWTVPVFl6TXpZMk5DOWllbUpvY0ROeGF6OW1iM0p0WVhROWFuQm5KbTVoYldVOWJXVmthWFZ0SWl3aVpHVmphVzFoYkhNaU9qWTJObjE5ZlE9PSIsImRlcG9zaXQiOiI1MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwiZ2FzIjoiMTUwMDAwMDAwMDAwMDAwIn1dfX0sIm1lbW8iOm51bGx9",
-              "deposit": "0",
-              "gas": 100000000000000,
-              "method_name": "act_proposal"
-            }
-          }
-        ],
-        "hash": "9r1SLu9nqD4CZzpueq2JZ2VaS4d7jEsBnC317TKmgjft",
-        "nonce": 1,
-        "priority_fee": 0,
-        "public_key": "ed25519:4fpfHNU2cUJ4RkpgAi2jTFmW2eaEt9UFNWoLtpWaZkGF",
-        "receiver_id": "aya.sputnikv2.testnet",
-        "signature": "ed25519:2if3rrRrVpnqEokUQPU6Sj3ia3FbzyZEtuNXa6ub7yVrsJNF9nHvcBk62ZMaevz5cosHhtm3XFtsTSg6ENWQGHU8",
-        "signer_id": "nima.testnet"
-      },
-      "transaction_outcome": {
-        "block_hash": "2kBXq6bDNPTuuWW1whdHFvCLJspyzeYxpWVWg2jQih3G",
-        "id": "9r1SLu9nqD4CZzpueq2JZ2VaS4d7jEsBnC317TKmgjft",
-        "outcome": {
-          "executor_id": "nima.testnet",
-          "gas_burnt": 334667012970,
-          "logs": [],
-          "metadata": {
-            "gas_profile": null,
-            "version": 1
-          },
-          "receipt_ids": [
-            "FbDedMWx8WrgJGHtgqNF6HUsCajcnnnpCxH1VNj4xgTV"
-          ],
-          "status": {
-            "SuccessReceiptId": "FbDedMWx8WrgJGHtgqNF6HUsCajcnnnpCxH1VNj4xgTV"
-          },
-          "tokens_burnt": "33466701297000000000"
-        },
-        "proof": []
-      }
+      "gasBurntUnits": "334667012970",
+      "tokensBurntYocto": "33466701297000000000"
     }
   },
   "retry": {
-    "failed": true,
-    "failure": {
-      "ActionError": {
-        "index": 0,
-        "kind": {
-          "FunctionCallError": {
-            "ExecutionError": "Smart contract panicked: panicked at 'assertion failed: `(left == right)`\n  left: `Expired`,\n right: `InProgress`: ERR_PROPOSAL_NOT_IN_PROGRESS', src/policy.rs:346:9"
+    "tx": {
+      "succeeded": false,
+      "failed": true,
+      "failure": {
+        "ActionError": {
+          "index": 0,
+          "kind": {
+            "FunctionCallError": {
+              "ExecutionError": "Smart contract panicked: panicked at 'assertion failed: `(left == right)`\n  left: `Expired`,\n right: `InProgress`: ERR_PROPOSAL_NOT_IN_PROGRESS', src/policy.rs:346:9"
+            }
           }
         }
-      }
+      },
+      "transactionHash": "Fzzt9F4WBdnrr6AnpceBwZZj7aycyEaG5GJYunUKgJiW",
+      "finalExecutionStatus": "FINAL",
+      "gasBurntUnits": "334667012970",
+      "tokensBurntYocto": "33466701297000000000",
+      "receipts": [
+        {
+          "id": "9ccwoqFLFjnu1NpBqayy2UyNojxk6qPGfrJayBJU62Nw",
+          "executorId": "aya.sputnikv2.testnet",
+          "gasBurntUnits": "1998485863329",
+          "tokensBurntYocto": "199848586332900000000",
+          "status": {
+            "Failure": {
+              "ActionError": {
+                "index": 0,
+                "kind": {
+                  "FunctionCallError": {
+                    "ExecutionError": "Smart contract panicked: panicked at 'assertion failed: `(left == right)`\n  left: `Expired`,\n right: `InProgress`: ERR_PROPOSAL_NOT_IN_PROGRESS', src/policy.rs:346:9"
+                  }
+                }
+              }
+            }
+          },
+          "logs": []
+        },
+        {
+          "id": "5o1j6bMRMM4nPpFwenbm6yHjfc5rFxDm6vS7KKVuY1Cr",
+          "executorId": "nima.testnet",
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": []
+        }
+      ],
+      "transactionOutcomeStatus": {
+        "SuccessReceiptId": "9ccwoqFLFjnu1NpBqayy2UyNojxk6qPGfrJayBJU62Nw"
+      },
+      "logs": [],
+      "receiptFailures": [
+        {
+          "ActionError": {
+            "index": 0,
+            "kind": {
+              "FunctionCallError": {
+                "ExecutionError": "Smart contract panicked: panicked at 'assertion failed: `(left == right)`\n  left: `Expired`,\n right: `InProgress`: ERR_PROPOSAL_NOT_IN_PROGRESS', src/policy.rs:346:9"
+              }
+            }
+          }
+        }
+      ],
+      "receiptFailureMessages": [
+        "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at 'assertion failed: `(left == right)`\\n  left: `Expired`,\\n right: `InProgress`: ERR_PROPOSAL_NOT_IN_PROGRESS', src/policy.rs:346:9\"}}}}"
+      ]
     },
-    "logs": [],
-    "stateUnchanged": true
+    "stateUnchanged": true,
+    "contractBefore": "6000446945338089600000000",
+    "contractAfter": "6000480220699454300000000",
+    "contractDeltaYocto": "33275361364700000000",
+    "actorDeltaYocto": "-233315287629900000000",
+    "stateHashBefore": "7740b11c6348bf688ea785d1b01df014b649f2d37b56309992c2f7b5a337d4c8",
+    "stateHashAfter": "7740b11c6348bf688ea785d1b01df014b649f2d37b56309992c2f7b5a337d4c8"
   },
   "unauthorized": {
-    "failed": true,
-    "failure": {
-      "ActionError": {
-        "index": 0,
-        "kind": {
-          "FunctionCallError": {
-            "ExecutionError": "Smart contract panicked: panicked at 'ERR_PERMISSION_DENIED', src/proposals.rs:447:9"
+    "tx": {
+      "succeeded": false,
+      "failed": true,
+      "failure": {
+        "ActionError": {
+          "index": 0,
+          "kind": {
+            "FunctionCallError": {
+              "ExecutionError": "Smart contract panicked: panicked at 'ERR_PERMISSION_DENIED', src/proposals.rs:447:9"
+            }
           }
         }
-      }
+      },
+      "transactionHash": "FNoaJ95iw8CtkXbtwNbaK5gSfW5HGsv74JGojWoLmjSZ",
+      "finalExecutionStatus": "FINAL",
+      "gasBurntUnits": "334667012970",
+      "tokensBurntYocto": "33466701297000000000",
+      "receipts": [
+        {
+          "id": "6uZwUzzUs6sxGmGSNE9cos2N36MAg66KENGtdhND2U2y",
+          "executorId": "aya.sputnikv2.testnet",
+          "gasBurntUnits": "1937205701103",
+          "tokensBurntYocto": "193720570110300000000",
+          "status": {
+            "Failure": {
+              "ActionError": {
+                "index": 0,
+                "kind": {
+                  "FunctionCallError": {
+                    "ExecutionError": "Smart contract panicked: panicked at 'ERR_PERMISSION_DENIED', src/proposals.rs:447:9"
+                  }
+                }
+              }
+            }
+          },
+          "logs": []
+        },
+        {
+          "id": "4DDeLfhAZDq59AVmxS1goqydpVBAfBq9QXCYEQvuaVvu",
+          "executorId": "intruder.test.near",
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": []
+        }
+      ],
+      "transactionOutcomeStatus": {
+        "SuccessReceiptId": "6uZwUzzUs6sxGmGSNE9cos2N36MAg66KENGtdhND2U2y"
+      },
+      "logs": [],
+      "receiptFailures": [
+        {
+          "ActionError": {
+            "index": 0,
+            "kind": {
+              "FunctionCallError": {
+                "ExecutionError": "Smart contract panicked: panicked at 'ERR_PERMISSION_DENIED', src/proposals.rs:447:9"
+              }
+            }
+          }
+        }
+      ],
+      "receiptFailureMessages": [
+        "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at 'ERR_PERMISSION_DENIED', src/proposals.rs:447:9\"}}}}"
+      ]
     },
-    "logs": [],
-    "stateUnchanged": true
+    "stateUnchanged": true,
+    "contractBefore": "6000480220699454300000000",
+    "contractAfter": "6000511657655952200000000",
+    "contractDeltaYocto": "31436956497900000000",
+    "proposerUnchanged": true,
+    "stateHashBefore": "7740b11c6348bf688ea785d1b01df014b649f2d37b56309992c2f7b5a337d4c8",
+    "stateHashAfter": "7740b11c6348bf688ea785d1b01df014b649f2d37b56309992c2f7b5a337d4c8"
   },
   "verdict": "capture-baseline-verified"
 }

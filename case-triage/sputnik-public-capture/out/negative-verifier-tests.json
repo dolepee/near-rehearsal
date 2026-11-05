@@ -1,0 +1,48 @@
+{
+  "schema": "near-rehearsal/public-verifier-negative-tests/v1",
+  "allRejected": true,
+  "cases": [
+    {
+      "name": "missing-baseline-tx",
+      "rejected": true,
+      "exit": 1,
+      "stderr": "Node.js v24.22.1"
+    },
+    {
+      "name": "failed-child-receipt",
+      "rejected": true,
+      "exit": 1,
+      "stderr": "Node.js v24.22.1"
+    },
+    {
+      "name": "retry-claims-success",
+      "rejected": true,
+      "exit": 1,
+      "stderr": "Node.js v24.22.1"
+    },
+    {
+      "name": "empty-stored-checks",
+      "rejected": true,
+      "exit": 1,
+      "stderr": "Node.js v24.22.1"
+    },
+    {
+      "name": "changed-source-and-block",
+      "rejected": true,
+      "exit": 1,
+      "stderr": "Node.js v24.22.1"
+    },
+    {
+      "name": "contradictory-actor-balance",
+      "rejected": true,
+      "exit": 1,
+      "stderr": "Node.js v24.22.1"
+    },
+    {
+      "name": "missing-finality",
+      "rejected": true,
+      "exit": 1,
+      "stderr": "Node.js v24.22.1"
+    }
+  ]
+}
