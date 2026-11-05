@@ -68,6 +68,14 @@ The first checks base/repaired artifact identity, healthy payout and beneficiary
 This is an authored deterministic patch, not a model-generated patch. The model
 provenance gate remains separate and blocked at authentication.
 
+## Model loop preparation
+
+`model-prompt.md` and `controller-manifest.json` define the source-only repair
+input: one allowlisted file, no tests or build scripts, and controller-owned
+acceptance. No model call has completed; the coding CLI authentication failure
+is recorded without credentials. The authored patch is evidence for the
+controller path, not evidence of a model-generated repair.
+
 ## Next bounded step
 
 Run the repair from the same frozen state as the retained branches and add the

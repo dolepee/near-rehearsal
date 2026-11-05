@@ -1,0 +1,35 @@
+{
+  "schema": "near-rehearsal/repair-controller/v1",
+  "source": {
+    "repository": "https://github.com/near-daos/sputnik-dao-contract",
+    "commit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b"
+  },
+  "allowedPaths": [
+    "sputnikdao2/src/proposals.rs"
+  ],
+  "forbiddenPaths": [
+    "sputnikdao2/tests",
+    "case-triage/rehearsal-repair/acceptance.cjs",
+    "case-triage/rehearsal-repair/acceptance-tests.cjs",
+    "Cargo.toml",
+    "Cargo.lock",
+    "build.sh"
+  ],
+  "build": {
+    "command": "cargo build --target wasm32-unknown-unknown --release --locked -p sputnikdao2",
+    "artifact": "target/wasm32-unknown-unknown/release/sputnikdao2.wasm"
+  },
+  "acceptance": {
+    "commands": [
+      "node case-triage/rehearsal-repair/acceptance.cjs",
+      "node case-triage/rehearsal-repair/acceptance-tests.cjs"
+    ]
+  },
+  "model": {
+    "status": "blocked",
+    "reason": "coding CLI authentication failed before any model call completed",
+    "usage": "zero",
+    "modelGeneratedPatch": false
+  },
+  "claimBoundary": "No model patch exists yet. The authored repair patch and controller-side acceptance are separate evidence."
+}
