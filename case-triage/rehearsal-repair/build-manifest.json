@@ -16,7 +16,7 @@
   },
   "localRuntime": {
     "sandbox": "2.14.0",
-    "observation": "base and repaired artifacts build and run; failed-async and healthy branches recorded"
+    "observation": "base and repaired artifacts build and run; each branch uses fixed IDs and records identical before-state"
   },
   "status": "repaired-control-passed",
   "issue238Reproduction": true,
@@ -26,5 +26,10 @@
     "authored": true,
     "modelGenerated": false,
     "artifactSha256": "41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5"
+  },
+  "acceptance": {
+    "command": "node case-triage/rehearsal-repair/acceptance.cjs",
+    "tests": "node case-triage/rehearsal-repair/acceptance-tests.cjs",
+    "status": "pass"
   }
 }

@@ -28,8 +28,8 @@ cargo build --target wasm32-unknown-unknown --release --locked -p sputnikdao2
 The pinned source build was run on near-sandbox `2.14.0`. Both branches executed
 from separately initialized local state:
 
-- Healthy control: proposal `Approved`; contract `-0.1 NEAR`; recipient `+0.1 NEAR`; proposer `-0.0008363133581916 NEAR`.
-- Failed async FunctionCall: proposal `Failed`; contract `+1 NEAR`; recipient `0`; proposer `-1.0008566935666626 NEAR`.
+- Healthy control: proposal `Approved`; contract `-0.1 NEAR`; recipient `+0.1 NEAR`; proposer `-0.0008306712120212 NEAR`.
+- Failed async FunctionCall: proposal `Failed`; contract `+1 NEAR`; recipient `0`; proposer `-1.0008510133192634 NEAR`.
 
 The failed branch shows the inherited proposal bond staying in the contract
 while the proposer bears the bond plus gas. Raw receipts and deltas are in
@@ -47,10 +47,21 @@ The authored source patch in `repair.patch` returns the proposal bond from
 compiled with the same pinned toolchain and source revision.
 
 - Repaired artifact SHA-256: `41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5`
-- Repaired failed async: proposal `Failed`; contract delta `0`; recipient `0`; proposer `-0.0009150333053115 NEAR` (gas only).
-- Repaired healthy control: proposal `Approved`; contract `-0.1 NEAR`; recipient `+0.1 NEAR`; proposer `-0.0008363507766318 NEAR`.
+- Repaired failed async: proposal `Failed`; contract delta `0`; recipient `0`; proposer `-0.0009088584569685 NEAR` (gas only).
+- Repaired healthy control: proposal `Approved`; contract `-0.1 NEAR`; recipient `+0.1 NEAR`; proposer `-0.0008307086304614 NEAR`.
 
-The base failed branch had contract `+1 NEAR` and proposer `-1.0008566935666626 NEAR`; the repair removes the stranded bond while preserving the healthy payout. Raw reports are in `out/issue238-local.json` and `out/issue238-repaired.json`.
+The base failed branch had contract `+1 NEAR` and proposer `-1.0008510133192634 NEAR`; the repair removes the stranded bond while preserving the healthy payout. Raw reports are in `out/issue238-local.json` and `out/issue238-repaired.json`.
+
+Each branch runs in its own local worker with the same fixed account IDs, funding and initial state; the acceptance script checks `healthy.before` equals `failed.before`, not merely equivalent funding.
+
+## Independent acceptance
+
+```sh
+node case-triage/rehearsal-repair/acceptance.cjs
+node case-triage/rehearsal-repair/acceptance-tests.cjs
+```
+
+The first checks base/repaired artifact identity, healthy payout, failed status, base stranded bond, repaired zero contract delta and gas-only proposer delta, and identical starting state within each run. The second is the positive control plus five targeted rejections: hidden base bond, double refund, missing payout, false failed status, and changed artifact identity.
 
 This is an authored deterministic patch, not a model-generated patch. The model
 provenance gate remains separate and blocked at authentication.

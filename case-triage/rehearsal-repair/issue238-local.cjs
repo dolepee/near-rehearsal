@@ -103,10 +103,9 @@ async function initWorker() {
 
 async function runBranch(worker, label, inputKind) {
   const root = worker.rootAccount;
-  const suffix = label.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
-  const proposer = await root.createSubAccount(`proposer-${suffix}`, { initialBalance: parseNEAR('100') });
-  const recipient = await root.createSubAccount(`recipient-${suffix}`, { initialBalance: parseNEAR('10') });
-  const dao = await root.createSubAccount(`dao-${suffix}`, { initialBalance: parseNEAR('100') });
+  const proposer = await root.createSubAccount('proposer', { initialBalance: parseNEAR('100') });
+  const recipient = await root.createSubAccount('recipient', { initialBalance: parseNEAR('10') });
+  const dao = await root.createSubAccount('dao', { initialBalance: parseNEAR('100') });
   const kind = inputKind.Transfer
     ? { ...inputKind, Transfer: { ...inputKind.Transfer, receiver_id: recipient.accountId } }
     : inputKind;
@@ -188,11 +187,18 @@ async function runBranch(worker, label, inputKind) {
   };
 }
 
-(async () => {
+async function runIsolated(label, kind) {
   const worker = await initWorker();
   try {
     assertLocal(worker);
-    const root = worker.rootAccount;
+    return await runBranch(worker, label, kind);
+  } finally {
+    await worker.tearDown?.().catch(() => {});
+  }
+}
+
+(async () => {
+  try {
     const failedKind = {
       FunctionCall: {
         receiver_id: 'missing-target.test.near',
@@ -202,9 +208,10 @@ async function runBranch(worker, label, inputKind) {
     const healthyKind = {
       Transfer: { token_id: '', receiver_id: RECIPIENT_ID, amount: TRANSFER.toString(), msg: null },
     };
-    // Healthy first, then failed, to keep each branch's starting state separate.
-    const healthy = await runBranch(worker, 'healthy-control', healthyKind);
-    const failed = await runBranch(worker, 'failed-async', failedKind);
+    // Each branch gets its own local worker but the same fixed account IDs and
+    // funding, so the before-state is identical rather than merely equivalent.
+    const healthy = await runIsolated('healthy-control', healthyKind);
+    const failed = await runIsolated('failed-async', failedKind);
     const report = {
       schema: 'near-rehearsal/issue238-local/v1',
       generatedAt: new Date().toISOString(),
@@ -215,7 +222,7 @@ async function runBranch(worker, label, inputKind) {
         wasmSha256: sha256(fs.readFileSync(WASM)),
         wasmHash: hashContract(fs.readFileSync(WASM)),
       },
-      runtime: { nearWorkspaces: require('near-workspaces/package.json').version, sandbox: process.env.NEAR_SANDBOX_VERSION || '2.6.2', rpc: assertLocal(worker) },
+      runtime: { nearWorkspaces: require('near-workspaces/package.json').version, sandbox: process.env.NEAR_SANDBOX_VERSION || '2.6.2' },
       healthy,
       failed,
       conclusion: {
@@ -230,7 +237,5 @@ async function runBranch(worker, label, inputKind) {
     };
     fs.writeFileSync(path.join(OUT, 'issue238-local.json'), json(report));
     console.log(json(report));
-  } finally {
-    await worker.tearDown?.().catch(() => {});
-  }
-})().catch((e) => { console.error(e.stack || e); process.exit(1); });
+  } catch (e) { console.error(e.stack || e); process.exit(1); }
+})();
