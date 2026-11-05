@@ -67,5 +67,5 @@ const server = http.createServer((req, res) => {
 
 server.listen(port, host, () => {
   console.log(`Review packet: http://${host}:${port}/`);
-  console.log('Local read-only server. Press Ctrl+C to stop.');
+  console.log('Local review server. Press Ctrl+C to stop.');
 });

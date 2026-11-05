@@ -1,7 +1,7 @@
 {
   "schema": "near-rehearsal/review-packet/sputnik-226/v1",
   "generatedFrom": "92c338a40b24d60e428e6ca94c0110c64c4b690c",
-  "generatedAt": "2026-11-05T08:41:11.279Z",
+  "generatedAt": "2026-11-05T08:44:14.173Z",
   "label": "Recorded case review",
   "status": "recorded local run passed",
   "headline": "An inherited Sputnik proposal survives the upgrade and pays exactly once.",
@@ -214,14 +214,14 @@
   },
   "negativeControls": [
     {
-      "label": "Wrong candidate hash",
-      "status": "failed",
-      "detail": "Rejected at the inputs stage before any Sandbox transaction.",
+      "label": "Hash rejected",
+      "status": "rejected",
+      "detail": "Wrong candidate hash rejected at the inputs stage before any Sandbox transaction.",
       "link": "evidence/wrong-hash-probe.json"
     },
     {
-      "label": "Unconfigured caller",
-      "status": "passed",
+      "label": "Unconfigured caller denied",
+      "status": "denied",
       "detail": "Separate probe: upgrade denied with ERR_MUST_BE_SELF_OR_FACTORY; code and config unchanged.",
       "link": "evidence/authority-probe.json"
     }

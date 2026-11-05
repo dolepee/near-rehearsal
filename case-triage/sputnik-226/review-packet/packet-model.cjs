@@ -293,8 +293,8 @@ function derivePacket(evidenceDir, generatedAt) {
      
     },
     negativeControls: [
-      {label: 'Wrong candidate hash', status: wrongHash.status, detail: 'Rejected at the inputs stage before any Sandbox transaction.', link: 'evidence/wrong-hash-probe.json'},
-      {label: 'Unconfigured caller', status: authority.status, detail: 'Separate probe: upgrade denied with ERR_MUST_BE_SELF_OR_FACTORY; code and config unchanged.', link: 'evidence/authority-probe.json'},
+      {label: 'Hash rejected', status: 'rejected', detail: 'Wrong candidate hash rejected at the inputs stage before any Sandbox transaction.', link: 'evidence/wrong-hash-probe.json'},
+      {label: 'Unconfigured caller denied', status: 'denied', detail: 'Separate probe: upgrade denied with ERR_MUST_BE_SELF_OR_FACTORY; code and config unchanged.', link: 'evidence/authority-probe.json'},
     ],
     rerun: {
       artifacts: 'The packet evidence directory contains the exact source-built base.wasm and candidate.wasm used by the recorded run.',
