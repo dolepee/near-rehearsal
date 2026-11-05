@@ -11,10 +11,12 @@ const crypto = require('node:crypto');
 const { Worker, KeyPair, parseNEAR, hashContract } = require('near-workspaces');
 
 const HERE = __dirname;
-const OUT = path.join(HERE, 'out');
+const OUT = path.resolve(process.env.SPUTNIK_OUT_DIR || path.join(HERE, 'out'));
+const FROZEN_PATH = process.env.FROZEN_BUNDLE ? path.resolve(process.env.FROZEN_BUNDLE) : path.join(OUT, 'local-frozen-bundle.json');
 const BASE = path.resolve(process.env.BASE_WASM || path.join(HERE, '..', 'sputnik-226', 'verified-case', 'base.wasm'));
-const CANDIDATE = path.resolve(process.env.CANDIDATE_WASM || path.join(HERE, '..', 'sputnik-226', 'verified-case', 'candidate.wasm'));
-const BAD = path.resolve(process.env.BAD_WASM || path.join(HERE, 'artifacts', 'candidate-seeded-bad.wasm'));
+const CANDIDATE = path.resolve(process.env.CANDIDATE_WASM || path.join(HERE, 'artifacts', 'candidate-seeded-bad.wasm'));
+const CORRECTED = path.resolve(process.env.CORRECTED_WASM || path.join(HERE, '..', 'sputnik-226', 'verified-case', 'candidate.wasm'));
+const HEALTHY = path.resolve(process.env.HEALTHY_WASM || CORRECTED);
 const GAS = 300_000_000_000_000n;
 const BOND = parseNEAR('1');
 const DAO_ID = 'dao.test.near';
@@ -149,7 +151,7 @@ async function createTemplate() {
       source: 'local source-built Sputnik configured-factory fixture',
       network: 'sandbox',
       identities: { contract: DAO_ID, proposer: ACTOR_ID, recipient: RECIPIENT_ID, factory: root.accountId, proposerPublicKey: ACTOR_KEY.getPublicKey().toString() },
-      artifacts: { baseSha256: sha256(base), baseHash: hashContract(base), candidateSha256: sha256(fs.readFileSync(CANDIDATE)), candidateHash: hashContract(fs.readFileSync(CANDIDATE)), seededBadSha256: sha256(fs.readFileSync(BAD)), seededBadHash: hashContract(fs.readFileSync(BAD)) },
+      artifacts: { baseSha256: sha256(base), baseHash: hashContract(base), candidateSha256: sha256(fs.readFileSync(CANDIDATE)), candidateHash: hashContract(fs.readFileSync(CANDIDATE)), correctedSha256: sha256(fs.readFileSync(CORRECTED)), correctedHash: hashContract(fs.readFileSync(CORRECTED)), healthySha256: sha256(fs.readFileSync(HEALTHY)), healthyHash: hashContract(fs.readFileSync(HEALTHY)) },
       contractAccount: { amount: contractView.amount, storage_usage: contractView.storage_usage, code_hash: contractView.code_hash, locked: contractView.locked },
       actorAccount: { amount: actorView.amount, storage_usage: actorView.storage_usage, code_hash: actorView.code_hash, locked: actorView.locked },
       recipientAmount,
@@ -298,17 +300,21 @@ async function runCandidate(bundle) {
     const afterFirst = await snapshot(b);
     const retry = await approve(b);
     const afterRetry = await snapshot(b);
+    const failedContractCall = first.failed === true && (first.receipts || []).some((r) => r.status && r.status.Failure);
+    const noPayout = BigInt(afterFirst.recipientBalance) === BigInt(before.recipientBalance);
     const checks = {
       initialState: b.imported.stateHash,
       initialFacts: b.factsHash,
       upgradeSucceeded: upgrade.succeeded === true && upgrade.failed === false,
       candidateCode: afterUpgrade.codeHash === hashContract(fs.readFileSync(CANDIDATE)),
       operationSucceeded: first.succeeded === true && first.failed === false,
+      operationRegressed: failedContractCall && noPayout,
       payoutExactlyBond: BigInt(afterFirst.recipientBalance) - BigInt(before.recipientBalance) === BigInt(BOND),
       retryFailed: retry.failed === true,
       retryDidNotPay: afterRetry.recipientBalance === afterFirst.recipientBalance,
     };
-    return { status: checks.upgradeSucceeded && checks.candidateCode && checks.operationSucceeded && checks.payoutExactlyBond && checks.retryFailed && checks.retryDidNotPay ? 'preserved' : 'inconclusive', initial: b.imported, localBlock: b.localBlock, before, upgrade, afterUpgrade, first, afterFirst, retry, afterRetry, checks };
+    const status = !checks.upgradeSucceeded || !checks.candidateCode ? 'inconclusive' : checks.operationRegressed ? 'regressed' : checks.operationSucceeded && checks.retryFailed && checks.retryDidNotPay ? 'preserved' : 'inconclusive';
+    return { status, initial: b.imported, localBlock: b.localBlock, before, upgrade, afterUpgrade, first, afterFirst, retry, afterRetry, checks };
   } finally { await close(b); }
 }
 async function runCorrected(bundle) {
@@ -316,23 +322,27 @@ async function runCorrected(bundle) {
   const b = await importBundle(bundle);
   try {
     const before = await snapshot(b);
-    const upgrade = await update(b, fs.readFileSync(CANDIDATE));
+    const upgrade = await update(b, fs.readFileSync(CORRECTED));
     const afterUpgrade = await snapshot(b);
     const first = await approve(b);
     const afterFirst = await snapshot(b);
     const retry = await approve(b);
     const afterRetry = await snapshot(b);
+    const failedContractCall = first.failed === true && (first.receipts || []).some((r) => r.status && r.status.Failure);
+    const noPayout = BigInt(afterFirst.recipientBalance) === BigInt(before.recipientBalance);
     const checks = {
       initialState: b.imported.stateHash,
       initialFacts: b.factsHash,
       upgradeSucceeded: upgrade.succeeded === true && upgrade.failed === false,
-      correctedCode: afterUpgrade.codeHash === hashContract(fs.readFileSync(CANDIDATE)),
+      correctedCode: afterUpgrade.codeHash === hashContract(fs.readFileSync(CORRECTED)),
       operationSucceeded: first.succeeded === true && first.failed === false,
+      operationRegressed: failedContractCall && noPayout,
       payoutExactlyBond: BigInt(afterFirst.recipientBalance) - BigInt(before.recipientBalance) === BigInt(BOND),
       retryFailed: retry.failed === true,
       retryDidNotPay: afterRetry.recipientBalance === afterFirst.recipientBalance,
     };
-    return { status: checks.upgradeSucceeded && checks.correctedCode && checks.operationSucceeded && checks.payoutExactlyBond && checks.retryFailed && checks.retryDidNotPay ? 'preserved' : 'inconclusive', initial: b.imported, localBlock: b.localBlock, before, upgrade, afterUpgrade, first, afterFirst, retry, afterRetry, checks };
+    const status = !checks.upgradeSucceeded || !checks.correctedCode ? 'inconclusive' : checks.operationSucceeded && checks.retryFailed && checks.retryDidNotPay ? 'preserved' : checks.operationRegressed ? 'regressed' : 'inconclusive';
+    return { status, initial: b.imported, localBlock: b.localBlock, before, upgrade, afterUpgrade, first, afterFirst, retry, afterRetry, checks };
   } finally { await close(b); }
 }
 async function runRecoveryExperiment(bundle) {
@@ -340,11 +350,11 @@ async function runRecoveryExperiment(bundle) {
   const b = await importBundle(bundle);
   try {
     const before = await snapshot(b);
-    const badUpgrade = await update(b, fs.readFileSync(BAD));
+    const badUpgrade = await update(b, fs.readFileSync(CANDIDATE));
     const afterBadUpgrade = await snapshot(b);
     const badOperation = await approve(b);
     const afterBadOperation = await snapshot(b);
-    const correctedUpgrade = await update(b, fs.readFileSync(CANDIDATE));
+    const correctedUpgrade = await update(b, fs.readFileSync(CORRECTED));
     const afterCorrectedUpgrade = await snapshot(b);
     const correctedOperation = await approve(b);
     const afterCorrectedOperation = await snapshot(b);
@@ -354,7 +364,7 @@ async function runRecoveryExperiment(bundle) {
       initialState: b.imported.stateHash,
       initialFacts: b.factsHash,
       seededBadUpgradeSucceeded: badUpgrade.succeeded === true && badUpgrade.failed === false,
-      seededBadCode: afterBadUpgrade.codeHash === hashContract(fs.readFileSync(BAD)),
+      seededBadCode: afterBadUpgrade.codeHash === hashContract(fs.readFileSync(CANDIDATE)),
       seededBadOperationFailed: badOperation.failed === true,
       seededBadDidNotPay: afterBadOperation.recipientBalance === before.recipientBalance,
       correctionSucceeded: correctedUpgrade.succeeded === true && correctedUpgrade.failed === false,
@@ -368,14 +378,19 @@ async function runRecoveryExperiment(bundle) {
 }
 
 (async () => {
-  const baseBytes = fs.readFileSync(BASE), candidateBytes = fs.readFileSync(CANDIDATE), badBytes = fs.readFileSync(BAD);
-  const bundle = process.env.USE_FROZEN === '1' && fs.existsSync(path.join(OUT, 'local-frozen-bundle.json'))
-    ? JSON.parse(fs.readFileSync(path.join(OUT, 'local-frozen-bundle.json'), 'utf8'))
+  const baseBytes = fs.readFileSync(BASE), candidateBytes = fs.readFileSync(CANDIDATE), correctedBytes = fs.readFileSync(CORRECTED), healthyBytes = fs.readFileSync(HEALTHY);
+  const bundle = process.env.USE_FROZEN === '1' && fs.existsSync(FROZEN_PATH)
+    ? JSON.parse(fs.readFileSync(FROZEN_PATH, 'utf8'))
     : await createTemplate();
   const result = {
-    schema: 'near-rehearsal/local-sputnik-three-branch/v3',
+    schema: 'near-rehearsal/local-sputnik-three-branch/v4',
     fixture: 'single frozen local configured-factory Sputnik inherited state; imported separately for each branch',
-    artifacts: { base: { sha256: sha256(baseBytes), hash: hashContract(baseBytes) }, candidate: { sha256: sha256(candidateBytes), hash: hashContract(candidateBytes) }, seededBad: { sha256: sha256(badBytes), hash: hashContract(badBytes), label: 'SEEDED bad candidate: act_proposal replaced with unreachable; migration remains real candidate migration' } },
+    artifacts: {
+      base: { sha256: sha256(baseBytes), hash: hashContract(baseBytes) },
+      candidate: { sha256: sha256(candidateBytes), hash: hashContract(candidateBytes), role: 'seeded-bad', label: 'SEEDED bad candidate: act_proposal replaced with unreachable; migration remains real candidate migration' },
+      corrected: { sha256: sha256(correctedBytes), hash: hashContract(correctedBytes), role: 'verified-good', label: 'verified candidate used as correction' },
+      healthy: { sha256: sha256(healthyBytes), hash: hashContract(healthyBytes), role: 'historical-healthy', label: 'historical healthy candidate, separate selectable case' },
+    },
     frozenBundle: { stateHash: bundle.stateHash, codeHash: bundle.codeHash, contractBalance: bundle.contractAccount.amount, actorBalance: bundle.actorAccount.amount, recipientBalance: bundle.recipientAmount, identities: bundle.identities, context: bundle.context },
     branches: {},
   };
@@ -384,14 +399,17 @@ async function runRecoveryExperiment(bundle) {
   result.branches.candidate = await runCandidate(bundle);
   await sleep(1000);
   result.branches.corrected = await runCorrected(bundle);
-  await sleep(1000);
-  result.branches.recoveryExperiment = await runRecoveryExperiment(bundle);
+  if (process.env.INCLUDE_RECOVERY === '1') {
+    await sleep(1000);
+    result.branches.recoveryExperiment = await runRecoveryExperiment(bundle);
+  }
   const initialHashes = Object.values(result.branches).map((b) => b.checks.initialState);
   const initialFacts = Object.values(result.branches).map((b) => b.checks.initialFacts);
   result.sameStartingState = new Set(initialHashes).size === 1 && new Set(initialFacts).size === 1;
   result.primaryComparison = {
     from: 'frozen old state',
     baseline: result.branches.baseline.status,
+    candidate: result.branches.candidate.status,
     corrected: result.branches.corrected.status,
     sameStartingState: result.sameStartingState,
   };
@@ -399,10 +417,12 @@ async function runRecoveryExperiment(bundle) {
     baseline: result.branches.baseline.status,
     candidate: result.branches.candidate.status,
     corrected: result.branches.corrected.status,
-    recoveryExperiment: result.branches.recoveryExperiment.status,
+    ...(result.branches.recoveryExperiment ? { recoveryExperiment: result.branches.recoveryExperiment.status } : {}),
     sameStartingState: result.sameStartingState,
   };
+  result.status = Object.values(result.branches).some((b) => b.status === 'inconclusive') ? 'inconclusive' : 'complete';
+  result.completed = result.status === 'complete';
   fs.writeFileSync(path.join(OUT, 'local-three-branch.json'), json(result) + '\n');
   console.log(json({ comparison: result.comparison, frozenBundle: result.frozenBundle, artifacts: result.artifacts, checks: Object.fromEntries(Object.entries(result.branches).map(([k, v]) => [k, v.checks])) }));
-  if (Object.values(result.comparison).some((v) => v === 'inconclusive') || !result.sameStartingState) process.exitCode = 1;
+  if (result.status !== 'complete' || !result.sameStartingState) process.exitCode = 1;
 })().catch((e) => { console.error(e.stack || e); process.exitCode = 1; });

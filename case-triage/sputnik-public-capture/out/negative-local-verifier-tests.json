@@ -1,9 +1,24 @@
 {
-  "schema": "near-rehearsal/local-verifier-negative-tests/v1",
+  "schema": "near-rehearsal/local-verifier-negative-tests/v2",
   "allRejected": true,
   "cases": [
     {
       "name": "baseline-operation-failed",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "candidate-unexpectedly-green",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "candidate-missing-failed-receipt",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "candidate-paid",
       "rejected": true,
       "exit": 1
     },
@@ -13,7 +28,7 @@
       "exit": 1
     },
     {
-      "name": "corrected-not-direct",
+      "name": "corrected-code-mismatch",
       "rejected": true,
       "exit": 1
     },
@@ -33,17 +48,22 @@
       "exit": 1
     },
     {
-      "name": "recovery-bad-operation-paid",
-      "rejected": true,
-      "exit": 1
-    },
-    {
       "name": "missing-local-block",
       "rejected": true,
       "exit": 1
     },
     {
       "name": "token-total-mismatch",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "inconclusive-status",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "primary-all-green",
       "rejected": true,
       "exit": 1
     }

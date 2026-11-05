@@ -1,0 +1,67 @@
+{
+  "schema": "near-rehearsal/sputnik-supported-family/v1",
+  "family": "sputnik-dao-v2",
+  "label": "Sputnik DAO old-proposal upgrade rehearsal",
+  "network": "local-sandbox",
+  "artifacts": {
+    "base": {
+      "path": "../sputnik-226/verified-case/base.wasm",
+      "sha256": "d1269a7be654211172cde60bccfa05a76996a3163b55abaeb58737f8661aaebf",
+      "roles": [
+        "baseline"
+      ]
+    },
+    "candidate": {
+      "path": "artifacts/candidate-seeded-bad.wasm",
+      "sha256": "5005fe46d62e3f6cf1dd0c0b05a60343155a4fa9c6990d0428746f3dae0689c0",
+      "roles": [
+        "candidate"
+      ],
+      "label": "SEEDED bad candidate: act_proposal replaced with unreachable"
+    },
+    "corrected": {
+      "path": "../sputnik-226/verified-case/candidate.wasm",
+      "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
+      "roles": [
+        "candidate",
+        "correction",
+        "healthy"
+      ]
+    }
+  },
+  "inputContract": {
+    "allowedFields": [
+      "family",
+      "candidate",
+      "correction",
+      "migration",
+      "operation"
+    ],
+    "candidateFields": [
+      "filename",
+      "sha256",
+      "base64"
+    ],
+    "migration": {
+      "method": "migrate",
+      "args": {}
+    },
+    "operation": {
+      "method": "act_proposal",
+      "action": "VoteApprove",
+      "proposal": "Transfer"
+    },
+    "maxWasmBytes": 2097152
+  },
+  "expected": {
+    "baseline": "preserved",
+    "candidate": "regressed",
+    "corrected": "preserved"
+  },
+  "limitations": [
+    "Local Sandbox only; no public upgrade, deployment, or production recovery.",
+    "Locally constructed configured-factory fixture, not the public captured DAO and not governance UpgradeSelf.",
+    "The seeded bad artifact is a deliberately broken test fixture, not a historical release.",
+    "Historical healthy candidate is selectable separately; it is not labelled broken."
+  ]
+}
