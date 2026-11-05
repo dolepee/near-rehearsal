@@ -1,0 +1,287 @@
+{
+  "schema": "near-rehearsal/review-packet/sputnik-226/v1",
+  "generatedFrom": "92c338a40b24d60e428e6ca94c0110c64c4b690c",
+  "generatedAt": "2026-11-05T08:33:59.912Z",
+  "status": "recorded local run passed",
+  "headline": "An inherited Sputnik proposal survives the upgrade and pays exactly once.",
+  "summary": "Proposal 0 survived migration. It paid exactly 1 local NEAR. Two retry routes were rejected, the recipient stayed at 2 NEAR total, and the DAO config stayed unchanged.",
+  "scope": [
+    "Historical source pins; no source or lockfile changes.",
+    "Locally constructed old-version state, not a mainnet capture.",
+    "Local configured-factory update, not governance UpgradeSelf or the self-call/callback branch.",
+    "Recorded local run; ownership evidence retained outside Git.",
+    "Two tested retry routes, not a universal exactly-once guarantee.",
+    "No safe-release, onchain-mainnet, or current-app Sputnik-support claim."
+  ],
+  "result": {
+    "proposalId": 0,
+    "proposalStatusBefore": "InProgress",
+    "proposalStatusAfterUpgrade": "InProgress",
+    "proposalStatusAfter": "Approved",
+    "proposalStatusAfterRetries": "Approved",
+    "rootVote": "Approve",
+    "configUnchanged": true,
+    "recipientBefore": "1",
+    "recipientAfterFirst": "2",
+    "recipientAfterReplay": "2",
+    "recipientAfterFinalizeRetry": "2",
+    "firstPaymentNear": "1",
+    "totalDeltaNear": "1",
+    "retries": [
+      {
+        "id": "replay",
+        "label": "Duplicate VoteApprove",
+        "status": "rejected",
+        "error": "Smart contract panicked: panicked at sputnikdao2/src/proposals.rs:634:17:\nERR_PROPOSAL_NOT_READY_FOR_VOTE"
+      },
+      {
+        "id": "finalizeRetry",
+        "label": "Finalize retry",
+        "status": "rejected",
+        "error": "Smart contract panicked: panicked at sputnikdao2/src/policy.rs:394:9:\nERR_PROPOSAL_NOT_IN_PROGRESS"
+      }
+    ]
+  },
+  "factory": {
+    "factoryId": "test.near",
+    "initializedBy": "test.near",
+    "mode": "local-configured-factory-update",
+    "governanceUpgradeSelf": false,
+    "callbackFlow": false
+  },
+  "stages": [
+    {
+      "id": "deploy",
+      "label": "Deploy base WASM",
+      "transaction": "3P91CYSoMYDX1UCV99J6KcidnVo11aihfbFPqaHtjog9",
+      "result": "success",
+      "error": null,
+      "finality": {
+        "target": 8,
+        "finalized": 8,
+        "waitedMs": 767
+      },
+      "detail": "Source-built base deployed to the local Sandbox."
+    },
+    {
+      "id": "init",
+      "label": "Initialize through root",
+      "transaction": "FKUvfcHayYJkjYX1mFDxtnwBLRLZJGjcFZ4jY3nXonJM",
+      "result": "success",
+      "error": null,
+      "finality": {
+        "target": 13,
+        "finalized": 13,
+        "waitedMs": 1275
+      },
+      "detail": "Root is persisted as FactoryInfo.factory_id; this is a configured test factory."
+    },
+    {
+      "id": "addProposal",
+      "label": "Create inherited proposal",
+      "transaction": "3qNhZ2z4A1TzAYraeq6qXxonFz6f855G9skKXbvQYJar",
+      "result": "success",
+      "error": null,
+      "finality": {
+        "target": 18,
+        "finalized": 18,
+        "waitedMs": 1018
+      },
+      "detail": "Proposal 0 exists before the upgrade, status InProgress."
+    },
+    {
+      "id": "update",
+      "label": "Configured-factory update",
+      "transaction": "98WEgmUDRRBC7wxqJAFZRPnukXGo2MwRqsdUUgPPwe1X",
+      "result": "success",
+      "error": null,
+      "finality": {
+        "target": 24,
+        "finalized": 24,
+        "waitedMs": 1020
+      },
+      "detail": "Root calls update(candidate bytes); candidate deployed and migrate() runs."
+    },
+    {
+      "id": "approve",
+      "label": "First approval",
+      "transaction": "GFaUASHdhrZaWHufEyrcSF8SJUmCWVctXHVbbd4Yr7cP",
+      "result": "success",
+      "error": null,
+      "finality": {
+        "target": 32,
+        "finalized": 32,
+        "waitedMs": 1277
+      },
+      "detail": "Root VoteApprove; proposal becomes Approved; exactly 1 local NEAR is paid."
+    },
+    {
+      "id": "replay",
+      "label": "Retry VoteApprove",
+      "transaction": "F6mQGe7c6n5HCqNZpLJagTAg6sWDdmnBH67GZ9aF7zZb",
+      "result": "failure",
+      "error": "Smart contract panicked: panicked at sputnikdao2/src/proposals.rs:634:17:\nERR_PROPOSAL_NOT_READY_FOR_VOTE",
+      "finality": {
+        "target": 37,
+        "finalized": 37,
+        "waitedMs": 1022
+      },
+      "detail": "Rejected after Approved; no second transfer."
+    },
+    {
+      "id": "finalizeRetry",
+      "label": "Retry Finalize",
+      "transaction": "7zjvaUmHAXT7GmtNnkoHYtBmbtTBgT3SVjCbhAj8mErK",
+      "result": "failure",
+      "error": "Smart contract panicked: panicked at sputnikdao2/src/policy.rs:394:9:\nERR_PROPOSAL_NOT_IN_PROGRESS",
+      "finality": {
+        "target": 42,
+        "finalized": 42,
+        "waitedMs": 1021
+      },
+      "detail": "Rejected because policy::proposal_status only accepts InProgress/Failed; no second transfer."
+    }
+  ],
+  "provenance": {
+    "sourceRepo": "https://github.com/near-daos/sputnik-dao-contract",
+    "baseCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5",
+    "candidateCommit": "8112278fc2874a3abc12fb056b2d4c97ff796431",
+    "harnessCommit": "3898440e5caa2d0351720ed990eee9f6678664b2",
+    "runtime": {
+      "version": "2.6.2",
+      "platform": "Darwin-arm64",
+      "sha256": "8b9403f091137afc234eaf4bac06660e5ca31a851afdadfc73eb66c9d43fbcae"
+    },
+    "mode": "local-configured-factory-update",
+    "state": "locally constructed old-version state, not mainnet capture",
+    "checks": [
+      "actual migration logs V2",
+      "deployed candidate bytes match built hash",
+      "old proposal survives",
+      "full DAO config unchanged",
+      "root vote persists, proposal Approved",
+      "separate recipient gains exactly1 local NEAR",
+      "duplicate VoteApprove rejected without another payment",
+      "Finalize retry rejected without another payment",
+      "both Node workspaces5.0 and Rust workspaces0.17 pass with finalized block barriers"
+    ],
+    "comparisonBoundaries": [
+      "Both workflows use the same input WASM and configured test case but construct separate local state; not byte-identical snapshots between runners.",
+      "Existing CI already builds contracts before upgrade tests; unchanged committed WASM is not proof CI uses stale code.",
+      "Native near-workspaces can express these same assertions. Workflow packaging/reviewer effort is the hypothesis, not a unique execution primitive.",
+      "No maintainer acceptance, measured preference or time savings.",
+      "Standalone pilot case is not integrated into the refund-family app yet.",
+      "Tests cover two retry routes; not universal exactly-once or upgrade-safety proof."
+    ]
+  },
+  "artifacts": {
+    "base": {
+      "path": "base.wasm",
+      "bytes": 417648,
+      "sha256": "d1269a7be654211172cde60bccfa05a76996a3163b55abaeb58737f8661aaebf",
+      "link": "evidence/base.wasm"
+    },
+    "candidate": {
+      "path": "candidate.wasm",
+      "bytes": 430589,
+      "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
+      "link": "evidence/candidate.wasm"
+    },
+    "build": "cargo +1.84.1 near build non-reproducible-wasm --locked --no-abi; official cargo-near0.13.3 incl wasm-opt",
+    "boundary": "Local source build with ABI extraction disabled for macOS dylib compatibility. Not Docker/NEP-330 reproducible build. Source/lock unchanged; actual locked SDK5.11.0.",
+    "codeSha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3"
+  },
+  "checks": {
+    "nodePassed": true,
+    "nativePassed": true,
+    "nativeEvidenceStages": [
+      "deploy",
+      "init",
+      "add_proposal",
+      "update",
+      "approve",
+      "replay",
+      "finalize_retry",
+      "complete"
+    ],
+    "configUnchanged": true,
+    "proposalSurvived": true,
+    "firstPaymentExact": true,
+    "bothRetriesRejected": true,
+    "noSecondTransfer": true,
+    "finalityTargetsReached": true
+  },
+  "negativeControls": [
+    {
+      "label": "Wrong candidate hash",
+      "status": "failed",
+      "detail": "Rejected at the inputs stage before any Sandbox transaction.",
+      "link": "evidence/wrong-hash-probe.json"
+    },
+    {
+      "label": "Unconfigured caller",
+      "status": "passed",
+      "detail": "Separate probe: upgrade denied with ERR_MUST_BE_SELF_OR_FACTORY; code and config unchanged.",
+      "link": "evidence/authority-probe.json"
+    }
+  ],
+  "rerun": {
+    "artifacts": "The packet evidence directory contains the exact source-built base.wasm and candidate.wasm used by the recorded run.",
+    "command": "cd case-triage/sputnik-226\nBASE_WASM=\"$PWD/review-packet/evidence/base.wasm\" \\\nBASE_WASM_SHA256=d1269a7be654211172cde60bccfa05a76996a3163b55abaeb58737f8661aaebf \\\nCANDIDATE_WASM=\"$PWD/review-packet/evidence/candidate.wasm\" \\\nCANDIDATE_WASM_SHA256=088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3 \\\nNODE_SANDBOX_BIN_DIR=\"/path/to/pinned/sandbox-directory\" \\\nEVIDENCE_PATH=\"$PWD/review-packet/rerun-evidence.json\" \\\nnode node-harness.cjs",
+    "verifier": "node case-triage/sputnik-226/review-packet/verify.cjs",
+    "note": "The verifier checks offline consistency only. It is not cryptographic proof of execution; the rerun is the execution check."
+  },
+  "rawLinks": [
+    {
+      "label": "Node receipts, state and finality",
+      "href": "evidence/node-evidence.json",
+      "note": "Full raw Node evidence from the recorded run."
+    },
+    {
+      "label": "Native Rust evidence",
+      "href": "evidence/rust-evidence.jsonl",
+      "note": "Raw per-stage Rust execution records."
+    },
+    {
+      "label": "Native Rust result",
+      "href": "evidence/rust-result.txt",
+      "note": "1 passed, 0 failed."
+    },
+    {
+      "label": "Source-built artifacts and hashes",
+      "href": "evidence/artifacts.json",
+      "note": "Base and candidate WASM bytes and SHA-256 values."
+    },
+    {
+      "label": "Provenance and scope",
+      "href": "evidence/provenance.json",
+      "note": "Commits, runtime, mode and boundaries."
+    },
+    {
+      "label": "Checksums",
+      "href": "evidence/SHA256SUMS",
+      "note": "SHA-256 manifest for every evidence file."
+    },
+    {
+      "label": "Sputnik license",
+      "href": "evidence/SPUTNIK-LICENSE",
+      "note": "Original upstream license."
+    },
+    {
+      "label": "Wrong-hash negative control",
+      "href": "evidence/wrong-hash-probe.json",
+      "note": "Rejected before any Sandbox transaction."
+    },
+    {
+      "label": "Unauthorized-caller negative control",
+      "href": "evidence/authority-probe.json",
+      "note": "Separate probe: unconfigured caller denied; code/config unchanged."
+    }
+  ],
+  "limits": [
+    "This is a local historical-source pilot, not a current product integration.",
+    "The contract still holds funds in the bad-case family; this packet is the Sputnik upgrade case, not the refund app.",
+    "No maintainer acceptance, measured preference, time saving, or production safety is claimed.",
+    "Native near-workspaces can express the same invariant; the hypothesis is reviewer effort and packaging, not a unique execution primitive."
+  ]
+}
