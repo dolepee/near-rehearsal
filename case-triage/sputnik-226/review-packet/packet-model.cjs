@@ -147,7 +147,15 @@ function validateRaw(dir) {
   const proposalAmount = node.proposalBefore?.kind?.Transfer?.amount;
   requireValue(proposalReceiver === recipientId, 'recipient account is not bound to the proposal receiver');
   requireValue(proposalAmount === '1000000000000000000000000', 'proposal amount is not exactly 1 NEAR');
-  requireValue(node.proposalAfter?.kind?.Transfer?.receiver_id === recipientId && node.proposalAfterUpgrade?.kind?.Transfer?.receiver_id === recipientId, 'proposal receiver changed across states');
+  for (const [state, proposal] of [
+    ['after upgrade', node.proposalAfterUpgrade],
+    ['after approval', node.proposalAfter],
+    ['after duplicate vote', node.proposalAfterReplay],
+    ['after Finalize retry', node.proposalAfterFinalizeRetry],
+  ]) {
+    requireValue(proposal?.kind?.Transfer?.receiver_id === recipientId, `proposal receiver changed ${state}`);
+    requireValue(proposal?.kind?.Transfer?.amount === proposalAmount, `proposal amount changed ${state}`);
+  }
 
   const oneNear = 1000000000000000000000000n;
   const recipient = node.recipient || {};

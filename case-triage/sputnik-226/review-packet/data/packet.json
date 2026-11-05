@@ -1,7 +1,7 @@
 {
   "schema": "near-rehearsal/review-packet/sputnik-226/v1",
   "generatedFrom": "92c338a40b24d60e428e6ca94c0110c64c4b690c",
-  "generatedAt": "2026-11-05T08:40:45.172Z",
+  "generatedAt": "2026-11-05T08:41:11.279Z",
   "label": "Recorded case review",
   "status": "recorded local run passed",
   "headline": "An inherited Sputnik proposal survives the upgrade and pays exactly once.",
