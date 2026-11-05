@@ -38,7 +38,10 @@
     "rustImageDigest": "sha256:baa712c5d2b7522d38175e36330d336ad2c4ce32bfaaa41af94ce40407ecd803",
     "rustTarget": "wasm32-unknown-unknown",
     "cargoNear": "0.13.3",
-    "nearSdk": "5.10.0",
+    "nearSdk": {
+      "declared": "^5.10.0",
+      "resolved": "5.11.0"
+    },
     "nearWorkspaces": "0.17.0",
     "nearSandboxUtils": "0.13.0",
     "node": "20.17.0 (existing Ava tests only)",
@@ -55,7 +58,8 @@
       "migrate completes",
       "full get_config JSON unchanged",
       "final proposal status Approved and root vote persisted",
-      "recipient balance increases by the proposal amount"
+      "recipient balance increases by the proposal amount",
+      "standalone Node CJS runner writes raw receipt evidence only after all assertions pass"
     ]
   },
   "commands": {
@@ -63,7 +67,8 @@
     "buildBase": "git worktree add ../sputnik-base a9a9ed1019d517b519ca214592388e7fdbf13ea5 && (cd ../sputnik-base/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked)",
     "buildCandidate": "git worktree add ../sputnik-candidate 8112278fc2874a3abc12fb056b2d4c97ff796431 && (cd ../sputnik-candidate/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked)",
     "runPilot": "cp pilot/old_proposal_upgrade.rs sputnikdao2/tests/test_pilot_old_proposal_upgrade.rs && cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ignored --nocapture",
-    "comparator": "cargo +1.84.1 test -p sputnikdao-factory2 --test test_upgrade test_upgrade -- --nocapture"
+    "comparator": "cargo +1.84.1 test -p sputnikdao-factory2 --test test_upgrade test_upgrade -- --nocapture",
+    "nodeHarness": "BASE_WASM=... BASE_WASM_SHA256=... CANDIDATE_WASM=... CANDIDATE_WASM_SHA256=... EVIDENCE_PATH=... node case-triage/sputnik-226/node-harness.cjs"
   },
   "blockers": [
     "No Rust toolchain on the current triage host",
@@ -71,5 +76,19 @@
     "Docker absent: reproducible-wasm cannot be produced; non-reproducible-wasm is local-only",
     "near-workspaces 0.17.0 sandbox-utils 0.13.0 runtime wiring needs review-machine confirmation",
     "Maintainer acceptance pending; no outreach from triage"
-  ]
+  ],
+  "dependencies": {
+    "declared": {
+      "nearSdk": "^5.10.0",
+      "nearContractStandards": "^5.10.0"
+    },
+    "resolved": {
+      "nearSdk": "5.11.0",
+      "nearSdkMacros": "5.11.0",
+      "nearContractStandards": "5.11.0",
+      "nearWorkspaces": "0.17.0",
+      "nearSandboxUtils": "0.13.0"
+    },
+    "rule": "Do not edit Cargo.lock or silently force near-sdk 5.10.0."
+  }
 }

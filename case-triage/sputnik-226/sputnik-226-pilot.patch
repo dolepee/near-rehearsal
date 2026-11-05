@@ -1,7 +1,7 @@
 From d699fabd33d7cbdaec07a785e73216cf2234d35b Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Wed, 4 Nov 2026 20:30:48 +0000
-Subject: [PATCH 1/4] Add Sputnik 226 old-proposal pilot harness and dossier
+Subject: [PATCH 1/5] Add Sputnik 226 old-proposal pilot harness and dossier
 
 ---
  pilot/README.md               | 120 ++++++++++++++++++++++++++++++++++
@@ -337,7 +337,7 @@ index 0000000..a89d96e
 From 84c82dce91b2b7b71da5107d31686192d3ff15e8 Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:25 +0000
-Subject: [PATCH 2/4] Harden Sputnik 226 pilot harness against no-op votes
+Subject: [PATCH 2/5] Harden Sputnik 226 pilot harness against no-op votes
 
 Use Contract::call for the self-update, read old proposal state as raw JSON, compare full config, and assert persisted approval plus recipient balance.
 ---
@@ -548,7 +548,7 @@ index a89d96e..1ba6133 100644
 From 6ea5efc87f7cce6f927f87d52114a93bf037e61c Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:42 +0000
-Subject: [PATCH 3/4] Fix pilot deploy diagnostic accessor
+Subject: [PATCH 3/5] Fix pilot deploy diagnostic accessor
 
 ---
  pilot/old_proposal_upgrade.rs | 6 +++++-
@@ -578,7 +578,7 @@ index 1ba6133..b669401 100644
 From 461403ce62490968b1e307df7c3867135458fb62 Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:59 +0000
-Subject: [PATCH 4/4] Remove unused pilot import
+Subject: [PATCH 4/5] Remove unused pilot import
 
 ---
  pilot/old_proposal_upgrade.rs | 2 +-
@@ -597,6 +597,116 @@ index b669401..866344e 100644
  };
  
  fn read_wasm(var: &str) -> Vec<u8> {
+-- 
+2.47.3
+
+
+From 356756b304923198adea09693afcdbb70df4544a Mon Sep 17 00:00:00 2001
+From: Julian Saint <julian@saint.work>
+Date: Thu, 5 Nov 2026 07:36:22 +0000
+Subject: [PATCH 5/5] Correct dependency pin and add Node harness note
+
+Distinguish declared caret ranges from Cargo.lock-resolved near-sdk 5.11.0; document the standalone Node CJS runner without changing lockfiles.
+---
+ pilot/README.md     | 20 +++++++++++++++++++-
+ pilot/manifest.json | 27 +++++++++++++++++++++++----
+ 2 files changed, 42 insertions(+), 5 deletions(-)
+
+diff --git a/pilot/README.md b/pilot/README.md
+index 37460de..733b22b 100644
+--- a/pilot/README.md
++++ b/pilot/README.md
+@@ -33,7 +33,8 @@ No live factory, no mainnet RPC, no public keys, no deployment and no real funds
+ 
+ Historical constraints from the #226 tree:
+ 
+-- `near-sdk = 5.10.0`, `near-contract-standards = 5.10.0`.
++- `sputnikdao2/Cargo.toml` declares `near-sdk = "5.10.0"` and `near-contract-standards = "5.10.0"`; these are caret ranges, not exact resolved versions.
++- The historical `Cargo.lock` resolves `near-sdk 5.11.0`, `near-sdk-macros 5.11.0` and `near-contract-standards 5.11.0`. Do not edit the lockfile or force 5.10.
+ - `near-workspaces = 0.17.0`, `near-sandbox-utils = 0.13.0`, `tokio`, `walrus`, `anyhow`, `rand` from `Cargo.lock`.
+ - Cargo metadata pins the reproducible image `sourcescan/cargo-near:0.13.3-rust-1.84.1`, digest `sha256:baa712c5d2b7522d38175e36330d336ad2c4ce32bfaaa41af94ce40407ecd803`.
+ - Rust edition 2018; target `wasm32-unknown-unknown`.
+@@ -91,6 +92,23 @@ cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ig
+ 
+ The harness uses `near_workspaces::sandbox()` and no mainnet endpoint. The review machine’s pinned Sandbox 2.6.2 should be supplied through `NEAR_SANDBOX_BIN_PATH`; `near-sandbox-utils 0.13.0` wiring must be confirmed on that machine.
+ 
++## Standalone Node CJS equivalent
++
++For an executable check using the Rehearsal dependencies already installed on the review machine, use the private-pilot copy at `case-triage/sputnik-226/node-harness.cjs` in `dolepee/near-rehearsal` branch `pilot/sputnik-226-old-proposal`. It uses `near-workspaces 5.0.0` and the pinned local Sandbox 2.6.2. It is a thin pilot runner, not a product adapter.
++
++It requires source-built WASM paths and hashes:
++
++```sh
++export BASE_WASM="$PWD/pilot/base.wasm"
++export BASE_WASM_SHA256="$(sha256sum "$BASE_WASM" | awk '{print $1}')"
++export CANDIDATE_WASM="$PWD/pilot/candidate.wasm"
++export CANDIDATE_WASM_SHA256="$(sha256sum "$CANDIDATE_WASM" | awk '{print $1}')"
++export EVIDENCE_PATH="$PWD/pilot/evidence.json"
++node case-triage/sputnik-226/node-harness.cjs
++```
++
++It fails closed on missing output or a failed receipt, then writes raw transaction/receipt evidence only after the config, code, proposal, vote and recipient-balance assertions pass.
++
+ ## Comparator
+ 
+ Preserve and run the competent existing test unchanged:
+diff --git a/pilot/manifest.json b/pilot/manifest.json
+index e373a57..6e4c3e4 100644
+--- a/pilot/manifest.json
++++ b/pilot/manifest.json
+@@ -38,7 +38,10 @@
+     "rustImageDigest": "sha256:baa712c5d2b7522d38175e36330d336ad2c4ce32bfaaa41af94ce40407ecd803",
+     "rustTarget": "wasm32-unknown-unknown",
+     "cargoNear": "0.13.3",
+-    "nearSdk": "5.10.0",
++    "nearSdk": {
++      "declared": "^5.10.0",
++      "resolved": "5.11.0"
++    },
+     "nearWorkspaces": "0.17.0",
+     "nearSandboxUtils": "0.13.0",
+     "node": "20.17.0 (existing Ava tests only)",
+@@ -55,7 +58,8 @@
+       "migrate completes",
+       "full get_config JSON unchanged",
+       "final proposal status Approved and root vote persisted",
+-      "recipient balance increases by the proposal amount"
++      "recipient balance increases by the proposal amount",
++      "standalone Node CJS runner writes raw receipt evidence only after all assertions pass"
+     ]
+   },
+   "commands": {
+@@ -63,7 +67,8 @@
+     "buildBase": "git worktree add ../sputnik-base a9a9ed1019d517b519ca214592388e7fdbf13ea5 && (cd ../sputnik-base/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked)",
+     "buildCandidate": "git worktree add ../sputnik-candidate 8112278fc2874a3abc12fb056b2d4c97ff796431 && (cd ../sputnik-candidate/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked)",
+     "runPilot": "cp pilot/old_proposal_upgrade.rs sputnikdao2/tests/test_pilot_old_proposal_upgrade.rs && cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ignored --nocapture",
+-    "comparator": "cargo +1.84.1 test -p sputnikdao-factory2 --test test_upgrade test_upgrade -- --nocapture"
++    "comparator": "cargo +1.84.1 test -p sputnikdao-factory2 --test test_upgrade test_upgrade -- --nocapture",
++    "nodeHarness": "BASE_WASM=... BASE_WASM_SHA256=... CANDIDATE_WASM=... CANDIDATE_WASM_SHA256=... EVIDENCE_PATH=... node case-triage/sputnik-226/node-harness.cjs"
+   },
+   "blockers": [
+     "No Rust toolchain on the current triage host",
+@@ -71,5 +76,19 @@
+     "Docker absent: reproducible-wasm cannot be produced; non-reproducible-wasm is local-only",
+     "near-workspaces 0.17.0 sandbox-utils 0.13.0 runtime wiring needs review-machine confirmation",
+     "Maintainer acceptance pending; no outreach from triage"
+-  ]
++  ],
++  "dependencies": {
++    "declared": {
++      "nearSdk": "^5.10.0",
++      "nearContractStandards": "^5.10.0"
++    },
++    "resolved": {
++      "nearSdk": "5.11.0",
++      "nearSdkMacros": "5.11.0",
++      "nearContractStandards": "5.11.0",
++      "nearWorkspaces": "0.17.0",
++      "nearSandboxUtils": "0.13.0"
++    },
++    "rule": "Do not edit Cargo.lock or silently force near-sdk 5.10.0."
++  }
+ }
 -- 
 2.47.3
 

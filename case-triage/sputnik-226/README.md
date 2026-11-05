@@ -33,7 +33,8 @@ No live factory, no mainnet RPC, no public keys, no deployment and no real funds
 
 Historical constraints from the #226 tree:
 
-- `near-sdk = 5.10.0`, `near-contract-standards = 5.10.0`.
+- `sputnikdao2/Cargo.toml` declares `near-sdk = "5.10.0"` and `near-contract-standards = "5.10.0"`; these are caret ranges, not exact resolved versions.
+- The historical `Cargo.lock` resolves `near-sdk 5.11.0`, `near-sdk-macros 5.11.0` and `near-contract-standards 5.11.0`. Do not edit the lockfile or force 5.10.
 - `near-workspaces = 0.17.0`, `near-sandbox-utils = 0.13.0`, `tokio`, `walrus`, `anyhow`, `rand` from `Cargo.lock`.
 - Cargo metadata pins the reproducible image `sourcescan/cargo-near:0.13.3-rust-1.84.1`, digest `sha256:baa712c5d2b7522d38175e36330d336ad2c4ce32bfaaa41af94ce40407ecd803`.
 - Rust edition 2018; target `wasm32-unknown-unknown`.
@@ -90,6 +91,23 @@ cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ig
 ```
 
 The harness uses `near_workspaces::sandbox()` and no mainnet endpoint. The review machine’s pinned Sandbox 2.6.2 should be supplied through `NEAR_SANDBOX_BIN_PATH`; `near-sandbox-utils 0.13.0` wiring must be confirmed on that machine.
+
+## Standalone Node CJS equivalent
+
+For an executable check using the Rehearsal dependencies already installed on the review machine, use the private-pilot copy at `case-triage/sputnik-226/node-harness.cjs` in `dolepee/near-rehearsal` branch `pilot/sputnik-226-old-proposal`. It uses `near-workspaces 5.0.0` and the pinned local Sandbox 2.6.2. It is a thin pilot runner, not a product adapter.
+
+It requires source-built WASM paths and hashes:
+
+```sh
+export BASE_WASM="$PWD/pilot/base.wasm"
+export BASE_WASM_SHA256="$(sha256sum "$BASE_WASM" | awk '{print $1}')"
+export CANDIDATE_WASM="$PWD/pilot/candidate.wasm"
+export CANDIDATE_WASM_SHA256="$(sha256sum "$CANDIDATE_WASM" | awk '{print $1}')"
+export EVIDENCE_PATH="$PWD/pilot/evidence.json"
+node case-triage/sputnik-226/node-harness.cjs
+```
+
+It fails closed on missing output or a failed receipt, then writes raw transaction/receipt evidence only after the config, code, proposal, vote and recipient-balance assertions pass.
 
 ## Comparator
 
