@@ -71,8 +71,12 @@
       "separate recipient balance increases by exactly the proposal amount",
       "bounded finality barrier reaches the highest transaction/receipt block before each final view",
       "partial or failed runs persist stage plus completed raw transaction/receipt receipts",
-      "standalone Node CJS runner marks passed only after all assertions pass"
-    ]
+      "standalone Node CJS runner marks passed only after all assertions pass",
+      "duplicate VoteApprove after Approved fails at execution",
+      "duplicate approval does not change Approved status or root vote",
+      "recipient total delta remains exactly one transfer after the replay attempt"
+    ],
+    "replay": "after first Approved and exact payment, repeat the same VoteApprove; expect execution failure, no second transfer, unchanged Approved state and exact-one total delta"
   },
   "commands": {
     "installHistorical": "rustup toolchain install 1.84.1 --profile minimal --target wasm32-unknown-unknown && cargo install cargo-near --version 0.13.3 --locked",
@@ -122,8 +126,8 @@
       "cause": "direct DAO-to-DAO call entered the callback branch; replaced with root configured-factory call"
     },
     "nodeHarness": {
-      "state": "owner-run pass at f38c7b9 with official optimized historical base/candidate artifacts",
-      "evidence": "preserved locally by owner",
+      "state": "owner-run pass at f38c7b9 for the pre-replay harness; replay extension rerun pending",
+      "evidence": "preserved locally by owner for f38c7b9",
       "governanceFlowClaim": false,
       "customerPreferenceClaim": false
     }

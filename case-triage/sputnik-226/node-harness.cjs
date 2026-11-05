@@ -259,6 +259,38 @@ async function main() {
     evidence.recipient.delta = (recipientAfter - recipientBefore).toString();
     persist('running');
 
+    // Exactly-once check: replay the same approval after the proposal is Approved.
+    // It must fail and must not create a second transfer.
+    stage('replay');
+    const replayTx = await root.callRaw(dao, 'act_proposal', {
+      id: Number(proposalId), action: 'VoteApprove', proposal: transferKind,
+    }, {gas: GAS});
+    evidence.transactions.replay = replayTx.result;
+    persist('running');
+    stage('replay-finality');
+    await waitFinalized(replayTx, 'replay');
+    assert.equal(replayTx.succeeded, false, 'duplicate approval unexpectedly succeeded');
+    assert.equal(replayTx.failed, true, 'duplicate approval did not fail at execution');
+
+    stage('replay-state');
+    const replayProposal = await viewJson(worker, dao.accountId, 'get_proposal', {id: Number(proposalId)});
+    assert.equal(replayProposal.status, 'Approved', 'duplicate approval changed final proposal status');
+    assert.equal(replayProposal.votes?.[root.accountId], 'Approve', 'duplicate approval changed root vote');
+    const recipientAfterReplay = await viewAmount(worker, recipient.accountId);
+    assert.equal(recipientAfterReplay.toString(), recipientAfter.toString(), 'duplicate approval caused a second transfer');
+    assert.equal(recipientAfterReplay - recipientBefore, TRANSFER, 'total recipient delta is not exactly one transfer');
+    evidence.proposalAfterReplay = replayProposal;
+    evidence.recipient.afterReplay = recipientAfterReplay.toString();
+    evidence.recipient.deltaTotal = (recipientAfterReplay - recipientBefore).toString();
+    evidence.replay = {
+      attempted: true,
+      expected: 'rejected after Approved',
+      transactionSucceeded: replayTx.succeeded,
+      transactionFailed: replayTx.failed,
+      secondTransfer: false,
+    };
+    persist('running');
+
     currentStage = 'complete';
     evidence.stage = currentStage;
     evidence.status = 'passed';

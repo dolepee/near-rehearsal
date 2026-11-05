@@ -31,6 +31,8 @@ No live external factory, no mainnet RPC, no public keys, no deployment and no r
 
 The pre-upgrade transfer proposal is created before the upgrade; after upgrade it is approved, the root vote must persist, and a separate recipient must receive the exact transfer amount.
 
+The harness also checks **exactly once** payment: after the first approval has paid the recipient, it replays the same `VoteApprove` call. The replay must fail at execution, the proposal must remain `Approved` with the same root vote, and the recipient's total delta must remain exactly one transfer. Transaction success is never treated as payment evidence; balances are read directly.
+
 ## Exact toolchain and dependencies
 
 Historical constraints from the #226 tree:
@@ -150,6 +152,7 @@ That test imports the live mainnet factory and remains the current-workflow comp
 - Full `get_config` JSON is identical before and after.
 - `act_proposal(id, VoteApprove)` on the old proposal succeeds.
 - Final proposal status is `Approved` and the root vote is present.
+- A duplicate approval after `Approved` fails and causes no second transfer; the total recipient delta remains exactly one transfer.
 - The finalized-block barrier was satisfied after each state-changing transaction.
 - The separate recipient’s balance increases by exactly the proposal amount.
 

@@ -219,7 +219,7 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         .args_json(json!({
             "id": proposal_id,
             "action": Action::VoteApprove,
-            "proposal": transfer_kind,
+            "proposal": transfer_kind.clone(),
         }))
         .max_gas()
         .transact()
@@ -247,6 +247,45 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         "transfer recipient balance did not increase by the proposal amount"
     );
 
-    append_stage(&evidence, "complete", &approve);
+    // Exactly-once check: replay the same approval after the proposal is Approved.
+    // It must fail and must not create a second transfer.
+    let replay = root
+        .call(dao.id(), "act_proposal")
+        .args_json(json!({
+            "id": proposal_id,
+            "action": Action::VoteApprove,
+            "proposal": transfer_kind.clone(),
+        }))
+        .max_gas()
+        .transact()
+        .await?;
+    append_stage(&evidence, "replay", &replay);
+    assert!(replay.is_failure(), "duplicate approval unexpectedly succeeded: {:?}", replay);
+    wait_finalized(&worker, &replay).await?;
+
+    let replay_proposal: Value = dao
+        .view("get_proposal")
+        .args_json(json!({"id": proposal_id}))
+        .await?
+        .json()?;
+    assert_eq!(replay_proposal["status"], "Approved", "duplicate approval changed final proposal status: {}", replay_proposal);
+    assert_eq!(
+        replay_proposal["votes"][root.id().as_str()],
+        "Approve",
+        "duplicate approval changed root vote: {}", replay_proposal
+    );
+    let recipient_after_replay = recipient.view_account().await?.balance;
+    assert_eq!(
+        recipient_after_replay.as_yoctonear(),
+        recipient_after.as_yoctonear(),
+        "duplicate approval caused a second transfer"
+    );
+    assert_eq!(
+        recipient_after_replay.as_yoctonear(),
+        recipient_before.as_yoctonear() + transfer_amount.as_yoctonear(),
+        "total recipient delta is not exactly one transfer"
+    );
+
+    append_stage(&evidence, "complete", &replay);
     Ok(())
 }
