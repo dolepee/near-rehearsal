@@ -123,6 +123,59 @@ function recoverRuns() {
   }
 }
 
+function finalizeRun(run, {code = null, signal = null, timedOut = false} = {}) {
+  if (activeId === run.id) activeId = null;
+  run.exitCode = code;
+  run.finishedAt = new Date().toISOString();
+  if (fs.existsSync(run.reportPath)) {
+    try {
+      run.report = JSON.parse(fs.readFileSync(run.reportPath, 'utf8'));
+    } catch (e) {
+      run.report = null;
+      run.error = `Invalid report: ${e.message}`;
+    }
+  }
+  if (run.report) {
+    try {
+      const bundlePath = path.join(run.outDir, 'local-frozen-bundle.json');
+      run.frozenBundle = fs.existsSync(bundlePath) ? JSON.parse(fs.readFileSync(bundlePath, 'utf8')) : null;
+    } catch (e) {
+      run.frozenBundle = null;
+      run.error = `Invalid frozen bundle: ${e.message}`;
+      run.report = null;
+    }
+  }
+  if (run.report) {
+    const roles = [['candidate', 'candidate'], ['correction', 'corrected']];
+    for (const [inputRole, artifactRole] of roles) {
+      const expected = run.input?.[inputRole]?.sha256;
+      const actual = run.report?.artifacts?.[artifactRole]?.sha256;
+      if (!expected || !actual || expected !== actual) {
+        run.report = null;
+        run.error = !expected
+          ? `Submitted ${inputRole} has no SHA-256.`
+          : !actual
+            ? `Report ${artifactRole} artifact has no SHA-256; expected ${expected}.`
+            : `Report ${artifactRole} bytes ${actual} do not match submitted ${inputRole} ${expected}.`;
+        break;
+      }
+    }
+  }
+  const cleanExit = code === 0 && !signal && !timedOut;
+  if (run.report && cleanExit && run.report.status === 'complete') {
+    run.status = 'complete';
+  } else {
+    run.status = 'inconclusive';
+    if (timedOut) run.error = 'Runner exceeded the local 12-minute limit; this run is not evidence.';
+    else if (signal) run.error = `Runner stopped by ${signal}; this run is not evidence.`;
+    else if (!run.report && !run.error) run.error = `Runner exited ${code ?? 'without a report'}; this run is not evidence.`;
+    else if (run.report && run.report.status !== 'complete') run.error = run.report.error?.message || 'Runner reported an inconclusive result.';
+    else if (run.report) run.error = `Runner exited ${code}; a complete report from an unclean exit is not accepted.`;
+  }
+  writeRunMeta(run);
+  return run;
+}
+
 function startRun(input, frozenBundle = null) {
   const id = crypto.randomUUID();
   const runDir = path.join(ROOT, 'out/sputnik-ui/runs', id);
@@ -175,37 +228,7 @@ function startRun(input, frozenBundle = null) {
   const finish = (code, signal) => {
     if (ended) return;
     ended = true;
-    if (activeId === id) activeId = null;
-    run.exitCode = code;
-    run.finishedAt = new Date().toISOString();
-    if (fs.existsSync(reportPath)) {
-      try { run.report = JSON.parse(fs.readFileSync(reportPath, 'utf8')); } catch (e) { run.error = `Invalid report: ${e.message}`; }
-    }
-    if (run.report) {
-      run.frozenBundle = fs.existsSync(path.join(outDir, 'local-frozen-bundle.json'))
-        ? JSON.parse(fs.readFileSync(path.join(outDir, 'local-frozen-bundle.json'), 'utf8')) : null;
-      for (const role of ['candidate', 'correction']) {
-        const expected = run.input?.[role]?.sha256;
-        const actual = run.report?.artifacts?.[role]?.sha256;
-        if (expected && actual && expected !== actual) {
-          run.report = null;
-          run.error = `Report ${role} bytes ${actual} do not match submitted ${expected}.`;
-          break;
-        }
-      }
-    }
-    const cleanExit = code === 0 && !signal && !timedOut;
-    if (run.report && cleanExit && run.report.status === 'complete') {
-      run.status = 'complete';
-    } else {
-      run.status = 'inconclusive';
-      if (timedOut) run.error = 'Runner exceeded the local 12-minute limit; this run is not evidence.';
-      else if (signal) run.error = `Runner stopped by ${signal}; this run is not evidence.`;
-      else if (!run.report && !run.error) run.error = `Runner exited ${code ?? 'without a report'}; this run is not evidence.`;
-      else if (run.report.status !== 'complete') run.error = run.report.error?.message || 'Runner reported an inconclusive result.';
-      else run.error = `Runner exited ${code}; a complete report from an unclean exit is not accepted.`;
-    }
-    writeRunMeta(run);
+    finalizeRun(run, {code, signal, timedOut});
   };
   child.stdout.on('data', add);
   child.stderr.on('data', add);
@@ -320,5 +343,9 @@ const server = http.createServer(async (req, res) => {
     return send(res, 400, {error: e.message});
   }
 });
-recoverRuns();
-server.listen(PORT, HOST, () => console.log(`Sputnik rehearsal UI: http://${HOST}:${PORT}`));
+if (require.main === module) {
+  recoverRuns();
+  server.listen(PORT, HOST, () => console.log(`Sputnik rehearsal UI: http://${HOST}:${PORT}`));
+} else {
+  module.exports = {finalizeRun};
+}
