@@ -298,16 +298,9 @@ function derivePacket(evidenceDir, generatedAt) {
     ],
     rerun: {
       artifacts: 'The packet evidence directory contains the exact source-built base.wasm and candidate.wasm used by the recorded run.',
-      command: `cd case-triage/sputnik-226
-BASE_WASM="$PWD/review-packet/evidence/base.wasm" \\
-BASE_WASM_SHA256=${artifacts.base.sha256} \\
-CANDIDATE_WASM="$PWD/review-packet/evidence/candidate.wasm" \\
-CANDIDATE_WASM_SHA256=${artifacts.candidate.sha256} \\
-NODE_SANDBOX_BIN_DIR="/path/to/pinned/sandbox-directory" \\
-EVIDENCE_PATH="$PWD/review-packet/rerun-evidence.json" \\
-node node-harness.cjs`,
+      command: 'node case-triage/sputnik-226/run-case.cjs --sandbox-dir "/path/to/pinned/sandbox-directory" --out "/path/to/new-output-directory"',
       verifier: 'node case-triage/sputnik-226/review-packet/verify.cjs',
-      note: 'The verifier checks offline consistency only. It is not cryptographic proof of execution; the rerun is the execution check.',
+      note: 'The runner verifies the recorded packet and supplied artifacts, then writes fresh evidence to a new directory. It never overwrites an existing run. Offline verification is not cryptographic proof of execution; the rerun is the execution check.',
     },
     rawLinks,
     limits: [

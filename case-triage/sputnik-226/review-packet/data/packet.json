@@ -1,7 +1,7 @@
 {
   "schema": "near-rehearsal/review-packet/sputnik-226/v1",
   "generatedFrom": "92c338a40b24d60e428e6ca94c0110c64c4b690c",
-  "generatedAt": "2026-11-05T08:44:14.173Z",
+  "generatedAt": "2026-11-05T09:00:51.436Z",
   "label": "Recorded case review",
   "status": "recorded local run passed",
   "headline": "An inherited Sputnik proposal survives the upgrade and pays exactly once.",
@@ -228,9 +228,9 @@
   ],
   "rerun": {
     "artifacts": "The packet evidence directory contains the exact source-built base.wasm and candidate.wasm used by the recorded run.",
-    "command": "cd case-triage/sputnik-226\nBASE_WASM=\"$PWD/review-packet/evidence/base.wasm\" \\\nBASE_WASM_SHA256=d1269a7be654211172cde60bccfa05a76996a3163b55abaeb58737f8661aaebf \\\nCANDIDATE_WASM=\"$PWD/review-packet/evidence/candidate.wasm\" \\\nCANDIDATE_WASM_SHA256=088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3 \\\nNODE_SANDBOX_BIN_DIR=\"/path/to/pinned/sandbox-directory\" \\\nEVIDENCE_PATH=\"$PWD/review-packet/rerun-evidence.json\" \\\nnode node-harness.cjs",
+    "command": "node case-triage/sputnik-226/run-case.cjs --sandbox-dir \"/path/to/pinned/sandbox-directory\" --out \"/path/to/new-output-directory\"",
     "verifier": "node case-triage/sputnik-226/review-packet/verify.cjs",
-    "note": "The verifier checks offline consistency only. It is not cryptographic proof of execution; the rerun is the execution check."
+    "note": "The runner verifies the recorded packet and supplied artifacts, then writes fresh evidence to a new directory. It never overwrites an existing run. Offline verification is not cryptographic proof of execution; the rerun is the execution check."
   },
   "rawLinks": [
     {

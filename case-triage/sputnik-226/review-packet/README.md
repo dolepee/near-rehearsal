@@ -59,23 +59,25 @@ checks the recorded JSON and hashes. Rerun the harness for an execution check.
 
 ## Rerun the actual case
 
-The packet's `evidence/base.wasm` and `evidence/candidate.wasm` are the exact
-source-built artifacts recorded in the run. Use the existing Rehearsal Node
-dependency (`near-workspaces 5.0.0`) and a local pinned Sandbox directory:
+Use the fixed-case runner. It verifies the recorded packet and supplied
+artifacts, checks that the selected local runtime reports `2.6.2`, records the
+runtime hash, then runs the existing harness into a new output directory:
 
 ```sh
-cd case-triage/sputnik-226
-BASE_WASM="$PWD/review-packet/evidence/base.wasm" \
-BASE_WASM_SHA256=d1269a7be654211172cde60bccfa05a76996a3163b55abaeb58737f8661aaebf \
-CANDIDATE_WASM="$PWD/review-packet/evidence/candidate.wasm" \
-CANDIDATE_WASM_SHA256=088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3 \
-NODE_SANDBOX_BIN_DIR="/path/to/pinned/sandbox-directory" \
-EVIDENCE_PATH="$PWD/review-packet/rerun-evidence.json" \
-node node-harness.cjs
+node case-triage/sputnik-226/run-case.cjs \
+  --sandbox-dir "/path/to/pinned/sandbox-directory" \
+  --out "/path/to/new-output-directory"
 ```
 
-Do not reuse a Rust `NEAR_SANDBOX_BIN_PATH` executable-file value here. The
-patched Node binding expects the directory.
+`--sandbox-dir` is the directory expected by the patched Node binding, not the
+Rust executable-file value. Omit `--out` to use a fresh timestamped directory
+under `case-triage/sputnik-226/runs/`.
+
+The runner refuses an existing output directory, a missing/invalid runtime, a
+runtime that does not report `2.6.2`, reference-packet or artifact mismatch, and
+failed/incomplete execution. It prints the fresh `node-evidence.json` path and
+the tested scope. The recorded packet and native reference result are not
+re-executed or presented as the fresh run.
 
 ## Rebuild the packet
 

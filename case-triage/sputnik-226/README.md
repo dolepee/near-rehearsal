@@ -110,8 +110,7 @@ The harness uses `near_workspaces::sandbox()` and no mainnet endpoint.
 ```sh
 # Rust
 export NEAR_SANDBOX_BIN_PATH="/path/to/pinned/near-sandbox"
-# Node (separate value)
-export NODE_SANDBOX_BIN_DIR="/path/to/pinned/sandbox-directory"
+# Node: pass the directory with --sandbox-dir; do not reuse the Rust file value.
 ```
 
 ## near-workspaces 5.0.0 API checks
@@ -120,23 +119,25 @@ export NODE_SANDBOX_BIN_DIR="/path/to/pinned/sandbox-directory"
 - `provider.viewCodeRaw()` returns the base64 **string** `code_base64`; use `provider.viewCode()` or `Buffer.from(raw, 'base64')` before comparing bytes.
 - `add_proposal` and `act_proposal` must be signed by the policy account (`[root.accountId]`), not by the DAO. The configured-factory `update` is signed by root; do not use the DAO self-call callback path.
 
-## Standalone Node CJS equivalent
+## Fixed-case Node runner
 
-For an executable check using the Rehearsal dependencies already installed on the review machine, use the private-pilot copy at `case-triage/sputnik-226/node-harness.cjs` in `dolepee/near-rehearsal` branch `pilot/sputnik-226-old-proposal`. It uses `near-workspaces 5.0.0` and the pinned local Sandbox 2.6.2. It is a thin pilot runner, not a product adapter.
-
-It requires source-built WASM paths and hashes:
+Use the single documented command for this fixed pilot. It verifies the recorded
+reference packet, supplied artifact hashes and selected runtime before executing,
+then writes fresh evidence into a new output directory:
 
 ```sh
-export BASE_WASM="$PWD/pilot/base.wasm"
-export BASE_WASM_SHA256="$(sha256sum "$BASE_WASM" | awk '{print $1}')"
-export CANDIDATE_WASM="$PWD/pilot/candidate.wasm"
-export CANDIDATE_WASM_SHA256="$(sha256sum "$CANDIDATE_WASM" | awk '{print $1}')"
-export NODE_SANDBOX_BIN_DIR="/path/to/pinned/sandbox-directory"  # directory, not the Rust file value
-export EVIDENCE_PATH="$PWD/pilot/evidence.json"
-node case-triage/sputnik-226/node-harness.cjs
+node case-triage/sputnik-226/run-case.cjs \
+  --sandbox-dir "/path/to/pinned/sandbox-directory" \
+  --out "/path/to/new-output-directory"
 ```
 
-Rust 0.17 `Query<ViewBlock>` has no `.finality()` because `ViewBlock` uses `RpcBlockRequest`; the harness therefore reads the local node's plain `block` RPC with `finality: "final"` through `curl`, after a loopback-only check. The loop is bounded to 30 seconds. Node keeps its existing provider barrier. Both wait for the finalized block to reach the highest transaction/receipt block before each final view. It persists partial or failed evidence with the failing stage and every completed raw transaction/receipt result; it only marks the run passed after the config, code, proposal, vote and recipient-balance assertions pass.
+`--sandbox-dir` is the directory expected by the patched Node binding. Omitting
+`--out` creates a fresh timestamped directory under `case-triage/sputnik-226/runs/`.
+The runner refuses an existing output directory, a missing/invalid runtime, a
+runtime that does not report `2.6.2`, reference-packet or artifact mismatch, and
+failed/incomplete execution. It records the runtime hash and prints the fresh
+evidence path and tested scope. The recorded packet and native reference result
+are not re-executed or presented as the fresh run.
 
 ## Comparator
 
