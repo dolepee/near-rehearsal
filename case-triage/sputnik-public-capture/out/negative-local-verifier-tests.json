@@ -1,5 +1,10 @@
 {
-  "schema": "near-rehearsal/local-verifier-negative-tests/v2",
+  "schema": "near-rehearsal/local-verifier-negative-tests/v3",
+  "positiveControl": {
+    "name": "positive-control",
+    "rejected": false,
+    "exit": 0
+  },
   "allRejected": true,
   "cases": [
     {
@@ -89,6 +94,46 @@
     },
     {
       "name": "operation-recipient-args",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "preserved-candidate-no-payout",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "preserved-correction-no-payout",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "unexplained-balance-drain",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "first-operation-balance-drain",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "missing-bond-refund",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "disconnected-receipt-cycle",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "receipt-self-loop",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "recomputed-receipt-cost",
       "rejected": true,
       "exit": 1
     }

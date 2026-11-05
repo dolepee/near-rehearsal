@@ -29,9 +29,12 @@ export NEAR_SANDBOX_BINARY_PATH="$NEAR_SANDBOX_BIN_PATH"
 
 The browser computes SHA-256; the server revalidates bytes and hashes and writes
 an input manifest. The `healthy` selection resolves to the verified good artifact;
-invalid selections clear the old input instead of reusing it. The runner labels each artifact from that manifest, not from
-a hardcoded filename. Alternate builds are accepted within the declared family
-exports (`update`, `migrate`, `act_proposal`).
+invalid selections clear the old input instead of reusing it. Choosing Upload
+clears the current artifact immediately, and Run plus correction rerun stay
+disabled until a valid file has been read and hashed; cancelling or selecting an
+invalid file leaves the input cleared. The runner labels each artifact from that
+manifest, not from a hardcoded filename. Alternate builds are accepted within
+the declared family exports (`update`, `migrate`, `act_proposal`).
 
 ## Outcomes
 

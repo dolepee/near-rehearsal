@@ -23,18 +23,42 @@
     g.className = 'meta ready';
     g.innerHTML = state.correction ? `<b>${esc(state.correction.filename)}</b><br>${state.correction.role} · ${state.correction.bytes ?? 'manifest'} bytes · <span class="mono">${esc(short(state.correction.sha256, 16))}</span>` : 'No correction selected.';
     $('run-button').disabled = !state.candidate || !state.correction || state.run?.status === 'running';
+    // Rerun is a correction-only action; it must not remain usable while the
+    // previous correction has been cleared or a new file is still unverified.
+    $('rerun-button').disabled = !state.correction || !state.run || state.run.status === 'running';
+  }
+  function clearChoice(which, message) {
+    if (which === 'candidate') state.candidate = null; else state.correction = null;
+    renderChoiceMeta();
+    $(`${which}-meta`).className = 'meta bad';
+    $(`${which}-meta`).textContent = message;
   }
   async function setFile(which, file) {
-    if (!file) return;
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    if (!bytes.length || bytes.length > 2 * 1024 * 1024) throw new Error('WASM must be between 1 byte and 2 MB.');
-    const sha256 = await digest(bytes);
-    const target = {filename: file.name, bytes: bytes.length, sha256, base64: bytesToB64(bytes), role: 'upload', label: file.name, provenance: 'uploaded WASM'};
-    if (which === 'candidate') state.candidate = target; else state.correction = target;
-    renderChoiceMeta();
+    // Clear first, including on cancel/invalid input. A previous artifact must
+    // never remain selected while the picker has a different file selected.
+    clearChoice(which, `Reading ${which} WASM…`);
+    if (!file) { clearChoice(which, `No ${which} file selected.`); return; }
+    let bytes;
+    try {
+      bytes = new Uint8Array(await file.arrayBuffer());
+      if (!bytes.length || bytes.length > 2 * 1024 * 1024) throw new Error('WASM must be between 1 byte and 2 MB.');
+      const sha256 = await digest(bytes);
+      const target = {filename: file.name, bytes: bytes.length, sha256, base64: bytesToB64(bytes), role: 'upload', label: file.name, provenance: 'uploaded WASM'};
+      if (which === 'candidate') state.candidate = target; else state.correction = target;
+      renderChoiceMeta();
+    } catch (e) {
+      clearChoice(which, e.message || `Could not read ${which} WASM.`);
+    }
   }
   function chooseArtifact(which, choice) {
-    if (choice === 'upload') { $(`${which}-file`).hidden = false; $(`${which}-file`).click(); return; }
+    if (choice === 'upload') {
+      const input = $(`${which}-file`);
+      input.value = '';
+      clearChoice(which, `Choose a ${which} WASM file.`);
+      input.hidden = false;
+      input.click();
+      return;
+    }
     $(`${which}-file`).hidden = true;
     const artifacts = state.supported?.artifacts || {};
     // Older manifests may expose the healthy bytes only under `corrected`.
