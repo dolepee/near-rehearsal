@@ -1,7 +1,7 @@
 From d699fabd33d7cbdaec07a785e73216cf2234d35b Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Wed, 4 Nov 2026 20:30:48 +0000
-Subject: [PATCH 01/10] Add Sputnik 226 old-proposal pilot harness and dossier
+Subject: [PATCH 01/11] Add Sputnik 226 old-proposal pilot harness and dossier
 
 ---
  pilot/README.md               | 120 ++++++++++++++++++++++++++++++++++
@@ -337,7 +337,7 @@ index 0000000..a89d96e
 From 84c82dce91b2b7b71da5107d31686192d3ff15e8 Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:25 +0000
-Subject: [PATCH 02/10] Harden Sputnik 226 pilot harness against no-op votes
+Subject: [PATCH 02/11] Harden Sputnik 226 pilot harness against no-op votes
 
 Use Contract::call for the self-update, read old proposal state as raw JSON, compare full config, and assert persisted approval plus recipient balance.
 ---
@@ -548,7 +548,7 @@ index a89d96e..1ba6133 100644
 From 6ea5efc87f7cce6f927f87d52114a93bf037e61c Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:42 +0000
-Subject: [PATCH 03/10] Fix pilot deploy diagnostic accessor
+Subject: [PATCH 03/11] Fix pilot deploy diagnostic accessor
 
 ---
  pilot/old_proposal_upgrade.rs | 6 +++++-
@@ -578,7 +578,7 @@ index 1ba6133..b669401 100644
 From 461403ce62490968b1e307df7c3867135458fb62 Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:28:59 +0000
-Subject: [PATCH 04/10] Remove unused pilot import
+Subject: [PATCH 04/11] Remove unused pilot import
 
 ---
  pilot/old_proposal_upgrade.rs | 2 +-
@@ -604,7 +604,7 @@ index b669401..866344e 100644
 From 356756b304923198adea09693afcdbb70df4544a Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:36:22 +0000
-Subject: [PATCH 05/10] Correct dependency pin and add Node harness note
+Subject: [PATCH 05/11] Correct dependency pin and add Node harness note
 
 Distinguish declared caret ranges from Cargo.lock-resolved near-sdk 5.11.0; document the standalone Node CJS runner without changing lockfiles.
 ---
@@ -714,7 +714,7 @@ index e373a57..6e4c3e4 100644
 From 5929f8a31a84cb5012c32f8fabb738eff5554d0d Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 07:44:35 +0000
-Subject: [PATCH 06/10] Record native compile and near-workspaces API checks
+Subject: [PATCH 06/11] Record native compile and near-workspaces API checks
 
 Native Rust harness compiled on the owner's host; source WASM build still pending. Corrected the 5.0.0 API assumptions for signer, code decoding and amount normalization.
 ---
@@ -780,7 +780,7 @@ index 6e4c3e4..32d0bd1 100644
 From 70f4f3a8398709c29f37bf42f604add3b257f51a Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 08:06:13 +0000
-Subject: [PATCH 07/10] Use configured-factory update and add finality evidence
+Subject: [PATCH 07/11] Use configured-factory update and add finality evidence
 
 Root initializes so FactoryInfo.factory_id is root, then root calls update(raw candidate). Add bounded finality barriers and partial evidence; document Rust file vs Node directory sandbox paths.
 ---
@@ -1180,7 +1180,7 @@ index 866344e..ad1166a 100644
 From 01f7d866d9bb1501d427bf059a7659aa3bfb9ee5 Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 08:06:45 +0000
-Subject: [PATCH 08/10] Fix finality evidence call on execution results
+Subject: [PATCH 08/11] Fix finality evidence call on execution results
 
 CallTransaction returns ExecutionFinalResult; use its public outcomes/failures API and keep Execution<Account>.details only for deploy.
 ---
@@ -1258,7 +1258,7 @@ index ad1166a..0ed02e3 100644
 From 9a40452a7666a74456437158bde957c607a2d874 Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 08:12:59 +0000
-Subject: [PATCH 09/10] Use local block RPC for Rust finality barrier
+Subject: [PATCH 09/11] Use local block RPC for Rust finality barrier
 
 Query<ViewBlock> has no finality in near-workspaces 0.17; use loopback-only curl block(finality=final) with a bounded loop. Make edition-2018 panic formatting explicit.
 ---
@@ -1459,7 +1459,7 @@ index 0ed02e3..0aceccb 100644
 From a4e4b9572d8da6f7f1d755c26e19e5a832dc389b Mon Sep 17 00:00:00 2001
 From: Julian Saint <julian@saint.work>
 Date: Thu, 5 Nov 2026 08:16:14 +0000
-Subject: [PATCH 10/10] Add exactly-once approval replay checks
+Subject: [PATCH 10/11] Add exactly-once approval replay checks
 
 After the first exact payment, replay the same approval; require execution failure, unchanged Approved state and total recipient delta of one transfer. Apply to both harnesses.
 ---
@@ -1577,6 +1577,131 @@ index 0aceccb..aedaca0 100644
 +    );
 +
 +    append_stage(&evidence, "complete", &replay);
+     Ok(())
+ }
+-- 
+2.47.3
+
+
+From 0ba9a045e75bcdb799cce30ca12a722d90bff4c2 Mon Sep 17 00:00:00 2001
+From: Julian Saint <julian@saint.work>
+Date: Thu, 5 Nov 2026 08:21:13 +0000
+Subject: [PATCH 11/11] Add Finalize retry invariant checks
+
+Test Finalize against the already Approved/paid proposal in both harnesses; require failure, unchanged Approved state and no second payout. Label the scope as two tested retry routes.
+---
+ pilot/README.md               | 11 ++++++++--
+ pilot/manifest.json           | 10 ++++++---
+ pilot/old_proposal_upgrade.rs | 41 ++++++++++++++++++++++++++++++++++-
+ 3 files changed, 56 insertions(+), 6 deletions(-)
+
+diff --git a/pilot/README.md b/pilot/README.md
+index 925e4b1..91c9ba3 100644
+--- a/pilot/README.md
++++ b/pilot/README.md
+@@ -31,7 +31,12 @@ No live external factory, no mainnet RPC, no public keys, no deployment and no r
+ 
+ The pre-upgrade transfer proposal is created before the upgrade; after upgrade it is approved, the root vote must persist, and a separate recipient must receive the exact transfer amount.
+ 
+-The harness also checks **exactly once** payment: after the first approval has paid the recipient, it replays the same `VoteApprove` call. The replay must fail at execution, the proposal must remain `Approved` with the same root vote, and the recipient's total delta must remain exactly one transfer. Transaction success is never treated as payment evidence; balances are read directly.
++The harness checks **two explicit retry routes** after the first approval has paid the recipient:
++
++1. replay the same `VoteApprove`;
++2. call `Finalize` against the already `Approved` proposal.
++
++Both must fail at execution, leave the proposal `Approved` with the same root vote, and leave the recipient's total delta at exactly one transfer. Transaction success is never treated as payment evidence; balances are read directly. This is evidence for these two routes only, **not a universal exactly-once guarantee**.
+ 
+ ## Exact toolchain and dependencies
+ 
+@@ -152,7 +157,9 @@ That test imports the live mainnet factory and remains the current-workflow comp
+ - Full `get_config` JSON is identical before and after.
+ - `act_proposal(id, VoteApprove)` on the old proposal succeeds.
+ - Final proposal status is `Approved` and the root vote is present.
+-- A duplicate approval after `Approved` fails and causes no second transfer; the total recipient delta remains exactly one transfer.
++- Duplicate `VoteApprove` after `Approved` fails and causes no second transfer.
++- `Finalize` against the already `Approved` proposal fails under `policy.rs::proposal_status` and causes no second transfer.
++- The total recipient delta remains exactly one transfer after both retry attempts. These are two tested retry routes, not a universal exactly-once guarantee.
+ - The finalized-block barrier was satisfied after each state-changing transaction.
+ - The separate recipient’s balance increases by exactly the proposal amount.
+ 
+diff --git a/pilot/manifest.json b/pilot/manifest.json
+index dc6cb23..cbba3e0 100644
+--- a/pilot/manifest.json
++++ b/pilot/manifest.json
+@@ -74,9 +74,13 @@
+       "standalone Node CJS runner marks passed only after all assertions pass",
+       "duplicate VoteApprove after Approved fails at execution",
+       "duplicate approval does not change Approved status or root vote",
+-      "recipient total delta remains exactly one transfer after the replay attempt"
++      "recipient total delta remains exactly one transfer after the replay attempt",
++      "Finalize against the already Approved proposal fails at execution",
++      "Finalize retry does not change Approved status or root vote",
++      "recipient total delta remains exactly one transfer after the Finalize retry"
+     ],
+-    "replay": "after first Approved and exact payment, repeat the same VoteApprove; expect execution failure, no second transfer, unchanged Approved state and exact-one total delta"
++    "replay": "two tested retry routes after first Approved and exact payment: duplicate VoteApprove and Finalize against the already Approved proposal; both must fail, with no second transfer and exact-one total delta. Not a universal exactly-once guarantee.",
++    "scope": "Local configured-factory fixture; two explicit retry routes, not governance UpgradeSelf and not a universal exactly-once guarantee."
+   },
+   "commands": {
+     "installHistorical": "rustup toolchain install 1.84.1 --profile minimal --target wasm32-unknown-unknown && cargo install cargo-near --version 0.13.3 --locked",
+@@ -126,7 +130,7 @@
+       "cause": "direct DAO-to-DAO call entered the callback branch; replaced with root configured-factory call"
+     },
+     "nodeHarness": {
+-      "state": "owner-run pass at f38c7b9 for the pre-replay harness; replay extension rerun pending",
++      "state": "owner-run pass at f38c7b9 for the pre-replay harness; replay plus Finalize extension rerun pending",
+       "evidence": "preserved locally by owner for f38c7b9",
+       "governanceFlowClaim": false,
+       "customerPreferenceClaim": false
+diff --git a/pilot/old_proposal_upgrade.rs b/pilot/old_proposal_upgrade.rs
+index aedaca0..93e6e91 100644
+--- a/pilot/old_proposal_upgrade.rs
++++ b/pilot/old_proposal_upgrade.rs
+@@ -286,6 +286,45 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
+         "total recipient delta is not exactly one transfer"
+     );
+ 
+-    append_stage(&evidence, "complete", &replay);
++    // Second legitimate retry route: Finalize against the already Approved/paid
++    // proposal. Policy::proposal_status rejects non-InProgress/non-Failed states.
++    let finalize = root
++        .call(dao.id(), "act_proposal")
++        .args_json(json!({
++            "id": proposal_id,
++            "action": Action::Finalize,
++            "proposal": transfer_kind.clone(),
++        }))
++        .max_gas()
++        .transact()
++        .await?;
++    append_stage(&evidence, "finalize_retry", &finalize);
++    assert!(finalize.is_failure(), "Finalize retry unexpectedly succeeded: {:?}", finalize);
++    wait_finalized(&worker, &finalize).await?;
++
++    let finalize_proposal: Value = dao
++        .view("get_proposal")
++        .args_json(json!({"id": proposal_id}))
++        .await?
++        .json()?;
++    assert_eq!(finalize_proposal["status"], "Approved", "Finalize retry changed final proposal status: {}", finalize_proposal);
++    assert_eq!(
++        finalize_proposal["votes"][root.id().as_str()],
++        "Approve",
++        "Finalize retry changed root vote: {}", finalize_proposal
++    );
++    let recipient_after_finalize_retry = recipient.view_account().await?.balance;
++    assert_eq!(
++        recipient_after_finalize_retry.as_yoctonear(),
++        recipient_after.as_yoctonear(),
++        "Finalize retry caused a second transfer"
++    );
++    assert_eq!(
++        recipient_after_finalize_retry.as_yoctonear(),
++        recipient_before.as_yoctonear() + transfer_amount.as_yoctonear(),
++        "total recipient delta is not exactly one transfer after Finalize retry"
++    );
++
++    append_stage(&evidence, "complete", &finalize);
      Ok(())
  }
 -- 

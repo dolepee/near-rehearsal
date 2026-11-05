@@ -74,9 +74,13 @@
       "standalone Node CJS runner marks passed only after all assertions pass",
       "duplicate VoteApprove after Approved fails at execution",
       "duplicate approval does not change Approved status or root vote",
-      "recipient total delta remains exactly one transfer after the replay attempt"
+      "recipient total delta remains exactly one transfer after the replay attempt",
+      "Finalize against the already Approved proposal fails at execution",
+      "Finalize retry does not change Approved status or root vote",
+      "recipient total delta remains exactly one transfer after the Finalize retry"
     ],
-    "replay": "after first Approved and exact payment, repeat the same VoteApprove; expect execution failure, no second transfer, unchanged Approved state and exact-one total delta"
+    "replay": "two tested retry routes after first Approved and exact payment: duplicate VoteApprove and Finalize against the already Approved proposal; both must fail, with no second transfer and exact-one total delta. Not a universal exactly-once guarantee.",
+    "scope": "Local configured-factory fixture; two explicit retry routes, not governance UpgradeSelf and not a universal exactly-once guarantee."
   },
   "commands": {
     "installHistorical": "rustup toolchain install 1.84.1 --profile minimal --target wasm32-unknown-unknown && cargo install cargo-near --version 0.13.3 --locked",
@@ -126,7 +130,7 @@
       "cause": "direct DAO-to-DAO call entered the callback branch; replaced with root configured-factory call"
     },
     "nodeHarness": {
-      "state": "owner-run pass at f38c7b9 for the pre-replay harness; replay extension rerun pending",
+      "state": "owner-run pass at f38c7b9 for the pre-replay harness; replay plus Finalize extension rerun pending",
       "evidence": "preserved locally by owner for f38c7b9",
       "governanceFlowClaim": false,
       "customerPreferenceClaim": false

@@ -31,7 +31,12 @@ No live external factory, no mainnet RPC, no public keys, no deployment and no r
 
 The pre-upgrade transfer proposal is created before the upgrade; after upgrade it is approved, the root vote must persist, and a separate recipient must receive the exact transfer amount.
 
-The harness also checks **exactly once** payment: after the first approval has paid the recipient, it replays the same `VoteApprove` call. The replay must fail at execution, the proposal must remain `Approved` with the same root vote, and the recipient's total delta must remain exactly one transfer. Transaction success is never treated as payment evidence; balances are read directly.
+The harness checks **two explicit retry routes** after the first approval has paid the recipient:
+
+1. replay the same `VoteApprove`;
+2. call `Finalize` against the already `Approved` proposal.
+
+Both must fail at execution, leave the proposal `Approved` with the same root vote, and leave the recipient's total delta at exactly one transfer. Transaction success is never treated as payment evidence; balances are read directly. This is evidence for these two routes only, **not a universal exactly-once guarantee**.
 
 ## Exact toolchain and dependencies
 
@@ -152,7 +157,9 @@ That test imports the live mainnet factory and remains the current-workflow comp
 - Full `get_config` JSON is identical before and after.
 - `act_proposal(id, VoteApprove)` on the old proposal succeeds.
 - Final proposal status is `Approved` and the root vote is present.
-- A duplicate approval after `Approved` fails and causes no second transfer; the total recipient delta remains exactly one transfer.
+- Duplicate `VoteApprove` after `Approved` fails and causes no second transfer.
+- `Finalize` against the already `Approved` proposal fails under `policy.rs::proposal_status` and causes no second transfer.
+- The total recipient delta remains exactly one transfer after both retry attempts. These are two tested retry routes, not a universal exactly-once guarantee.
 - The finalized-block barrier was satisfied after each state-changing transaction.
 - The separate recipient’s balance increases by exactly the proposal amount.
 

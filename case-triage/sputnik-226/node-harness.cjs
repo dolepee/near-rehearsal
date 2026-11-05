@@ -282,12 +282,46 @@ async function main() {
     evidence.proposalAfterReplay = replayProposal;
     evidence.recipient.afterReplay = recipientAfterReplay.toString();
     evidence.recipient.deltaTotal = (recipientAfterReplay - recipientBefore).toString();
+
+    // Second legitimate retry route: Finalize against the already Approved/paid
+    // proposal. Policy::proposal_status rejects non-InProgress/non-Failed states.
+    stage('finalize-retry');
+    const finalizeTx = await root.callRaw(dao, 'act_proposal', {
+      id: Number(proposalId), action: 'Finalize', proposal: transferKind,
+    }, {gas: GAS});
+    evidence.transactions.finalizeRetry = finalizeTx.result;
+    persist('running');
+    stage('finalize-retry-finality');
+    await waitFinalized(finalizeTx, 'finalize-retry');
+    assert.equal(finalizeTx.succeeded, false, 'Finalize retry unexpectedly succeeded');
+    assert.equal(finalizeTx.failed, true, 'Finalize retry did not fail at execution');
+
+    stage('finalize-retry-state');
+    const finalizeProposal = await viewJson(worker, dao.accountId, 'get_proposal', {id: Number(proposalId)});
+    assert.equal(finalizeProposal.status, 'Approved', 'Finalize retry changed final proposal status');
+    assert.equal(finalizeProposal.votes?.[root.accountId], 'Approve', 'Finalize retry changed root vote');
+    const recipientAfterFinalizeRetry = await viewAmount(worker, recipient.accountId);
+    assert.equal(recipientAfterFinalizeRetry.toString(), recipientAfter.toString(), 'Finalize retry caused a second transfer');
+    assert.equal(recipientAfterFinalizeRetry - recipientBefore, TRANSFER, 'total recipient delta is not exactly one transfer');
+    evidence.proposalAfterFinalizeRetry = finalizeProposal;
+    evidence.recipient.afterFinalizeRetry = recipientAfterFinalizeRetry.toString();
+    evidence.recipient.deltaTotal = (recipientAfterFinalizeRetry - recipientBefore).toString();
     evidence.replay = {
-      attempted: true,
-      expected: 'rejected after Approved',
-      transactionSucceeded: replayTx.succeeded,
-      transactionFailed: replayTx.failed,
-      secondTransfer: false,
+      scope: 'two tested retry routes; not a universal exactly-once guarantee',
+      duplicateApproval: {
+        attempted: true,
+        expected: 'rejected after Approved',
+        transactionSucceeded: replayTx.succeeded,
+        transactionFailed: replayTx.failed,
+        secondTransfer: false,
+      },
+      finalizeRetry: {
+        attempted: true,
+        expected: 'rejected after Approved',
+        transactionSucceeded: finalizeTx.succeeded,
+        transactionFailed: finalizeTx.failed,
+        secondTransfer: false,
+      },
     };
     persist('running');
 

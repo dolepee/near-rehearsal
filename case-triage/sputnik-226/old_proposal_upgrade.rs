@@ -286,6 +286,45 @@ async fn old_transfer_proposal_survives_real_upgrade_and_migrate(
         "total recipient delta is not exactly one transfer"
     );
 
-    append_stage(&evidence, "complete", &replay);
+    // Second legitimate retry route: Finalize against the already Approved/paid
+    // proposal. Policy::proposal_status rejects non-InProgress/non-Failed states.
+    let finalize = root
+        .call(dao.id(), "act_proposal")
+        .args_json(json!({
+            "id": proposal_id,
+            "action": Action::Finalize,
+            "proposal": transfer_kind.clone(),
+        }))
+        .max_gas()
+        .transact()
+        .await?;
+    append_stage(&evidence, "finalize_retry", &finalize);
+    assert!(finalize.is_failure(), "Finalize retry unexpectedly succeeded: {:?}", finalize);
+    wait_finalized(&worker, &finalize).await?;
+
+    let finalize_proposal: Value = dao
+        .view("get_proposal")
+        .args_json(json!({"id": proposal_id}))
+        .await?
+        .json()?;
+    assert_eq!(finalize_proposal["status"], "Approved", "Finalize retry changed final proposal status: {}", finalize_proposal);
+    assert_eq!(
+        finalize_proposal["votes"][root.id().as_str()],
+        "Approve",
+        "Finalize retry changed root vote: {}", finalize_proposal
+    );
+    let recipient_after_finalize_retry = recipient.view_account().await?.balance;
+    assert_eq!(
+        recipient_after_finalize_retry.as_yoctonear(),
+        recipient_after.as_yoctonear(),
+        "Finalize retry caused a second transfer"
+    );
+    assert_eq!(
+        recipient_after_finalize_retry.as_yoctonear(),
+        recipient_before.as_yoctonear() + transfer_amount.as_yoctonear(),
+        "total recipient delta is not exactly one transfer after Finalize retry"
+    );
+
+    append_stage(&evidence, "complete", &finalize);
     Ok(())
 }
