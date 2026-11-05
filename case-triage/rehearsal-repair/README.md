@@ -54,7 +54,7 @@ The base failed branch had contract `+1 NEAR` and proposer `-1.0008510133192634 
 
 A deliberately partial source variant returned the bond only for `Transfer` failures. Its artifact SHA-256 is `3a1a8fb7929efd8fb1f0882c60844338ebea4c4505413080b2e9539013eec896`; its report is `out/issue238-partial.json`. The acceptance test rejects it because the `FunctionCall` branch still leaves the contract delta at `+1 NEAR`.
 
-Each branch runs in its own local worker with the same fixed account IDs, funding and initial state; the acceptance script checks `healthy.before` equals `failed.before`, not merely equivalent funding.
+Each branch runs in its own local worker with the same fixed account IDs and funding. The base and repaired runs share the same frozen `state`/`policy`; the contract balance differs only because the two artifacts have different code storage. Acceptance checks the state/policy equality across the two artifacts and the healthy/failed before-state equality within each run.
 
 ## Independent acceptance
 
