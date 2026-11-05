@@ -1,6 +1,6 @@
 # Rehearsal Repair checkpoint
 
-Status: **source-built issue #238 reproduction complete on local Sandbox 2.14.0; repair loop not yet implemented.**
+Status: **source-built issue #238 reproduction and repaired control complete on local Sandbox 2.14.0; model-generated repair not claimed.**
 
 ## Pinned source
 
@@ -40,8 +40,24 @@ failures were specific to the older sandbox runtimes tested (`2.6.2`, `2.10.0`,
 `2.11.0`); the same artifact initializes on `2.14.0`. The runner now finalizes
 `new` and waits for the first view before creating a proposal.
 
+## Repaired control
+
+The authored source patch in `repair.patch` returns the proposal bond from
+`internal_callback_proposal_fail` before the `Failed` state is persisted. It was
+compiled with the same pinned toolchain and source revision.
+
+- Repaired artifact SHA-256: `41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5`
+- Repaired failed async: proposal `Failed`; contract delta `0`; recipient `0`; proposer `-0.0009150333053115 NEAR` (gas only).
+- Repaired healthy control: proposal `Approved`; contract `-0.1 NEAR`; recipient `+0.1 NEAR`; proposer `-0.0008363507766318 NEAR`.
+
+The base failed branch had contract `+1 NEAR` and proposer `-1.0008566935666626 NEAR`; the repair removes the stranded bond while preserving the healthy payout. Raw reports are in `out/issue238-local.json` and `out/issue238-repaired.json`.
+
+This is an authored deterministic patch, not a model-generated patch. The model
+provenance gate remains separate and blocked at authentication.
+
 ## Next bounded step
 
-Implement the source-only repair path and compile it without granting it test or
-predicate access. The current checkpoint establishes the reproduction and the
-healthy control; it is not a model-generated patch and not a repair claim.
+Run the repair from the same frozen state as the retained branches and add the
+independent acceptance predicates (exactly-once bond, immutable beneficiary and
+amount, unauthorized callback rejection). Do not treat this checkpoint as a
+general audit or a release claim.

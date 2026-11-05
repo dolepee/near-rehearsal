@@ -16,8 +16,15 @@
   },
   "localRuntime": {
     "sandbox": "2.14.0",
-    "observation": "deploy, new and both branches succeeded; issue #238 failed-async reproduction recorded"
+    "observation": "base and repaired artifacts build and run; failed-async and healthy branches recorded"
   },
-  "status": "reproduced",
-  "issue238Reproduction": true
+  "status": "repaired-control-passed",
+  "issue238Reproduction": true,
+  "repair": {
+    "patch": "repair.patch",
+    "description": "Return the proposal bond from internal_callback_proposal_fail before persisting Failed state.",
+    "authored": true,
+    "modelGenerated": false,
+    "artifactSha256": "41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5"
+  }
 }
