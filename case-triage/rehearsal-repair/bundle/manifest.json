@@ -1,6 +1,6 @@
 {
   "schema": "near-rehearsal/repair-evidence/v1",
-  "generatedAt": "2026-11-06T05:52:28.464Z",
+  "generatedAt": "2026-11-06T05:54:46.080Z",
   "source": {
     "repository": "https://github.com/near-daos/sputnik-dao-contract",
     "commit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b"
@@ -27,7 +27,8 @@
     "partialRejected": true,
     "acceptance": true,
     "acceptanceTests": true,
-    "controllerAllowlist": true
+    "controllerAllowlist": true,
+    "cleanRebuildMatches": true
   },
   "boundary": "Local Sandbox authored repair evidence only. Not a model-generated patch, production authorization, public-chain capture, or release claim.",
   "inputs": [
@@ -96,6 +97,12 @@
       "role": "controller-tests-result",
       "bytes": 420,
       "sha256": "498c3ca6e5a117f2398b23262989c241d896fec223d266039814b2312f9fc9e2"
+    },
+    {
+      "path": "reproducibility.json",
+      "role": "reproducibility-result",
+      "bytes": 786,
+      "sha256": "b5605dbf239049e1e58a170fca1e8c7d139e13581d0a709231758eb170898b01"
     }
   ]
 }
