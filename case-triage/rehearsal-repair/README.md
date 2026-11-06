@@ -68,6 +68,18 @@ The first checks base/repaired artifact identity, healthy payout and beneficiary
 This is an authored deterministic patch, not a model-generated patch. The model
 provenance gate remains separate and blocked at authentication.
 
+## Controller allowlist
+
+`repair-controller.cjs` validates a source-only patch before it can be applied:
+only `sputnikdao2/src/proposals.rs` is allowed; tests, acceptance files, Cargo
+configuration and build scripts are forbidden, as are absolute or escaping
+paths. `controller-tests.cjs` covers the authored patch and five rejections.
+
+```sh
+node case-triage/rehearsal-repair/repair-controller.cjs case-triage/rehearsal-repair/repair.patch
+node case-triage/rehearsal-repair/controller-tests.cjs
+```
+
 ## Model loop preparation
 
 `model-prompt.md` and `controller-manifest.json` define the source-only repair
