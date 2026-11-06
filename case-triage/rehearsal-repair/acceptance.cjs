@@ -49,9 +49,15 @@ if (require.main === module) {
   const base = JSON.parse(fs.readFileSync(path.join(here, 'out/issue238-local.json'), 'utf8'));
   const repaired = JSON.parse(fs.readFileSync(path.join(here, 'out/issue238-repaired.json'), 'utf8'));
   const errors = verify(base, repaired);
+  const frozenStateEqual = JSON.stringify(base.healthy.before.state) === JSON.stringify(repaired.healthy.before.state);
+  const policyEqual = JSON.stringify(base.healthy.before.policy) === JSON.stringify(repaired.healthy.before.policy);
+  const withinRunBeforeEqual = ['base', 'repaired'].every((name) => JSON.stringify((name === 'base' ? base : repaired).healthy.before) === JSON.stringify((name === 'base' ? base : repaired).failed.before));
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-acceptance/v1',
     ok: errors.length === 0,
+    frozenStateEqual,
+    policyEqual,
+    withinRunBeforeEqual,
     baseFailedContractDelta: base.failed.deltas.contract,
     repairedFailedContractDelta: repaired.failed.deltas.contract,
     repairedFailedProposerDelta: repaired.failed.deltas.proposer,
