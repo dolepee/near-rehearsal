@@ -1,0 +1,17 @@
+accepted: authored repair patch is source-only
+rejected: build configuration in the patch
+rejected: controller test path in the patch
+rejected: path escapes the source tree
+rejected: empty patch
+{
+  "schema": "near-rehearsal/repair-controller-tests/v1",
+  "positiveControl": true,
+  "cases": [
+    "authored-source-only",
+    "build-config",
+    "controller-test",
+    "path-escape",
+    "empty"
+  ],
+  "passed": true
+}

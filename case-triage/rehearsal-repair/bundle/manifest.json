@@ -1,0 +1,101 @@
+{
+  "schema": "near-rehearsal/repair-evidence/v1",
+  "generatedAt": "2026-11-06T05:52:28.464Z",
+  "source": {
+    "repository": "https://github.com/near-daos/sputnik-dao-contract",
+    "commit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b"
+  },
+  "build": {
+    "command": "cargo build --target wasm32-unknown-unknown --release --locked -p sputnikdao2",
+    "reproducibleEntry": "(cd sputnikdao2 && cargo near build reproducible-wasm)",
+    "reproducibleEntryRun": false
+  },
+  "artifacts": {
+    "base": {
+      "sha256": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578"
+    },
+    "repaired": {
+      "sha256": "41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5"
+    },
+    "partial": {
+      "sha256": "3a1a8fb7929efd8fb1f0882c60844338ebea4c4505413080b2e9539013eec896"
+    }
+  },
+  "status": {
+    "baseFailedContractDelta": "1000000000000000000000000",
+    "repairedFailedContractDelta": "0",
+    "partialRejected": true,
+    "acceptance": true,
+    "acceptanceTests": true,
+    "controllerAllowlist": true
+  },
+  "boundary": "Local Sandbox authored repair evidence only. Not a model-generated patch, production authorization, public-chain capture, or release claim.",
+  "inputs": [
+    {
+      "path": "repair.patch",
+      "role": "patch",
+      "bytes": 772,
+      "sha256": "a734097b465ae3f9e05dd95c8c2bfb47b6b0f766ee3d0b8ccb15a05a1288bd7f"
+    },
+    {
+      "path": "artifacts/base.wasm",
+      "role": "base-wasm",
+      "bytes": 528645,
+      "sha256": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578"
+    },
+    {
+      "path": "artifacts/repaired.wasm",
+      "role": "repaired-wasm",
+      "bytes": 528759,
+      "sha256": "41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5"
+    },
+    {
+      "path": "artifacts/partial.wasm",
+      "role": "partial-wasm",
+      "bytes": 528782,
+      "sha256": "3a1a8fb7929efd8fb1f0882c60844338ebea4c4505413080b2e9539013eec896"
+    },
+    {
+      "path": "reports/base.json",
+      "role": "base-report",
+      "bytes": 35167,
+      "sha256": "60f12604bb96d2f4cfc6aacbfd0e2e0f0661893ce47587f5971809ddc6ec0ec8"
+    },
+    {
+      "path": "reports/repaired.json",
+      "role": "repaired-report",
+      "bytes": 35995,
+      "sha256": "e0e35a0512f9cccbcddc924abd6c38f704b37051a974edb321a6256a6f672c62"
+    },
+    {
+      "path": "reports/partial.json",
+      "role": "partial-report",
+      "bytes": 35165,
+      "sha256": "edc6da126d6d5a22848cf667b51574a97b1b75b42834f6bafd6e5ecc249b1697"
+    },
+    {
+      "path": "acceptance.json",
+      "role": "acceptance-result",
+      "bytes": 239,
+      "sha256": "0e3a86e50f7aa67fe5de94a9ce00bdd6784053fa7450ed100cbc7b4c955d243a"
+    },
+    {
+      "path": "acceptance-tests.json",
+      "role": "acceptance-tests-result",
+      "bytes": 748,
+      "sha256": "38013410990eb0b8e36791f1b5ae4b05d407d43ad1228951253e73aca68ae1b1"
+    },
+    {
+      "path": "controller.json",
+      "role": "controller-result",
+      "bytes": 86,
+      "sha256": "c971b23d177ec0b54a0024c5cf0aa00404c714882f91baf7bb74992e53ba804e"
+    },
+    {
+      "path": "controller-tests.json",
+      "role": "controller-tests-result",
+      "bytes": 420,
+      "sha256": "498c3ca6e5a117f2398b23262989c241d896fec223d266039814b2312f9fc9e2"
+    }
+  ]
+}

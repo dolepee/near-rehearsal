@@ -1,0 +1,8 @@
+{
+  "schema": "near-rehearsal/repair-acceptance/v1",
+  "ok": true,
+  "baseFailedContractDelta": "1000000000000000000000000",
+  "repairedFailedContractDelta": "0",
+  "repairedFailedProposerDelta": "-908858456968500000000",
+  "errors": []
+}

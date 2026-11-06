@@ -1,0 +1,18 @@
+diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs
+index 3c41adf..7467d18 100644
+--- a/sputnikdao2/src/proposals.rs
++++ b/sputnikdao2/src/proposals.rs
+@@ -493,8 +493,12 @@ impl Contract {
+         &mut self,
+         proposal: &mut Proposal,
+     ) -> PromiseOrValue<()> {
++        // If the execution callback fails, the proposal never reaches the
++        // approved payout path. Return the inherited proposal bond here so a
++        // failed async action cannot strand it in the contract.
++        let policy = self.policy.get().unwrap().to_policy();
+         proposal.status = ProposalStatus::Failed;
+-        PromiseOrValue::Value(())
++        self.internal_return_bonds(&policy, proposal).into()
+     }
+ 
+     /// Process rejecting proposal.
