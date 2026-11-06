@@ -7,18 +7,15 @@ Status: **source-built issue #238 reproduction and repaired control complete on 
 - Repository: `https://github.com/near-daos/sputnik-dao-contract`
 - Commit: `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`
 - Toolchain: Rust `1.86.0`, target `wasm32-unknown-unknown`
-- Reproducible build entry, from the source checkout:
-
-```sh
-(cd sputnikdao2 && cargo near build reproducible-wasm)
-```
-
-The repository's `build.sh` uses the same `cargo near build reproducible-wasm`
-entry for each contract. The direct compile fallback is:
+- Build used for the recorded artifacts:
 
 ```sh
 cargo build --target wasm32-unknown-unknown --release --locked -p sputnikdao2
 ```
+
+The repository's `build.sh` uses `cargo near build reproducible-wasm`. That
+entry was **not run** here because `cargo-near` is not installed in this
+environment; do not treat the recorded artifact as a reproducible-build result.
 
 - Built artifact: `target/wasm32-unknown-unknown/release/sputnikdao2.wasm`
 - Artifact SHA-256: `5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578`

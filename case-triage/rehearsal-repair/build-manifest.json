@@ -9,10 +9,13 @@
     "target": "wasm32-unknown-unknown"
   },
   "build": {
-    "command": "(cd sputnikdao2 && cargo near build reproducible-wasm)",
+    "command": "cargo build --target wasm32-unknown-unknown --release --locked -p sputnikdao2",
     "fallback": "cargo build --target wasm32-unknown-unknown --release --locked -p sputnikdao2",
     "artifact": "target/wasm32-unknown-unknown/release/sputnikdao2.wasm",
-    "artifactSha256": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578"
+    "artifactSha256": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578",
+    "reproducibleEntry": "(cd sputnikdao2 && cargo near build reproducible-wasm)",
+    "reproducibleEntryRun": false,
+    "note": "cargo-near is not installed in this environment; the recorded artifact was built with the direct cargo command."
   },
   "localRuntime": {
     "sandbox": "2.14.0",
