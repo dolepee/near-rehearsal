@@ -1,6 +1,6 @@
 # Rehearsal Repair checkpoint
 
-Status: **source-built issue #238 reproduction and repaired control complete on local Sandbox 2.14.0; model-generated repair not claimed.**
+Status: **source-built issue #238 reproduction, authored control and genuine local-model producer path are implemented. The browser supports a fresh model/build/replay attempt when its provider is configured. Per-run output must distinguish generated candidates from authored fixtures.**
 
 ## Pinned source
 
@@ -26,7 +26,8 @@ The pinned source build was run on near-sandbox `2.14.0`. The runner reads the
 actual `near-sandbox --version` output before creating a worker, requires
 `release 2.14.0`, commit `bc4e9e8cfb03d9e82f027883055624e18576993e` and protocol
 `88`, and records that runtime in each report. It no longer falls back to a
-`2.6.2` label. Both branches executed from separately initialized local state:
+`2.6.2` label. Both branches execute from separately initialized local state. These controls do not establish upgrade recovery of an already-failed proposal:
+
 
 - Healthy control: proposal `Approved`; contract `-0.1 NEAR`; recipient `+0.1 NEAR`; proposer `-0.0008306712120212 NEAR`.
 - Failed async FunctionCall: proposal `Failed`; contract `+1 NEAR`; recipient `0`; proposer `-1.0008510133192634 NEAR`.
@@ -70,7 +71,7 @@ node case-triage/rehearsal-repair/pipeline-guards-tests.cjs
 The first checks base/repaired artifact identity, healthy payout and beneficiary/amount, failed status, base stranded bond, repaired zero contract delta and gas-only proposer delta, rejected unauthorized callback, identical starting state within each run, actual Sandbox 2.14.0/commit/protocol and binary hash, and exactly-once failed-proposal retry (anchored after the first failure and unauthorized callback). The guard test covers the real rustup home, actual cargo/rustc 1.86.0, wrong-toolchain rejection, Sandbox 2.14.0 acceptance and wrong/missing-runtime rejection. The second is the positive control plus targeted rejections: hidden base bond, double refund, missing payout, false failed status, changed artifact identity, accepted unauthorized callback, changed beneficiary, partial source repair, and changed candidate identity/report/wasm controls.
 
 This is an authored deterministic patch, not a model-generated patch. The model
-provenance gate remains separate and blocked at authentication.
+provenance gate is separate. Current local provider availability is checked per run; the historical authored control is never relabelled as generated.
 
 For a real model candidate, acceptance accepts a controller-owned identity:
 `candidate-identity.cjs` hashes the patch, the cleanly applied allowlisted
@@ -204,6 +205,7 @@ MODEL_PRODUCER_SANDBOX_CMD='["<outer-policy-wrapper>","--permission-profile","<v
   --codex-bin "$(command -v codex)" \
   --base-report case-triage/rehearsal-repair/out/issue238-local.json \
   --sandbox-dir <verified-sandbox-wrapper>
+```
 
 The prompt is sent on stdin (`-`); the provider-owned last-message file is
 written inside `{workspace}` and copied controller-side after exit. The outer
