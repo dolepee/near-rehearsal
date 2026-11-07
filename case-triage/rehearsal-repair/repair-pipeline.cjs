@@ -40,6 +40,7 @@ function parseArgs(argv) {
     else if (argv[i] === '--out') opts.out = path.resolve(argv[++i]);
     else if (argv[i] === '--base-report') opts.baseReport = path.resolve(argv[++i]);
     else if (argv[i] === '--provenance') opts.provenance = path.resolve(argv[++i]);
+    else if (argv[i] === '--sandbox-dir') opts.sandboxDir = path.resolve(argv[++i]);
     else throw new Error(`unknown argument: ${argv[i]}`);
   }
   return opts;
@@ -102,7 +103,23 @@ function cargoEnv(manifest) {
   };
 }
 
-function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance = null} = {}) {
+function sandboxEnv(manifest, requestedDir) {
+  const version = manifest?.localRuntime?.sandbox;
+  if (!version) throw new Error('build manifest does not declare a Sandbox version');
+  const dir = requestedDir || [
+    `/workspace/tools/near-sandbox-${version}-wrapper`,
+    `/workspace/tools/near-sandbox-${version.replace(/\.0$/, '')}-wrapper`,
+  ].find((candidate) => fs.existsSync(path.join(candidate, 'near-sandbox')));
+  if (!dir) throw new Error(`pinned Sandbox ${version} wrapper was not found`);
+  return {
+    NEAR_SANDBOX_VERSION: version,
+    NEAR_SANDBOX_BIN_PATH: dir,
+    NEAR_SANDBOX_BINARY_PATH: dir,
+    SANDBOX_DIR: dir,
+  };
+}
+
+function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance = null, sandboxDir = null} = {}) {
   if (!patch || !source || !out) throw new Error('--patch, --source and --out are required');
   const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
   const buildManifest = JSON.parse(fs.readFileSync(path.join(HERE, 'build-manifest.json'), 'utf8'));
@@ -138,6 +155,7 @@ function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance
     cwd: ROOT,
     timeout: 20 * 60 * 1000,
     env: {
+      ...sandboxEnv(buildManifest, sandboxDir),
       SPUTNIK_WASM: wasm,
       SPUTNIK_SOURCE_SHA: manifest.source.commit,
       SPUTNIK_OUT_DIR: replayDir,
@@ -181,6 +199,7 @@ function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance
       wasm: sha256File(wasm),
     },
     cargo: cargoEnv(buildManifest).CARGO || null,
+    sandbox: sandboxEnv(buildManifest, sandboxDir).NEAR_SANDBOX_VERSION,
     changedPaths: applied.changedPaths,
     baseReport,
     candidateReport: candidateReportPath,
