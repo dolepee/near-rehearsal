@@ -116,7 +116,10 @@ patch or the rest of the tree. `model-producer.cjs` runs an authorized coding
 CLI from `MODEL_PRODUCER_CMD`, requires a unified git diff, applies the
 controller allowlist, and verifies the actual changed paths in a fresh source
 tree before writing a candidate. It does not build, accept or publish anything.
-Its preflight requires a fresh nonce, not merely a zero exit status.
+Its preflight requires a fresh nonce, not merely a zero exit status. Repair
+generation requires `MODEL_PRODUCER_SANDBOX_CMD` and fails closed without it;
+the producer receives only a small environment allowlist (or names listed in
+`MODEL_PRODUCER_ENV`), never the broad parent environment.
 
 Repair generation is fail-closed: a prompt alone does not confine the CLI, so
 `MODEL_PRODUCER_SANDBOX_CMD` is required. It is a JSON argv prefix containing

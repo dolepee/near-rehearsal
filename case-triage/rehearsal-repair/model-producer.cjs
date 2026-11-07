@@ -33,6 +33,7 @@ const {buildPrompt} = require('./model-input.cjs');
 
 const here = __dirname;
 const SCHEMA = 'near-rehearsal/model-producer/v1';
+const DEFAULT_ENV_KEYS = ['PATH', 'LANG', 'LC_ALL', 'TMPDIR'];
 
 // Controller-owned files whose contents must not change while a producer runs.
 const OWNED_FILES = [
@@ -67,6 +68,10 @@ function usage() {
     'prefix containing {workspace} that confines reads of controller files and',
     'writes outside the disposable workspace. The prefix is probed before use',
     'and the run is blocked if the probe fails.',
+    '',
+    'MODEL_PRODUCER_ENV optionally lists extra environment variable names to',
+    'pass to the producer; only PATH, LANG, LC_ALL, TMPDIR and that explicit',
+    'list are inherited.',
   ].join('\n');
 }
 
@@ -132,6 +137,22 @@ function changedOwned(before, after) {
   return Object.keys(before).filter((name) => before[name] !== after[name]);
 }
 
+function producerEnv(env = process.env) {
+  let extra = [];
+  try {
+    extra = env.MODEL_PRODUCER_ENV ? JSON.parse(env.MODEL_PRODUCER_ENV) : [];
+  } catch (error) {
+    throw new Error(`MODEL_PRODUCER_ENV is not valid JSON: ${error.message}`);
+  }
+  if (!Array.isArray(extra) || extra.some((key) => typeof key !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key))) {
+    throw new Error('MODEL_PRODUCER_ENV must be a JSON array of environment variable names');
+  }
+  const keys = new Set([...DEFAULT_ENV_KEYS, ...extra]);
+  const out = {};
+  for (const key of keys) if (env[key] !== undefined) out[key] = env[key];
+  return out;
+}
+
 function materialize(argv, prompt) {
   const placeholder = argv.includes('{prompt}');
   const args = argv.map((part) => part === '{prompt}' ? prompt : part);
@@ -164,7 +185,7 @@ function runCommand(argv, {cwd, timeoutMs = 120000, input, env = process.env} = 
 
 function runProducer(argv, prompt, {cwd = process.cwd(), timeoutMs = 120000, env = process.env} = {}) {
   const call = materialize(argv, prompt);
-  return runCommand(call.argv, {cwd, timeoutMs, input: call.stdin, env});
+  return runCommand(call.argv, {cwd, timeoutMs, input: call.stdin, env: producerEnv(env)});
 }
 
 function makeWorkspace() {
@@ -297,6 +318,8 @@ function produce({
     report.command = argv;
     workspace = makeWorkspace();
 
+    const safeEnv = producerEnv(env);
+    const before = preflight ? null : hashOwned(ownedDir);
     const actualPrompt = preflight
       ? `Reply with exactly: NONCE ${crypto.randomBytes(16).toString('hex')}`
       : buildPrompt({sourceDir, promptPath, manifestPath});
@@ -305,7 +328,6 @@ function produce({
     if (nonce) report.nonceSha256 = sha256(nonce);
 
     let launch = call.argv;
-    let before = null;
     if (!preflight) {
       const prefix = sandboxArgv(env);
       if (!prefix) {
@@ -317,7 +339,7 @@ function produce({
       const sentinel = path.join(ownedDir, 'repair.patch');
       const expanded = prefix.map((part) => part.split('{workspace}').join(workspace));
       report.isolation = {mode: 'sandbox', command: expanded, sentinel};
-      const probes = probeSandbox(expanded, {workspace, sentinel, ownedDir, timeoutMs: Math.min(timeoutMs, 30000), env});
+      const probes = probeSandbox(expanded, {workspace, sentinel, ownedDir, timeoutMs: Math.min(timeoutMs, 30000), env: safeEnv});
       report.isolation.probes = probes;
       if (!probes.ok) {
         report.status = 'blocked';
@@ -326,10 +348,9 @@ function produce({
         return {ok: false, report};
       }
       launch = expanded.concat(call.argv);
-      before = hashOwned(ownedDir);
     }
 
-    const result = runCommand(launch, {cwd: workspace, timeoutMs, input: call.stdin, env});
+    const result = runCommand(launch, {cwd: workspace, timeoutMs, input: call.stdin, env: safeEnv});
     Object.assign(report, {
       exitCode: result.exitCode,
       signal: result.signal,
@@ -425,4 +446,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = {extractDiff, hashOwned, materialize, parseArgs, probeSandbox, produce, producerArgv, runProducer, sandboxArgv};
+module.exports = {extractDiff, hashOwned, materialize, parseArgs, probeSandbox, produce, producerArgv, producerEnv, runProducer, sandboxArgv};

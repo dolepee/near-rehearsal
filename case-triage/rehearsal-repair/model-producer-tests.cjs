@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {execFileSync} = require('node:child_process');
-const {extractDiff, materialize, produce, producerArgv, runProducer} = require('./model-producer.cjs');
+const {extractDiff, materialize, produce, producerArgv, producerEnv, runProducer} = require('./model-producer.cjs');
 const {buildPrompt} = require('./model-input.cjs');
 
 assert.throws(() => extractDiff(''), /empty/);
@@ -15,6 +15,8 @@ assert.equal(materialize(['cli'], 'hello').stdin, 'hello');
 assert.deepEqual(producerArgv({MODEL_PRODUCER_CMD: '["cli",""]'}), ['cli', '']);
 assert.throws(() => producerArgv({}), /MODEL_PRODUCER_CMD is required/);
 assert.throws(() => producerArgv({MODEL_PRODUCER_CMD: 'not-json'}), /valid JSON/);
+assert.equal(producerEnv({PATH: '/bin', SECRET_SENTINEL: 'no', SAFE_KEY: 'yes', MODEL_PRODUCER_ENV: '["SAFE_KEY"]'}).SECRET_SENTINEL, undefined);
+assert.equal(producerEnv({PATH: '/bin', SECRET_SENTINEL: 'no', SAFE_KEY: 'yes', MODEL_PRODUCER_ENV: '["SAFE_KEY"]'}).SAFE_KEY, 'yes');
 
 const failure = runProducer(
   [process.execPath, '-e', "process.stderr.write('Failed to authenticate. API Error: 403 blocked'); process.exit(1)"],
@@ -163,6 +165,7 @@ const sandboxPrefix = JSON.stringify([process.execPath, wrapper, path.join(owned
 const repairEnv = (sandbox, extra = {}) => ({
   ...process.env,
   MODEL_PRODUCER_CMD: producer,
+  MODEL_PRODUCER_ENV: JSON.stringify(['SANDBOX_ALLOW_CONTROLLER_READ', 'SANDBOX_ALLOW_CONTROLLER_WRITE', 'SANDBOX_DENY_WORKSPACE_WRITE']),
   ...(sandbox ? {MODEL_PRODUCER_SANDBOX_CMD: sandboxPrefix} : {}),
   ...extra,
 });
@@ -256,6 +259,6 @@ for (const dir of [wrapperDir, pinned.repo, promptDir, ownedDir, failedDir, stal
 
 console.log(JSON.stringify({
   schema: 'near-rehearsal/model-producer-tests/v1',
-  cases: ['empty-output', 'prose-output', 'markdown-fence', 'prompt-placeholder', 'prompt-stdin', 'empty-argument', 'missing-command', 'invalid-command-json', 'producer-failure-propagation', 'preflight-blocked-report', 'preflight-nonce-success', 'preflight-nonce-mismatch', 'pinned-source-only-input', 'repair-requires-sandbox', 'sandbox-read-probe', 'sandbox-controller-write-probe', 'sandbox-workspace-write-probe', 'captured-candidate-and-evidence', 'captured-candidate-not-overwritten', 'failure-persisted-without-stale-candidate', 'stale-preflight-patch-removed'],
+  cases: ['empty-output', 'prose-output', 'markdown-fence', 'prompt-placeholder', 'prompt-stdin', 'empty-argument', 'missing-command', 'invalid-command-json', 'producer-failure-propagation', 'preflight-blocked-report', 'preflight-nonce-success', 'preflight-nonce-mismatch', 'pinned-source-only-input', 'repair-requires-sandbox', 'sandbox-read-probe', 'sandbox-controller-write-probe', 'sandbox-workspace-write-probe', 'captured-candidate-and-evidence', 'captured-candidate-not-overwritten', 'failure-persisted-without-stale-candidate', 'stale-preflight-patch-removed', 'producer-env-allowlist'],
   passed: true,
 }, null, 2));
