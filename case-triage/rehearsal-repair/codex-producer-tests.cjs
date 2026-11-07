@@ -35,7 +35,9 @@ check('tool-free argv', () => {
   const args = buildCodexArgv({workspace: '/tmp/ws', lastMessage: '/tmp/last', noDaemon: true});
   assert.equal(args.includes('--sandbox'), false);
   assert.equal(args.includes('-s'), false);
-  assert.equal(args.includes('--no-daemon'), true);
+  assert.equal(args[0], '--no-daemon');
+  assert.equal(args[1], 'exec');
+  assert.ok(args.indexOf('--no-daemon') < args.indexOf('exec'));
   assert.equal(args.includes('--ephemeral'), true);
   assert.equal(args.includes('--ignore-user-config'), true);
   assert.equal(args.includes('--profile'), false);

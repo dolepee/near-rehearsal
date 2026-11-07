@@ -186,8 +186,9 @@ function cleanupRuntime(runtime) {
 }
 
 function buildCodexArgv({workspace, lastMessage, model, noDaemon}) {
-  const args = ['exec', '--json', '--ephemeral', '--ignore-user-config', '--ignore-rules', '--skip-git-repo-check'];
+  const args = [];
   if (noDaemon) args.push('--no-daemon');
+  args.push('exec', '--json', '--ephemeral', '--ignore-user-config', '--ignore-rules', '--skip-git-repo-check');
   args.push('--cd', workspace, '--output-last-message', lastMessage);
   for (const feature of TOOL_DISABLES) args.push('--disable', feature);
   if (model) args.push('--model', model);
