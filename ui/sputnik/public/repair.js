@@ -163,7 +163,7 @@
   function renderRun(run) {
     state.run = run;
     if (run.status === 'running') { renderRunning(run); return; }
-    if (run.status === 'accepted' || run.status === 'rejected' || run.consequence || run.patch) { renderResult(run); return; }
+    if (run.status === 'accepted' || (run.status === 'rejected' && run.consequence)) { renderResult(run); return; }
     renderError(run);
   }
 

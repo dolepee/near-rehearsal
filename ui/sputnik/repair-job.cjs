@@ -80,14 +80,18 @@ function resolveConfig(env = process.env) {
   const sandboxCmd = env.MODEL_PRODUCER_SANDBOX_CMD || null;
   const model = env.CODEX_MODEL || null;
   const missing = [];
+  const buildManifest = readJson(BUILD_MANIFEST, {});
+  const expectedBaseSha = buildManifest?.build?.artifactSha256 || null;
   if (!sourceDir || !fs.existsSync(path.join(sourceDir, '.git'))) missing.push('REPAIR_SOURCE_DIR');
   if (!fs.existsSync(baseWasm)) missing.push('REPAIR_BASE_WASM');
+  else if (!expectedBaseSha || sha256File(baseWasm) !== expectedBaseSha) missing.push('REPAIR_BASE_WASM');
   if (!sandboxDir || !fs.existsSync(path.join(sandboxDir, 'near-sandbox'))) missing.push('REPAIR_SANDBOX_DIR');
   if (!sandboxCmd) missing.push('MODEL_PRODUCER_SANDBOX_CMD');
   if (!profile) missing.push('CODEX_PERMISSION_PROFILE');
   if (!authSource || !fs.existsSync(authSource)) missing.push('CODEX_AUTH_SOURCE');
   return {
     sourceDir, baseWasm, sandboxDir, codexBin, profile, privateRuntime, authSource, sandboxCmd, model,
+    baseWasmSha256: fs.existsSync(baseWasm) ? sha256File(baseWasm) : null,
     providerConfigured: Boolean(sandboxCmd && profile && authSource && fs.existsSync(authSource)),
     configured: missing.length === 0,
     missing,
