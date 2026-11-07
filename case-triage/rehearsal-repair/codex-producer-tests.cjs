@@ -93,6 +93,8 @@ check('runtime auth is a transient read-only reference', () => {
     assert.equal(fs.lstatSync(path.join(runtimeDir, 'auth.json')).isSymbolicLink(), true);
     assert.equal(fs.realpathSync(path.join(runtimeDir, 'auth.json')), fs.realpathSync(auth));
     assert.equal(fs.statSync(runtimeDir).mode & 0o777, 0o700);
+    assert.equal(runtime.env.CODEX_HOME, runtimeDir);
+    assert.equal(runtime.env.HOME, undefined);
     assert.equal(fs.readFileSync(auth, 'utf8'), '{"token":"fixture-only"}\n');
   } finally {
     cleanupRuntime(runtime);
@@ -149,7 +151,7 @@ check('one-command adapter with fake tool-free CLI', () => {
     '#!/usr/bin/env node',
     "const fs=require('fs'),path=require('path');",
     'const a=process.argv.slice(2);',
-    "const input=fs.readFileSync(0,'utf8'); fs.writeFileSync(path.join(process.cwd(),'prompt-capture.txt'),input);",
+    "const input=fs.readFileSync(0,'utf8'); fs.writeFileSync(path.join(process.cwd(),'prompt-capture.txt'),input); fs.writeFileSync(path.join(process.cwd(),'home-capture.txt'),process.env.HOME||''); fs.writeFileSync(path.join(process.cwd(),'codex-home-capture.txt'),process.env.CODEX_HOME||'');",
     "const cd=a[a.indexOf('--cd')+1];",
     "const last=a[a.indexOf('--output-last-message')+1];",
     "const f='sputnikdao2/src/proposals.rs';",
@@ -176,6 +178,8 @@ check('one-command adapter with fake tool-free CLI', () => {
   const capturedPrompt = fs.readFileSync(path.join(report.workspace, 'prompt-capture.txt'), 'utf8');
   assert.match(capturedPrompt, /Pinned source \(sputnikdao2\/src\/proposals\.rs\):/);
   assert.match(capturedPrompt, /first line/);
+  assert.equal(fs.readFileSync(path.join(report.workspace, 'home-capture.txt'), 'utf8'), process.env.HOME || '');
+  assert.equal(fs.readFileSync(path.join(report.workspace, 'codex-home-capture.txt'), 'utf8'), report.privateRuntime.root);
   const rerun = spawnSync(process.execPath, [path.join(__dirname, 'codex-producer.cjs'), '--source', fixture, '--manifest', manifest, '--out', out, '--profile', 'test-profile', '--private-runtime', path.join(root, 'runtime2'), '--auth-source', auth, '--codex-bin', fake, '--no-pipeline'], {encoding: 'utf8', timeout: 60000, env});
   assert.notEqual(rerun.status, 0);
   assert.match(rerun.stderr, /must be fresh/);

@@ -172,10 +172,7 @@ function prepareRuntime({privateRuntime, authSource}) {
     root: privateRuntime,
     authLink: linked ? link : null,
     env: {
-      HOME: privateRuntime,
       CODEX_HOME: privateRuntime,
-      XDG_CONFIG_HOME: privateRuntime,
-      XDG_CACHE_HOME: privateRuntime,
     },
   };
 }
@@ -367,7 +364,7 @@ function main() {
       original,
       '```',
     ].join('\n');
-    const env = {...producerEnv(process.env), ...runtime.env, CODEX_NO_DAEMON: opts.noDaemon ? '1' : '0'};
+    const env = {...producerEnv(process.env), ...(process.env.HOME ? {HOME: process.env.HOME} : {}), ...runtime.env, CODEX_NO_DAEMON: opts.noDaemon ? '1' : '0'};
     const prefix = sandboxArgv(process.env);
     if (!prefix) throw new Error('MODEL_PRODUCER_SANDBOX_CMD is required for generation');
     if (prefix.some((part) => part === '--sandbox' || part === '-s')) throw new Error('do not pass --sandbox with a named Codex permission profile');

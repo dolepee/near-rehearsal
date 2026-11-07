@@ -207,6 +207,8 @@ MODEL_PRODUCER_SANDBOX_CMD='["<outer-policy-wrapper>","--permission-profile","<v
 
 The prompt is sent on stdin (`-`); the provider-owned last-message file is
 written inside `{workspace}` and copied controller-side after exit. The outer
+`HOME` is preserved; only `CODEX_HOME` points at the private runtime, and the
+temporary auth symlink is removed in `finally`. The outer
 policy must permit minimal system reads, writes to `{workspace}` and
 the private runtime, reads of the Codex release directory, and read-only access
 to the original `auth.json`; it must deny controller/source reads other than
