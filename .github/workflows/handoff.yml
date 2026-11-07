@@ -1,0 +1,79 @@
+name: Handoff checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - feat/sputnik-release-review
+
+permissions:
+  contents: read
+
+jobs:
+  non-sandbox:
+    name: Non-Sandbox handoff checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Run handoff checks
+        run: |
+          set -euo pipefail
+          node case-triage/sputnik-public-capture/test-classification.cjs
+          node scripts/test-operation-classification.cjs
+          node scripts/test-refund-guards.cjs
+          node scripts/test-export-guards.cjs
+          node scripts/test-amount-regression.cjs
+          node scripts/test-ui-polling.cjs
+          node ui/sputnik/test-upload-selection.cjs
+          node scripts/test-release-review-guards.cjs
+          node case-triage/sputnik-public-capture/negative-verifier-tests.cjs
+          node case-triage/sputnik-public-capture/negative-local-verifier-tests.cjs
+          node scripts/verify-report.cjs
+          node scripts/verify-public-report.cjs
+          node scripts/verify-oracle.cjs
+          node scripts/verify-refund-report.cjs
+
+  sandbox:
+    name: Pinned Sandbox three-branch flow
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Patch sandbox binary resolution
+        run: node scripts/patch-near-sandbox.cjs
+      - name: Acquire pinned NEAR Sandbox 2.6.2
+        run: |
+          set -euo pipefail
+          sandbox_dir="$RUNNER_TEMP/near-sandbox-2.6.2"
+          mkdir -p "$sandbox_dir"
+          curl -fsSL \
+            https://s3-us-west-1.amazonaws.com/build.nearprotocol.com/nearcore/Linux-x86_64/2.6.2/near-sandbox.tar.gz \
+            -o "$sandbox_dir/near-sandbox.tar.gz"
+          echo "58c6d71091bc7a329b9d90784be42d1f313e0bf9fc4e1f2b967d60cdc407cdcf  $sandbox_dir/near-sandbox.tar.gz" \
+            | sha256sum -c -
+          tar --no-same-owner -xzf "$sandbox_dir/near-sandbox.tar.gz" -C "$sandbox_dir"
+          chmod +x "$sandbox_dir/Linux-x86_64/near-sandbox"
+          echo "NEAR_SANDBOX_BIN_PATH=$sandbox_dir/Linux-x86_64" >> "$GITHUB_ENV"
+          echo "NEAR_SANDBOX_BINARY_PATH=$sandbox_dir/Linux-x86_64" >> "$GITHUB_ENV"
+      - name: Run pinned three-branch flow
+        run: |
+          set -euo pipefail
+          ulimit -n 65535
+          run_dir="$RUNNER_TEMP/sputnik-local"
+          mkdir -p "$run_dir/out"
+          SPUTNIK_OUT_DIR="$run_dir/out" node case-triage/sputnik-public-capture/local-three-branch.cjs
+          CASE_DIR="$run_dir" node case-triage/sputnik-public-capture/verify-local-three.cjs
+          CASE_DIR="$run_dir" node case-triage/sputnik-public-capture/negative-local-verifier-tests.cjs
