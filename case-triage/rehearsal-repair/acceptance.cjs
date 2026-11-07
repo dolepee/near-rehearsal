@@ -47,6 +47,10 @@ function verify(base, repaired, options = {}) {
   for (const [name, report] of [['base', base], ['repaired', repaired]]) {
     if (report?.schema !== 'near-rehearsal/issue238-local/v1') fail(`${name} report schema`);
     if (report?.source?.commit !== '5434a59dec23ee0c49df8c8c4350c208a7e75b0b') fail(`${name} source commit`);
+    if (report?.runtime?.sandbox !== '2.14.0') fail(`${name} report Sandbox is not 2.14.0`);
+    if (report?.runtime?.commit !== 'bc4e9e8cfb03d9e82f027883055624e18576993e') fail(`${name} report Sandbox commit`);
+    if (Number(report?.runtime?.protocol) !== 88) fail(`${name} report Sandbox protocol`);
+    if (!/^[0-9a-f]{64}$/.test(report?.runtime?.binarySha256 || '')) fail(`${name} report Sandbox binary hash`);
     if (report?.healthy?.after?.proposal?.status !== 'Approved') fail(`${name} healthy status`);
     if (report?.failed?.after?.proposal?.status !== 'Failed') fail(`${name} failed status`);
     if (BigInt(report?.healthy?.deltas?.recipient ?? '0') !== TRANSFER) fail(`${name} healthy recipient payout`);

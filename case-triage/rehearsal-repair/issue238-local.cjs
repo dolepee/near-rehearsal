@@ -8,6 +8,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { spawnSync } = require('node:child_process');
 const { Worker, KeyPair, parseNEAR, hashContract } = require('near-workspaces');
 
 const HERE = __dirname;
@@ -22,6 +23,30 @@ const PROPOSER_ID = 'proposer.test.near';
 const RECIPIENT_ID = 'recipient.test.near';
 const MAX_WAIT_MS = 90_000;
 const sha256 = (b) => crypto.createHash('sha256').update(b).digest('hex');
+
+function actualSandboxRuntime() {
+  const configured = process.env.NEAR_SANDBOX_BIN_PATH || process.env.NEAR_SANDBOX_BINARY_PATH;
+  if (!configured) throw new Error('NEAR_SANDBOX_BIN_PATH is required; refusing an unverified Sandbox runtime');
+  const dir = configured;
+  const binary = path.join(dir, 'near-sandbox');
+  if (!fs.existsSync(binary)) throw new Error(`Sandbox binary not found at ${binary}`);
+  const result = spawnSync(binary, ['--version'], {encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024});
+  const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
+  const match = output.match(/neard \(release ([^)]+)\).*?commit ([0-9a-f]+).*?\(protocol (\d+)\)/s);
+  if (result.status !== 0 || !match) throw new Error(`cannot verify Sandbox binary at ${binary}: ${output}`);
+  const version = match[1];
+  const requested = process.env.NEAR_SANDBOX_VERSION;
+  if (requested && requested !== version) throw new Error(`Sandbox binary is ${version}, not requested ${requested}`);
+  return {
+    version,
+    commit: match[2],
+    protocol: Number(match[3]),
+    binary,
+    binarySha256: sha256(fs.readFileSync(binary)),
+    targetSha256: sha256(fs.readFileSync(fs.realpathSync(binary))),
+    versionOutput: output,
+  };
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const b64 = (b) => Buffer.from(b).toString('base64');
 const json = (v) => JSON.stringify(v, (_, x) => typeof x === 'bigint' ? x.toString() : x, 2);
@@ -286,6 +311,7 @@ async function runIsolated(label, kind) {
 
 (async () => {
   try {
+    const runtime = actualSandboxRuntime();
     const failedKind = {
       FunctionCall: {
         receiver_id: 'missing-target.test.near',
@@ -309,7 +335,16 @@ async function runIsolated(label, kind) {
         wasmSha256: sha256(fs.readFileSync(WASM)),
         wasmHash: hashContract(fs.readFileSync(WASM)),
       },
-      runtime: { nearWorkspaces: require('near-workspaces/package.json').version, sandbox: process.env.NEAR_SANDBOX_VERSION || '2.6.2' },
+      runtime: {
+        nearWorkspaces: require('near-workspaces/package.json').version,
+        sandbox: runtime.version,
+        commit: runtime.commit,
+        protocol: runtime.protocol,
+        binary: runtime.binary,
+        binarySha256: runtime.binarySha256,
+        targetSha256: runtime.targetSha256,
+        versionOutput: runtime.versionOutput,
+      },
       healthy,
       failed,
       conclusion: {

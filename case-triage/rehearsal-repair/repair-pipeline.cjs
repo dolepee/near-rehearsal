@@ -144,6 +144,7 @@ function sandboxEnv(manifest, requestedDir) {
 function verifySandbox(manifest, requestedDir) {
   const env = sandboxEnv(manifest, requestedDir);
   const binary = path.join(env.SANDBOX_DIR, 'near-sandbox');
+  if (!fs.existsSync(binary)) throw new Error(`Sandbox binary not found at ${binary}`);
   const result = run(binary, ['--version'], {env: {...process.env, ...env}});
   const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
   const version = manifest.localRuntime.sandbox;
@@ -270,4 +271,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = {runPipeline};
+module.exports = {findToolchain, verifyToolchain, sandboxEnv, verifySandbox, runPipeline};
