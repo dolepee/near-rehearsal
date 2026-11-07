@@ -60,22 +60,58 @@ function run(command, args, options = {}) {
   });
 }
 
-function resolveCargo(manifest) {
-  if (process.env.CARGO && fs.existsSync(process.env.CARGO)) return process.env.CARGO;
-  const which = run('sh', ['-c', 'command -v cargo']);
-  if (which.status === 0 && which.stdout.trim()) return which.stdout.trim();
-  const roots = [process.env.RUSTUP_HOME, path.join(os.homedir(), '.rustup'), '/workspace/.rustup'].filter(Boolean);
+function findToolchain(manifest) {
   const wanted = manifest?.toolchain?.rust || '';
+  if (!wanted) throw new Error('build manifest does not declare a Rust version');
+  const roots = [process.env.RUSTUP_HOME, path.join(os.homedir(), '.rustup'), '/workspace/.rustup'].filter(Boolean);
   for (const root of roots) {
     const toolchains = path.join(root, 'toolchains');
     if (!fs.existsSync(toolchains)) continue;
     const names = fs.readdirSync(toolchains).filter((name) => name.startsWith(`${wanted}-`)).sort();
     for (const name of names) {
-      const candidate = path.join(toolchains, name, 'bin', 'cargo');
-      if (fs.existsSync(candidate)) return candidate;
+      const bin = path.join(toolchains, name, 'bin');
+      const cargo = path.join(bin, 'cargo');
+      const rustc = path.join(bin, 'rustc');
+      if (fs.existsSync(cargo) && fs.existsSync(rustc)) return {root, name, bin, cargo, rustc};
     }
   }
   return null;
+}
+
+function resolveToolchain(manifest) {
+  const found = findToolchain(manifest);
+  if (!found) throw new Error(`Rust ${manifest?.toolchain?.rust} toolchain not found in a rustup home`);
+  return found;
+}
+
+function cargoEnv(manifest) {
+  const toolchain = resolveToolchain(manifest);
+  const bin = toolchain.bin;
+  const cargoHome = process.env.CARGO_HOME || path.join(os.homedir(), '.cargo');
+  return {
+    CARGO: toolchain.cargo,
+    RUSTC: toolchain.rustc,
+    RUSTUP_HOME: toolchain.root,
+    RUSTUP_TOOLCHAIN: toolchain.name,
+    CARGO_HOME: cargoHome,
+    PATH: `${bin}:${process.env.PATH || ''}`,
+  };
+}
+
+function versionOf(command, env) {
+  const result = run(command, ['--version'], {env: {...process.env, ...env}});
+  if (result.status !== 0) throw new Error(`cannot query ${command}: ${(result.stderr || result.stdout || '').trim()}`);
+  return (result.stdout || '').trim();
+}
+
+function verifyToolchain(manifest) {
+  const env = cargoEnv(manifest);
+  const cargoVersion = versionOf(env.CARGO, env);
+  const rustcVersion = versionOf(env.RUSTC, env);
+  const wanted = manifest.toolchain.rust;
+  if (!new RegExp(`^cargo ${wanted.replace(/\./g, '\\.')} `).test(cargoVersion)) throw new Error(`cargo version ${cargoVersion} is not ${wanted}`);
+  if (!new RegExp(`^rustc ${wanted.replace(/\./g, '\\.')} `).test(rustcVersion)) throw new Error(`rustc version ${rustcVersion} is not ${wanted}`);
+  return {env, cargoVersion, rustcVersion, toolchain: env.RUSTUP_TOOLCHAIN, rustupHome: env.RUSTUP_HOME};
 }
 
 function writeLog(file, result) {
@@ -87,20 +123,6 @@ function writeLog(file, result) {
     '--- stderr',
     result.stderr || '',
   ].join('\n'));
-}
-
-function cargoEnv(manifest) {
-  const cargo = resolveCargo(manifest);
-  if (!cargo) throw new Error('no cargo binary found; set CARGO to the pinned toolchain');
-  const bin = path.dirname(cargo);
-  const rustupHome = process.env.RUSTUP_HOME || path.resolve(bin, '..', '..', '..');
-  const cargoHome = process.env.CARGO_HOME || path.join(os.homedir(), '.cargo');
-  return {
-    CARGO: cargo,
-    PATH: `${bin}:${process.env.PATH || ''}`,
-    RUSTUP_HOME: rustupHome,
-    CARGO_HOME: cargoHome,
-  };
 }
 
 function sandboxEnv(manifest, requestedDir) {
@@ -116,6 +138,24 @@ function sandboxEnv(manifest, requestedDir) {
     NEAR_SANDBOX_BIN_PATH: dir,
     NEAR_SANDBOX_BINARY_PATH: dir,
     SANDBOX_DIR: dir,
+  };
+}
+
+function verifySandbox(manifest, requestedDir) {
+  const env = sandboxEnv(manifest, requestedDir);
+  const binary = path.join(env.SANDBOX_DIR, 'near-sandbox');
+  const result = run(binary, ['--version'], {env: {...process.env, ...env}});
+  const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
+  const version = manifest.localRuntime.sandbox;
+  if (result.status !== 0 || !new RegExp(`release ${version.replace(/\./g, '\\.')}\\b`).test(output)) {
+    throw new Error(`Sandbox binary at ${binary} is not the declared ${version}: ${output}`);
+  }
+  return {
+    ...env,
+    binary,
+    versionOutput: output,
+    binarySha256: sha256File(binary),
+    targetSha256: sha256File(fs.realpathSync(binary)),
   };
 }
 
@@ -141,21 +181,23 @@ function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance
   const appliedSource = path.join(appliedDir, allowed[0]);
   if (!fs.existsSync(appliedSource)) throw new Error('applied allowlisted source is missing');
 
+  const toolchain = verifyToolchain(buildManifest);
   const build = run('sh', ['-c', manifest.build.command], {
     cwd: appliedDir,
     timeout: 20 * 60 * 1000,
-    env: cargoEnv(buildManifest),
+    env: toolchain.env,
   });
   writeLog(path.join(out, 'build.log'), build);
   if (build.status !== 0) throw new Error(`candidate build failed with exit ${build.status}; see build.log`);
   const wasm = path.join(appliedDir, buildManifest.build.artifact);
   if (!fs.existsSync(wasm)) throw new Error(`candidate build produced no ${buildManifest.build.artifact}`);
 
+  const sandbox = verifySandbox(buildManifest, sandboxDir);
   const replay = run(process.execPath, [ISSUE238], {
     cwd: ROOT,
     timeout: 20 * 60 * 1000,
     env: {
-      ...sandboxEnv(buildManifest, sandboxDir),
+      ...sandbox,
       SPUTNIK_WASM: wasm,
       SPUTNIK_SOURCE_SHA: manifest.source.commit,
       SPUTNIK_OUT_DIR: replayDir,
@@ -198,8 +240,9 @@ function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance
       appliedSource: sha256File(appliedSource),
       wasm: sha256File(wasm),
     },
-    cargo: cargoEnv(buildManifest).CARGO || null,
-    sandbox: sandboxEnv(buildManifest, sandboxDir).NEAR_SANDBOX_VERSION,
+    cargo: toolchain.env.CARGO,
+    toolchain: {cargo: toolchain.cargoVersion, rustc: toolchain.rustcVersion, rustupHome: toolchain.rustupHome, toolchain: toolchain.toolchain},
+    sandbox: {version: buildManifest.localRuntime.sandbox, binary: sandbox.binary, versionOutput: sandbox.versionOutput, binarySha256: sandbox.binarySha256, targetSha256: sandbox.targetSha256},
     changedPaths: applied.changedPaths,
     baseReport,
     candidateReport: candidateReportPath,

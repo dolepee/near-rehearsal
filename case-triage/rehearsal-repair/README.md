@@ -39,15 +39,18 @@ failures were specific to the older sandbox runtimes tested (`2.6.2`, `2.10.0`,
 
 ## Repaired control
 
-The authored source patch in `repair.patch` returns the proposal bond from
-`internal_callback_proposal_fail` before the `Failed` state is persisted. It was
-compiled with the same pinned toolchain and source revision.
+The authored source patch in `repair.patch` records the proposal bond and
+consumes it through a zero sentinel before the `Failed` state is persisted. The
+zero sentinel is deliberate: writing an empty value can be read as an absent
+key and would allow a second refund. It was compiled with the same pinned
+toolchain and source revision.
 
-- Repaired artifact SHA-256: `41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5`
-- Repaired failed async: proposal `Failed`; contract delta `0`; recipient `0`; proposer `-0.0009088584569685 NEAR` (gas only).
-- Repaired healthy control: proposal `Approved`; contract `-0.1 NEAR`; recipient `+0.1 NEAR`; proposer `-0.0008307086304614 NEAR`.
+- Repaired artifact SHA-256: `539f1bb88d00dc8cc7153a7d6d00a3cbeab1579fd1fdfc2931d36e85adc710ff`
+- Repaired failed async: proposal `Failed`; contract delta `0`; recipient `0`; proposer `-0.0009333866610499 NEAR` (gas only).
+- Failed-proposal `Finalize` retry: no second bond; contract `0`; recipient `0`; proposer pays gas only. The base control also strands the bond and its retry returns nothing.
+- Repaired healthy control: proposal `Approved`; contract `-0.1 NEAR`; recipient `+0.1 NEAR`.
 
-The base failed branch had contract `+1 NEAR` and proposer `-1.0008510133192634 NEAR`; the repair removes the stranded bond while preserving the healthy payout. Raw reports are in `out/issue238-local.json` and `out/issue238-repaired.json`.
+The base failed branch had contract `+1 NEAR`; the repair removes the stranded bond while preserving the healthy payout. Raw reports are in `out/issue238-local.json` and `out/issue238-repaired.json`. The acceptance path requires the failed-proposal retry evidence, including an immediate post-failure anchor, and rejects any positive proposer delta on retry.
 
 A deliberately partial source variant returned the bond only for `Transfer` failures. Its artifact SHA-256 is `3a1a8fb7929efd8fb1f0882c60844338ebea4c4505413080b2e9539013eec896`; its report is `out/issue238-partial.json`. The acceptance test rejects it because the `FunctionCall` branch still leaves the contract delta at `+1 NEAR`.
 
@@ -60,7 +63,7 @@ node case-triage/rehearsal-repair/acceptance.cjs
 node case-triage/rehearsal-repair/acceptance-tests.cjs
 ```
 
-The first checks base/repaired artifact identity, healthy payout and beneficiary/amount, failed status, base stranded bond, repaired zero contract delta and gas-only proposer delta, rejected unauthorized callback, and identical starting state within each run. The second is the positive control plus targeted rejections: hidden base bond, double refund, missing payout, false failed status, changed artifact identity, accepted unauthorized callback, changed beneficiary, partial source repair, and changed candidate identity/report/wasm controls.
+The first checks base/repaired artifact identity, healthy payout and beneficiary/amount, failed status, base stranded bond, repaired zero contract delta and gas-only proposer delta, rejected unauthorized callback, identical starting state within each run, and exactly-once failed-proposal retry (anchored after the first failure and unauthorized callback). The second is the positive control plus targeted rejections: hidden base bond, double refund, missing payout, false failed status, changed artifact identity, accepted unauthorized callback, changed beneficiary, partial source repair, and changed candidate identity/report/wasm controls.
 
 This is an authored deterministic patch, not a model-generated patch. The model
 provenance gate remains separate and blocked at authentication.
@@ -75,10 +78,16 @@ remains the default; the expected hash is never overwritten.
 ## Controller pipeline
 
 `repair-pipeline.cjs` performs the real candidate path: patch guard, clean
-apply in a fresh pinned tree, build, new Sandbox replay report, candidate
-identity and acceptance with changed-artifact rejection. It writes a separate
-candidate report under `--out`; it never treats the authored repaired report as
-the model report.
+apply in a fresh pinned tree, toolchain verification, build, Sandbox binary
+verification, new Sandbox replay report, candidate identity and acceptance with
+changed-artifact rejection. It resolves the real Rust 1.86.0 toolchain and sets
+`RUSTUP_HOME` to that rustup root instead of deriving it from a PATH shim; it
+runs `cargo --version` and `rustc --version` and fails unless both report
+1.86.0. Before replay it runs the actual `near-sandbox --version`, requires
+`release 2.14.0`, and records the binary path, version output and SHA-256. A
+wrong runtime fails before replay instead of being reported as a model failure.
+It writes a separate candidate report under `--out`; it never treats the
+authored repaired report as the model report.
 
 ```sh
 node case-triage/rehearsal-repair/repair-pipeline.cjs \

@@ -10,7 +10,7 @@ const path = require('node:path');
 const BOND = 10n ** 24n;
 const TRANSFER = 10n ** 23n;
 const GAS_ONLY_MAX = 10n ** 22n;
-const AUTHORED_REPAIRED_SHA = '41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5';
+const AUTHORED_REPAIRED_SHA = '539f1bb88d00dc8cc7153a7d6d00a3cbeab1579fd1fdfc2931d36e85adc710ff';
 
 function sha256File(file) {
   return require('node:crypto').createHash('sha256').update(fs.readFileSync(file)).digest('hex');
@@ -82,6 +82,27 @@ function verify(base, repaired, options = {}) {
   if (BigInt(repaired?.failed?.deltas?.proposer ?? '0') >= 0n) fail('repaired proposer did not pay gas');
   if (BigInt(repaired?.failed?.deltas?.proposer ?? '0') < -GAS_ONLY_MAX) fail('repaired proposer lost bond-scale funds');
   if (BigInt(base?.failed?.deltas?.proposer ?? '0') > -BOND) fail('base proposer did not demonstrate stranded bond');
+
+  // Exactly-once retry: the failed proposal is finalized again. The retry must
+  // start from the immediate post-failure state, must not pay the recipient,
+  // and must not credit the proposer a second bond. A positive proposer delta
+  // here is the double-refund signature, not ordinary gas.
+  for (const [name, report] of [['base', base], ['repaired', repaired]]) {
+    const retry = report?.failed?.retry;
+    if (!retry?.before || !retry?.after || !retry?.deltas) {
+      fail(`${name} missing failed-proposal retry evidence`);
+      continue;
+    }
+    const anchor = report?.failed?.afterUnauthorized;
+    if (!anchor) { fail(`${name} missing post-failure pre-retry anchor`); continue; }
+    for (const field of ['contract', 'proposer', 'recipient']) {
+      if (String(retry.before[field]) !== String(anchor[field])) fail(`${name} retry does not start from the immediate pre-retry ${field}`);
+    }
+    if (JSON.stringify(retry.before.state) !== JSON.stringify(anchor.state)) fail(`${name} retry does not start from the immediate pre-retry state`);
+    if (BigInt(retry.deltas.recipient ?? '0') !== 0n) fail(`${name} retry paid the failed recipient`);
+    if (BigInt(retry.deltas.proposer ?? '0') > 0n) fail(`${name} retry returned a second bond to the proposer`);
+    if (BigInt(retry.deltas.contract ?? '0') > 0n) fail(`${name} retry increased the contract balance`);
+  }
   return errors;
 }
 

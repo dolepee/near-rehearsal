@@ -91,6 +91,23 @@ async function readState(worker, id) {
     .sort((a, b) => a.key.localeCompare(b.key));
 }
 const stateHash = (items) => sha256(JSON.stringify(items));
+async function settle(worker, daoId, proposerId, recipientId) {
+  let previous = null;
+  let stable = 0;
+  for (let i = 0; i < 24; i += 1) {
+    const observed = {
+      contract: await viewAmount(worker, daoId),
+      proposer: await viewAmount(worker, proposerId),
+      recipient: await viewAmount(worker, recipientId),
+      state: stateHash(await readState(worker, daoId)),
+    };
+    const key = JSON.stringify(observed);
+    if (key === previous) stable += 1; else { stable = 0; previous = key; }
+    if (stable >= 3) return observed;
+    await sleep(500);
+  }
+  return previous ? JSON.parse(previous) : null;
+}
 
 async function initWorker() {
   let last;
@@ -155,13 +172,18 @@ async function runBranch(worker, label, inputKind) {
     if (proposal.status !== 'InProgress') break;
     await sleep(500);
   }
+  // Wait for the failure callback and its refund promise to settle before
+  // taking the first-failure snapshot. Otherwise a delayed first refund can be
+  // misread as a second refund on the retry.
+  await settle(worker, dao.accountId, proposer.accountId, recipient.accountId);
+  const settledProposal = await viewJson(worker, dao.accountId, 'get_proposal', { id: proposalId });
   const after = {
     contract: await viewAmount(worker, dao.accountId),
     proposer: await viewAmount(worker, proposer.accountId),
     recipient: await viewAmount(worker, recipient.accountId),
     state: await readState(worker, dao.accountId),
     policy: await viewJson(worker, dao.accountId, 'get_policy'),
-    proposal,
+    proposal: settledProposal,
   };
   let unauthorizedCallback;
   try {
@@ -172,10 +194,64 @@ async function runBranch(worker, label, inputKind) {
     unauthorizedCallback = { error: String(e.message || e).slice(0, 500), succeeded: false };
   }
 
+  const afterUnauthorized = {
+    contract: await viewAmount(worker, dao.accountId),
+    proposer: await viewAmount(worker, proposer.accountId),
+    recipient: await viewAmount(worker, recipient.accountId),
+    state: await readState(worker, dao.accountId),
+  };
+  // A failed async proposal can be finalized again. This is the retry path that
+  // must not return the bond a second time. It is deliberately a separate call
+  // after the first failure and the unauthorized-callback probe.
+  const retryBefore = {
+    contract: await viewAmount(worker, dao.accountId),
+    proposer: await viewAmount(worker, proposer.accountId),
+    recipient: await viewAmount(worker, recipient.accountId),
+    state: await readState(worker, dao.accountId),
+  };
+  let retryFinal;
+  let retryProposal = proposal;
+  try {
+    const retry = await proposer.callRaw(dao, 'act_proposal', {
+      id: proposalId,
+      action: 'Finalize',
+      proposal: kind,
+    }, { gas: GAS });
+    retryFinal = await finalStatus(worker, retry, proposer.accountId);
+    deadline = Date.now() + MAX_WAIT_MS;
+    while (Date.now() < deadline) {
+      retryProposal = await viewJson(worker, dao.accountId, 'get_proposal', { id: proposalId });
+      if (retryProposal.status !== 'InProgress') break;
+      await sleep(500);
+    }
+  } catch (e) {
+    retryFinal = { error: String(e.message || e).slice(0, 500) };
+  }
+  const retryAfter = {
+    contract: await viewAmount(worker, dao.accountId),
+    proposer: await viewAmount(worker, proposer.accountId),
+    recipient: await viewAmount(worker, recipient.accountId),
+    state: await readState(worker, dao.accountId),
+    proposal: retryProposal,
+  };
+  const retry = {
+    final: retryFinal?.status?.final_execution_status ?? null,
+    summary: retryFinal?.error ? retryFinal : summarize(retryFinal),
+    before: retryBefore,
+    after: retryAfter,
+    deltas: {
+      contract: (BigInt(retryAfter.contract) - BigInt(retryBefore.contract)).toString(),
+      proposer: (BigInt(retryAfter.proposer) - BigInt(retryBefore.proposer)).toString(),
+      recipient: (BigInt(retryAfter.recipient) - BigInt(retryBefore.recipient)).toString(),
+    },
+    stateChanged: stateHash(retryBefore.state) !== stateHash(retryAfter.state),
+  };
+
   return {
     label,
     kind,
     unauthorizedCallback,
+    afterUnauthorized,
     contractId: dao.accountId,
     proposerId: proposer.accountId,
     recipientId: recipient.accountId,
@@ -186,6 +262,7 @@ async function runBranch(worker, label, inputKind) {
     before,
     afterAdd,
     after,
+    retry,
     deltas: {
       contract: (BigInt(after.contract) - BigInt(before.contract)).toString(),
       proposer: (BigInt(after.proposer) - BigInt(before.proposer)).toString(),
