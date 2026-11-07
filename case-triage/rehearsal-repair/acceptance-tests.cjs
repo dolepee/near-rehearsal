@@ -60,9 +60,15 @@ expectFail('failed proposal marked approved', (b, r) => { r.failed.after.proposa
 expectFail('repaired artifact identity changed', (b, r) => { r.source.wasmSha256 = '0'.repeat(64); });
 expectFail('unauthorized callback recorded as accepted', (b, r) => { r.healthy.unauthorizedCallback.receipts[0].status = { SuccessValue: '' }; });
 expectFail('healthy beneficiary changed', (b, r) => { r.healthy.kind.Transfer.receiver_id = 'attacker.test.near'; });
+expectFail('retry not executed but zero deltas', (b, r) => {
+  r.failed.retry.final = null;
+  r.failed.retry.summary = {error: 'Finalize was never executed'};
+  r.failed.retry.after.proposal.status = 'Approved';
+  r.failed.retry.deltas = {contract: '0', proposer: '0', recipient: '0'};
+});
 console.log(JSON.stringify({
   schema: 'near-rehearsal/repair-acceptance-tests/v1',
   positiveControl: true,
-  cases: ['base-stranded-bond', 'double-refund', 'missing-payout', 'false-failed-status', 'artifact-identity', 'unauthorized-callback', 'beneficiary-immutability', 'partial-source-repair', 'candidate-identity-independent-wasm', 'candidate-identity-changed-report', 'candidate-identity-changed-wasm'],
+  cases: ['base-stranded-bond', 'double-refund', 'missing-payout', 'false-failed-status', 'artifact-identity', 'unauthorized-callback', 'beneficiary-immutability', 'retry-not-executed', 'partial-source-repair', 'candidate-identity-independent-wasm', 'candidate-identity-changed-report', 'candidate-identity-changed-wasm'],
   passed: true,
 }, null, 2));

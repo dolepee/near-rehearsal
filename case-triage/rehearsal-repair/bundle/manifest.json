@@ -22,15 +22,19 @@
     }
   },
   "status": {
+    "superseded": true,
+    "reason": "Historical authored-control bundle from 2026-11-06. It contains the old 41001450 repaired artifact and patch hashes and must not be read as current accepted output.",
+    "currentRepairedSha256": "539f1bb88d00dc8cc7153a7d6d00a3cbeab1579fd1fdfc2931d36e85adc710ff",
+    "currentEvidence": "out/issue238-local.json, out/issue238-repaired.json, repair.patch",
     "baseFailedContractDelta": "1000000000000000000000000",
     "repairedFailedContractDelta": "0",
     "partialRejected": true,
-    "acceptance": true,
-    "acceptanceTests": true,
-    "controllerAllowlist": true,
-    "cleanRebuildMatches": true
+    "acceptance": false,
+    "acceptanceTests": false,
+    "controllerAllowlist": false,
+    "cleanRebuildMatches": false
   },
-  "boundary": "Local Sandbox authored repair evidence only. Not a model-generated patch, production authorization, public-chain capture, or release claim.",
+  "boundary": "SUPERSEDED historical authored-control evidence. Do not use this manifest or repaired.wasm as current acceptance evidence. The current authored control is 539f1bb8... and is documented in the parent README/out reports; the old 41001450... failure is preserved in evidence/authored-410-retry-failure.json.",
   "inputs": [
     {
       "path": "repair.patch",

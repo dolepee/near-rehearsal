@@ -175,9 +175,50 @@ node case-triage/rehearsal-repair/model-producer-tests.cjs
 node case-triage/rehearsal-repair/controller-tests.cjs
 ```
 
-## Next bounded step
+## Tool-free local producer driver
 
-Run the repair from the same frozen state as the retained branches and add the
-independent acceptance predicates (exactly-once bond, immutable beneficiary and
-amount, unauthorized callback rejection). Do not treat this checkpoint as a
-general audit or a release claim.
+`codex-producer.cjs` is the one-command local path for a genuine Codex run. It
+uses a private provider-runtime directory and a transient read-only symlink to
+the existing local `auth.json`; token values are never copied or logged, the
+original auth/config directory is never made writable, and the runtime is
+removed in `finally`. The model has no tools: shell, unified execution, apps,
+plugins, browser, computer and code-mode host features are disabled. The model
+returns only a unified diff as text. The controller then applies that diff in a
+separate disposable single-file tree with `git apply --recount
+--unidiff-zero`, enumerates the real changed paths, rejects anything outside
+`sputnikdao2/src/proposals.rs`, regenerates a canonical contextual Git diff,
+and runs the verified build/replay/acceptance pipeline with a controller-bound
+candidate identity.
+
+```sh
+MODEL_PRODUCER_SANDBOX_CMD='["<outer-policy-wrapper>","{workspace}","--"]' \
+  node case-triage/rehearsal-repair/codex-producer.cjs \
+  --source /workspace/near-rehearsal/rebuild-base \
+  --out out/model-candidate-tool-free \
+  --profile <verified-codex-permission-profile> \
+  --private-runtime /tmp/repair-provider-runtime \
+  --auth-source "$HOME/.codex/auth.json" \
+  --codex-bin "$(command -v codex)"
+```
+
+The outer policy must permit minimal system reads, writes to `{workspace}` and
+the private runtime, reads of the Codex release directory, and read-only access
+to the original `auth.json`; it must deny controller/source reads other than
+the allowlisted file and deny writes to the original `~/.codex`. The driver
+runs the existing confinement probes before generation. `--no-daemon`,
+`--ephemeral` and `--ignore-user-config` are passed to the official CLI; if the
+local CLI build rejects `--no-daemon`, set `CODEX_NO_DAEMON=0` and record that
+explicitly.
+
+Fake-CLI protocol tests (no credentials, no model call, no build):
+
+```sh
+node case-triage/rehearsal-repair/codex-producer-tests.cjs
+```
+
+They cover tool-free argv construction, the private-runtime auth symlink and
+cleanup, fenced/malformed diff extraction, `--recount --unidiff-zero`
+canonicalization, unexpected changed-path rejection, raw transcript preservation
+and the complete one-command adapter through a fake tool-free CLI.
+
+Do not treat this checkpoint as a general audit or a release claim.

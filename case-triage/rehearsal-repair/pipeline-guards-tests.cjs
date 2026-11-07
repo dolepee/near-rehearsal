@@ -13,17 +13,38 @@ function fakeSandbox(version, commit = 'bc4e9e8cfb03d9e82f027883055624e18576993e
   return dir;
 }
 
+function fakeRustup(version, cargoVersion = version, rustcVersion = version) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fake-rustup-'));
+  const bin = path.join(root, 'toolchains', `${version}-test`, 'bin');
+  fs.mkdirSync(bin, {recursive: true});
+  for (const [name, printed] of [['cargo', cargoVersion], ['rustc', rustcVersion]]) {
+    const file = path.join(bin, name);
+    fs.writeFileSync(file, `#!/bin/sh\nprintf '%s\\n' '${name} ${printed}'\n`);
+    fs.chmodSync(file, 0o755);
+  }
+  return root;
+}
+
 try {
+  const configuredRoots = [process.env.RUSTUP_HOME, path.join(os.homedir(), '.rustup'), '/workspace/.rustup'].filter(Boolean);
   const toolchain = findToolchain({toolchain: {rust: '1.86.0'}});
   assert.match(toolchain.name, /^1\.86\.0-/);
-  assert.equal(toolchain.root, '/workspace/.rustup');
+  assert.ok(configuredRoots.includes(toolchain.root), `selected root ${toolchain.root} is a configured/default rustup home`);
 
   const verified = verifyToolchain({toolchain: {rust: '1.86.0'}});
   assert.match(verified.cargoVersion, /^cargo 1\.86\.0 /);
   assert.match(verified.rustcVersion, /^rustc 1\.86\.0 /);
-  assert.equal(verified.rustupHome, '/workspace/.rustup');
+  assert.equal(verified.rustupHome, toolchain.root);
 
-  assert.throws(() => verifyToolchain({toolchain: {rust: '1.85.0'}}), /toolchain not found|not 1\.85\.0/);
+  const wrongRoot = fakeRustup('1.86.0', '1.85.0', '1.85.0');
+  const previousRoot = process.env.RUSTUP_HOME;
+  process.env.RUSTUP_HOME = wrongRoot;
+  try {
+    assert.throws(() => verifyToolchain({toolchain: {rust: '1.86.0'}}), /cargo version .* is not 1\.86\.0/);
+  } finally {
+    if (previousRoot === undefined) delete process.env.RUSTUP_HOME;
+    else process.env.RUSTUP_HOME = previousRoot;
+  }
 
   const good = fakeSandbox('2.14.0');
   const sandbox = verifySandbox({localRuntime: {sandbox: '2.14.0'}}, good);
@@ -37,7 +58,7 @@ try {
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-pipeline-guards-tests/v1',
     passed: true,
-    checks: ['rustup-home', 'cargo-1.86', 'rustc-1.86', 'wrong-toolchain-rejected', 'sandbox-2.14-accepted', 'sandbox-2.6-rejected', 'missing-sandbox-rejected'],
+    checks: ['rustup-home', 'cargo-1.86', 'rustc-1.86', 'wrong-toolchain-version-rejected', 'sandbox-2.14-accepted', 'sandbox-2.6-rejected', 'missing-sandbox-rejected'],
   }, null, 2));
 } catch (error) {
   console.error(error.stack || error);

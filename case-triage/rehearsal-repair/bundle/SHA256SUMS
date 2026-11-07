@@ -1,3 +1,4 @@
+# HISTORICAL SUPERSEDED BUNDLE — do not use as current acceptance evidence.
 a734097b465ae3f9e05dd95c8c2bfb47b6b0f766ee3d0b8ccb15a05a1288bd7f  repair.patch
 5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578  artifacts/base.wasm
 41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5  artifacts/repaired.wasm

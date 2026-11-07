@@ -103,6 +103,16 @@ function verify(base, repaired, options = {}) {
       if (String(retry.before[field]) !== String(anchor[field])) fail(`${name} retry does not start from the immediate pre-retry ${field}`);
     }
     if (JSON.stringify(retry.before.state) !== JSON.stringify(anchor.state)) fail(`${name} retry does not start from the immediate pre-retry state`);
+    if (retry.final !== 'FINAL') fail(`${name} retry was not a FINAL receipt-backed execution`);
+    if (!retry.summary || retry.summary.error) fail(`${name} retry has no executed transaction summary`);
+    if (!retry.summary?.transactionHash) fail(`${name} retry summary has no transaction hash`);
+    const downstreamFailure = Array.isArray(retry.summary?.receipts) && retry.summary.receipts.some((receipt) =>
+      receipt?.status?.Failure && (receipt.executorId === 'missing-target.test.near' || receipt.executorId === 'dao.test.near'));
+    if (!downstreamFailure) fail(`${name} retry has no downstream failure receipt`);
+    if (retry.after?.proposal?.status !== 'Failed') fail(`${name} retry did not end Failed`);
+    for (const field of ['contract', 'proposer', 'recipient']) {
+      if (BigInt(retry.after[field]) - BigInt(retry.before[field]) !== BigInt(retry.deltas[field])) fail(`${name} retry ${field} balance does not match the snapshot delta`);
+    }
     if (BigInt(retry.deltas.recipient ?? '0') !== 0n) fail(`${name} retry paid the failed recipient`);
     if (BigInt(retry.deltas.proposer ?? '0') > 0n) fail(`${name} retry returned a second bond to the proposer`);
     if (BigInt(retry.deltas.contract ?? '0') > 0n) fail(`${name} retry increased the contract balance`);
