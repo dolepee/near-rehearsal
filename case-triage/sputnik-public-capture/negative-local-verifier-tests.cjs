@@ -52,6 +52,8 @@ const cases = [
   run('preserved-candidate-no-payout', (r) => { r.branches.candidate.status = 'preserved'; r.branches.candidate.afterFirst.recipientBalance = r.branches.candidate.before.recipientBalance; }),
   run('preserved-correction-no-payout', (r) => { r.branches.corrected.afterFirst.recipientBalance = r.branches.corrected.before.recipientBalance; }),
   run('unexplained-balance-drain', (r) => { r.branches.corrected.afterUpgrade.contractBalance = String(BigInt(r.branches.corrected.afterUpgrade.contractBalance) - 50n * 10n ** 24n); }),
+  run('quarter-near-candidate-upgrade-loss', (r) => { r.branches.candidate.afterUpgrade.contractBalance = String(BigInt(r.branches.candidate.afterUpgrade.contractBalance) - 25n * 10n ** 22n); }),
+  run('quarter-near-corrected-upgrade-loss', (r) => { r.branches.corrected.afterUpgrade.contractBalance = String(BigInt(r.branches.corrected.afterUpgrade.contractBalance) - 25n * 10n ** 22n); }),
   run('first-operation-balance-drain', (r) => { r.branches.corrected.afterFirst.contractBalance = String(BigInt(r.branches.corrected.afterFirst.contractBalance) - 50n * 10n ** 24n); }),
   run('quarter-near-first-loss', (r) => { r.branches.corrected.afterFirst.contractBalance = String(BigInt(r.branches.corrected.afterFirst.contractBalance) - 25n * 10n ** 22n); }),
   run('quarter-near-retry-loss', (r) => { r.branches.corrected.afterRetry.contractBalance = String(BigInt(r.branches.corrected.afterRetry.contractBalance) - 25n * 10n ** 22n); }),

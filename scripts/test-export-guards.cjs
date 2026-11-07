@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const crypto = require('node:crypto');
 const {validateCase} = require('./refund-three-way.cjs');
 const {verifyRefundReport} = require('./verify-refund-report.cjs');
 const {verifyBundle} = require('./verify-refund-export.cjs');
@@ -95,4 +96,33 @@ for (const bundleDir of bundles) {
   fs.writeFileSync(escapedManifestPath, JSON.stringify(escapedManifest, null, 2) + '\n');
   assert.ok(verifyBundle(relativeBundle, {root: escapedRoot}).some((error) => /escapes bundle/.test(error)), 'escaped input path must reject');
   console.log('rejected: input path escapes the bundle');
+
+  const swapRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'refund-export-swap-'));
+  const swapBundle = path.join(swapRoot, relativeBundle);
+  fs.mkdirSync(path.dirname(swapBundle), {recursive: true});
+  fs.cpSync(bundleDir, swapBundle, {recursive: true});
+  const swapManifestPath = path.join(swapBundle, 'manifest.json');
+  const swapManifest = JSON.parse(fs.readFileSync(swapManifestPath, 'utf8'));
+  const swapCase = JSON.parse(fs.readFileSync(path.join(swapBundle, 'case.json'), 'utf8'));
+  swapManifest.candidate = {
+    path: swapCase.candidates.corrected.wasm,
+    sha256: swapCase.candidates.corrected.sha256,
+    label: swapCase.candidates.corrected.label,
+  };
+  fs.writeFileSync(swapManifestPath, JSON.stringify(swapManifest, null, 2) + '\n');
+  assert.ok(verifyBundle(relativeBundle, {root: swapRoot}).some((error) => /manifest candidate/.test(error)), 'fixed-for-bad manifest swap must reject');
+  console.log('rejected: manifest candidate swapped to the corrected candidate');
+
+  const externalRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'refund-export-external-'));
+  const externalBundle = path.join(externalRoot, relativeBundle);
+  fs.mkdirSync(path.dirname(externalBundle), {recursive: true});
+  fs.cpSync(bundleDir, externalBundle, {recursive: true});
+  const externalCasePath = path.join(externalBundle, 'case.json');
+  const externalCase = JSON.parse(fs.readFileSync(externalCasePath, 'utf8'));
+  const outsideBytes = fs.readFileSync(path.join(ROOT, 'out', 'refund-capture.json'));
+  externalCase.candidates.bad.wasm = 'out/refund-capture.json';
+  externalCase.candidates.bad.sha256 = crypto.createHash('sha256').update(outsideBytes).digest('hex');
+  fs.writeFileSync(externalCasePath, JSON.stringify(externalCase, null, 2) + '\n');
+  assert.ok(verifyBundle(relativeBundle, {root: externalRoot}).some((error) => /escapes bundle|not a verified contained/.test(error)), 'external case candidate path must reject');
+  console.log('rejected: case candidate path outside the bundle');
 }

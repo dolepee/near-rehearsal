@@ -222,15 +222,32 @@ function upgradeAccounting(b, label) {
   if (BigInt(b.before.recipientBalance) !== BigInt(b.initial.recipientBalance)) fail(`${label} before upgrade recipient balance is not frozen initial`);
   if (b.afterUpgrade.actorBalance !== b.before.actorBalance) fail(`${label} upgrade changed proposer balance`);
   if (b.afterUpgrade.recipientBalance !== b.before.recipientBalance) fail(`${label} upgrade changed recipient balance`);
+
+  const upgrade = b.upgrade;
+  required(upgrade, ['transaction', 'gasBurntUnits', 'transactionOutcomeTokensBurntYocto'], `${label}.upgrade`);
+  const action = upgrade.transaction.actions?.[0]?.FunctionCall;
+  if (!action) fail(`${label}.upgrade is not a FunctionCall`);
+  if (String(action.deposit ?? '0') !== '0') fail(`${label}.upgrade attached a deposit`);
+  const gasLimit = asNonNegativeYocto(String(action.gas), `${label}.upgrade.gasLimit`);
+  const gasBurnt = asNonNegativeYocto(upgrade.gasBurntUnits, `${label}.upgrade.gasBurntUnits`);
+  const tokensBurnt = asNonNegativeYocto(upgrade.transactionOutcomeTokensBurntYocto, `${label}.upgrade.transactionOutcomeTokensBurntYocto`);
+  if (gasLimit <= 0n || gasBurnt <= 0n) fail(`${label}.upgrade has no gas accounting`);
+  if (tokensBurnt % gasBurnt !== 0n) fail(`${label}.upgrade gas price is not integral`);
+  const gasPrice = tokensBurnt / gasBurnt;
+  if (gasPrice <= 0n) fail(`${label}.upgrade gas price is zero`);
+
+  // Storage collateral is not a debit from account.amount. The only movement
+  // this upgrade can make to the contract balance is an unused-gas refund to
+  // the contract from its self-call, so the delta must be a non-negative,
+  // integral multiple of the runtime gas price, and cannot exceed the full
+  // attached gas budget. A storage-byte charge must never be subtracted here.
   const contractDelta = BigInt(b.afterUpgrade.contractBalance) - BigInt(b.before.contractBalance);
+  if (contractDelta < 0n) fail(`${label} upgrade debited contract amount; storage collateral is not an amount debit`);
+  if (contractDelta % gasPrice !== 0n) fail(`${label} upgrade amount change is not an integral gas refund`);
+  const maxRefund = gasLimit * gasPrice;
+  if (contractDelta > maxRefund) fail(`${label} upgrade amount increase exceeds the attached-gas refund bound: ${contractDelta} > ${maxRefund}`);
   const storageDelta = storageDeltaYocto(b.afterUpgrade, b.before, `${label}.upgrade`);
-  // Code replacement can refund or charge storage at the account level; the
-  // local runtime does not expose a single code-size ledger. Cap this migration
-  // movement at half a NEAR and require the candidate's first operation to
-  // carry the exact transfer/bond/storage accounting below.
-  const MAX_UPGRADE_CODE_STORAGE_YOCTO = 5n * 10n ** 23n;
-  if (contractDelta > MAX_UPGRADE_CODE_STORAGE_YOCTO || contractDelta < -MAX_UPGRADE_CODE_STORAGE_YOCTO) fail(`${label} upgrade contract balance change outside code/storage bound: ${contractDelta}`);
-  return {contractDeltaYocto: contractDelta.toString(), storageDeltaYocto: storageDelta.toString()};
+  return {contractDeltaYocto: contractDelta.toString(), storageDeltaYocto: storageDelta.toString(), gasPriceYocto: gasPrice.toString(), maxGasRefundYocto: maxRefund.toString()};
 }
 
 function branchAccounting(b, label, keys) {

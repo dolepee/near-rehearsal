@@ -36,19 +36,55 @@ function verifyBundle(bundleDir, options = {}) {
   }
   if (manifest.case?.path !== caseEntry.path) errors.push('manifest case path does not identify the verified case input');
   if (manifest.capture?.path !== captureEntry.path) errors.push('manifest capture path does not identify the verified capture input');
-  const candidateEntry = (manifest.inputs || []).find((entry) => entry.role === 'input' && entry.path === manifest.candidate?.path);
-  if (!candidateEntry) errors.push('manifest candidate path is not a verified contained input');
-  if (candidateEntry && candidateEntry.sha256 !== manifest.candidate?.sha256) errors.push('manifest candidate hash does not match its verified input');
   const casePath = path.resolve(rootBase, caseEntry.path);
   const capturePath = path.resolve(rootBase, captureEntry.path);
   const reportPath = path.resolve(rootBase, reportEntry.path);
   const config = validateCase(casePath);
-  if (path.resolve(rootBase, config.capture) !== capturePath) errors.push('case capture reference does not resolve to the verified capture input');
+
+  const containedInput = (reference, role, label) => {
+    if (typeof reference !== 'string' || !reference) {
+      errors.push(`${label} is missing`);
+      return null;
+    }
+    const resolved = path.resolve(rootBase, reference);
+    if (!resolved.startsWith(root + path.sep)) {
+      errors.push(`${label} escapes bundle: ${reference}`);
+      return null;
+    }
+    const entry = (manifest.inputs || []).find((item) => item.role === role && path.resolve(rootBase, item.path) === resolved);
+    if (!entry) {
+      errors.push(`${label} is not a verified contained ${role} input`);
+      return null;
+    }
+    return {resolved, entry};
+  };
+
+  containedInput(config.baselineWasm, 'input', 'case baselineWasm');
+  const badCandidateReference = containedInput(config.candidates.bad.wasm, 'input', 'case bad candidate');
+  const correctedCandidateReference = containedInput(config.candidates.corrected.wasm, 'input', 'case corrected candidate');
+  const captureReference = containedInput(config.capture, 'capture', 'case capture');
+  if (captureReference && captureReference.resolved !== capturePath) errors.push('case capture reference does not resolve to the verified capture input');
+  if (badCandidateReference && (badCandidateReference.entry.sha256 !== config.candidates.bad.sha256 || badCandidateReference.entry.bytes !== fs.statSync(badCandidateReference.resolved).size)) errors.push('case bad candidate does not match its verified input');
+  if (correctedCandidateReference && (correctedCandidateReference.entry.sha256 !== config.candidates.corrected.sha256 || correctedCandidateReference.entry.bytes !== fs.statSync(correctedCandidateReference.resolved).size)) errors.push('case corrected candidate does not match its verified input');
+
+  const candidateEntry = containedInput(manifest.candidate?.path, 'input', 'manifest candidate');
+  if (candidateEntry && candidateEntry.entry.sha256 !== manifest.candidate?.sha256) errors.push('manifest candidate hash does not match its verified input');
+  if (candidateEntry && candidateEntry.resolved !== badCandidateReference?.resolved) errors.push('manifest candidate is not the case bad candidate');
+  if (manifest.candidate?.sha256 !== config.candidates.bad.sha256) errors.push('manifest candidate hash does not match the case bad candidate');
+  if (manifest.candidate?.label !== config.candidates.bad.label) errors.push('manifest candidate label does not match the case bad candidate');
+
   const capture = JSON.parse(fs.readFileSync(capturePath, 'utf8'));
   const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
   try { validateCapture(capture, config); } catch (error) { errors.push(`capture invalid: ${error.message}`); }
   const reportErrors = verifyRefundReport(report, config, capture);
   errors.push(...reportErrors);
+  if (JSON.stringify(report.operation) !== JSON.stringify(config.operation)) errors.push('report operation does not match the case operation');
+  for (const name of ['bad', 'corrected']) {
+    const expected = config.candidates[name];
+    const branch = report.branches?.[name];
+    if (branch?.candidateSha256 !== expected.sha256) errors.push(`report ${name} candidate bytes do not match the case candidate`);
+    if (branch?.candidateLabel !== expected.label) errors.push(`report ${name} candidate label does not match the case candidate`);
+  }
   if (manifest.case?.id !== config.id) errors.push('manifest case id mismatch');
   if (manifest.case?.sha256 !== caseEntry.sha256) errors.push('manifest case hash mismatch');
   if (manifest.capture?.sha256 !== captureEntry.sha256) errors.push('manifest capture hash mismatch');

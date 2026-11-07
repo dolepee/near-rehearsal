@@ -23,8 +23,31 @@ fs.writeFileSync(regressionPath, JSON.stringify(regression, null, 2) + '\n');
 const stale = run();
 assert.notEqual(stale.status, 0, 'stale runtime declaration must not produce a passing packet');
 assert.match(stale.stderr, /evidence does not match current files/);
+
+const goodRegression = fs.readFileSync(path.join(ROOT, 'out', 'public-regression.json'), 'utf8');
+const restore = () => fs.writeFileSync(regressionPath, goodRegression);
+const clone = (value) => JSON.parse(JSON.stringify(value));
+
+restore();
+const swapped = clone(JSON.parse(goodRegression));
+swapped.candidates.bad.candidate = clone(swapped.candidates.corrected.candidate);
+fs.writeFileSync(regressionPath, JSON.stringify(swapped, null, 2) + '\n');
+const swap = run();
+assert.notEqual(swap.status, 0, 'candidate swap must not produce a passing packet');
+assert.match(swap.stderr, /evidence does not match current files/);
+
+restore();
+const changed = clone(JSON.parse(goodRegression));
+changed.operation.args = {...changed.operation.args, value: 2};
+fs.writeFileSync(regressionPath, JSON.stringify(changed, null, 2) + '\n');
+const operation = run();
+assert.notEqual(operation.status, 0, 'operation change must not produce a passing packet');
+assert.match(operation.stderr, /evidence does not match current files/);
+
 console.log(JSON.stringify({
   schema: 'near-rehearsal/release-review-guards/v1',
   acceptedCurrentEvidence: true,
   rejectedStaleRuntime: true,
+  rejectedCandidateSwap: true,
+  rejectedOperationChange: true,
 }, null, 2));

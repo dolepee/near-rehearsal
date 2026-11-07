@@ -34,6 +34,16 @@ const currentEvidence = {
     const expected = regression.candidates?.[name]?.candidate;
     return expected && sha256(fs.readFileSync(path.join(root, expected.wasm))) === expected.sha256;
   }),
+  candidateIdentity: ['bad', 'corrected'].every((name) => {
+    const declared = regression.candidates?.[name];
+    const reportBranch = report.branches?.[name];
+    return declared && reportBranch
+      && declared.id === reportBranch.id
+      && declared.label === reportBranch.label
+      && declared.candidate?.wasm === reportBranch.candidate?.wasm
+      && declared.candidate?.sha256 === reportBranch.candidate?.sha256;
+  }),
+  operationIdentity: JSON.stringify(report.operation) === JSON.stringify(regression.operation),
   structuredBadFailure: report.branches?.bad?.operation?.tx?.failed === true
     && report.branches?.bad?.operation?.succeeded === false
     && !!report.branches?.bad?.operation?.tx?.failure,
@@ -232,5 +242,7 @@ console.log(JSON.stringify({
   json: 'out/release-review.json',
   status: report.status,
   runtimeMatch: report.runtimeMatch,
+  candidateIdentity: currentEvidence.candidateIdentity,
+  operationIdentity: currentEvidence.operationIdentity,
   checksums: evidence.checksums,
 }, null, 2));

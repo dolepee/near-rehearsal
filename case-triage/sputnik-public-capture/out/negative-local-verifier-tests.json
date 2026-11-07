@@ -113,6 +113,16 @@
       "exit": 1
     },
     {
+      "name": "quarter-near-candidate-upgrade-loss",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "quarter-near-corrected-upgrade-loss",
+      "rejected": true,
+      "exit": 1
+    },
+    {
       "name": "first-operation-balance-drain",
       "rejected": true,
       "exit": 1
