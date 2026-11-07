@@ -1,0 +1,27 @@
+{
+  "schema": "near-rehearsal/repair-pipeline/v1",
+  "ok": true,
+  "source": {
+    "repository": "https://github.com/near-daos/sputnik-dao-contract",
+    "commit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b"
+  },
+  "hashes": {
+    "patch": "edf16b966f0f49f26d73b2ac0fde980b3f8c4f638fcbbcc7c6a6bcb4fd25cf21",
+    "appliedSource": "6abe3d476d448f971213f69820e9f94c708baa51cd87b912605fd8d86594f28c",
+    "wasm": "3990e08889171522989f3d47490d87b2a85e00594cea145f62344f771577fb4b"
+  },
+  "cargo": "/workspace/.rustup/toolchains/1.86.0-aarch64-unknown-linux-gnu/bin/cargo",
+  "sandbox": "2.14.0",
+  "changedPaths": [
+    "sputnikdao2/src/proposals.rs"
+  ],
+  "baseReport": "/workspace/near-rehearsal/build-sputnik/case-triage/rehearsal-repair/out/issue238-local.json",
+  "candidateReport": "/workspace/near-rehearsal/build-sputnik/out/model-candidate-edf16b96/replay/issue238-local.json",
+  "identity": "/workspace/near-rehearsal/build-sputnik/out/model-candidate-edf16b96/candidate-identity.json",
+  "provenance": {
+    "path": "/tmp/pr3-model-candidate2/provenance.json",
+    "sha256": "0effaeb377880a6563da829230d65fde22541cbe3fdfc16da4afc77f000551de"
+  },
+  "acceptanceErrors": [],
+  "changedArtifactRejected": true
+}
