@@ -1,0 +1,39 @@
+{
+  "preparedAt": "2026-11-05T08:26:41.779684+00:00",
+  "status": "independently executed local historical source case",
+  "sourceRepo": "https://github.com/near-daos/sputnik-dao-contract",
+  "baseCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5",
+  "candidateCommit": "8112278fc2874a3abc12fb056b2d4c97ff796431",
+  "harnessCommit": "3898440e5caa2d0351720ed990eee9f6678664b2",
+  "runtime": {
+    "version": "2.6.2",
+    "platform": "Darwin-arm64",
+    "sha256": "8b9403f091137afc234eaf4bac06660e5ca31a851afdadfc73eb66c9d43fbcae"
+  },
+  "mode": "local-configured-factory-update",
+  "state": "locally constructed old-version state, not mainnet capture",
+  "checks": [
+    "actual migration logs V2",
+    "deployed candidate bytes match built hash",
+    "old proposal survives",
+    "full DAO config unchanged",
+    "root vote persists, proposal Approved",
+    "separate recipient gains exactly1 local NEAR",
+    "duplicate VoteApprove rejected without another payment",
+    "Finalize retry rejected without another payment",
+    "both Node workspaces5.0 and Rust workspaces0.17 pass with finalized block barriers"
+  ],
+  "negativeControls": [
+    "wrong hash rejected before any Sandbox transaction",
+    "unconfigured caller denied upgrade; code/config unchanged (separate optimistic-read probe)"
+  ],
+  "comparisonBoundaries": [
+    "Both workflows use the same input WASM and configured test case but construct separate local state; not byte-identical snapshots between runners.",
+    "Existing CI already builds contracts before upgrade tests; unchanged committed WASM is not proof CI uses stale code.",
+    "Native near-workspaces can express these same assertions. Workflow packaging/reviewer effort is the hypothesis, not a unique execution primitive.",
+    "No maintainer acceptance, measured preference or time savings.",
+    "Standalone pilot case is not integrated into the refund-family app yet.",
+    "Tests cover two retry routes; not universal exactly-once or upgrade-safety proof."
+  ],
+  "evidenceCopy": "Receipt/state facts preserved. Workspace paths and ephemeral RPC address normalized; original owner-run evidence retained outside Git."
+}

@@ -1,141 +1,109 @@
-# NEAR Rehearsal — bounded first slice
+# NEAR Rehearsal
 
-A local release-rehearsal workflow for a small NEAR contract already holding user state.
+**Upgrade rehearsal for DAOs and agent treasuries.** Capture the state that matters, apply a declared migration, run the same obligation, and export a review that another machine can verify.
 
-It captures a deployed contract's code and state at a fixed block, imports that state into fresh Sandbox branches, applies a candidate upgrade and migration, and runs the same existing-user operation against baseline, a deliberately bad candidate and the corrected candidate. The output is a pinned report plus a rerunnable regression.
+Most upgrade tests start from a clean fixture. That misses the dangerous case: an upgrade that compiles and passes fresh-state tests, but changes the meaning of an obligation already stored on chain. NEAR Rehearsal runs the real Sputnik DAO v2 contract family against a frozen inherited state and shows the consequence before the provenance.
 
-This is a technical slice, not a production release gate or an audit.
+## What this proves
 
+- A **baseline** operation still pays the declared recipient after the upgrade.
+- A **candidate** upgrade can be run against the same frozen state without touching the original proof.
+- A **correction** can be rerun from the same frozen bundle with different WASM bytes.
+- A complete review exports the captured state, actual candidate/correction WASMs, raw receipts, verdict and portable verify/replay instructions.
+- A failed, timed-out or interrupted job is **inconclusive**, not a stale success.
 
-## Public first slice (meets the externally deployed condition)
+The supported case is one Sputnik DAO v2 proposal with a `Transfer` obligation: the proposal declares one recipient and one amount, and the rehearsal checks the actual receipt graph and recipient balance against that obligation.
 
-The public slice is `counter.testnet` on NEAR testnet, captured read-only at final block `276146679` (`4gnNG8v5SaJmpDdC49ivXUBmLU1FiGLmw7GQSZC4Dkn5`).
+## The demo
 
-- Source: `https://github.com/tansawit/near-counter-app`, commit `d777350aefa1e76734cbd0ed7633bd072acd511f`, `assembly/main.ts`
-- Deployed code hash: `7H96nK1NFTYUUgiRxNER5AjRfUeD4W1TVNC6eKfSgzrf`
-- Code SHA-256: `5d4892a56646ca96f76a2632e7d21117ac541a4fc58f661ab2acff5bab7adcac`
-- Captured state: `counter = 291`, 3 bytes; state SHA-256 `0c51bd223ce23d8c4decdddd1f7a113a4370610092d7e3fba56140f06d776926`
-- Source build check: `near-sdk-as` 0.4.2 built the public source to the same code SHA-256 as the captured deployed bytes.
+1. Open the local page and run the default case.
+2. The baseline is `preserved`.
+3. The seeded bad candidate is `regressed`: the operation fails and the recipient is not paid.
+4. Select a correction and rerun from the same frozen bundle.
+5. The correction is `preserved`.
+6. Export the completed correction run, then verify the downloaded JSON with the repo helper.
 
-The declared v2 migration adds a `version` marker (`2`); it preserves the `counter` value. The old-user operation is `incrementCounter({value:1})`, read with `getCounter()`.
+That is the whole product: **consequence first, proof second, portable review last.** No “trust the green badge” step.
 
-- Baseline: `291 -> 292`.
-- Seeded bad migration: writes `version = 1`; the same `incrementCounter` panics with `v2 migration missing`.
-- Corrected migration: writes `version = 2`; the same operation succeeds; `292`.
+## Run it locally
 
-Every branch imported the same code hash and state hash. The bad candidate is explicitly seeded. No public writes, no deployment, no production authorization, and no claim that the migration is an upstream release.
-
-The command is `npm run public`; replay is `npm run replay:public`; verification is `npm run verify:public`; the one-page maintainer packet is generated with `npm run review:packet` into `out/release-review.html` and `out/release-review.json`.
-
-`out/public-report.json` retains the transaction hash, final status, receipt failures and structured failure for every operation. `out/public-regression.json` pins the capture hash, runtime, candidate WASM hashes and expected outcomes; `--replay` loads that file rather than hardcoding the current local WASMs.
-
-
-### Execution guard and replay integrity
-
-Every replay starts with `Worker.init({ network: 'sandbox' })`; after init, the runner requires the execution RPC host to be `127.0.0.1`, `localhost` or `::1` before it creates an account or deploys anything. A configured `NEAR_WORKSPACES_NETWORK=testnet` does not override this.
-
-The exported `operation` is validated, not ignored: this slice accepts only `incrementCounter({value:1})`/`getCounter()`, and rejects any other method, view or args before starting a sandbox. The migration records its before-state before `callRaw('migrate')` and its after-state after the receipt, so `changedState` is a true pre/post comparison. The report distinguishes `capturedRuntime`, `regressionRuntime` and `replayRuntime`.
-
-Transport, read and decode failures are marked `inconclusive`; they cannot become a contract regression. `regressionObserved` requires the bad branch's actual structured receipt failure (`tx.failed === true`), not merely a missing or failed read. The verifier rejects incomplete or inconclusive reports.
-
-The regression manifest's runtime fields are a declared part of the replay. If the actual runtime differs, replay is `inconclusive` and exits nonzero; it does not report a complete regression. The verifier separately compares the manifest, the actual runtime and the report's recorded declaration, so a stale report cannot verify against an altered manifest. A fresh capture has no prior `regressionRuntime` in its report, but its newly written manifest still has to match the actual run.
-
-### Fair baseline and setup
-
-A competent `near-workspaces` maintainer can already call `importContract({ testnetContract: 'counter.testnet', withData: true })` for this 3-byte state. Import is not a unique advantage. The measured delta here is the packaged release-review workflow: pinned public block/code/state, three paired branches, structured receipt outcomes, migration comparison and a replayable export.
-
-No extra operator intervention was needed after the run started. The capture is three read-only RPC queries at one final block; the run starts three local Sandbox branches and one declared migration per candidate. The runtime is 2.6.2/protocol 77 on an x86_64 binary under emulation on this arm64 host, so elapsed time is not a native performance benchmark. See `out/public-effort.json`.
-
-## Earlier local fixture
-
-`state.test.near` — a minimal local Sandbox contract with an 8-byte `count`.
-
-- Baseline source: `contracts/state-v1.wat`
-- Seeded bad candidate: `contracts/state-v2-buggy.wat` — **SEEDED**, writes the old 8-byte layout from `migrate()`, then the v2 user operation panics.
-- Corrected candidate: `contracts/state-v2-fixed.wat` — writes `version = 2` and the preserved count.
-- Operation under test: existing user calls `increment()`; result is read with `get()`.
-
-The recorded first capture is:
-
-- Contract: `state.test.near`
-- Block: `19`, hash `7mGLgxRWvCuP3W7gksjtdkrA5zdXTexbjbUE5HRuTQfw`
-- Code hash: `ATAnoAtxXJks8XDQcaLDrKg3fvoACvT6HH6Vu28QTxrN`
-- Code SHA-256: `8c6d5a3d12f1c9ea0253ae97628ba186974ba9ab350d03f5ae0605182f49200b`
-- State SHA-256: `48d17bf1f1c1b15e659ea34c07e9cc213467bb6477326608654f701faa7584c3`
-- State size: `8` bytes; captured `count = 5`
-
-The contract is deployed only in local Sandbox. It is not a public testnet or mainnet contract. Its state is 8 bytes, well below the default 50 kB import limit. The capture and branch report contain the exact block, code hash, state hash and runtime. A new run will produce a new block hash; the pinned `out/capture.json` is the reproducible reference.
-
-## Observed result
-
-The run in `out/report.json` starts all three branches from the same captured state:
-
-- Baseline: `increment()` succeeds; count `5 -> 6`.
-- Seeded bad migration: `migrate()` runs, leaves the old 8-byte layout, and the same `increment()` fails with `state too short: expected v2`.
-- Corrected migration: `migrate()` writes the v2 layout; the same `increment()` succeeds; count `5 -> 6`.
-
-`out/regression.json` records the replay command, pinned capture and expected branch outcomes. The bad candidate is labelled everywhere as seeded.
-
-## Run
-
-Node.js 24 is required.
+Requirements: Node.js 24.22.1 and a local NEAR Sandbox 2.6.2 runtime. The documented path is Linux x86_64; the owner’s macOS arm64 path uses the directory containing `near-sandbox` as `NEAR_SANDBOX_BIN_PATH`.
 
 ```sh
+git clone https://github.com/dolepee/near-rehearsal.git
+cd near-rehearsal
+git switch feat/sputnik-release-review
 npm ci --ignore-scripts
 node scripts/patch-near-sandbox.cjs
-npm run compile
-npm run rehearse
-npm run verify
 ```
 
-`npm ci --ignore-scripts` avoids the `near-sandbox` postinstall download on unsupported hosts. The patch makes `NEAR_SANDBOX_BIN_PATH` take precedence so a current binary or wrapper can be supplied.
-
-On a normal Linux x86_64 host, point `NEAR_SANDBOX_BIN_PATH` and `NEAR_SANDBOX_BINARY_PATH` at a directory containing the current `near-sandbox` executable, raise the file-descriptor limit to at least 65535, and run `npm run rehearse`.
-
-On this arm64 host the current x86_64 binary was run through an environment wrapper:
+Acquire the official NEAR sandbox:
 
 ```sh
-export NEAR_SANDBOX_REAL_BIN=/path/to/near-sandbox
-export NEAR_SANDBOX_QEMU=/path/to/qemu-x86_64
-export NEAR_SANDBOX_QEMU_LD_PREFIX=/path/to/x86_64/sysroot
-export NEAR_SANDBOX_BIN_PATH=/path/to/dir/containing/sandbox-wrapper
+SANDBOX_DIR="$PWD/.sandbox"
+mkdir -p "$SANDBOX_DIR"
+curl -fsSL \
+  https://s3-us-west-1.amazonaws.com/build.nearprotocol.com/nearcore/Linux-x86_64/2.6.2/near-sandbox.tar.gz \
+  -o "$SANDBOX_DIR/near-sandbox.tar.gz"
+echo "58c6d71091bc7a329b9d90784be42d1f313e0bf9fc4e1f2b967d60cdc407cdcf  $SANDBOX_DIR/near-sandbox.tar.gz" \
+  | sha256sum -c -
+tar --no-same-owner -xzf "$SANDBOX_DIR/near-sandbox.tar.gz" -C "$SANDBOX_DIR"
+chmod +x "$SANDBOX_DIR/Linux-x86_64/near-sandbox"
+export NEAR_SANDBOX_BIN_PATH="$SANDBOX_DIR/Linux-x86_64"
 export NEAR_SANDBOX_BINARY_PATH="$NEAR_SANDBOX_BIN_PATH"
 ulimit -n 65535
-npm run rehearse
+PORT=4174 npm run ui:sputnik
 ```
 
-The wrapper is `scripts/sandbox-wrapper.sh`; the runtime bytes are unmodified. The actual run recorded runtime 2.6.2, protocol 77, commit `2f9ddb711ebd94a306eaec06030d87ef8dfc51fa`.
+Open `http://127.0.0.1:4174`. The server binds to localhost only.
 
-## Replay from the capture
+## Portable export verification
+
+The export is self-contained. Use the repo helper; do not execute shell text embedded in a downloaded review:
 
 ```sh
-npm run replay
+node case-triage/sputnik-public-capture/export-helper.cjs verify \
+  --export /path/to/sputnik-export.json --out /tmp/sputnik-verify
+
+node case-triage/sputnik-public-capture/export-helper.cjs replay \
+  --export /path/to/sputnik-export.json --out /tmp/sputnik-replay \
+  --sandbox-dir /path/to/directory-containing-near-sandbox
 ```
 
-This reads `out/capture.json` and reruns the three branches without recapturing a baseline. It re-checks the imported code hash and state hash before running the operation.
+`--sandbox-dir` is the **directory** containing the patched `near-sandbox` binary, not the binary path itself. Verify unpacks the included frozen bundle, WASMs, manifest and raw report, then invokes the shared verifier. Replay invokes the known runner from the unpacked bundle and verifies the new report; it does not trust the exported result.
+
+## What is checked
+
+- Candidate and correction bytes match their declared SHA-256 hashes and WASM code hashes.
+- The frozen state, code hash, policy, proposal and recipient identity match the bundle.
+- The actual transfer operation matches the frozen `proposal.kind.Transfer`: recipient, amount, token, message and proposal ID.
+- Every root and child receipt resolves exactly once; no missing child, duplicate ID or unbound executor passes.
+- Retry snapshots recompute recipient, contract and proposer balances instead of accepting stored booleans.
+- Summary and comparison verdicts match the recomputed branch results, including the candidate.
+
+The verifier’s output is **offline consistency**, not a cryptographic execution attestation. A complete exported review is evidence of a local replay and its stated checks, not a production authorization or an audit.
 
 ## Claim boundaries
 
-- Local Sandbox execution only; no public deployment, public transaction or real funds.
-- The failing migration is explicitly seeded. No live vulnerability is claimed.
-- Matching captured code/state hashes do not prove consensus, complete global chain state or production upgrade authorization.
-- The first slice does not support arbitrary contracts, arbitrary migrations, large state, production keys or a hosted reviewer service.
-- The report is evidence for one bounded contract and one declared operation, not a safety score.
+- The bad candidate is a deliberately seeded local fixture derived from a verified candidate. It is not a live vulnerability, lost funds or a production incident.
+- The local contract holds test funds; nothing is spent on a public chain.
+- The UI and runner are local-only. There is no hosted reviewer service, custody, upgrade authorization or mainnet execution.
+- The supported family is `sputnik-dao-v2` with a `Transfer` proposal. Unsupported families and methods are rejected.
+- The export helper does not execute command strings from an untrusted file.
 
-## Layout
+## Repository layout
 
+- `case-triage/sputnik-public-capture/` — frozen-state runner, fixtures, verifier and portable export helper.
+- `ui/sputnik/` — local consequence-first interface and job controller.
+- `docs/` — supporting notes; the historical refund app is preserved in `docs/legacy-refund-app.md`.
+
+## Test and review commands
+
+```sh
+node --check case-triage/sputnik-public-capture/local-three-branch.cjs
+node --check case-triage/sputnik-public-capture/verify-local-three.cjs
+node case-triage/sputnik-public-capture/export-helper.cjs verify \
+  --export /tmp/sputnik-export.json --out /tmp/sputnik-verify
 ```
-contracts/              WAT sources and compiled WASM
-rehearse.cjs            capture, import and paired branch runner
-scripts/compile-contracts.cjs
-scripts/patch-near-sandbox.cjs
-scripts/sandbox-wrapper.sh
-out/capture.json        pinned code, state, block and runtime
-out/report.json         branch outcomes and import checks
-out/regression.json     replay contract
-out/release-review.html one-page maintainer review packet
-out/release-review.json machine-readable packet evidence
-substrate/              inspected historical probe material; not product evidence
-```
 
-The historical probe material under `substrate/` is included only for provenance. It creates fresh local FT state and patches a callback; it does not capture deployed state or run a migration. It is not the workflow demonstrated here.
+For a complete UI run, the page performs the verifier before enabling export. The server preserves completed reports across restart and marks interrupted jobs `inconclusive`.

@@ -1,6 +1,6 @@
 {
   "schema": "near-rehearsal/report/v1",
-  "generatedAt": "2026-11-04T01:55:52.504Z",
+  "generatedAt": "2026-11-05T22:16:35.268Z",
   "contract": "state.test.near",
   "capture": {
     "blockHeight": 19,
@@ -9,6 +9,20 @@
     "codeSha256": "8c6d5a3d12f1c9ea0253ae97628ba186974ba9ab350d03f5ae0605182f49200b",
     "stateHash": "48d17bf1f1c1b15e659ea34c07e9cc213467bb6477326608654f701faa7584c3",
     "stateBytes": 8
+  },
+  "capturedRuntime": {
+    "version": "2.6.2",
+    "build": "2.6.2",
+    "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+    "protocolVersion": 77,
+    "latestProtocolVersion": 77
+  },
+  "replayRuntime": {
+    "version": "2.6.2",
+    "build": "2.6.2",
+    "commit": "2f9ddb711ebd94a306eaec06030d87ef8dfc51fa",
+    "protocolVersion": 77,
+    "latestProtocolVersion": 77
   },
   "runtime": {
     "version": "2.6.2",
@@ -70,7 +84,9 @@
       },
       "operation": {
         "succeeded": false,
-        "error": "{\"result\":{\"final_execution_status\":\"EXECUTED_OPTIMISTIC\",\"receipts_outcome\":[{\"block_hash\":\"9k4AiKReKjKJqRrgybLyLS6PNPzLTFfkxw7KyH5dMn9c\",\"id\":\"A38sPvocfmWpyG8HW5i3x1yW3Fib73hLXpgATCfopEaH\",\"outcome\":{\"executor_id\":\"state.test.near\",\"gas_burnt\":965726224805,\"logs\":[],\"metadata\":{\"gas_profile\":[{\"cost\":\"BASE\",\"cost_category\":\"WASM_HOST_COST\",\"gas_used\":\"794304333\"},{\"cost\":\"CONTRACT_LOADING_BASE\",\"cost_category\":\"WASM_HOST_COST\",\"gas_used\":\"35445963\"},{\"cost\":\"CONTRACT_LOADING_BYTES\",\"cost_categ",
+        "structuredFailure": true,
+        "failure": null,
+        "error": "{\"result\":{\"final_execution_status\":\"EXECUTED_OPTIMISTIC\",\"receipts_outcome\":[{\"block_hash\":\"8RNwzsz9PdBQYku9F5puZp5c4MTztLEiEqzVjTVvwK5\",\"id\":\"E8bi4AifH7BhFWwPfUwbXMte2byEWSaTQCJCm35S3H2n\",\"outcome\":{\"executor_id\":\"state.test.near\",\"gas_burnt\":965726224805,\"logs\":[],\"metadata\":{\"gas_profile\":[{\"cost\":\"BASE\",\"cost_category\":\"WASM_HOST_COST\",\"gas_used\":\"794304333\"},{\"cost\":\"CONTRACT_LOADING_BASE\",\"cost_category\":\"WASM_HOST_COST\",\"gas_used\":\"35445963\"},{\"cost\":\"CONTRACT_LOADING_BYTES\",\"cost_catego",
         "stateHashAfter": "48d17bf1f1c1b15e659ea34c07e9cc213467bb6477326608654f701faa7584c3"
       },
       "runtime": {

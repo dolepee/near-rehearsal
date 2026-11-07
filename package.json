@@ -13,7 +13,23 @@
     "replay:public": "node public-rehearse.cjs --replay out/public-regression.json",
     "verify:public": "node scripts/verify-public-report.cjs",
     "verify:oracle": "node scripts/verify-oracle.cjs",
-    "review:packet": "node scripts/build-release-review.cjs"
+    "review:packet": "node scripts/build-release-review.cjs",
+    "test:refund": "node scripts/test-refund-transfer.cjs",
+    "rehearse:refund": "node scripts/refund-three-way.cjs",
+    "test:guards": "node scripts/test-refund-guards.cjs",
+    "ui": "node ui/server.cjs",
+    "export:refund": "node scripts/export-refund-replay.cjs",
+    "verify:refund": "node scripts/verify-refund-report.cjs",
+    "verify:refund-export": "node scripts/verify-refund-export.cjs",
+    "replay:refund-export": "node scripts/replay-refund-export.cjs",
+    "test:export": "node scripts/test-export-guards.cjs",
+    "test:ui": "node scripts/test-ui-polling.cjs",
+    "test:amount": "node scripts/test-amount-regression.cjs",
+    "ui:sputnik": "node ui/sputnik/server.cjs",
+    "test:ui-upload": "node ui/sputnik/test-upload-selection.cjs",
+    "test:classification": "node case-triage/sputnik-public-capture/test-classification.cjs",
+    "test:operation-classification": "node scripts/test-operation-classification.cjs",
+    "test:release-review": "node scripts/test-release-review-guards.cjs"
   },
   "dependencies": {
     "near-workspaces": "5.0.0"

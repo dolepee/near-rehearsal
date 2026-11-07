@@ -13,3 +13,9 @@ demo-script.*
 *-demo-script.*
 SUBMISSION_CHECKLIST.md
 submission-checklist.*
+
+out/inputs/
+out/runs/
+
+# Local UI run output
+out/sputnik-ui/

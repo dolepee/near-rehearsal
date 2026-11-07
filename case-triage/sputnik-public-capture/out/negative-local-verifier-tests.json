@@ -1,0 +1,161 @@
+{
+  "schema": "near-rehearsal/local-verifier-negative-tests/v3",
+  "positiveControl": {
+    "name": "positive-control",
+    "rejected": false,
+    "exit": 0
+  },
+  "allRejected": true,
+  "cases": [
+    {
+      "name": "baseline-operation-failed",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "candidate-unexpectedly-green",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "candidate-missing-failed-receipt",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "candidate-paid",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "candidate-code-mismatch",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "corrected-code-mismatch",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "empty-receipt-status",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "unbound-executor",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "initial-state-mismatch",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "missing-local-block",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "token-total-mismatch",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "inconclusive-status",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "primary-all-green",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "raw-state-value-stale-hash",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "raw-code-stale-hash",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "missing-root-receipt",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "duplicate-receipt-id",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "operation-recipient-args",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "preserved-candidate-no-payout",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "preserved-correction-no-payout",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "unexplained-balance-drain",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "quarter-near-candidate-upgrade-loss",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "quarter-near-corrected-upgrade-loss",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "first-operation-balance-drain",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "quarter-near-first-loss",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "quarter-near-retry-loss",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "missing-bond-refund",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "disconnected-receipt-cycle",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "receipt-self-loop",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "name": "recomputed-receipt-cost",
+      "rejected": true,
+      "exit": 1
+    }
+  ]
+}
