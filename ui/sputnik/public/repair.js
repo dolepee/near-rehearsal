@@ -156,6 +156,16 @@
     $('error-title').textContent = `${statusLabel(run.status)} — no accepted result`;
     $('error-copy').textContent = run.error || 'The repair did not produce an accepted result.';
     $('error-log').textContent = (run.logs || []).slice(-40).join('\n') || 'No runner output was captured.';
+    const patch = run.patch;
+    $('error-patch').hidden = !patch;
+    if (patch) {
+      $('error-patch-meta').textContent = `${short(patch.sha256, 12)} · ${patch.bytes} bytes`;
+      $('error-diff').textContent = patch.text;
+      $('error-downloads').innerHTML = run.patchUrl ? `<a class="download-button" href="${esc(run.patchUrl)}" download>Download generated patch</a>` : '';
+    } else {
+      $('error-diff').textContent = '';
+      $('error-downloads').innerHTML = '';
+    }
     setStatus(statusLabel(run.status), run.status === 'rejected' ? 'rejected' : 'inconclusive');
     setButton(false);
   }

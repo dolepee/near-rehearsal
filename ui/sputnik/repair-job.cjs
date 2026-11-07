@@ -189,7 +189,12 @@ function deriveConsequence(baseline, candidate) {
       candidateBondReturned: next.failedContract === 0n,
       authorizedRetryNoSecondRefund: next.retryFinal === 'FINAL' && next.retryContract === 0n && next.retryRecipient === 0n,
       healthyPayoutUnchanged: base.healthyRecipient === transfer && next.healthyRecipient === transfer && base.healthyContract === -transfer && next.healthyContract === -transfer,
-      baseAndCandidateStartSameState: JSON.stringify(baseline?.healthy?.before ?? null) === JSON.stringify(candidate?.healthy?.before ?? null),
+      baseAndCandidateStartSameState: (() => {
+        const baseBefore = baseline?.healthy?.before || {};
+        const nextBefore = candidate?.healthy?.before || {};
+        return JSON.stringify(baseBefore.state ?? null) === JSON.stringify(nextBefore.state ?? null)
+          && JSON.stringify(baseBefore.policy ?? null) === JSON.stringify(nextBefore.policy ?? null);
+      })(),
       gasSeparated: next.retryGas > 0n,
     },
   };
@@ -273,36 +278,61 @@ function createManager(options = {}) {
     if (run.logs.length > 220) run.logs.splice(0, run.logs.length - 220);
   }
 
+  function terminateTree(child, signal = 'SIGTERM') {
+    if (!child?.pid) return;
+    try {
+      if (process.platform === 'win32') child.kill(signal);
+      else process.kill(-child.pid, signal);
+    } catch {
+      try { child.kill(signal); } catch {}
+    }
+  }
+
+  function cleanupProviderRuntime() {
+    if (!config.privateRuntime) return;
+    try { fs.rmSync(config.privateRuntime, {recursive: true, force: true}); } catch {}
+  }
+
   function spawnStep(run, label, command, args, options = {}) {
     return new Promise((resolve, reject) => {
+      if (run.timedOut || run.status !== 'running') {
+        reject(Object.assign(new Error('Repair job was interrupted before the next step.'), {status: 'interrupted', phase: 'interrupted'}));
+        return;
+      }
       let child;
       try {
         child = spawnImpl(command, args, {
           cwd: options.cwd || ROOT,
           env: {...process.env, ...(options.env || {})},
           stdio: ['ignore', 'pipe', 'pipe'],
+          detached: true,
         });
       } catch (error) { reject(error); return; }
       let settled = false;
+      let timedOut = false;
+      let hardTimer;
       const timer = setTimeout(() => {
         if (settled) return;
-        settled = true;
-        try { child.kill('SIGKILL'); } catch {}
-        reject(Object.assign(new Error(`${label} exceeded its ${Math.round(options.timeoutMs / 1000)}s limit.`), {status: 'interrupted', phase: run.phase}));
+        timedOut = true;
+        terminateTree(child, 'SIGTERM');
+        hardTimer = setTimeout(() => terminateTree(child, 'SIGKILL'), 1500);
+        hardTimer.unref?.();
       }, options.timeoutMs);
       run.currentChild = child;
       child.stdout?.on('data', (chunk) => appendLog(run, chunk));
       child.stderr?.on('data', (chunk) => appendLog(run, chunk));
       child.on('error', (error) => {
         if (settled) return;
-        settled = true; clearTimeout(timer);
+        settled = true; clearTimeout(timer); clearTimeout(hardTimer);
+        terminateTree(child, 'SIGKILL');
         reject(Object.assign(error, {status: 'inconclusive', phase: run.phase}));
       });
       child.on('close', (code, signal) => {
         if (settled) return;
-        settled = true; clearTimeout(timer);
+        settled = true; clearTimeout(timer); clearTimeout(hardTimer);
         run.currentChild = null;
-        if (code === 0) resolve({code, signal});
+        if (timedOut || run.timedOut) reject(Object.assign(new Error(`${label} exceeded its ${Math.round(options.timeoutMs / 1000)}s limit.`), {status: 'interrupted', phase: run.phase}));
+        else if (code === 0) resolve({code, signal});
         else reject(Object.assign(new Error(`${label} exited ${code ?? signal}.`), {status: 'inconclusive', phase: run.phase, exitCode: code}));
       });
     });
@@ -326,8 +356,8 @@ function createManager(options = {}) {
       run.phase = 'interrupted';
       run.error = `Repair job exceeded the ${Math.round(config.timeouts.jobMs / 60000)}-minute limit; it is not accepted.`;
       run.finishedAt = nowIso();
-      try { run.currentChild?.kill('SIGKILL'); } catch {}
-      activeId = null;
+      terminateTree(run.currentChild, 'SIGTERM');
+      setTimeout(() => terminateTree(run.currentChild, 'SIGKILL'), 1500).unref?.();
       writeMeta(run);
     }, config.timeouts.jobMs);
     let watcher;
@@ -393,10 +423,15 @@ function createManager(options = {}) {
       const provenancePath = path.join(producerDir, 'attempt/provenance.json');
       if (fs.existsSync(provenancePath)) pipelineArgs.push('--provenance', provenancePath);
       watcher = phaseWatcher(run);
-      await spawnStep(run, 'Repair pipeline', process.execPath, pipelineArgs, {timeoutMs: config.timeouts.pipelineMs});
+      let pipelineExitError = null;
+      try {
+        await spawnStep(run, 'Repair pipeline', process.execPath, pipelineArgs, {timeoutMs: config.timeouts.pipelineMs});
+      } catch (error) {
+        pipelineExitError = error;
+      }
       clearInterval(watcher);
       const pipeline = readJson(path.join(pipelineDir, 'pipeline.json'));
-      if (!pipeline) throw Object.assign(new Error('Repair pipeline produced no result.'), {status: 'inconclusive'});
+      if (!pipeline) throw pipelineExitError || Object.assign(new Error('Repair pipeline produced no result.'), {status: 'inconclusive'});
       run.candidate.pipeline = sanitizeValue(pipeline);
       run.candidate.wasm = {sha256: pipeline?.hashes?.wasm || null, bytes: fs.existsSync(path.join(pipelineDir, 'applied/target/wasm32-unknown-unknown/release/sputnikdao2.wasm')) ? fs.statSync(path.join(pipelineDir, 'applied/target/wasm32-unknown-unknown/release/sputnikdao2.wasm')).size : null};
       const candidateReportPath = path.join(pipelineDir, 'replay/issue238-local.json');
@@ -415,7 +450,7 @@ function createManager(options = {}) {
         run.status = 'accepted'; setPhase(run, 'accepted');
       } else {
         run.status = 'rejected'; setPhase(run, 'rejected');
-        run.error = `The repair ran but did not pass the declared checks${pipeline.acceptanceErrors?.length ? `: ${pipeline.acceptanceErrors.join('; ')}` : '.'}`;
+        run.error = `The repair ran but did not pass the declared checks${pipeline.acceptanceErrors?.length ? `: ${pipeline.acceptanceErrors.join('; ')}` : '.'}${pipelineExitError ? ` Pipeline exited: ${pipelineExitError.message}` : ''}`;
       }
     } catch (error) {
       if (watcher) clearInterval(watcher);
@@ -434,6 +469,7 @@ function createManager(options = {}) {
       run.currentChild = null;
       if (run.timedOut) { run.status = 'interrupted'; run.phase = 'interrupted'; }
       if (run.status === 'running') { run.status = 'inconclusive'; run.phase = 'inconclusive'; run.error = 'Repair job ended without a terminal result.'; }
+      cleanupProviderRuntime();
       activeId = activeId === run.id ? null : activeId;
       writeMeta(run);
     }
@@ -514,14 +550,24 @@ function createManager(options = {}) {
         command: pinned.build?.build?.command || null,
         artifact: pinned.build?.build?.artifact || null,
       },
-      baseline: {report: sanitizeValue(baseline), reportSha256: sha256File(path.join(dir, 'baseline/issue238-local.json'))},
-      candidate: {
-        report: sanitizeValue(candidate), reportSha256: sha256File(path.join(pipelineDir, 'replay/issue238-local.json')),
-        identity: sanitizeValue(identity), identitySha256: sha256File(path.join(pipelineDir, 'candidate-identity.json')),
-        pipeline: sanitizeValue(pipeline),
-        patch: {filename: 'repair.patch', sha256: sha256(patch), bytes: patch.length, text: patch.toString('utf8')},
-        wasm: {filename: 'candidate.wasm', sha256: sha256(wasm), bytes: wasm.length, base64: wasm.toString('base64')},
-      },
+      baseline: (() => {
+        const report = sanitizeValue(baseline);
+        const reportText = JSON.stringify(report);
+        return {report, reportText, reportSha256: sha256(reportText)};
+      })(),
+      candidate: (() => {
+        const report = sanitizeValue(candidate);
+        const reportText = JSON.stringify(report);
+        const identityValue = sanitizeValue(identity);
+        const identityText = JSON.stringify(identityValue);
+        return {
+          report, reportText, reportSha256: sha256(reportText),
+          identity: identityValue, identityText, identitySha256: sha256(identityText),
+          pipeline: sanitizeValue(pipeline),
+          patch: {filename: 'repair.patch', sha256: sha256(patch), bytes: patch.length, text: patch.toString('utf8')},
+          wasm: {filename: 'candidate.wasm', sha256: sha256(wasm), bytes: wasm.length, base64: wasm.toString('base64')},
+        };
+      })(),
       consequence: run.consequence, checks: run.checks,
       commands: {
         verify: 'node case-triage/rehearsal-repair/acceptance.cjs --base <baseline-report.json> --repaired <candidate-report.json> --identity <candidate-identity.json> --patch <repair.patch> --source <applied-proposals.rs> --wasm <candidate.wasm>',

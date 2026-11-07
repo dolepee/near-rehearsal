@@ -69,6 +69,12 @@
         <section id="error-state" class="error-state panel" hidden>
           <div class="eyebrow">No accepted result</div><h2 id="error-title">The repair did not complete.</h2>
           <p id="error-copy"></p><pre id="error-log" class="log-output compact"></pre>
+          <section id="error-patch" class="error-patch" hidden>
+            <div class="section-head compact"><div><div class="eyebrow">Generated source patch</div><h3>Inspect or download this attempt</h3></div><span id="error-patch-meta" class="badge subtle"></span></div>
+            <p class="small muted">Generation succeeded, but this attempt did not pass the declared checks. The accepted review bundle remains withheld.</p>
+            <pre id="error-diff" class="raw source-diff" tabindex="0" aria-label="Generated source diff from failed attempt"></pre>
+            <div id="error-downloads" class="downloads"></div>
+          </section>
           <button id="retry-button" class="primary" type="button">Start a fresh repair</button>
         </section>
 

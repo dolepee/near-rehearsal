@@ -18,6 +18,7 @@ assert.match(html, /data-phase="compiling"/);
 assert.match(html, /data-phase="replaying"/);
 assert.match(html, /role="status" aria-live="polite"/);
 assert.match(html, /id="downloads"/);
+assert.match(html, /id="error-patch"/);
 assert.match(js, /Download generated patch/);
 assert.match(js, /Download review bundle/);
 assert.doesNotMatch(html, /type="password"/i, 'no browser credential form');

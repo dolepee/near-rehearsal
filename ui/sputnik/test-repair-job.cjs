@@ -56,6 +56,13 @@ try {
   const badPayout = deriveConsequence(baseline, changedPayout);
   assert.equal(badPayout.candidate.healthyPayoutUnchanged, false);
 
+  const deploymentBalanceDiffers = report({failedContract: 0n});
+  deploymentBalanceDiffers.healthy.before.contract = 'different-deployment-gas';
+  const sameFrozenState = deriveConsequence(baseline, deploymentBalanceDiffers);
+  assert.equal(sameFrozenState.checks.baseAndCandidateStartSameState, true);
+  deploymentBalanceDiffers.healthy.before.policy = {proposal_bond: 'different'};
+  assert.equal(deriveConsequence(baseline, deploymentBalanceDiffers).checks.baseAndCandidateStartSameState, false);
+
   const sanitized = sanitizeValue({
     source: {path: 'sputnikdao2/src/proposals.rs'},
     binary: '/workspace/tools/near-sandbox',
@@ -116,7 +123,9 @@ try {
   const bundle = manager.bundle(acceptedId);
   assert.equal(bundle.candidate.patch.sha256, sha(patch));
   assert.equal(bundle.candidate.wasm.sha256, sha(wasm));
-  assert.equal(bundle.baseline.reportSha256, sha(JSON.stringify(report({failedContract: BOND}))));
+  assert.equal(bundle.baseline.reportSha256, sha(bundle.baseline.reportText));
+  assert.equal(bundle.candidate.reportSha256, sha(bundle.candidate.reportText));
+  assert.equal(bundle.candidate.identitySha256, sha(bundle.candidate.identityText));
   assert.equal(JSON.stringify(bundle).includes('/workspace'), false);
   assert.match(bundle.commands.verify, /acceptance\.cjs/);
   assert.equal(bundle.candidate.wasm.base64, wasm.toString('base64'));
