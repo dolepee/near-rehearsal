@@ -12,7 +12,7 @@
     return `${negative ? '-' : ''}${whole}${fraction ? `.${fraction}` : ''}`;
   };
   const signed = (value) => `${BigInt(value) >= 0n ? '+' : ''}${near(value)}`;
-  const phaseOrder = ['reproducing', 'generating', 'compiling', 'replaying'];
+  const phaseOrder = ['reproducing', 'generating', 'compiling', 'replaying', 'recovering'];
   const terminal = new Set(['accepted', 'rejected', 'inconclusive', 'interrupted']);
   const statusLabel = (status) => ({accepted: 'Accepted', rejected: 'Rejected', inconclusive: 'Inconclusive', interrupted: 'Interrupted'}[status] || status);
   const setStatus = (text, kind = 'idle') => { const el = $('status'); el.textContent = text; el.className = `status-pill ${kind}`; };
@@ -117,7 +117,7 @@
   function renderRunning(run) {
     show('running-state');
     $('running-title').textContent = `Repairing ${run.caseId}`;
-    $('running-copy').textContent = 'Fresh baseline, one model attempt, build and local replay are running. The phase below is the actual current step.';
+    $('running-copy').textContent = 'Fresh baseline, one model attempt, build, local replay and a persisted-failure recovery exercise are running. The phase below is the actual current step.';
     $('phase-current').textContent = `${run.phase[0].toUpperCase() + run.phase.slice(1)} — ${run.status === 'running' ? 'in progress' : statusLabel(run.status)}`;
     $('elapsed').textContent = elapsed(run);
     $('run-id').textContent = short(run.id, 8);
@@ -140,7 +140,7 @@
       ? 'Accepted reproduction: the declared repair checks passed.'
       : `${statusLabel(run.status)}: this run is not accepted evidence.`;
     $('result-copy').textContent = accepted
-      ? 'The failed async proposal no longer strands the bond. The authorized retry returns no second refund, and the healthy Transfer payout is unchanged. Gas is reported separately from returned principal.'
+      ? 'The candidate passes both fresh-state prevention and persisted-failure recovery. The failed async proposal no longer strands the bond; the recovery returns it exactly once; the authorized retry returns no second refund; and the healthy Transfer payout is unchanged. Gas is reported separately from returned principal.'
       : (run.error || 'The run stopped before all declared checks passed.');
     const c = run.consequence || {};
     const baseline = c.baseline || {}; const candidate = c.candidate || {};
@@ -164,12 +164,37 @@
       <div><b>Principal:</b> 1 NEAR bond at risk; 0.1 NEAR healthy Transfer.</div>
       <div><b>Gas on retry:</b> ${esc(retryGas)} NEAR, separate from returned principal.</div>`;
     const checks = run.checks || {};
+    const recovery = run.recovery || null;
+    const recoveryPanel = $('recovery-panel');
+    recoveryPanel.hidden = !recovery;
+    if (recovery) {
+      const summary = recovery.summary || {};
+      const firstGross = summary.firstGrossRecoveryYocto || '0';
+      const secondGross = summary.secondGrossRecoveryYocto || '0';
+      const unpaid = BigInt(summary.failedRecipientDelta || 0) === 0n;
+      $('recovery-badge').textContent = recovery.ok ? 'Accepted persisted recovery' : (recovery.status || 'Not accepted');
+      $('recovery-copy').textContent = recovery.ok
+        ? 'The same candidate was applied to an already-failed proposal without calling the initializer. The frozen proposal, policy and locked bond survived the code change; the authorized finalize recovered the bond once; the failed target was not paid.'
+        : (recovery.error || 'The persisted recovery exercise did not pass its independent acceptance.');
+      $('recovery-grid').innerHTML = `
+        <article class="consequence-card ${recovery.ok ? 'good' : 'bad'}"><div class="eyebrow">Bond recovered</div><strong>${signed(firstGross)} NEAR</strong><p>Gross proposer credit reconciled from the frozen snapshots and receipt-derived gas, not only from the cleared liability.</p></article>
+        <article class="consequence-card ${BigInt(secondGross) === 0n ? 'good' : 'bad'}"><div class="eyebrow">Second retry</div><strong>${BigInt(secondGross) === 0n ? 'Zero recovery' : signed(secondGross) + ' NEAR'}</strong><p>${BigInt(secondGross) === 0n ? 'A second authorized finalize produced no second bond credit; only gas moved.' : 'A second retry produced another bond credit, so exactly-once recovery is not proven.'}</p></article>
+        <article class="consequence-card ${unpaid ? 'good' : 'bad'}"><div class="eyebrow">Failed target</div><strong>${unpaid ? 'Unpaid' : 'Paid'}</strong><p>${unpaid ? 'The missing target received nothing; the original downstream failure was preserved.' : 'The failed target received funds during recovery.'}</p></article>`;
+      $('recovery-checks').innerHTML = [
+        check('Frozen state preserved', summary.preservedState && summary.preservedPolicy && summary.preservedProposal, 'raw state, policy and proposal compared across code replacement'),
+        check('Authority probes executed', summary.authorityRejected, 'rejected update and finalize probes reached FINAL with expected errors'),
+        check('First recovery FINAL', summary.firstFinal === 'FINAL' && firstGross === c.bond, 'gross credit and locked delta reconciled to the bond'),
+        check('Second retry FINAL', summary.secondFinal === 'FINAL' && BigInt(secondGross) === 0n, 'no second refund; proposal ended Failed'),
+        check('Healthy control preserved', summary.healthyControl, 'past-settled payout remained unchanged'),
+      ].join('');
+    }
     $('checks-list').innerHTML = [
       check('Baseline bond retained', checks.baselineBondRetained, `baseline contract ${signed(baseline.failedContract || 0)} NEAR`),
       check('Candidate bond returned', checks.candidateBondReturned, `candidate contract ${signed(candidate.failedContract || 0)} NEAR`),
       check('Authorized retry: no second refund', checks.authorizedRetryNoSecondRefund, 'FINAL receipt; zero contract and recipient delta'),
       check('Healthy payout unchanged', checks.healthyPayoutUnchanged, `${signed(candidate.healthyRecipient || 0)} NEAR recipient`),
       check('Same frozen starting state', checks.baseAndCandidateStartSameState, 'baseline and candidate healthy before-state'),
+      check('Persisted recovery accepted', checks.recoveryAccepted, 'old-code failure, code replacement and exactly-once accounting'),
     ].join('');
     $('acceptance-boundary').textContent = accepted
       ? 'Accepted means this supported local reproduction passed the declared checks. It is not a production approval, an audit, or a claim about a live DAO.'

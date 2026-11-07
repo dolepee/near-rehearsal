@@ -112,15 +112,31 @@ function summarize(final) {
   const receiptFailure = receipts.some((receipt) => receipt.status?.Failure);
   return {
     transactionHash: final?.hash ?? null,
+    finalExecutionStatus: final?.status?.final_execution_status ?? null,
     succeeded: final?.status?.final_execution_status === 'FINAL' && !final?.status?.transaction_outcome?.outcome?.status?.Failure,
     receiptFailure,
     transactionOutcomeStatus: txo?.outcome?.status ?? null,
+    transactionOutcome: {
+      status: txo?.outcome?.status ?? null,
+      gasBurntUnits: txo?.outcome?.gas_burnt?.toString() ?? null,
+      tokensBurntYocto: txo?.outcome?.tokens_burnt?.toString() ?? null,
+      rootReceiptIds: txo?.outcome?.receipt_ids ?? [],
+    },
+    transactionTokensBurntYocto: txTokens.toString(),
+    receiptTokensBurntYocto: receiptTokens.toString(),
     gasBurntYocto: (txTokens + receiptTokens).toString(),
     receipts,
     transaction: {
       signerId: final?.status?.transaction?.signer_id ?? null,
       receiverId: final?.status?.transaction?.receiver_id ?? null,
-      actions: final?.status?.transaction?.actions ?? [],
+      actions: (final?.status?.transaction?.actions ?? []).map((action) => {
+        // The authority update carries the full candidate WASM as a FunctionCall
+        // argument. Keep its action shape and a digest, not a second copy of the
+        // bytes; the candidate file itself is the byte-identity source.
+        if (!action?.FunctionCall || String(action.FunctionCall.args || '').length <= 2048) return action;
+        const bytes = Buffer.from(action.FunctionCall.args, 'base64');
+        return {FunctionCall: {...action.FunctionCall, args: null, argsBytes: bytes.length, argsSha256: sha256(bytes)}};
+      }),
     },
   };
 }
@@ -270,9 +286,12 @@ async function failProposal(worker, dao, proposer, recipient, kind) {
 
 async function attempt(label, fn) {
   try {
-    return {label, ok: true, value: await fn()};
+    return {label, ok: true, executed: true, value: await fn()};
   } catch (error) {
-    return {label, ok: false, error: String(error?.message || error).slice(0, 2000)};
+    // A thrown RPC/transport error is not evidence that authority or a
+    // settlement control was rejected. Acceptance must treat it as
+    // inconclusive unless a final transaction outcome is present.
+    return {label, ok: false, executed: false, error: String(error?.message || error).slice(0, 2000)};
   }
 }
 
@@ -314,8 +333,8 @@ async function runRecovery(worker, candidateWasm) {
   const candidateHash = hashContract(candidateWasm);
 
   const unauthorizedUpdate = await attempt('unauthorized update', () => updateCode(worker, base.proposer, base.dao, candidateWasm));
-  const unauthorizedUpdateRejected = !unauthorizedUpdate.ok || unauthorizedUpdate.value?.receiptFailure === true;
-  if (!unauthorizedUpdateRejected) throw new Error('unauthorized update unexpectedly succeeded');
+  const unauthorizedUpdateRejected = unauthorizedUpdate.ok && unauthorizedUpdate.value?.receiptFailure === true;
+  if (!unauthorizedUpdateRejected) throw new Error('unauthorized update probe did not produce an executed rejection');
 
   // The contract's factory `update` path deliberately creates a timed
   // UpgradeSelf proposal instead of deploying immediately. This runner uses
@@ -330,7 +349,8 @@ async function runRecovery(worker, candidateWasm) {
     const tx = await base.recipient.callRaw(base.dao, 'act_proposal', {id: failed.proposalId, action: 'Finalize', proposal: kind}, {gas: GAS});
     return summarize(await finalStatus(worker, tx, base.recipient.accountId));
   });
-  if (unauthorizedFinalize.ok && !unauthorizedFinalize.value?.receiptFailure) throw new Error('unauthorized finalize unexpectedly succeeded');
+  const unauthorizedFinalizeRejected = unauthorizedFinalize.ok && unauthorizedFinalize.value?.receiptFailure === true;
+  if (!unauthorizedFinalizeRejected) throw new Error('unauthorized finalize probe did not produce an executed rejection');
 
   // Authority probes can burn the probe signer's gas. Start the recovery
   // accounting after those probes so their gas is not misread as a payout.
@@ -395,9 +415,11 @@ async function runRecovery(worker, candidateWasm) {
       upgradeCaller: base.dao.accountId,
       unauthorizedUpdateRejected,
       unauthorizedUpdateError: unauthorizedUpdate.error || (unauthorizedUpdate.value?.receiptFailure ? 'update receipt failed' : null),
+      unauthorizedUpdateProbe: unauthorizedUpdate,
       finalizeCaller: base.proposer.accountId,
-      unauthorizedFinalizeRejected: !unauthorizedFinalize.ok || unauthorizedFinalize.value?.receiptFailure === true || !unauthorizedFinalize.value?.succeeded,
+      unauthorizedFinalizeRejected,
       unauthorizedFinalizeError: unauthorizedFinalize.error || null,
+      unauthorizedFinalizeProbe: unauthorizedFinalize,
     },
     deploy: base.deploy,
     init: base.init,

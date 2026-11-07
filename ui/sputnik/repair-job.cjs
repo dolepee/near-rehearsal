@@ -12,13 +12,15 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {spawn, execFileSync} = require('node:child_process');
+const {spawn, spawnSync, execFileSync} = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const REPAIR = path.join(ROOT, 'case-triage/rehearsal-repair');
 const ISSUE238 = path.join(REPAIR, 'issue238-local.cjs');
 const PRODUCER = path.join(REPAIR, 'codex-producer.cjs');
 const PIPELINE = path.join(REPAIR, 'repair-pipeline.cjs');
+const PERSISTED_RECOVERY = path.join(REPAIR, 'persisted-recovery.cjs');
+const PERSISTED_ACCEPTANCE = path.join(REPAIR, 'persisted-recovery-acceptance.cjs');
 const CONTROLLER_MANIFEST = path.join(REPAIR, 'controller-manifest.json');
 const BUILD_MANIFEST = path.join(REPAIR, 'build-manifest.json');
 const DEFAULT_BASE_WASM = path.join(REPAIR, 'bundle/artifacts/base.wasm');
@@ -53,7 +55,8 @@ const CASE = {
     baselineMs: 5 * 60 * 1000,
     generationMs: 20 * 60 * 1000,
     pipelineMs: 25 * 60 * 1000,
-    jobMs: 45 * 60 * 1000,
+    recoveryMs: 10 * 60 * 1000,
+    jobMs: 60 * 60 * 1000,
   },
 };
 
@@ -215,6 +218,34 @@ function deriveConsequence(baseline, candidate) {
   };
 }
 
+function deriveRecoverySummary(report) {
+  if (!report) return null;
+  const first = report.firstRecovery || {};
+  const second = report.secondRetry || {};
+  const firstBefore = first.before || {};
+  const firstAfter = first.after || {};
+  const gas = (summary) => BigInt(summary?.transactionOutcome?.tokensBurntYocto ?? 0)
+    + (summary?.receipts || []).reduce((sum, receipt) => sum + BigInt(receipt?.tokensBurntYocto ?? 0), 0n);
+  return {
+    firstGrossRecoveryYocto: first.grossRecoveryYocto || '0',
+    firstGasYocto: gas(first.final).toString(),
+    secondGasYocto: gas(second.final).toString(),
+    secondGrossRecoveryYocto: second.grossRecoveryYocto || '0',
+    firstProposalStatus: first.proposal?.status || null,
+    secondProposalStatus: second.proposal?.status || null,
+    firstFinal: first.final?.finalExecutionStatus || null,
+    secondFinal: second.final?.finalExecutionStatus || null,
+    failedRecipientDelta: (BigInt(firstAfter.recipientBalance ?? 0) - BigInt(firstBefore.recipientBalance ?? 0)).toString(),
+    frozenLockedAmount: report.failed?.frozen?.lockedAmount || null,
+    preservedState: JSON.stringify(report.failed?.frozen?.state ?? null) === JSON.stringify(report.upgraded?.state ?? null),
+    preservedPolicy: JSON.stringify(report.failed?.frozen?.policy ?? null) === JSON.stringify(report.upgraded?.policy ?? null),
+    preservedProposal: JSON.stringify(report.failed?.frozen?.proposal ?? null) === JSON.stringify(report.upgraded?.proposal ?? null),
+    authorityRejected: report.authority?.unauthorizedUpdateProbe?.ok === true && report.authority?.unauthorizedFinalizeProbe?.ok === true,
+    healthyControl: report.healthyPreservation?.settled?.recipientBalance === report.healthyPreservation?.afterAttempt?.recipientBalance
+      && BigInt(report.healthyPreservation?.afterUpgrade?.lockedAmount ?? '-1') === 0n,
+  };
+}
+
 function normalizedRun(run) {
   return {
     id: run.id,
@@ -234,6 +265,7 @@ function normalizedRun(run) {
     candidate: run.candidate || null,
     consequence: run.consequence || null,
     checks: run.checks || null,
+    recovery: run.recovery || null,
     patch: run.patch ? {filename: 'repair.patch', text: run.patch.text, sha256: run.patch.sha256, bytes: run.patch.bytes} : null,
     patchUrl: run.patch ? `/api/repair/runs/${run.id}/patch` : null,
     bundleUrl: run.status === 'accepted' ? `/api/repair/runs/${run.id}/bundle` : null,
@@ -296,7 +328,7 @@ function createManager(options = {}) {
       startedAt: run.startedAt, finishedAt: run.finishedAt || null,
       error: run.error || null, phaseLog: run.phaseLog || [], source: CASE.source,
       obligation: CASE.obligation, baseline: run.baseline || null, candidate: run.candidate || null,
-      consequence: run.consequence || null, checks: run.checks || null,
+      consequence: run.consequence || null, checks: run.checks || null, recovery: run.recovery || null,
       childPid: run.childPid || null, childStart: run.childStart || null,
       runtimePath: run.runtimePath || null, runtimeProbe: run.runtimeProbe || null,
     };
@@ -531,12 +563,88 @@ function createManager(options = {}) {
         acceptance: {errors: pipeline.acceptanceErrors || [], changedArtifactRejected: pipeline.changedArtifactRejected === true, pipelineOk: pipeline.ok === true},
         identity: sanitizeValue(readJson(path.join(pipelineDir, 'candidate-identity.json'), {})),
       };
-      const accepted = pipeline.ok === true && (pipeline.acceptanceErrors || []).length === 0 && run.checks?.baselineBondRetained && run.checks?.candidateBondReturned && run.checks?.authorizedRetryNoSecondRefund && run.checks?.healthyPayoutUnchanged;
+      const freshAccepted = pipeline.ok === true && (pipeline.acceptanceErrors || []).length === 0 && run.checks?.baselineBondRetained && run.checks?.candidateBondReturned && run.checks?.authorizedRetryNoSecondRefund && run.checks?.healthyPayoutUnchanged;
+
+      // The fresh-state replay proves prevention from equivalent clean state.
+      // The persisted exercise then fails the proposal on the pinned old code,
+      // freezes that state, applies the same candidate WASM without new(), and
+      // proves recovery and exactly-once accounting. Neither check substitutes
+      // for the other.
+      const wasmPath = path.join(pipelineDir, 'applied/target/wasm32-unknown-unknown/release/sputnikdao2.wasm');
+      const identityPath = path.join(pipelineDir, 'candidate-identity.json');
+      const appliedSourcePath = path.join(pipelineDir, 'applied', CASE.source.path);
+      const recoveryDir = path.join(runDir(run.id), 'recovery');
+      fs.mkdirSync(recoveryDir, {recursive: true});
+      setPhase(run, 'recovering');
+      const recoveryArgs = [
+        PERSISTED_RECOVERY,
+        '--candidate-wasm', wasmPath,
+        '--candidate-patch', patchPath,
+        '--out', recoveryDir,
+        '--expected-wasm-sha256', sha256File(wasmPath),
+      ];
+      if (config.sandboxDir) recoveryArgs.push('--sandbox-dir', config.sandboxDir);
+      if (fs.existsSync(identityPath)) recoveryArgs.push('--candidate-identity', identityPath);
+      if (fs.existsSync(appliedSourcePath)) recoveryArgs.push('--candidate-source', appliedSourcePath);
+      let recoveryExitError = null;
+      try {
+        await spawnStep(run, 'Persisted recovery', process.execPath, recoveryArgs, {timeoutMs: config.timeouts.recoveryMs});
+      } catch (error) {
+        recoveryExitError = error;
+      }
+      const recoveryReportPath = path.join(recoveryDir, 'persisted-recovery.json');
+      const recoveryReport = readJson(recoveryReportPath);
+      if (!recoveryReport) {
+        run.recovery = {
+          ok: false,
+          status: 'inconclusive',
+          reportPath: 'recovery/persisted-recovery.json',
+          error: `Persisted recovery did not produce a terminal report${recoveryExitError ? `: ${recoveryExitError.message}` : '.'}`,
+          acceptanceErrors: [],
+        };
+      } else {
+        const recoveryAcceptance = spawnSync(process.execPath, [
+          PERSISTED_ACCEPTANCE,
+          '--report', recoveryReportPath,
+          '--wasm', wasmPath,
+          '--patch', patchPath,
+          '--expected-wasm-sha256', pipeline?.hashes?.wasm || sha256File(wasmPath),
+          '--expected-patch-sha256', run.patch.sha256,
+        ], {encoding: 'utf8', timeout: 60_000});
+        let acceptanceDoc = null;
+        try { acceptanceDoc = JSON.parse(recoveryAcceptance.stdout); } catch {}
+        const acceptanceErrors = acceptanceDoc?.errors || [];
+        if (!acceptanceDoc) acceptanceErrors.push(`Persisted acceptance produced no readable result${recoveryAcceptance.stderr ? `: ${recoveryAcceptance.stderr.trim().slice(0, 800)}` : '.'}`);
+        run.recovery = {
+          ok: acceptanceErrors.length === 0 && recoveryAcceptance.status === 0,
+          status: acceptanceErrors.length === 0 && recoveryAcceptance.status === 0 ? 'accepted' : 'rejected',
+          reportPath: 'recovery/persisted-recovery.json',
+          reportSha256: sha256File(recoveryReportPath),
+          report: sanitizeValue(recoveryReport),
+          summary: deriveRecoverySummary(recoveryReport),
+          acceptance: sanitizeValue(acceptanceDoc || {status: recoveryAcceptance.status, errors: acceptanceErrors}),
+          acceptanceErrors,
+          error: recoveryExitError?.message || null,
+        };
+        run.evidence.recovery = {
+          report: sanitizeValue(recoveryReport),
+          acceptance: run.recovery.acceptance,
+          reportSha256: run.recovery.reportSha256,
+        };
+      }
+      const recoveryAccepted = run.recovery?.ok === true;
+      run.checks.recoveryAccepted = recoveryAccepted;
+      const accepted = freshAccepted && recoveryAccepted;
       if (accepted) {
         run.status = 'accepted'; setPhase(run, 'accepted');
       } else {
-        run.status = 'rejected'; setPhase(run, 'rejected');
-        run.error = `The repair ran but did not pass the declared checks${pipeline.acceptanceErrors?.length ? `: ${pipeline.acceptanceErrors.join('; ')}` : '.'}${pipelineExitError ? ` Pipeline exited: ${pipelineExitError.message}` : ''}`;
+        run.status = freshAccepted && run.recovery?.status === 'inconclusive' ? 'inconclusive' : 'rejected';
+        setPhase(run, run.status);
+        const reasons = [];
+        if (!freshAccepted) reasons.push(`fresh-state checks failed${pipeline.acceptanceErrors?.length ? `: ${pipeline.acceptanceErrors.join('; ')}` : '.'}`);
+        if (!recoveryAccepted) reasons.push(`persisted recovery ${run.recovery?.status || 'failed'}${run.recovery?.acceptanceErrors?.length ? `: ${run.recovery.acceptanceErrors.join('; ')}` : run.recovery?.error ? `: ${run.recovery.error}` : '.'}`);
+        if (pipelineExitError) reasons.push(`Pipeline exited: ${pipelineExitError.message}`);
+        run.error = `The repair ran but was not accepted. ${reasons.join(' ')}`;
       }
     } catch (error) {
       if (watcher) clearInterval(watcher);
@@ -574,7 +682,7 @@ function createManager(options = {}) {
     const id = crypto.randomUUID();
     const run = {
       id, caseId: CASE_ID, status: 'running', phase: 'queued', startedAt: nowIso(), finishedAt: null,
-      error: null, logs: [], phaseLog: [], baseline: null, candidate: null, consequence: null, checks: null, patch: null, evidence: null,
+      error: null, logs: [], phaseLog: [], baseline: null, candidate: null, consequence: null, checks: null, recovery: null, patch: null, evidence: null,
     };
     runs.set(id, run); activeId = id; writeMeta(run);
     run.done = execute(run);
@@ -604,6 +712,7 @@ function createManager(options = {}) {
         startedAt: meta.startedAt, finishedAt: meta.finishedAt || null, error: meta.error || null,
         logs: [], phaseLog: meta.phaseLog || [], baseline: meta.baseline || null,
         candidate: meta.candidate || null, consequence: meta.consequence || null, checks: meta.checks || null,
+        recovery: meta.recovery || null,
         patch: result?.patch || null, evidence: result?.evidence || null,
       };
       runs.set(id, run);
@@ -630,9 +739,12 @@ function createManager(options = {}) {
     const baseline = readJson(path.join(dir, 'baseline/issue238-local.json'));
     const candidate = readJson(path.join(pipelineDir, 'replay/issue238-local.json'));
     const identity = readJson(path.join(pipelineDir, 'candidate-identity.json'), {});
+    const recoveryReportPath = path.join(dir, 'recovery/persisted-recovery.json');
+    const recoveryReport = readJson(recoveryReportPath);
     const patchPath = path.join(producerDir, 'canonical.patch');
     const wasmPath = path.join(pipelineDir, 'applied/target/wasm32-unknown-unknown/release/sputnikdao2.wasm');
     if (!fs.existsSync(patchPath) || !fs.existsSync(wasmPath)) throw new Error('Accepted repair bundle files are missing.');
+    if (!run.recovery?.ok || !recoveryReport) throw new Error('Accepted repair is missing its persisted recovery evidence.');
     const patch = fs.readFileSync(patchPath);
     const wasm = fs.readFileSync(wasmPath);
     return {
@@ -664,9 +776,17 @@ function createManager(options = {}) {
         };
       })(),
       consequence: run.consequence, checks: run.checks,
+      recovery: {
+        report: sanitizeValue(recoveryReport),
+        reportSha256: sha256File(recoveryReportPath),
+        summary: run.recovery.summary,
+        acceptance: run.recovery.acceptance,
+        distinction: 'Fresh-state checks prove prevention from clean state. The persisted report proves recovery after a real old-code failure, preservation of frozen state, authorization, and exactly-once accounting.',
+      },
       commands: {
         verify: 'node case-triage/rehearsal-repair/acceptance.cjs --base <baseline-report.json> --repaired <candidate-report.json> --identity <candidate-identity.json> --patch <repair.patch> --source <applied-proposals.rs> --wasm <candidate.wasm>',
-        recipe: 'From the pinned source commit, apply repair.patch, unpack baseline.report and candidate.report and candidate.wasm, then run the acceptance command above. Check every recorded SHA-256 before running it. No absolute paths or account runtime files are included.',
+        recovery: 'node case-triage/rehearsal-repair/persisted-recovery-acceptance.cjs --report <persisted-recovery.json> --wasm <candidate.wasm> --patch <repair.patch> --expected-wasm-sha256 <candidate.wasm sha256>',
+        recipe: 'From the pinned source commit, apply repair.patch, unpack baseline.report, candidate.report, persisted-recovery.json and candidate.wasm, then run both acceptance commands above. Check every recorded SHA-256 before running them. No absolute paths or account runtime files are included.',
       },
       boundary: CASE.boundary,
     };

@@ -60,6 +60,7 @@
             <li data-phase="generating"><span class="phase-dot"></span><b>Generating</b><small>One model attempt</small></li>
             <li data-phase="compiling"><span class="phase-dot"></span><b>Compiling</b><small>Pinned Rust</small></li>
             <li data-phase="replaying"><span class="phase-dot"></span><b>Replaying</b><small>Sandbox 2.14</small></li>
+            <li data-phase="recovering"><span class="phase-dot"></span><b>Recovering</b><small>Frozen failure</small></li>
           </ol>
           <p id="phase-current" class="phase-current" role="status" aria-live="polite">Preparing the run…</p>
           <details class="log-card"><summary>Runner output</summary><div class="log-head"><span>Current run</span><span id="run-id" class="mono"></span></div><pre id="logs" class="log-output">Waiting…</pre></details>
@@ -83,6 +84,14 @@
           <p id="result-copy" class="result-copy"></p>
           <div id="consequence-grid" class="consequence-grid"></div>
           <div id="money-note" class="money-note"></div>
+
+          <section id="recovery-panel" class="details panel" hidden>
+            <div class="section-head"><div><div class="eyebrow">Persisted failure</div><h3>Recovery after the real failure</h3></div><span id="recovery-badge" class="badge subtle"></span></div>
+            <p id="recovery-copy" class="small muted"></p>
+            <div id="recovery-grid" class="consequence-grid"></div>
+            <ul id="recovery-checks" class="checks-list"></ul>
+            <p class="notice">Fresh-state replay proves prevention from clean state. This second exercise starts from a proposal that actually failed on the pinned old code, freezes it, applies the same candidate without reinitialisation, and checks authorization, preservation and exactly-once accounting.</p>
+          </section>
 
           <section class="source-panel panel" aria-labelledby="source-title">
             <div class="section-head"><div><div class="eyebrow">Readable source diff</div><h3 id="source-title">Generated source patch</h3></div><span id="patch-meta" class="badge subtle"></span></div>
