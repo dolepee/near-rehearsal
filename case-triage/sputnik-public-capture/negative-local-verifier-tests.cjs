@@ -4,7 +4,8 @@ const path = require('node:path');
 const os = require('node:os');
 const {spawnSync} = require('node:child_process');
 const here = __dirname;
-const out = path.join(here, 'out');
+const caseRoot = process.env.CASE_DIR ? path.resolve(process.env.CASE_DIR) : here;
+const out = path.join(caseRoot, 'out');
 const verifier = path.join(here, 'verify-local-three.cjs');
 const baseResult = JSON.parse(fs.readFileSync(path.join(out, 'local-three-branch.json'), 'utf8'));
 const baseBundle = JSON.parse(fs.readFileSync(path.join(out, 'local-frozen-bundle.json'), 'utf8'));
@@ -62,6 +63,16 @@ const cases = [
   run('receipt-self-loop', (r) => { const t = r.branches.baseline.first; t.receipts[0].receiptIds.push(t.receipts[0].id); }),
   run('recomputed-receipt-cost', (r) => { r.branches.baseline.first.receipts[0].tokensBurntYocto = '999'; }),
 ];
+if (baseResult.branches.recoveryExperiment) {
+  cases.push(
+    run('recovery-missing-accounting-before', (r) => { delete r.branches.recoveryExperiment.afterCorrectedUpgrade; }),
+    run('recovery-wrong-operation-payout', (r) => { const b = r.branches.recoveryExperiment; b.afterCorrectedOperation.recipientBalance = String(BigInt(b.afterCorrectedOperation.recipientBalance) + 10n ** 24n); }),
+    run('recovery-wrong-operation-actor-basis', (r) => { const b = r.branches.recoveryExperiment; b.afterCorrectedUpgrade.actorBalance = String(BigInt(b.afterCorrectedUpgrade.actorBalance) + 10n ** 24n); }),
+    run('recovery-retry-contract-loss', (r) => { const b = r.branches.recoveryExperiment; b.afterCorrectedRetry.contractBalance = String(BigInt(b.afterCorrectedRetry.contractBalance) - 25n * 10n ** 22n); }),
+    run('recovery-retry-actor-gain', (r) => { const b = r.branches.recoveryExperiment; b.afterCorrectedRetry.actorBalance = String(BigInt(b.afterCorrectedRetry.actorBalance) + 10n ** 24n); }),
+    run('recovery-missing-check-layout', (r) => { delete r.branches.recoveryExperiment.checks.correctedRetryDidNotPay; }),
+  );
+}
 const result = {schema: 'near-rehearsal/local-verifier-negative-tests/v3', positiveControl, allRejected: cases.every((c) => c.rejected), cases};
 fs.writeFileSync(path.join(out, 'negative-local-verifier-tests.json'), JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify(result, null, 2));

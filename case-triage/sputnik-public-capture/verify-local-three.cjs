@@ -252,60 +252,67 @@ function upgradeAccounting(b, label) {
 
 function branchAccounting(b, label, keys) {
   const before = b[keys.before];
+  const operationBefore = b[keys.accountingBefore || keys.before];
   const first = b[keys.first];
   const after = b[keys.after];
-  for (const [snapshot, name] of [[before, keys.before], [first, keys.first], [after, keys.after]]) {
+  for (const [snapshot, name] of [[before, keys.before], [operationBefore, keys.accountingBefore || keys.before], [first, keys.first], [after, keys.after]]) {
     for (const k of ['contractBalance', 'actorBalance', 'recipientBalance']) asNonNegativeYocto(snapshot?.[k], `${label}.${name}.${k}`);
   }
-  // The first snapshot is the frozen starting point. This binds every later
-  // balance to the reviewed state rather than to a self-consistent mutation.
-  if (keys.before === 'before') {
-    if (BigInt(before.contractBalance) !== BigInt(b.initial.contractBalance)) fail(`${label} before contract balance is not the frozen initial balance`);
-    if (BigInt(before.actorBalance) !== BigInt(b.initial.actorBalance)) fail(`${label} before proposer balance is not the frozen initial balance`);
-    if (BigInt(before.recipientBalance) !== BigInt(b.initial.recipientBalance)) fail(`${label} before recipient balance is not the frozen initial balance`);
-  }
-  const firstTx = b.first || b.correctedOperation;
+  // The initial snapshot binds every later balance to the reviewed state rather
+  // than to a self-consistent mutation. When an operation follows a prior
+  // failed operation, accounting starts from the snapshot immediately before it.
+  if (BigInt(before.contractBalance) !== BigInt(b.initial.contractBalance)) fail(`${label} before contract balance is not the frozen initial balance`);
+  if (BigInt(before.actorBalance) !== BigInt(b.initial.actorBalance)) fail(`${label} before proposer balance is not the frozen initial balance`);
+  if (BigInt(before.recipientBalance) !== BigInt(b.initial.recipientBalance)) fail(`${label} before recipient balance is not the frozen initial balance`);
+  const firstTx = b[keys.firstTx] || b.first || b.correctedOperation;
+  const retryTx = b[keys.retry] || b.retry || b.correctedRetry;
   if (!firstTx) fail(`${label} first operation transaction is missing`);
+  if (!retryTx) fail(`${label} retry transaction is missing`);
   const firstGas = asNonNegativeYocto(firstTx.totalTokensBurntYocto, `${label}.first.totalTokensBurntYocto`);
-  const firstPayout = BigInt(first.recipientBalance) - BigInt(before.recipientBalance);
-  const firstContractDelta = BigInt(first.contractBalance) - BigInt(before.contractBalance);
-  const firstActorDelta = BigInt(first.actorBalance) - BigInt(before.actorBalance);
-  const firstStorageDelta = storageDeltaYocto(first, before, `${label}.first`);
+  const firstPayout = BigInt(first.recipientBalance) - BigInt(operationBefore.recipientBalance);
+  const firstContractDelta = BigInt(first.contractBalance) - BigInt(operationBefore.contractBalance);
+  const firstActorDelta = BigInt(first.actorBalance) - BigInt(operationBefore.actorBalance);
+  const firstStorageDelta = storageDeltaYocto(first, operationBefore, `${label}.first`);
   const paid = b.status === 'preserved' || b.status === 'improved';
   const expectedPayout = paid ? declaredTransferYocto : 0n;
   const firstStorageCharge = firstStorageDelta < 0n ? -firstStorageDelta : 0n;
   if (firstPayout !== expectedPayout) fail(`${label} first-operation recipient payout ${firstPayout} does not match derived status ${b.status}; expected ${expectedPayout}`);
   if (paid) {
     const expectedActor = declaredBondYocto - firstGas;
-    if (firstActorDelta !== expectedActor) fail(`${label} preserved proposer delta ${firstActorDelta} does not equal bond ${declaredBondYocto} minus gas ${firstGas}`);
-    if (firstContractDelta > -declaredTransferYocto) fail(`${label} preserved contract did not pay the declared transfer`);
-    if (firstContractDelta < -declaredTransferYocto - declaredBondYocto - firstStorageCharge) fail(`${label} preserved contract paid more than transfer, bond and storage charge`);
+    if (firstActorDelta !== expectedActor) fail(`${label} operation proposer delta ${firstActorDelta} does not equal bond ${declaredBondYocto} minus gas ${firstGas}`);
+    if (firstContractDelta > -declaredTransferYocto) fail(`${label} operation contract did not pay the declared transfer`);
+    if (firstContractDelta < -declaredTransferYocto - declaredBondYocto - firstStorageCharge) fail(`${label} operation contract paid more than transfer, bond and storage charge`);
   } else if (b.status === 'regressed') {
     if (firstActorDelta !== -firstGas) fail(`${label} regressed proposer delta ${firstActorDelta} is not gas-only; bond may have been returned`);
     if (firstContractDelta <= -declaredTransferYocto) fail(`${label} regressed contract lost the declared transfer`);
     if (firstContractDelta < -firstStorageCharge) fail(`${label} regressed contract lost more than storage charge`);
   }
   if (BigInt(after.recipientBalance) !== BigInt(first.recipientBalance)) fail(`${label} retry paid recipient`);
-  if (BigInt(after.recipientBalance) !== BigInt(before.recipientBalance) + expectedPayout) fail(`${label} retry/snapshot recipient balance invariant failed`);
+  if (BigInt(after.recipientBalance) !== BigInt(operationBefore.recipientBalance) + expectedPayout) fail(`${label} retry/snapshot recipient balance invariant failed`);
   const retryContractDelta = BigInt(after.contractBalance) - BigInt(first.contractBalance);
   const retryActorDelta = BigInt(after.actorBalance) - BigInt(first.actorBalance);
-  const retryGas = asNonNegativeYocto(b.retry.totalTokensBurntYocto, `${label}.retry.totalTokensBurntYocto`);
+  const retryGas = asNonNegativeYocto(retryTx.totalTokensBurntYocto, `${label}.retry.totalTokensBurntYocto`);
   const retryStorageDelta = storageDeltaYocto(after, first, `${label}.retry`);
   const retryStorageCharge = retryStorageDelta < 0n ? -retryStorageDelta : 0n;
   if (retryActorDelta !== -retryGas) fail(`${label} retry proposer delta ${retryActorDelta} is not gas-only`);
   if (retryContractDelta < -retryStorageCharge) fail(`${label} retry contract lost more than storage charge`);
   if (retryContractDelta <= -declaredBondYocto / 2n) fail(`${label} retry lost bond-scale contract funds`);
   if (retryActorDelta > 0n) fail(`${label} retry increased proposer balance`);
-  if (b.checks?.retryDidNotPay !== true) fail(`${label} retryDidNotPay check not true`);
-  if (b.checks?.retryContractDeltaYocto !== retryContractDelta.toString()) fail(`${label} retry contract delta does not match snapshots`);
-  if (b.checks?.retryActorDeltaYocto !== retryActorDelta.toString()) fail(`${label} retry actor delta does not match snapshots`);
+  const checkPrefix = keys.checkPrefix || 'retry';
+  if (b.checks?.[`${checkPrefix}DidNotPay`] !== true) fail(`${label} ${checkPrefix}DidNotPay check not true`);
+  if (b.checks?.[`${checkPrefix}ContractDeltaYocto`] !== retryContractDelta.toString()) fail(`${label} ${checkPrefix} contract delta does not match snapshots`);
+  if (b.checks?.[`${checkPrefix}ActorDeltaYocto`] !== retryActorDelta.toString()) fail(`${label} ${checkPrefix} actor delta does not match snapshots`);
   return {grossPayoutYocto: firstPayout.toString(), bondRefundYocto: paid ? declaredBondYocto.toString() : '0', gasYocto: firstGas.toString(), contractDeltaYocto: firstContractDelta.toString(), actorDeltaYocto: firstActorDelta.toString(), storageDeltaYocto: firstStorageDelta.toString(), retryContractDeltaYocto: retryContractDelta.toString(), retryActorDeltaYocto: retryActorDelta.toString()};
 }
 
 function retryBalances(b, label, keys = {before: 'before', retry: 'retry', first: 'afterFirst', after: 'afterRetry'}) {
-  required(b, [keys.before, keys.retry, keys.first, keys.after], label);
-  for (const k of [keys.before, keys.first, keys.after]) assertSnapshotRecipient(b[k], `${label}.${k}`);
+  const requiredKeys = [keys.before, keys.retry, keys.first, keys.after];
+  if (keys.accountingBefore) requiredKeys.push(keys.accountingBefore);
+  if (keys.firstTx) requiredKeys.push(keys.firstTx);
+  required(b, requiredKeys, label);
+  for (const k of [keys.before, keys.accountingBefore || keys.before, keys.first, keys.after]) assertSnapshotRecipient(b[k], `${label}.${k}`);
   tx(b[keys.retry], 'failure', `${label}.${keys.retry}`, bundle.identities.proposer, [bundle.identities.contract]);
+  if (keys.firstTx) tx(b[keys.firstTx], 'success', `${label}.${keys.firstTx}`, bundle.identities.proposer, [bundle.identities.contract]);
   return branchAccounting(b, label, keys);
 }
 function derivedStatus(b, role) {
@@ -364,7 +371,8 @@ if (result.branches.recoveryExperiment) {
   tx(recovery.badOperation, 'failure', 'recovery.badOperation', bundle.identities.proposer);
   tx(recovery.correctedUpgrade, 'success', 'recovery.correctedUpgrade', bundle.identities.factory);
   tx(recovery.correctedOperation, 'success', 'recovery.correctedOperation', bundle.identities.proposer);
-  retryBalances(recovery, 'recovery', {retry: 'correctedRetry', first: 'afterCorrectedOperation', after: 'afterCorrectedRetry'});
+  retryBalances(recovery, 'recovery', {before: 'before', accountingBefore: 'afterCorrectedUpgrade', firstTx: 'correctedOperation', retry: 'correctedRetry', first: 'afterCorrectedOperation', after: 'afterCorrectedRetry', checkPrefix: 'correctedRetry'});
+  if (recovery.status !== 'improved') fail('recovery experiment status is not improved');
   if (recovery.afterBadUpgrade.codeHash !== result.artifacts.candidate.hash) fail('recovery bad code mismatch');
   if (recovery.afterCorrectedUpgrade.codeHash !== result.artifacts.corrected.hash) fail('recovery corrected code mismatch');
   if (recovery.badOperation.failed !== true || recovery.badOperation.succeeded !== false) fail('recovery bad operation did not fail');

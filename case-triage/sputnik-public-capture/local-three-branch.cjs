@@ -424,6 +424,8 @@ async function runRecoveryExperiment(bundle) {
       correctedPayoutExactlyBond: BigInt(afterCorrectedOperation.recipientBalance) - BigInt(before.recipientBalance) === BigInt(BOND),
       correctedRetryFailed: correctedRetry.failed === true,
       correctedRetryDidNotPay: afterCorrectedRetry.recipientBalance === afterCorrectedOperation.recipientBalance,
+      correctedRetryContractDeltaYocto: (BigInt(afterCorrectedRetry.contractBalance) - BigInt(afterCorrectedOperation.contractBalance)).toString(),
+      correctedRetryActorDeltaYocto: (BigInt(afterCorrectedRetry.actorBalance) - BigInt(afterCorrectedOperation.actorBalance)).toString(),
     };
     return { status: checks.seededBadUpgradeSucceeded && checks.seededBadCode && checks.seededBadOperationFailed && checks.seededBadDidNotPay && checks.correctionSucceeded && checks.correctedOperationSucceeded && checks.correctedPayoutExactlyBond && checks.correctedRetryFailed && checks.correctedRetryDidNotPay ? 'improved' : 'inconclusive', initial: b.imported, localBlock: b.localBlock, before, badUpgrade, afterBadUpgrade, badOperation, afterBadOperation, correctedUpgrade, afterCorrectedUpgrade, correctedOperation, afterCorrectedOperation, correctedRetry, afterCorrectedRetry, checks };
   } finally { await close(b); }

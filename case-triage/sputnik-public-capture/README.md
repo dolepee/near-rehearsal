@@ -153,6 +153,18 @@ node case-triage/sputnik-public-capture/negative-local-verifier-tests.cjs
 PORT=4174 npm run ui:sputnik
 ```
 
+The optional recovery path uses the same runner with `INCLUDE_RECOVERY=1`. Its
+output must sit under a parent `out/` directory for the verifier and its
+recovery-specific negative tests:
+
+```sh
+mkdir -p /tmp/sp-recovery
+INCLUDE_RECOVERY=1 SPUTNIK_OUT_DIR=/tmp/sp-recovery/out \
+  node case-triage/sputnik-public-capture/local-three-branch.cjs
+CASE_DIR=/tmp/sp-recovery node case-triage/sputnik-public-capture/verify-local-three.cjs
+CASE_DIR=/tmp/sp-recovery node case-triage/sputnik-public-capture/negative-local-verifier-tests.cjs
+```
+
 The capture uses read-only `view_account`, `view_code`, `view_state` and
 `call_function` queries. The runner refuses a non-local execution RPC.
 
