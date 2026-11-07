@@ -35,6 +35,8 @@ function usage() {
     '                                   [--sandbox-dir <verified-sandbox-wrapper>]',
     '',
     'The producer is tool-free. It emits a unified diff as the agent message; the',
+    'inner model CLI never receives --profile; --profile must match the enforced',
+    'outer --permission-profile in MODEL_PRODUCER_SANDBOX_CMD.',
     'controller normalizes it in a disposable single-file tree, checks the source',
     'allowlist and actual changed paths, then builds, replays and accepts a',
     'controller-bound candidate.',
@@ -117,6 +119,32 @@ function controllerHashes() {
     out[entry.name] = sha256File(file);
   }
   return out;
+}
+
+
+function verifiedOuterProfile(prefix, profile) {
+  if (!profile) throw new Error('--profile is required: it names the enforced outer permission profile');
+  let found = null;
+  for (let i = 0; i < prefix.length; i += 1) {
+    const part = prefix[i];
+    if (part === '--permission-profile' || part === '-P') {
+      found = {flag: part, name: prefix[i + 1], index: i};
+      break;
+    }
+    if (part.startsWith('--permission-profile=')) {
+      found = {flag: '--permission-profile=', name: part.slice(part.indexOf('=') + 1), index: i};
+      break;
+    }
+  }
+  if (!found || !found.name) throw new Error('MODEL_PRODUCER_SANDBOX_CMD must include an outer --permission-profile <name>');
+  if (found.name !== profile) throw new Error(`outer permission profile ${found.name} does not match --profile ${profile}`);
+  return {flag: found.flag, name: found.name, index: found.index, verifiedBy: 'outer-prefix+confinement-probe'};
+}
+
+function assertFreshOut(out) {
+  if (!fs.existsSync(out)) return;
+  if (!fs.statSync(out).isDirectory()) throw new Error(`--out is not a directory: ${out}`);
+  if (fs.readdirSync(out).length) throw new Error(`--out must be fresh; refusing to reuse ${out}`);
 }
 
 function prepareRuntime({privateRuntime, authSource}) {
@@ -297,7 +325,7 @@ function run(command, args, {cwd, timeoutMs, env, input} = {}) {
 }
 
 function expandPrefix(prefix, values) {
-  return prefix.map((part) => part.replace(/\{(workspace|privateRuntime|authSource)\}/g, (_, key) => values[key] || `{${key}}`));
+  return prefix.map((part) => part.replace(/\{(workspace|privateRuntime|authSource|profile)\}/g, (_, key) => values[key] || `{${key}}`));
 }
 
 function main() {
@@ -316,6 +344,7 @@ function main() {
     const original = gitShow(opts.source, file);
     const commit = sourceCommit(opts.source);
     if (manifest?.source?.commit && commit !== manifest.source.commit) throw new Error(`source tree head ${commit} does not match pinned ${manifest.source.commit}`);
+    assertFreshOut(opts.out);
     fs.mkdirSync(opts.out, {recursive: true});
     const attempt = path.join(opts.out, 'attempt');
     fs.mkdirSync(attempt, {recursive: true});
@@ -341,7 +370,8 @@ function main() {
     const prefix = sandboxArgv(process.env);
     if (!prefix) throw new Error('MODEL_PRODUCER_SANDBOX_CMD is required for generation');
     if (prefix.some((part) => part === '--sandbox' || part === '-s')) throw new Error('do not pass --sandbox with a named Codex permission profile');
-    const expandedPrefix = expandPrefix(prefix, {workspace, privateRuntime: runtime.root, authSource: opts.authSource || ''});
+    const outerProfile = verifiedOuterProfile(expandPrefix(prefix, {profile: opts.profile}), opts.profile);
+    const expandedPrefix = expandPrefix(prefix, {workspace, privateRuntime: runtime.root, authSource: opts.authSource || '', profile: opts.profile});
     const before = controllerHashes();
     const probes = probeSandbox(expandedPrefix, {workspace, sentinel: path.join(HERE, 'repair.patch'), ownedDir: HERE, timeoutMs: Math.min(opts.timeoutMs, 30000), env});
     if (!probes.ok) throw new Error(`producer sandbox probe failed: ${probes.errors.join('; ')}`);
@@ -365,7 +395,8 @@ function main() {
       source: {repository: manifest?.source?.repository || null, commit, path: file, sha256: sha256(original)},
       workspace,
       privateRuntime: {root: runtime.root, authLinked: Boolean(runtime.authLink), mode: 0o700},
-      profile: opts.profile,
+      outerPermissionProfile: outerProfile,
+      innerProfileFlag: false,
       command: [command, ...args.map((part) => part === workspace ? '<workspace>' : part === opts.model ? '<model>' : part === workspaceLastMessage || part === lastMessage ? '<last-message>' : part)],
       sandboxCommand: prefix.map((part) => part.replace(/\{(workspace|privateRuntime|authSource)\}/g, '<$1>')),
       envKeys: Object.keys(env).sort(),
@@ -408,4 +439,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = {assertNoSymlinkPath, assertRawPatchSafety, buildCodexArgv, canonicalDiff, extractPatch, normalizePatch, prepareRuntime, cleanupRuntime, main};
+module.exports = {assertFreshOut, assertNoSymlinkPath, assertRawPatchSafety, buildCodexArgv, canonicalDiff, extractPatch, normalizePatch, prepareRuntime, cleanupRuntime, verifiedOuterProfile, main};

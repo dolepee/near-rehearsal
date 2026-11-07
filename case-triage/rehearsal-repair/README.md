@@ -194,7 +194,7 @@ path and every parent are `lstat`-checked and must remain a regular non-symlink
 file before the controller reads it.
 
 ```sh
-MODEL_PRODUCER_SANDBOX_CMD='["<outer-policy-wrapper>","{workspace}","--"]' \
+MODEL_PRODUCER_SANDBOX_CMD='["<outer-policy-wrapper>","--permission-profile","<verified-codex-permission-profile>","{workspace}","--"]' \
   node case-triage/rehearsal-repair/codex-producer.cjs \
   --source /workspace/near-rehearsal/rebuild-base \
   --out out/model-candidate-tool-free \

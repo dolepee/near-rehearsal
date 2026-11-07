@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
-const {buildCodexArgv, extractPatch, normalizePatch, prepareRuntime, cleanupRuntime} = require('./codex-producer.cjs');
+const {assertFreshOut, buildCodexArgv, cleanupRuntime, extractPatch, normalizePatch, prepareRuntime, verifiedOuterProfile} = require('./codex-producer.cjs');
 
 const checks = [];
 function check(name, fn) {
@@ -38,11 +38,21 @@ check('tool-free argv', () => {
   assert.equal(args.includes('--no-daemon'), true);
   assert.equal(args.includes('--ephemeral'), true);
   assert.equal(args.includes('--ignore-user-config'), true);
+  assert.equal(args.includes('--profile'), false);
+  assert.equal(args.includes('-p'), false);
   for (const feature of ['shell_tool', 'unified_exec', 'apps', 'plugins', 'browser_use', 'computer_use', 'code_mode_host']) {
     const at = args.indexOf(feature);
     assert.notEqual(at, -1, `${feature} disabled`);
     assert.equal(args[at - 1], '--disable');
   }
+});
+
+
+check('outer permission profile must be enforced and match', () => {
+  assert.deepEqual(verifiedOuterProfile(['/bin/sh', '--permission-profile', 'verified', 'ws'], 'verified').name, 'verified');
+  assert.throws(() => verifiedOuterProfile(['/bin/sh', 'ws'], 'verified'), /permission-profile/);
+  assert.throws(() => verifiedOuterProfile(['/bin/sh', '--permission-profile', 'other', 'ws'], 'verified'), /does not match/);
+  assert.throws(() => assertFreshOut(__filename), /not a directory|must be fresh/);
 });
 
 check('recount canonicalization', () => {
@@ -126,6 +136,7 @@ check('one-command adapter with fake tool-free CLI', () => {
   fs.writeFileSync(manifest, JSON.stringify({source: {commit}, allowedPaths: [file]}));
   fs.writeFileSync(wrapper, [
     '#!/bin/sh',
+    'while [ "$1" = "--permission-profile" ]; do shift 2; done',
     'workspace="$1"; shift',
     'case " $* " in *repair.patch*|*.sandbox-write-probe*) exit 1;; esac',
     'exec "$@"',
@@ -149,11 +160,13 @@ check('one-command adapter with fake tool-free CLI', () => {
   fs.chmodSync(fake, 0o755);
   const auth = path.join(root, 'auth.json');
   fs.writeFileSync(auth, '{"token":"fixture-only"}\n');
-  const env = {...process.env, MODEL_PRODUCER_SANDBOX_CMD: JSON.stringify(['/bin/sh', wrapper, '{workspace}'])};
+  const env = {...process.env, MODEL_PRODUCER_SANDBOX_CMD: JSON.stringify(['/bin/sh', wrapper, '--permission-profile', 'test-profile', '{workspace}'])};
   const result = spawnSync(process.execPath, [path.join(__dirname, 'codex-producer.cjs'), '--source', fixture, '--manifest', manifest, '--out', out, '--profile', 'test-profile', '--private-runtime', path.join(root, 'runtime'), '--auth-source', auth, '--codex-bin', fake, '--no-pipeline'], {encoding: 'utf8', timeout: 60000, env});
   assert.equal(result.status, 0, result.stderr);
   const report = JSON.parse(fs.readFileSync(path.join(out, 'producer.json')));
   assert.deepEqual(report.changedPaths, [file]);
+  assert.equal(report.outerPermissionProfile.name, 'test-profile');
+  assert.equal(report.innerProfileFlag, false);
   assert.match(report.canonicalPatchSha256, /^[0-9a-f]{64}$/);
   assert.equal(fs.existsSync(path.join(out, 'attempt', 'transcript.jsonl')), true);
   assert.equal(fs.existsSync(path.join(out, 'attempt', 'raw.patch')), true);
@@ -161,6 +174,9 @@ check('one-command adapter with fake tool-free CLI', () => {
   const capturedPrompt = fs.readFileSync(path.join(report.workspace, 'prompt-capture.txt'), 'utf8');
   assert.match(capturedPrompt, /Pinned source \(sputnikdao2\/src\/proposals\.rs\):/);
   assert.match(capturedPrompt, /first line/);
+  const rerun = spawnSync(process.execPath, [path.join(__dirname, 'codex-producer.cjs'), '--source', fixture, '--manifest', manifest, '--out', out, '--profile', 'test-profile', '--private-runtime', path.join(root, 'runtime2'), '--auth-source', auth, '--codex-bin', fake, '--no-pipeline'], {encoding: 'utf8', timeout: 60000, env});
+  assert.notEqual(rerun.status, 0);
+  assert.match(rerun.stderr, /must be fresh/);
 });
 
 console.log(JSON.stringify({schema: 'near-rehearsal/codex-producer-tests/v1', passed: true, checks}, null, 2));
