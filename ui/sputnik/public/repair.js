@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = {case: null, config: null, run: null, poll: null, clock: null, failures: 0, historySignature: null, selectionVersion: 0};
+  const state = {case: null, config: null, run: null, poll: null, clock: null, failures: 0, historySignature: null, selectionVersion: 0, pollEpoch: 0, pollRequest: 0, pollLatest: 0};
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
   const short = (value, n = 12) => value ? `${String(value).slice(0, n)}…${String(value).slice(-6)}` : '—';
   const near = (value) => {
@@ -224,6 +224,7 @@
   function stopPoll() {
     clearInterval(state.poll); clearInterval(state.clock);
     state.poll = null; state.clock = null;
+    state.pollEpoch += 1;
   }
 
   function selectionCurrent(version, runId = null) {
@@ -234,23 +235,35 @@
     const runId = state.run?.id;
     if (!runId) return;
     const version = state.selectionVersion;
+    const epoch = state.pollEpoch;
+    const requestId = ++state.pollRequest;
+    state.pollLatest = requestId;
+    const current = () => selectionCurrent(version, runId) && epoch === state.pollEpoch;
     try {
       const response = await fetch(`/api/repair/runs/${runId}`, {cache: 'no-store'});
-      if (!selectionCurrent(version, runId)) return;
+      if (!current()) return;
       if (!response.ok) {
+        if (requestId < state.pollLatest) return;
         state.failures += 1;
         if (state.failures >= 3) throw new Error('Run state is unavailable; the server may have restarted. This run is interrupted, not accepted.');
         return;
       }
       state.failures = 0;
       const run = await response.json();
-      if (!selectionCurrent(version, runId)) return;
+      if (!current()) return;
+      if (terminal.has(run.status)) {
+        // A terminal response wins even if it is older than another request
+        // that is still in flight. Bumping the epoch makes that request inert.
+        state.run = run;
+        stopPoll();
+        renderRun(run); loadHistory();
+        return;
+      }
+      if (requestId < state.pollLatest) return;
       state.run = run;
-      if (run.status === 'running') { renderRunning(run); loadHistory(); return; }
-      stopPoll();
-      renderRun(run); loadHistory();
+      renderRunning(run); loadHistory();
     } catch (error) {
-      if (!selectionCurrent(version, runId)) return;
+      if (!current() || requestId < state.pollLatest) return;
       stopPoll();
       state.run = {...state.run, status: 'interrupted', error: error.message};
       renderError(state.run);

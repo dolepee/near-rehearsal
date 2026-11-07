@@ -92,8 +92,7 @@ let historyRenders = 0;
 let runRequests = 0;
 let pollCallback = null;
 let waitRunA = false;
-let resolveRunA = null;
-let rejectRunA = null;
+const pendingRunA = [];
 context.fetch = async (url) => {
   if (url === '/api/repair/case') return {ok: true, json: async () => caseData};
   if (url === '/api/repair/runs') {
@@ -105,7 +104,7 @@ context.fetch = async (url) => {
     return {ok: true, json: async () => ({run: {...historyRun, caseId: caseData.case.id}})};
   }
   if (url === '/api/repair/runs/run-rejected') return {ok: true, json: async () => rejectedRun};
-  if (url === '/api/repair/runs/run-1' && waitRunA) return new Promise((resolve, reject) => { resolveRunA = resolve; rejectRunA = reject; });
+  if (url === '/api/repair/runs/run-1' && waitRunA) return new Promise((resolve, reject) => pendingRunA.push({resolve, reject}));
   if (url.startsWith('/api/repair/runs/')) return {ok: true, json: async () => historyRun};
   return {ok: false, json: async () => ({error: 'unexpected'})};
 };
@@ -141,7 +140,7 @@ const wait = () => new Promise((resolve) => setImmediate(resolve));
   rejectedButton.dispatch('click');
   await wait(); await wait();
   assert.equal(getElement('result-state').hidden, false, 'selected rejected result rendered');
-  resolveRunA({ok: true, json: async () => historyRun});
+  pendingRunA.shift().resolve({ok: true, json: async () => historyRun});
   await stalePoll;
   assert.equal(getElement('result-state').hidden, false, 'stale poll did not replace the selected result');
   assert.equal(getElement('running-state').hidden, true, 'stale poll did not switch back to the running view');
@@ -151,10 +150,41 @@ const wait = () => new Promise((resolve) => setImmediate(resolve));
   first.dispatch('click');
   rejectedButton.dispatch('click');
   await wait(); await wait();
-  rejectRunA(new Error('late request failure'));
+  pendingRunA.shift().reject(new Error('late request failure'));
   await wait(); await wait();
   assert.equal(getElement('result-state').hidden, false, 'stale openRun error did not replace the selected result');
   assert.notEqual(getElement('error-copy').textContent, 'late request failure');
+
+  // Two requests for the same run: terminal first, then the older running
+  // response. The terminal result must survive and the old response must be
+  // inert even though timers stopped.
+  waitRunA = false;
+  getElement('run-button').dispatch('click');
+  await wait(); await wait();
+  waitRunA = true;
+  const terminalFirst = pollCallback();
+  const runningLater = pollCallback();
+  pendingRunA.shift().resolve({ok: true, json: async () => rejectedRun});
+  await terminalFirst;
+  pendingRunA.shift().resolve({ok: true, json: async () => historyRun});
+  await runningLater;
+  assert.equal(getElement('result-state').hidden, false, 'terminal result survives a delayed running response');
+  assert.equal(getElement('running-state').hidden, true, 'old running response cannot restore the running screen');
+
+  // Terminal first, then an older same-run error. The error must not replace
+  // the terminal result either.
+  waitRunA = false;
+  getElement('run-button').dispatch('click');
+  await wait(); await wait();
+  waitRunA = true;
+  const terminalFirstError = pollCallback();
+  const errorLater = pollCallback();
+  pendingRunA.shift().resolve({ok: true, json: async () => rejectedRun});
+  await terminalFirstError;
+  pendingRunA.shift().reject(new Error('late same-run poll failure'));
+  await errorLater;
+  assert.equal(getElement('result-state').hidden, false, 'terminal result survives a delayed error response');
+  assert.notEqual(getElement('error-copy').textContent, 'late same-run poll failure');
 
   const cards = getElement('consequence-grid').innerHTML;
   assert.match(cards, /-0\.1 NEAR/, 'negative fractional contract delta keeps one sign');
@@ -165,6 +195,6 @@ const wait = () => new Promise((resolve) => setImmediate(resolve));
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-browser-history-focus-tests/v1',
     passed: true,
-    checks: ['unchanged-history-node-preserved', 'focus-preserved', 'active-run-aria-current', 'active-run-selection', 'stale-poll-ignored', 'stale-open-error-ignored', 'negative-delta-format', 'retry-requires-final-receipt'],
+    checks: ['unchanged-history-node-preserved', 'focus-preserved', 'active-run-aria-current', 'active-run-selection', 'stale-poll-ignored', 'stale-open-error-ignored', 'same-run-terminal-before-running', 'same-run-terminal-before-error', 'negative-delta-format', 'retry-requires-final-receipt'],
   }, null, 2));
 })().catch((error) => { console.error(error.stack || error); process.exitCode = 1; });

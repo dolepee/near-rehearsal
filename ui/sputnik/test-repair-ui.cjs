@@ -34,6 +34,8 @@ assert.match(js, /patchUrl/);
 assert.match(js, /historySignature/, 'history polls compare the rendered run signature');
 assert.match(js, /selectionVersion/, 'selection generation invalidates stale requests');
 assert.match(js, /selectionCurrent\(version, runId\)/, 'poll responses are checked against the selected run');
+assert.match(js, /pollLatest/, 'same-run poll requests enforce response ordering');
+assert.match(js, /terminal\.has\(run\.status\)/, 'terminal poll responses invalidate older work');
 assert.match(js, /aria-current/, 'selected history item is exposed accessibly');
 assert.match(js, /retryBacked = run\.checks\?\.authorizedRetryNoSecondRefund === true/, 'retry card requires the authoritative receipt-backed check');
 assert.match(js, /retryBacked \? 'good' : 'bad'/, 'retry card styling follows the authoritative check');
@@ -50,5 +52,5 @@ assert.doesNotMatch(js, /The healthy Transfer still pays the declared 0\.1 NEAR 
 console.log(JSON.stringify({
   schema: 'near-rehearsal/repair-browser-ui-tests/v1',
   passed: true,
-  checks: ['route-content', 'boundary-copy', 'phases', 'live-status', 'downloads', 'measured-result-copy', 'no-credential-form', 'no-arbitrary-input', 'reduced-motion', '44px-controls', 'case-only-request', 'history-focus', 'balance-change-label', 'retry-authoritative-check', 'selection-race-guard'],
+  checks: ['route-content', 'boundary-copy', 'phases', 'live-status', 'downloads', 'measured-result-copy', 'no-credential-form', 'no-arbitrary-input', 'reduced-motion', '44px-controls', 'case-only-request', 'history-focus', 'balance-change-label', 'retry-authoritative-check', 'selection-race-guard', 'same-run-poll-ordering'],
 }, null, 2));
