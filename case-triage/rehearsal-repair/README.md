@@ -118,6 +118,26 @@ controller allowlist, and verifies the actual changed paths in a fresh source
 tree before writing a candidate. It does not build, accept or publish anything.
 Its preflight requires a fresh nonce, not merely a zero exit status.
 
+Repair generation is fail-closed: a prompt alone does not confine the CLI, so
+`MODEL_PRODUCER_SANDBOX_CMD` is required. It is a JSON argv prefix containing
+`{workspace}`; the adapter creates a disposable directory outside the
+repository, substitutes that path, appends the producer command, and proves the
+confinement before use: the authored patch must be unreadable, controller-owned
+files must not be writable, and `{workspace}` must be writable. Without a
+passing probe the run is blocked and no patch is captured. Controller-owned
+file hashes are re-checked after the producer exits, and a captured candidate
+is never overwritten by a later run in the same output directory.
+
+```sh
+MODEL_PRODUCER_CMD='["<coding-cli>","-p","{prompt}"]' \
+MODEL_PRODUCER_SANDBOX_CMD='["bwrap","--ro-bind","/","/","--tmpfs","<repo>","--bind","{workspace}","{workspace}","--"]' \
+  node case-triage/rehearsal-repair/model-producer.cjs \
+  --source /workspace/near-rehearsal/rebuild-base --out out/model-candidate
+```
+
+The preflight runs in the same disposable workspace but needs no sandbox: it
+has no repository-derived input and captures no patch.
+
 ```sh
 MODEL_PRODUCER_CMD='["<coding-cli>","-p","{prompt}"]' \
   node case-triage/rehearsal-repair/model-producer.cjs --preflight
