@@ -31,6 +31,14 @@ assert.match(js, /Elapsed time|elapsed\(/);
 assert.match(js, /caseId/);
 assert.match(js, /bundleUrl/);
 assert.match(js, /patchUrl/);
+assert.match(js, /historySignature/, 'history polls compare the rendered run signature');
+assert.match(js, /aria-current/, 'selected history item is exposed accessibly');
+assert.match(js, /retryBacked = run\.checks\?\.authorizedRetryNoSecondRefund === true/, 'retry card requires the authoritative receipt-backed check');
+assert.match(js, /retryBacked \? 'good' : 'bad'/, 'retry card styling follows the authoritative check');
+assert.doesNotMatch(js, /candidate\.retryNoSecondRefund \? 'good'/, 'retry card does not use the weaker zero-delta flag');
+assert.match(js, /Contract balance change after the failed proposal/, 'baseline card labels the value as a delta');
+assert.match(js, /Contract balance change after the same failure/, 'candidate card labels the value as a delta');
+assert.doesNotMatch(js, /Contract balance after the failed proposal/, 'no stale balance label');
 assert.match(js, /const candidateCopy = candidate\.bondReturned\s*\?/, 'candidate explanation follows the measured bond check');
 assert.match(js, /const healthyCopy = candidate\.healthyPayoutUnchanged\s*\?/, 'healthy-payout explanation follows the measured payout check');
 assert.match(js, /const baselineCopy = baseline\.bondRetained\s*\?/, 'baseline explanation follows the measured bond check');
@@ -40,5 +48,5 @@ assert.doesNotMatch(js, /The healthy Transfer still pays the declared 0\.1 NEAR 
 console.log(JSON.stringify({
   schema: 'near-rehearsal/repair-browser-ui-tests/v1',
   passed: true,
-  checks: ['route-content', 'boundary-copy', 'phases', 'live-status', 'downloads', 'measured-result-copy', 'no-credential-form', 'no-arbitrary-input', 'reduced-motion', '44px-controls', 'case-only-request'],
+  checks: ['route-content', 'boundary-copy', 'phases', 'live-status', 'downloads', 'measured-result-copy', 'no-credential-form', 'no-arbitrary-input', 'reduced-motion', '44px-controls', 'case-only-request', 'history-focus', 'balance-change-label', 'retry-authoritative-check'],
 }, null, 2));

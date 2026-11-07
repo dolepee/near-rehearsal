@@ -15,7 +15,8 @@
 .section-head.compact { margin-bottom: 8px; }
 .history-list { display: grid; gap: 8px; }
 .history-item { width: 100%; text-align: left; background: #111614; border: 1px solid var(--line); border-radius: 9px; padding: 10px; color: var(--text); min-height: 44px; }
-.history-item:hover, .history-item:focus-visible { border-color: var(--green); }
+.history-item:hover, .history-item:focus-visible, .history-item[aria-current="true"] { border-color: var(--green); }
+.history-item[aria-current="true"] { box-shadow: inset 3px 0 var(--green); }
 .history-item b { display: block; font-size: 12px; }
 .history-item small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; overflow-wrap: anywhere; }
 .phase-list { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 0; margin: 18px 0; }

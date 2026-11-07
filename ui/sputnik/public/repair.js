@@ -1,14 +1,15 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = {case: null, config: null, run: null, poll: null, clock: null, failures: 0};
+  const state = {case: null, config: null, run: null, poll: null, clock: null, failures: 0, historySignature: null};
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
   const short = (value, n = 12) => value ? `${String(value).slice(0, n)}…${String(value).slice(-6)}` : '—';
   const near = (value) => {
     if (value === null || value === undefined) return '—';
-    const n = BigInt(value); const unit = 10n ** 24n;
+    const valueBig = BigInt(value); const negative = valueBig < 0n; const n = negative ? -valueBig : valueBig;
+    const unit = 10n ** 24n;
     const whole = n / unit; const fraction = (n % unit).toString().padStart(24, '0').slice(0, 6).replace(/0+$/, '');
-    return `${whole}${fraction ? `.${fraction}` : ''}`;
+    return `${negative ? '-' : ''}${whole}${fraction ? `.${fraction}` : ''}`;
   };
   const signed = (value) => `${BigInt(value) >= 0n ? '+' : ''}${near(value)}`;
   const phaseOrder = ['reproducing', 'generating', 'compiling', 'replaying'];
@@ -62,15 +63,42 @@
     renderContext(); setButton(false);
   }
 
+  function updateHistorySelection(list = $('history-list')) {
+    for (const button of list.querySelectorAll('[data-run-id]')) {
+      const selected = button.dataset.runId === state.run?.id;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-current', selected ? 'true' : 'false');
+    }
+  }
+
   async function loadHistory() {
     try {
       const response = await fetch('/api/repair/runs', {cache: 'no-store'});
       const data = await response.json();
       if (!response.ok) return;
       const list = $('history-list');
-      if (!data.runs?.length) { list.innerHTML = '<p class="muted small">No previous repair runs.</p>'; return; }
-      list.innerHTML = data.runs.map((run) => `<button class="history-item" type="button" data-run-id="${esc(run.id)}" role="listitem"><b>${esc(statusLabel(run.status))} · ${esc(run.phase)}</b><small>${esc(new Date(run.startedAt).toLocaleString())} · ${esc(run.id)}</small></button>`).join('');
-      for (const button of list.querySelectorAll('[data-run-id]')) button.addEventListener('click', () => openRun(button.dataset.runId));
+      const runs = data.runs || [];
+      if (!runs.length) {
+        if (state.historySignature !== '[]') list.innerHTML = '<p class="muted small">No previous repair runs.</p>';
+        state.historySignature = '[]';
+        return;
+      }
+      const signature = JSON.stringify(runs.map((run) => [run.id, run.status, run.phase, run.startedAt]));
+      if (signature !== state.historySignature) {
+        // A changed list is the only case that needs replacement. Preserve focus
+        // on the same run when that item still exists after the update.
+        const focusedId = list.contains(document.activeElement) ? document.activeElement.dataset.runId : null;
+        list.innerHTML = runs.map((run) => `<button class="history-item" type="button" data-run-id="${esc(run.id)}" role="listitem"><b>${esc(statusLabel(run.status))} · ${esc(run.phase)}</b><small>${esc(new Date(run.startedAt).toLocaleString())} · ${esc(run.id)}</small></button>`).join('');
+        for (const button of list.querySelectorAll('[data-run-id]')) button.addEventListener('click', () => openRun(button.dataset.runId));
+        state.historySignature = signature;
+        updateHistorySelection(list);
+        if (focusedId) {
+          const sameRun = [...list.querySelectorAll('[data-run-id]')].find((button) => button.dataset.runId === focusedId);
+          if (sameRun) sameRun.focus({preventScroll: true});
+        }
+      } else {
+        updateHistorySelection(list);
+      }
       if (data.active && !state.run) openRun(data.active);
     } catch { /* history is supplementary */ }
   }
@@ -117,19 +145,20 @@
     const c = run.consequence || {};
     const baseline = c.baseline || {}; const candidate = c.candidate || {};
     const retryGas = candidate.retryGas ? near(candidate.retryGas) : '—';
+    const retryBacked = run.checks?.authorizedRetryNoSecondRefund === true;
     const baselineCopy = baseline.bondRetained
-      ? 'Contract balance after the failed proposal. The declared bond stayed in the contract; the recipient received nothing.'
-      : 'Contract balance after the failed proposal. The declared bond was not retained in this capture; the recipient received nothing.';
+      ? 'Contract balance change after the failed proposal. The declared bond stayed in the contract; the recipient received nothing.'
+      : 'Contract balance change after the failed proposal. The declared bond was not retained in this capture; the recipient received nothing.';
     const candidateCopy = candidate.bondReturned
-      ? 'Contract balance after the same failure. The bond is no longer retained; the failed recipient still receives nothing.'
-      : 'Contract balance after the same failure. The bond is still retained in the contract, so this candidate did not repair the failure.';
+      ? 'Contract balance change after the same failure. The bond is no longer retained; the failed recipient still receives nothing.'
+      : 'Contract balance change after the same failure. The bond is still retained in the contract, so this candidate did not repair the failure.';
     const healthyCopy = candidate.healthyPayoutUnchanged
       ? 'The healthy Transfer still pays the declared recipient; this is the control obligation.'
       : 'The healthy Transfer payout changed, so this candidate breaks the control obligation.';
     $('consequence-grid').innerHTML = `
       <article class="consequence-card ${baseline.bondRetained ? 'bad' : ''}"><div class="eyebrow">Baseline</div><strong>${signed(baseline.failedContract || 0)} NEAR</strong><p>${baselineCopy}</p></article>
       <article class="consequence-card ${candidate.bondReturned ? 'good' : 'bad'}"><div class="eyebrow">Generated candidate</div><strong>${signed(candidate.failedContract || 0)} NEAR</strong><p>${candidateCopy}</p></article>
-      <article class="consequence-card ${candidate.retryNoSecondRefund ? 'good' : 'bad'}"><div class="eyebrow">Authorized retry</div><strong>${candidate.retryNoSecondRefund ? 'No second refund' : 'Retry not clean'}</strong><p>${candidate.retryNoSecondRefund ? 'FINAL receipt; contract and recipient deltas are zero. Gas is separate.' : 'The retry check did not prove exactly-once behavior.'}</p></article>
+      <article class="consequence-card ${retryBacked ? 'good' : 'bad'}"><div class="eyebrow">Authorized retry</div><strong>${retryBacked ? 'No second refund' : 'Retry not clean'}</strong><p>${retryBacked ? 'FINAL receipt; contract and recipient deltas are zero. Gas is separate.' : 'The retry check did not prove FINAL receipt-backed exactly-once execution.'}</p></article>
       <article class="consequence-card ${candidate.healthyPayoutUnchanged ? 'good' : 'bad'}"><div class="eyebrow">Healthy payout</div><strong>${signed(candidate.healthyRecipient || 0)} NEAR</strong><p>${healthyCopy}</p></article>`;
     $('money-note').innerHTML = `
       <div><b>Principal:</b> 1 NEAR bond at risk; 0.1 NEAR healthy Transfer.</div>
@@ -220,6 +249,7 @@
       const run = await response.json();
       if (!response.ok) throw new Error(run.error || 'Repair run not found.');
       state.run = run; state.failures = 0;
+      updateHistorySelection();
       if (run.status === 'running') { renderRunning(run); startPoll(); }
       else renderRun(run);
     } catch (error) {
@@ -237,6 +267,7 @@
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not start repair.');
       state.run = data.run; state.failures = 0;
+      updateHistorySelection();
       $('logs').textContent = 'Waiting for the run to report its first phase…';
       renderRunning(state.run); startPoll(); loadHistory();
     } catch (error) {

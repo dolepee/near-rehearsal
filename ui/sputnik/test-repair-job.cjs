@@ -52,6 +52,12 @@ try {
   assert.equal(badRetry.checks.authorizedRetryNoSecondRefund, false);
   assert.equal(badRetry.candidate.bondReturned, true, 'contract delta alone does not prove no double refund');
 
+  const unexecutedRetry = report({failedContract: 0n});
+  unexecutedRetry.failed.retry.final = null;
+  const noFinal = deriveConsequence(baseline, unexecutedRetry);
+  assert.equal(noFinal.candidate.retryNoSecondRefund, false, 'zero deltas without a FINAL receipt do not prove a clean retry');
+  assert.equal(noFinal.checks.authorizedRetryNoSecondRefund, false);
+
   const changedPayout = report({failedContract: 0n, healthyRecipient: 0n});
   const badPayout = deriveConsequence(baseline, changedPayout);
   assert.equal(badPayout.candidate.healthyPayoutUnchanged, false);

@@ -191,7 +191,7 @@ function deriveConsequence(baseline, candidate) {
       failedContract: next.failedContract.toString(),
       failedRecipient: next.failedRecipient.toString(),
       failedStatus: next.failedStatus,
-      retryNoSecondRefund: next.retryContract === 0n && next.retryRecipient === 0n,
+      retryNoSecondRefund: next.retryFinal === 'FINAL' && next.retryContract === 0n && next.retryRecipient === 0n,
       retryFinal: next.retryFinal,
       retryGas: next.retryGas.toString(),
       healthyPayoutUnchanged: base.healthyRecipient === transfer && next.healthyRecipient === transfer && base.healthyContract === -transfer && next.healthyContract === -transfer,
