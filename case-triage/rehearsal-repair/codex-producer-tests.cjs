@@ -68,7 +68,7 @@ check('unexpected changed path rejected', () => {
     '+intruder',
     '',
   ].join('\n');
-  assert.throws(() => normalizePatch(extra, original, file), /unexpected paths|rejected the agent diff/);
+  assert.throws(() => normalizePatch(extra, original, file), /unexpected path|unexpected paths|rejected the agent diff/);
 });
 
 check('runtime auth is a transient read-only reference', () => {
@@ -90,11 +90,40 @@ check('runtime auth is a transient read-only reference', () => {
 });
 
 
+
+check('raw symlink/type changes rejected before apply', () => {
+  const sentinel = path.join(os.tmpdir(), `repair-sentinel-${process.pid}`);
+  fs.writeFileSync(sentinel, 'harmless external sentinel\n');
+  const raw = [
+    `diff --git a/${file} b/${file}`,
+    'new file mode 120000',
+    'index 0000000..1111111',
+    '--- /dev/null',
+    `+++ b/${file}`,
+    '@@ -0,0 +1 @@',
+    `+${sentinel}`,
+    '',
+  ].join('\n');
+  assert.throws(() => normalizePatch(raw, original, file), /unsafe patch metadata|new or deleted/);
+  assert.equal(fs.readFileSync(sentinel, 'utf8'), 'harmless external sentinel\n');
+  fs.rmSync(sentinel, {force: true});
+});
+
 check('one-command adapter with fake tool-free CLI', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'repair-producer-test-'));
   const wrapper = path.join(root, 'sandbox.sh');
   const fake = path.join(root, 'fake-codex.cjs');
+  const fixture = path.join(root, 'source');
   const out = path.join(root, 'out');
+  fs.mkdirSync(path.join(fixture, 'sputnikdao2/src'), {recursive: true});
+  fs.writeFileSync(path.join(fixture, file), original);
+  for (const args of [['init', '-q'], ['add', '-A'], ['-c', 'user.name=fixture', '-c', 'user.email=fixture@localhost', 'commit', '-qm', 'base']]) {
+    const result = require('node:child_process').spawnSync('git', args, {cwd: fixture, encoding: 'utf8'});
+    assert.equal(result.status, 0, result.stderr);
+  }
+  const commit = require('node:child_process').spawnSync('git', ['rev-parse', 'HEAD'], {cwd: fixture, encoding: 'utf8'}).stdout.trim();
+  const manifest = path.join(root, 'manifest.json');
+  fs.writeFileSync(manifest, JSON.stringify({source: {commit}, allowedPaths: [file]}));
   fs.writeFileSync(wrapper, [
     '#!/bin/sh',
     'workspace="$1"; shift',
@@ -107,6 +136,7 @@ check('one-command adapter with fake tool-free CLI', () => {
     '#!/usr/bin/env node',
     "const fs=require('fs'),path=require('path');",
     'const a=process.argv.slice(2);',
+    "const input=fs.readFileSync(0,'utf8'); fs.writeFileSync(path.join(process.cwd(),'prompt-capture.txt'),input);",
     "const cd=a[a.indexOf('--cd')+1];",
     "const last=a[a.indexOf('--output-last-message')+1];",
     "const f='sputnikdao2/src/proposals.rs';",
@@ -120,7 +150,7 @@ check('one-command adapter with fake tool-free CLI', () => {
   const auth = path.join(root, 'auth.json');
   fs.writeFileSync(auth, '{"token":"fixture-only"}\n');
   const env = {...process.env, MODEL_PRODUCER_SANDBOX_CMD: JSON.stringify(['/bin/sh', wrapper, '{workspace}'])};
-  const result = spawnSync(process.execPath, [path.join(__dirname, 'codex-producer.cjs'), '--source', '/workspace/near-rehearsal/rebuild-base', '--out', out, '--profile', 'test-profile', '--private-runtime', path.join(root, 'runtime'), '--auth-source', auth, '--codex-bin', fake, '--no-pipeline'], {encoding: 'utf8', timeout: 60000, env});
+  const result = spawnSync(process.execPath, [path.join(__dirname, 'codex-producer.cjs'), '--source', fixture, '--manifest', manifest, '--out', out, '--profile', 'test-profile', '--private-runtime', path.join(root, 'runtime'), '--auth-source', auth, '--codex-bin', fake, '--no-pipeline'], {encoding: 'utf8', timeout: 60000, env});
   assert.equal(result.status, 0, result.stderr);
   const report = JSON.parse(fs.readFileSync(path.join(out, 'producer.json')));
   assert.deepEqual(report.changedPaths, [file]);
@@ -128,6 +158,9 @@ check('one-command adapter with fake tool-free CLI', () => {
   assert.equal(fs.existsSync(path.join(out, 'attempt', 'transcript.jsonl')), true);
   assert.equal(fs.existsSync(path.join(out, 'attempt', 'raw.patch')), true);
   assert.equal(fs.existsSync(path.join(root, 'runtime')), false);
+  const capturedPrompt = fs.readFileSync(path.join(report.workspace, 'prompt-capture.txt'), 'utf8');
+  assert.match(capturedPrompt, /Pinned source \(sputnikdao2\/src\/proposals\.rs\):/);
+  assert.match(capturedPrompt, /first line/);
 });
 
 console.log(JSON.stringify({schema: 'near-rehearsal/codex-producer-tests/v1', passed: true, checks}, null, 2));

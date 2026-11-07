@@ -188,7 +188,10 @@ separate disposable single-file tree with `git apply --recount
 --unidiff-zero`, enumerates the real changed paths, rejects anything outside
 `sputnikdao2/src/proposals.rs`, regenerates a canonical contextual Git diff,
 and runs the verified build/replay/acceptance pipeline with a controller-bound
-candidate identity.
+candidate identity. Raw mode/type changes, renames, copies, binary sections and
+`/dev/null` create/delete markers are rejected before apply; the allowlisted
+path and every parent are `lstat`-checked and must remain a regular non-symlink
+file before the controller reads it.
 
 ```sh
 MODEL_PRODUCER_SANDBOX_CMD='["<outer-policy-wrapper>","{workspace}","--"]' \
@@ -198,10 +201,13 @@ MODEL_PRODUCER_SANDBOX_CMD='["<outer-policy-wrapper>","{workspace}","--"]' \
   --profile <verified-codex-permission-profile> \
   --private-runtime /tmp/repair-provider-runtime \
   --auth-source "$HOME/.codex/auth.json" \
-  --codex-bin "$(command -v codex)"
-```
+  --codex-bin "$(command -v codex)" \
+  --base-report out/issue238-local.json \
+  --sandbox-dir <verified-sandbox-wrapper>
 
-The outer policy must permit minimal system reads, writes to `{workspace}` and
+The prompt is sent on stdin (`-`); the provider-owned last-message file is
+written inside `{workspace}` and copied controller-side after exit. The outer
+policy must permit minimal system reads, writes to `{workspace}` and
 the private runtime, reads of the Codex release directory, and read-only access
 to the original `auth.json`; it must deny controller/source reads other than
 the allowlisted file and deny writes to the original `~/.codex`. The driver
@@ -217,8 +223,10 @@ node case-triage/rehearsal-repair/codex-producer-tests.cjs
 ```
 
 They cover tool-free argv construction, the private-runtime auth symlink and
-cleanup, fenced/malformed diff extraction, `--recount --unidiff-zero`
-canonicalization, unexpected changed-path rejection, raw transcript preservation
-and the complete one-command adapter through a fake tool-free CLI.
+cleanup, fenced/malformed diff extraction, exact stdin prompt capture,
+`--recount --unidiff-zero` canonicalization, unexpected changed-path rejection,
+raw symlink/type-change rejection with a harmless external sentinel, raw
+transcript preservation and the complete one-command adapter through a fake
+tool-free CLI.
 
 Do not treat this checkpoint as a general audit or a release claim.

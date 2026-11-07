@@ -31,6 +31,8 @@ function usage() {
     'usage: node codex-producer.cjs --source <pinned-tree> --out <dir> --profile <name>',
     '                                   --private-runtime <dir> [--auth-source <auth.json>]',
     '                                   [--codex-bin <codex>] [--model <model>] [--no-pipeline]',
+    '                                   [--manifest <controller-manifest>] [--base-report <report>]',
+    '                                   [--sandbox-dir <verified-sandbox-wrapper>]',
     '',
     'The producer is tool-free. It emits a unified diff as the agent message; the',
     'controller normalizes it in a disposable single-file tree, checks the source',
@@ -60,6 +62,9 @@ function parseArgs(argv) {
     timeoutMs: 20 * 60 * 1000,
     noPipeline: false,
     noDaemon: process.env.CODEX_NO_DAEMON !== '0',
+    manifest: MANIFEST,
+    baseReport: null,
+    sandboxDir: null,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -73,6 +78,9 @@ function parseArgs(argv) {
     else if (arg === '--model') opts.model = argv[++i];
     else if (arg === '--timeout-ms') opts.timeoutMs = Number(argv[++i]);
     else if (arg === '--no-pipeline') opts.noPipeline = true;
+    else if (arg === '--manifest') opts.manifest = path.resolve(argv[++i]);
+    else if (arg === '--base-report') opts.baseReport = path.resolve(argv[++i]);
+    else if (arg === '--sandbox-dir') opts.sandboxDir = path.resolve(argv[++i]);
     else throw new Error(`unknown argument: ${arg}`);
   }
   if (!Number.isInteger(opts.timeoutMs) || opts.timeoutMs <= 0) throw new Error('--timeout-ms must be a positive integer');
@@ -155,6 +163,7 @@ function buildCodexArgv({workspace, lastMessage, model, noDaemon}) {
   args.push('--cd', workspace, '--output-last-message', lastMessage);
   for (const feature of TOOL_DISABLES) args.push('--disable', feature);
   if (model) args.push('--model', model);
+  args.push('-');
   return args;
 }
 
@@ -196,6 +205,41 @@ function git(temp, args, options = {}) {
   return spawnSync('git', args, {cwd: temp, encoding: 'utf8', timeout: 30000, maxBuffer: 32 * 1024 * 1024, ...options});
 }
 
+
+function assertNoSymlinkPath(target, root) {
+  let current = path.resolve(target);
+  const boundary = path.resolve(root);
+  while (current.startsWith(`${boundary}${path.sep}`) || current === boundary) {
+    const stat = fs.lstatSync(current);
+    if (stat.isSymbolicLink()) throw new Error(`refusing symlink path component: ${current}`);
+    if (current === boundary) break;
+    current = path.dirname(current);
+  }
+  const stat = fs.lstatSync(target);
+  if (stat.isSymbolicLink() || !stat.isFile()) throw new Error(`allowlisted path is not a regular file: ${target}`);
+}
+
+function assertRawPatchSafety(rawPatch, file) {
+  const lines = String(rawPatch).split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^(new file mode|deleted file mode|old mode|new mode|rename from|rename to|copy from|copy to|Binary files|GIT binary patch)\b/.test(trimmed)) {
+      throw new Error(`unsafe patch metadata: ${trimmed}`);
+    }
+    const diff = trimmed.match(/^diff --git a\/(.+) b\/(.+)$/);
+    if (diff && (diff[1] !== file || diff[2] !== file)) throw new Error(`diff targets unexpected path: ${diff[1]} -> ${diff[2]}`);
+    const marker = trimmed.match(/^(---|\+\+\+) (.+)$/);
+    if (marker) {
+      const rawPath = marker[2].split(/\s+/)[0];
+      if (rawPath === '/dev/null') throw new Error('new or deleted files are not allowed');
+      const candidate = rawPath.replace(/^[ab]\//, '');
+      if (candidate !== file) throw new Error(`diff marker targets unexpected path: ${rawPath}`);
+    }
+    const index = trimmed.match(/^index [0-9a-f]+\.\.[0-9a-f]+(?: (\d+))?$/);
+    if (index && index[1] && index[1] !== '100644') throw new Error(`unsafe file mode: ${index[1]}`);
+  }
+}
+
 function canonicalDiff(original, changed, file) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'repair-canonical-'));
   try {
@@ -222,6 +266,8 @@ function normalizePatch(rawPatch, original, file) {
     const target = path.join(temp, file);
     fs.mkdirSync(path.dirname(target), {recursive: true});
     fs.writeFileSync(target, original);
+    assertNoSymlinkPath(target, temp);
+    assertRawPatchSafety(rawPatch, file);
     for (const args of [['init', '-q'], ['add', '-A'], ['-c', 'user.name=repair-controller', '-c', 'user.email=repair-controller@localhost', 'commit', '-qm', 'base']]) {
       const result = git(temp, args);
       if (result.status !== 0) throw new Error(`cannot prepare normalization tree: ${(result.stderr || '').trim()}`);
@@ -236,6 +282,7 @@ function normalizePatch(rawPatch, original, file) {
     if (status.status !== 0) throw new Error(`cannot enumerate changed paths: ${(status.stderr || '').trim()}`);
     const changedPaths = status.stdout.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => line.replace(/^..\s?/, ''));
     if (JSON.stringify(changedPaths) !== JSON.stringify([file])) throw new Error(`agent diff changed unexpected paths: ${changedPaths.join(', ') || '(none)'}`);
+    assertNoSymlinkPath(target, temp);
     const changed = fs.readFileSync(target, 'utf8');
     if (changed === original) throw new Error('agent diff did not change the allowlisted source');
     return {patch: canonicalDiff(original, changed, file), changedPaths, changedSource: changed};
@@ -262,7 +309,7 @@ function main() {
     if (!opts.source || !opts.out || !opts.privateRuntime || !opts.profile) throw new Error('--source, --out, --private-runtime and --profile are required');
     if (!opts.authSource) throw new Error('--auth-source is required; link the existing local auth.json read-only, do not copy it');
     if (!process.env.MODEL_PRODUCER_SANDBOX_CMD) throw new Error('MODEL_PRODUCER_SANDBOX_CMD is required; unsupported confinement fails closed');
-    const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(opts.manifest, 'utf8'));
     const allowed = manifest.allowedPaths || [];
     if (allowed.length !== 1) throw new Error('producer requires exactly one allowlisted source file');
     const file = allowed[0];
@@ -299,10 +346,12 @@ function main() {
     const probes = probeSandbox(expandedPrefix, {workspace, sentinel: path.join(HERE, 'repair.patch'), ownedDir: HERE, timeoutMs: Math.min(opts.timeoutMs, 30000), env});
     if (!probes.ok) throw new Error(`producer sandbox probe failed: ${probes.errors.join('; ')}`);
 
+    const workspaceLastMessage = path.join(workspace, 'last-message.txt');
     const lastMessage = path.join(attempt, 'last-message.txt');
-    const args = buildCodexArgv({workspace, lastMessage, model: opts.model, noDaemon: opts.noDaemon});
+    const args = buildCodexArgv({workspace, lastMessage: workspaceLastMessage, model: opts.model, noDaemon: opts.noDaemon});
     const command = opts.codexBin;
-    const result = run(expandedPrefix[0], [...expandedPrefix.slice(1), command, ...args], {cwd: workspace, timeoutMs: opts.timeoutMs, env});
+    const result = run(expandedPrefix[0], [...expandedPrefix.slice(1), command, ...args], {cwd: workspace, timeoutMs: opts.timeoutMs, env, input: prompt});
+    if (fs.existsSync(workspaceLastMessage)) fs.copyFileSync(workspaceLastMessage, lastMessage);
     const transcript = result.stdout || '';
     const stderr = result.stderr || '';
     fs.writeFileSync(path.join(attempt, 'transcript.jsonl'), transcript);
@@ -317,7 +366,7 @@ function main() {
       workspace,
       privateRuntime: {root: runtime.root, authLinked: Boolean(runtime.authLink), mode: 0o700},
       profile: opts.profile,
-      command: [command, ...args.map((part) => part === workspace ? '<workspace>' : part === opts.model ? '<model>' : part === lastMessage ? '<last-message>' : part)],
+      command: [command, ...args.map((part) => part === workspace ? '<workspace>' : part === opts.model ? '<model>' : part === workspaceLastMessage || part === lastMessage ? '<last-message>' : part)],
       sandboxCommand: prefix.map((part) => part.replace(/\{(workspace|privateRuntime|authSource)\}/g, '<$1>')),
       envKeys: Object.keys(env).sort(),
       isolation: probes,
@@ -347,7 +396,7 @@ function main() {
     const report = {...provenance, canonicalPatchSha256: sha256(normalized.patch), changedPaths: applied.changedPaths, changedSourceSha256: sha256(normalized.changedSource)};
     fs.writeFileSync(path.join(opts.out, 'producer.json'), `${JSON.stringify(report, null, 2)}\n`);
     if (opts.noPipeline) { console.log(JSON.stringify(report, null, 2)); return; }
-    const pipeline = runPipeline({patch: patchPath, source: opts.source, out: path.join(opts.out, 'pipeline'), provenance: path.join(attempt, 'provenance.json'), sandboxDir: null});
+    const pipeline = runPipeline({patch: patchPath, source: opts.source, out: path.join(opts.out, 'pipeline'), provenance: path.join(attempt, 'provenance.json'), sandboxDir: opts.sandboxDir, baseReport: opts.baseReport || undefined});
     console.log(JSON.stringify({...report, pipeline}, null, 2));
   } catch (error) {
     console.error(error.stack || error.message);
@@ -359,4 +408,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = {buildCodexArgv, canonicalDiff, extractPatch, normalizePatch, prepareRuntime, cleanupRuntime, main};
+module.exports = {assertNoSymlinkPath, assertRawPatchSafety, buildCodexArgv, canonicalDiff, extractPatch, normalizePatch, prepareRuntime, cleanupRuntime, main};
