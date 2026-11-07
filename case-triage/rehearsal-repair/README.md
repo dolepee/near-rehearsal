@@ -202,7 +202,7 @@ MODEL_PRODUCER_SANDBOX_CMD='["<outer-policy-wrapper>","--permission-profile","<v
   --private-runtime /tmp/repair-provider-runtime \
   --auth-source "$HOME/.codex/auth.json" \
   --codex-bin "$(command -v codex)" \
-  --base-report out/issue238-local.json \
+  --base-report case-triage/rehearsal-repair/out/issue238-local.json \
   --sandbox-dir <verified-sandbox-wrapper>
 
 The prompt is sent on stdin (`-`); the provider-owned last-message file is
