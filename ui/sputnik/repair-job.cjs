@@ -249,7 +249,7 @@ function deriveRecoverySummary(report) {
       const gas = BigInt(pending.final?.transactionOutcome?.tokensBurntYocto ?? 0)
         + (pending.final?.receipts || []).reduce((sum, receipt) => sum + BigInt(receipt?.tokensBurntYocto ?? 0), 0n);
       return BigInt(pending.deltas.recipient ?? 0) === BigInt(CASE.obligation.transfer)
-        && BigInt(pending.deltas.proposer ?? 0) + gas === BOND
+        && BigInt(pending.deltas.proposer ?? 0) + gas === BigInt(CASE.obligation.bond)
         && pending.final?.receiptFailure === false;
     })(),
   };
