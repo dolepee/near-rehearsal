@@ -72,6 +72,22 @@ if (baseResult.branches.recoveryExperiment) {
     run('recovery-retry-actor-gain', (r) => { const b = r.branches.recoveryExperiment; b.afterCorrectedRetry.actorBalance = String(BigInt(b.afterCorrectedRetry.actorBalance) + 10n ** 24n); }),
     run('recovery-missing-check-layout', (r) => { delete r.branches.recoveryExperiment.checks.correctedRetryDidNotPay; }),
   );
+  const offsetRecoveryContract = (start) => (r) => {
+    const b = r.branches.recoveryExperiment;
+    const names = ['afterBadUpgrade', 'afterBadOperation', 'afterCorrectedUpgrade', 'afterCorrectedOperation', 'afterCorrectedRetry'];
+    for (const name of names.slice(names.indexOf(start))) b[name].contractBalance = String(BigInt(b[name].contractBalance) - 50n * 10n ** 24n);
+  };
+  const offsetRecoveryBalance = (field, amount) => (r) => {
+    const b = r.branches.recoveryExperiment;
+    for (const name of ['afterCorrectedUpgrade', 'afterCorrectedOperation', 'afterCorrectedRetry']) b[name][field] = String(BigInt(b[name][field]) + amount);
+  };
+  cases.push(
+    run('recovery-offset-from-bad-upgrade', offsetRecoveryContract('afterBadUpgrade')),
+    run('recovery-offset-from-bad-operation', offsetRecoveryContract('afterBadOperation')),
+    run('recovery-offset-from-corrected-upgrade', offsetRecoveryContract('afterCorrectedUpgrade')),
+    run('recovery-actor-offset-after-corrected-upgrade', offsetRecoveryBalance('actorBalance', 10n ** 24n)),
+    run('recovery-recipient-offset-after-corrected-upgrade', offsetRecoveryBalance('recipientBalance', 10n ** 24n)),
+  );
 }
 const result = {schema: 'near-rehearsal/local-verifier-negative-tests/v3', positiveControl, allRejected: cases.every((c) => c.rejected), cases};
 fs.writeFileSync(path.join(out, 'negative-local-verifier-tests.json'), JSON.stringify(result, null, 2) + '\n');

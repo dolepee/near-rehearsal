@@ -212,18 +212,25 @@ function assertSnapshotRecipient(snapshot, label) {
   if (transfer.receiver_id !== bundle.identities.recipient) fail(`${label} snapshot recipient is not frozen recipient`);
   if (String(transfer.amount) !== String(bundle.proposal.kind.Transfer.amount)) fail(`${label} snapshot transfer amount changed`);
 }
-function upgradeAccounting(b, label) {
-  required(b, ['before', 'afterUpgrade', 'upgrade'], label);
-  for (const [snapshot, name] of [[b.before, 'before'], [b.afterUpgrade, 'afterUpgrade']]) {
+function upgradeAccounting(b, label, keys = {}) {
+  const beforeKey = keys.before || 'before';
+  const afterKey = keys.after || 'afterUpgrade';
+  const upgradeKey = keys.upgrade || 'upgrade';
+  const before = b[beforeKey];
+  const after = b[afterKey];
+  required(b, [beforeKey, afterKey, upgradeKey], label);
+  for (const [snapshot, name] of [[before, beforeKey], [after, afterKey]]) {
     for (const k of ['contractBalance', 'actorBalance', 'recipientBalance']) asNonNegativeYocto(snapshot?.[k], `${label}.${name}.${k}`);
   }
-  if (BigInt(b.before.contractBalance) !== BigInt(b.initial.contractBalance)) fail(`${label} before upgrade contract balance is not frozen initial`);
-  if (BigInt(b.before.actorBalance) !== BigInt(b.initial.actorBalance)) fail(`${label} before upgrade proposer balance is not frozen initial`);
-  if (BigInt(b.before.recipientBalance) !== BigInt(b.initial.recipientBalance)) fail(`${label} before upgrade recipient balance is not frozen initial`);
-  if (b.afterUpgrade.actorBalance !== b.before.actorBalance) fail(`${label} upgrade changed proposer balance`);
-  if (b.afterUpgrade.recipientBalance !== b.before.recipientBalance) fail(`${label} upgrade changed recipient balance`);
+  if (keys.requireInitial !== false) {
+    if (BigInt(before.contractBalance) !== BigInt(b.initial.contractBalance)) fail(`${label} before upgrade contract balance is not frozen initial`);
+    if (BigInt(before.actorBalance) !== BigInt(b.initial.actorBalance)) fail(`${label} before upgrade proposer balance is not frozen initial`);
+    if (BigInt(before.recipientBalance) !== BigInt(b.initial.recipientBalance)) fail(`${label} before upgrade recipient balance is not frozen initial`);
+  }
+  if (after.actorBalance !== before.actorBalance) fail(`${label} upgrade changed proposer balance`);
+  if (after.recipientBalance !== before.recipientBalance) fail(`${label} upgrade changed recipient balance`);
 
-  const upgrade = b.upgrade;
+  const upgrade = b[upgradeKey];
   required(upgrade, ['transaction', 'gasBurntUnits', 'transactionOutcomeTokensBurntYocto'], `${label}.upgrade`);
   const action = upgrade.transaction.actions?.[0]?.FunctionCall;
   if (!action) fail(`${label}.upgrade is not a FunctionCall`);
@@ -241,13 +248,45 @@ function upgradeAccounting(b, label) {
   // the contract from its self-call, so the delta must be a non-negative,
   // integral multiple of the runtime gas price, and cannot exceed the full
   // attached gas budget. A storage-byte charge must never be subtracted here.
-  const contractDelta = BigInt(b.afterUpgrade.contractBalance) - BigInt(b.before.contractBalance);
+  const contractDelta = BigInt(after.contractBalance) - BigInt(before.contractBalance);
   if (contractDelta < 0n) fail(`${label} upgrade debited contract amount; storage collateral is not an amount debit`);
   if (contractDelta % gasPrice !== 0n) fail(`${label} upgrade amount change is not an integral gas refund`);
   const maxRefund = gasLimit * gasPrice;
   if (contractDelta > maxRefund) fail(`${label} upgrade amount increase exceeds the attached-gas refund bound: ${contractDelta} > ${maxRefund}`);
-  const storageDelta = storageDeltaYocto(b.afterUpgrade, b.before, `${label}.upgrade`);
+  const storageDelta = storageDeltaYocto(after, before, `${label}.upgrade`);
   return {contractDeltaYocto: contractDelta.toString(), storageDeltaYocto: storageDelta.toString(), gasPriceYocto: gasPrice.toString(), maxGasRefundYocto: maxRefund.toString()};
+}
+
+function failedOperationAccounting(b, label, keys) {
+  const before = b[keys.before];
+  const after = b[keys.after];
+  const operation = b[keys.operation];
+  required(b, [keys.before, keys.after, keys.operation], label);
+  for (const [snapshot, name] of [[before, keys.before], [after, keys.after]]) {
+    for (const k of ['contractBalance', 'actorBalance', 'recipientBalance']) asNonNegativeYocto(snapshot?.[k], `${label}.${name}.${k}`);
+  }
+  required(operation, ['transaction', 'gasBurntUnits', 'transactionOutcomeTokensBurntYocto'], `${label}.operation`);
+  const action = operation.transaction.actions?.[0]?.FunctionCall;
+  if (!action) fail(`${label}.operation is not a FunctionCall`);
+  if (String(action.deposit ?? '0') !== '0') fail(`${label}.operation attached a deposit`);
+  const gasLimit = asNonNegativeYocto(String(action.gas), `${label}.operation.gasLimit`);
+  const gasBurnt = asNonNegativeYocto(operation.gasBurntUnits, `${label}.operation.gasBurntUnits`);
+  const tokensBurnt = asNonNegativeYocto(operation.transactionOutcomeTokensBurntYocto, `${label}.operation.tokensBurntYocto`);
+  const totalGasCost = asNonNegativeYocto(operation.totalTokensBurntYocto, `${label}.operation.totalTokensBurntYocto`);
+  if (gasLimit <= 0n || gasBurnt <= 0n) fail(`${label}.operation has no gas accounting`);
+  if (tokensBurnt % gasBurnt !== 0n) fail(`${label}.operation gas price is not integral`);
+  const gasPrice = tokensBurnt / gasBurnt;
+  if (gasPrice <= 0n) fail(`${label}.operation gas price is zero`);
+  const actorDelta = BigInt(after.actorBalance) - BigInt(before.actorBalance);
+  const recipientDelta = BigInt(after.recipientBalance) - BigInt(before.recipientBalance);
+  const contractDelta = BigInt(after.contractBalance) - BigInt(before.contractBalance);
+  if (actorDelta !== -totalGasCost) fail(`${label} failed operation proposer delta ${actorDelta} is not gas-only`);
+  if (recipientDelta !== 0n) fail(`${label} failed operation paid the recipient`);
+  if (contractDelta < 0n) fail(`${label} failed operation debited contract amount`);
+  if (contractDelta % gasPrice !== 0n) fail(`${label} failed operation contract movement is not an integral gas refund`);
+  const maxRefund = gasLimit * gasPrice;
+  if (contractDelta > maxRefund) fail(`${label} failed operation contract movement exceeds the attached-gas refund bound: ${contractDelta} > ${maxRefund}`);
+  return {actorDeltaYocto: actorDelta.toString(), recipientDeltaYocto: recipientDelta.toString(), contractDeltaYocto: contractDelta.toString(), gasPriceYocto: gasPrice.toString(), maxGasRefundYocto: maxRefund.toString()};
 }
 
 function branchAccounting(b, label, keys) {
@@ -368,14 +407,25 @@ if (corrected.status === 'preserved' && BigInt(corrected.afterFirst.recipientBal
 if (result.branches.recoveryExperiment) {
   const recovery = result.branches.recoveryExperiment;
   tx(recovery.badUpgrade, 'success', 'recovery.badUpgrade', bundle.identities.factory);
+  checkUpgrade(recovery.badUpgrade, 'recovery.badUpgrade', suppliedCandidate, bundle.identities.factory);
+  upgradeAccounting(recovery, 'recovery.badUpgrade', {before: 'before', after: 'afterBadUpgrade', upgrade: 'badUpgrade'});
+  if (recovery.afterBadUpgrade.codeHash !== result.artifacts.candidate.hash) fail('recovery bad code mismatch');
+
   tx(recovery.badOperation, 'failure', 'recovery.badOperation', bundle.identities.proposer);
+  checkOperation(recovery.badOperation, 'recovery.badOperation', bundle.identities.proposer);
+  failedOperationAccounting(recovery, 'recovery.badOperation', {before: 'afterBadUpgrade', after: 'afterBadOperation', operation: 'badOperation'});
+  if (recovery.badOperation.failed !== true || recovery.badOperation.succeeded !== false) fail('recovery bad operation did not fail');
+
   tx(recovery.correctedUpgrade, 'success', 'recovery.correctedUpgrade', bundle.identities.factory);
+  checkUpgrade(recovery.correctedUpgrade, 'recovery.correctedUpgrade', suppliedCorrection, bundle.identities.factory);
+  upgradeAccounting(recovery, 'recovery.correctedUpgrade', {before: 'afterBadOperation', after: 'afterCorrectedUpgrade', upgrade: 'correctedUpgrade', requireInitial: false});
+  if (recovery.afterCorrectedUpgrade.codeHash !== result.artifacts.corrected.hash) fail('recovery corrected code mismatch');
+
   tx(recovery.correctedOperation, 'success', 'recovery.correctedOperation', bundle.identities.proposer);
+  checkOperation(recovery.correctedOperation, 'recovery.correctedOperation', bundle.identities.proposer);
+  checkOperation(recovery.correctedRetry, 'recovery.correctedRetry', bundle.identities.proposer);
   retryBalances(recovery, 'recovery', {before: 'before', accountingBefore: 'afterCorrectedUpgrade', firstTx: 'correctedOperation', retry: 'correctedRetry', first: 'afterCorrectedOperation', after: 'afterCorrectedRetry', checkPrefix: 'correctedRetry'});
   if (recovery.status !== 'improved') fail('recovery experiment status is not improved');
-  if (recovery.afterBadUpgrade.codeHash !== result.artifacts.candidate.hash) fail('recovery bad code mismatch');
-  if (recovery.afterCorrectedUpgrade.codeHash !== result.artifacts.corrected.hash) fail('recovery corrected code mismatch');
-  if (recovery.badOperation.failed !== true || recovery.badOperation.succeeded !== false) fail('recovery bad operation did not fail');
   if (BigInt(recovery.afterBadOperation.recipientBalance) !== BigInt(recovery.before.recipientBalance)) fail('recovery bad operation paid');
 }
 if (!result.sameStartingState) fail('sameStartingState is false');
