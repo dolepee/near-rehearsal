@@ -71,6 +71,7 @@ function fakeChild(handler) {
     if (args[0].endsWith('codex-producer.cjs')) {
       const dir = path.join(out);
       fs.mkdirSync(dir, {recursive: true});
+      fs.writeFileSync(path.join(privateRuntime, 'auth.json'), '{}');
       fs.writeFileSync(path.join(dir, 'canonical.patch'), 'diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs\n');
       fs.writeFileSync(path.join(dir, 'producer.json'), JSON.stringify({schema: 'near-rehearsal/codex-tool-free-producer/v1', changedSourceSha256: 'b'.repeat(64)}));
       return fakeChild(() => ({code: 0}));
@@ -101,11 +102,12 @@ function fakeChild(handler) {
   assert.equal(publicRun.bundleUrl, null);
   assert.equal(run.consequence.candidate.failedContract, '0');
   assert.ok(run.evidence);
-  assert.equal(fs.existsSync(privateRuntime), false, 'provider runtime cleaned after terminal run');
+  assert.equal(fs.existsSync(privateRuntime), true, 'a preexisting runtime directory is kept');
+  assert.deepEqual(fs.readdirSync(privateRuntime), [], 'runtime contents created by the run are cleared');
 
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-browser-pipeline-failure-tests/v1',
     passed: true,
-    checks: ['completed-rejection-parsed', 'measured-consequence-retained', 'patch-retained', 'bundle-withheld', 'provider-runtime-cleaned'],
+    checks: ['completed-rejection-parsed', 'measured-consequence-retained', 'patch-retained', 'bundle-withheld', 'preexisting-runtime-preserved'],
   }, null, 2));
 })().catch((error) => { console.error(error.stack || error); process.exitCode = 1; });

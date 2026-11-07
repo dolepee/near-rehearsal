@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {createManager, deriveConsequence, resolveConfig, sanitizeValue} = require('./repair-job.cjs');
+const {createManager, cleanupPrivateRuntime, deriveConsequence, probePrivateRuntime, resolveConfig, sanitizeValue} = require('./repair-job.cjs');
 
 const sha = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const BOND = 10n ** 24n;
@@ -73,6 +73,40 @@ try {
   assert.equal(sanitized.nested.absolute, '<local-path>');
   assert.equal(sanitized.nested.relative, 'out/report.json');
 
+  const runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'repair-runtime-test-'));
+  const createdRuntime = path.join(runtimeRoot, 'created-by-run');
+  const createdProbe = probePrivateRuntime(createdRuntime);
+  assert.equal(createdProbe.existed, false);
+  fs.mkdirSync(createdRuntime, {recursive: true, mode: 0o700});
+  fs.writeFileSync(path.join(createdRuntime, 'auth.json'), '{}');
+  cleanupPrivateRuntime(createdRuntime, createdProbe);
+  assert.equal(fs.existsSync(createdRuntime), false, 'a runtime created by the run is removed');
+
+  const emptyRuntime = path.join(runtimeRoot, 'preexisting-empty');
+  fs.mkdirSync(emptyRuntime);
+  const emptyProbe = probePrivateRuntime(emptyRuntime);
+  assert.equal(emptyProbe.wasEmpty, true);
+  fs.writeFileSync(path.join(emptyRuntime, 'auth.json'), '{}');
+  cleanupPrivateRuntime(emptyRuntime, emptyProbe);
+  assert.equal(fs.existsSync(emptyRuntime), true, 'a preexisting empty runtime directory is kept');
+  assert.deepEqual(fs.readdirSync(emptyRuntime), [], 'contents created by the run are cleared');
+
+  const nonemptyRuntime = path.join(runtimeRoot, 'preexisting-nonempty');
+  fs.mkdirSync(nonemptyRuntime);
+  fs.writeFileSync(path.join(nonemptyRuntime, 'marker.txt'), 'keep');
+  const nonemptyProbe = probePrivateRuntime(nonemptyRuntime);
+  assert.equal(nonemptyProbe.wasEmpty, false);
+  cleanupPrivateRuntime(nonemptyRuntime, nonemptyProbe);
+  assert.equal(fs.readFileSync(path.join(nonemptyRuntime, 'marker.txt'), 'utf8'), 'keep', 'preexisting runtime contents survive a refused initialization');
+
+  const runtimeFile = path.join(runtimeRoot, 'runtime-file');
+  fs.writeFileSync(runtimeFile, 'keep');
+  const fileProbe = probePrivateRuntime(runtimeFile);
+  assert.equal(fileProbe.isDirectory, false);
+  cleanupPrivateRuntime(runtimeFile, fileProbe);
+  assert.equal(fs.existsSync(runtimeFile), true, 'a non-directory runtime path is left alone');
+  fs.rmSync(runtimeRoot, {recursive: true, force: true});
+
   const env = {...process.env};
   for (const key of ['MODEL_PRODUCER_SANDBOX_CMD', 'CODEX_PERMISSION_PROFILE', 'CODEX_AUTH_SOURCE']) delete env[key];
   const config = resolveConfig(env);
@@ -134,7 +168,7 @@ try {
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-browser-job-tests/v1',
     passed: true,
-    checks: ['consequence', 'second-refund-rejected', 'payout-change-rejected', 'sanitize', 'provider-config', 'interrupted-recovery', 'accepted-bundle'],
+    checks: ['consequence', 'second-refund-rejected', 'payout-change-rejected', 'sanitize', 'runtime-ownership', 'provider-config', 'interrupted-recovery', 'accepted-bundle'],
   }, null, 2));
 } catch (error) {
   console.error(error.stack || error);

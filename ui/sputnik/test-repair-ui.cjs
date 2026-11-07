@@ -31,9 +31,14 @@ assert.match(js, /Elapsed time|elapsed\(/);
 assert.match(js, /caseId/);
 assert.match(js, /bundleUrl/);
 assert.match(js, /patchUrl/);
+assert.match(js, /const candidateCopy = candidate\.bondReturned\s*\?/, 'candidate explanation follows the measured bond check');
+assert.match(js, /const healthyCopy = candidate\.healthyPayoutUnchanged\s*\?/, 'healthy-payout explanation follows the measured payout check');
+assert.match(js, /const baselineCopy = baseline\.bondRetained\s*\?/, 'baseline explanation follows the measured bond check');
+assert.doesNotMatch(js, /bond is no longer retained; the failed recipient still receives nothing\.<\/p>/, 'no unconditional repair claim on a rejected run');
+assert.doesNotMatch(js, /The healthy Transfer still pays the declared 0\.1 NEAR recipient<\/p>/, 'no unconditional payout claim on a rejected run');
 
 console.log(JSON.stringify({
   schema: 'near-rehearsal/repair-browser-ui-tests/v1',
   passed: true,
-  checks: ['route-content', 'boundary-copy', 'phases', 'live-status', 'downloads', 'no-credential-form', 'no-arbitrary-input', 'reduced-motion', '44px-controls', 'case-only-request'],
+  checks: ['route-content', 'boundary-copy', 'phases', 'live-status', 'downloads', 'measured-result-copy', 'no-credential-form', 'no-arbitrary-input', 'reduced-motion', '44px-controls', 'case-only-request'],
 }, null, 2));

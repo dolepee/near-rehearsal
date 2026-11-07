@@ -234,6 +234,33 @@ function summary(run) {
   };
 }
 
+function probePrivateRuntime(dir) {
+  if (!dir) return null;
+  let stat;
+  try { stat = fs.statSync(dir); } catch (error) {
+    if (error.code === 'ENOENT') return {existed: false, isDirectory: false, wasEmpty: null};
+    // Ownership cannot be established; cleanup must leave the path alone.
+    return {existed: true, isDirectory: false, wasEmpty: null};
+  }
+  if (!stat.isDirectory()) return {existed: true, isDirectory: false, wasEmpty: null};
+  return {existed: true, isDirectory: true, wasEmpty: fs.readdirSync(dir).length === 0};
+}
+
+// A run may only remove a runtime it created itself. An existing directory is
+// reused only when it starts empty, and is restored to empty rather than removed.
+// Preexisting contents are never touched: the producer refuses to reuse a
+// nonempty runtime, and cleanup must not enforce that refusal by deleting it.
+function cleanupPrivateRuntime(dir, probe) {
+  if (!dir || !probe) return;
+  try {
+    if (!probe.existed) { fs.rmSync(dir, {recursive: true, force: true}); return; }
+    if (!probe.isDirectory || !probe.wasEmpty) return;
+    for (const entry of fs.readdirSync(dir)) {
+      try { fs.rmSync(path.join(dir, entry), {recursive: true, force: true}); } catch {}
+    }
+  } catch {}
+}
+
 function createManager(options = {}) {
   const env = options.env || process.env;
   const config = options.config || resolveConfig(env);
@@ -286,11 +313,6 @@ function createManager(options = {}) {
     } catch {
       try { child.kill(signal); } catch {}
     }
-  }
-
-  function cleanupProviderRuntime() {
-    if (!config.privateRuntime) return;
-    try { fs.rmSync(config.privateRuntime, {recursive: true, force: true}); } catch {}
   }
 
   function spawnStep(run, label, command, args, options = {}) {
@@ -349,6 +371,7 @@ function createManager(options = {}) {
   }
 
   async function execute(run) {
+    const runtimeProbe = probePrivateRuntime(config.privateRuntime);
     const overall = setTimeout(() => {
       if (run.status !== 'running') return;
       run.timedOut = true;
@@ -469,7 +492,7 @@ function createManager(options = {}) {
       run.currentChild = null;
       if (run.timedOut) { run.status = 'interrupted'; run.phase = 'interrupted'; }
       if (run.status === 'running') { run.status = 'inconclusive'; run.phase = 'inconclusive'; run.error = 'Repair job ended without a terminal result.'; }
-      cleanupProviderRuntime();
+      cleanupPrivateRuntime(config.privateRuntime, runtimeProbe);
       activeId = activeId === run.id ? null : activeId;
       writeMeta(run);
     }
@@ -585,4 +608,4 @@ function createManager(options = {}) {
   return {config, case: CASE, start, get, list, active, recover, publicRun, patchFile, bundle, runsRoot};
 }
 
-module.exports = {CASE, CASE_ID, createManager, deriveConsequence, metrics, resolveConfig, sanitizeValue, normalizedRun, summary, computeSha256: sha256};
+module.exports = {CASE, CASE_ID, createManager, cleanupPrivateRuntime, deriveConsequence, metrics, probePrivateRuntime, resolveConfig, sanitizeValue, normalizedRun, summary, computeSha256: sha256};

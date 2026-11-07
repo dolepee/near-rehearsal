@@ -117,11 +117,20 @@
     const c = run.consequence || {};
     const baseline = c.baseline || {}; const candidate = c.candidate || {};
     const retryGas = candidate.retryGas ? near(candidate.retryGas) : '—';
+    const baselineCopy = baseline.bondRetained
+      ? 'Contract balance after the failed proposal. The declared bond stayed in the contract; the recipient received nothing.'
+      : 'Contract balance after the failed proposal. The declared bond was not retained in this capture; the recipient received nothing.';
+    const candidateCopy = candidate.bondReturned
+      ? 'Contract balance after the same failure. The bond is no longer retained; the failed recipient still receives nothing.'
+      : 'Contract balance after the same failure. The bond is still retained in the contract, so this candidate did not repair the failure.';
+    const healthyCopy = candidate.healthyPayoutUnchanged
+      ? 'The healthy Transfer still pays the declared recipient; this is the control obligation.'
+      : 'The healthy Transfer payout changed, so this candidate breaks the control obligation.';
     $('consequence-grid').innerHTML = `
-      <article class="consequence-card ${baseline.bondRetained ? 'bad' : ''}"><div class="eyebrow">Baseline</div><strong>${signed(baseline.failedContract || 0)} NEAR</strong><p>Contract balance after the failed proposal. The 1 NEAR bond stayed in the contract; the recipient received nothing.</p></article>
-      <article class="consequence-card ${candidate.bondReturned ? 'good' : 'bad'}"><div class="eyebrow">Generated candidate</div><strong>${signed(candidate.failedContract || 0)} NEAR</strong><p>Contract balance after the same failure. The bond is no longer retained; the failed recipient still receives nothing.</p></article>
+      <article class="consequence-card ${baseline.bondRetained ? 'bad' : ''}"><div class="eyebrow">Baseline</div><strong>${signed(baseline.failedContract || 0)} NEAR</strong><p>${baselineCopy}</p></article>
+      <article class="consequence-card ${candidate.bondReturned ? 'good' : 'bad'}"><div class="eyebrow">Generated candidate</div><strong>${signed(candidate.failedContract || 0)} NEAR</strong><p>${candidateCopy}</p></article>
       <article class="consequence-card ${candidate.retryNoSecondRefund ? 'good' : 'bad'}"><div class="eyebrow">Authorized retry</div><strong>${candidate.retryNoSecondRefund ? 'No second refund' : 'Retry not clean'}</strong><p>${candidate.retryNoSecondRefund ? 'FINAL receipt; contract and recipient deltas are zero. Gas is separate.' : 'The retry check did not prove exactly-once behavior.'}</p></article>
-      <article class="consequence-card ${candidate.healthyPayoutUnchanged ? 'good' : 'bad'}"><div class="eyebrow">Healthy payout</div><strong>${signed(candidate.healthyRecipient || 0)} NEAR</strong><p>The healthy Transfer still pays the declared 0.1 NEAR recipient; this is the control obligation.</p></article>`;
+      <article class="consequence-card ${candidate.healthyPayoutUnchanged ? 'good' : 'bad'}"><div class="eyebrow">Healthy payout</div><strong>${signed(candidate.healthyRecipient || 0)} NEAR</strong><p>${healthyCopy}</p></article>`;
     $('money-note').innerHTML = `
       <div><b>Principal:</b> 1 NEAR bond at risk; 0.1 NEAR healthy Transfer.</div>
       <div><b>Gas on retry:</b> ${esc(retryGas)} NEAR, separate from returned principal.</div>`;
