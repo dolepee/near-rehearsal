@@ -104,3 +104,61 @@ jobs:
           node ui/sputnik/test-repair-pipeline-failure.cjs
           node ui/sputnik/test-repair-history.cjs
           node ui/sputnik/test-repair-ui.cjs
+
+  persisted-recovery:
+    name: Persisted bond recovery (Sandbox 2.14.0)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Patch sandbox binary resolution
+        run: node scripts/patch-near-sandbox.cjs
+      - name: Acquire pinned NEAR Sandbox 2.14.0
+        run: |
+          set -euo pipefail
+          sandbox_dir="$RUNNER_TEMP/near-sandbox-2.14.0"
+          mkdir -p "$sandbox_dir"
+          curl -fsSL \
+            https://s3-us-west-1.amazonaws.com/build.nearprotocol.com/nearcore/Linux-x86_64/2.14.0/near-sandbox.tar.gz \
+            -o "$sandbox_dir/near-sandbox.tar.gz"
+          echo "a0ba004218b218bd74351795e7ce2eda4a2b6af5cd3e252bd5e8bfe3c8f2e691  $sandbox_dir/near-sandbox.tar.gz" \
+            | sha256sum -c -
+          tar --no-same-owner -xzf "$sandbox_dir/near-sandbox.tar.gz" -C "$sandbox_dir"
+          chmod +x "$sandbox_dir/Linux-x86_64/near-sandbox"
+          echo "NEAR_SANDBOX_BIN_PATH=$sandbox_dir/Linux-x86_64" >> "$GITHUB_ENV"
+          echo "NEAR_SANDBOX_BINARY_PATH=$sandbox_dir/Linux-x86_64" >> "$GITHUB_ENV"
+          echo "NEAR_SANDBOX_VERSION=2.14.0" >> "$GITHUB_ENV"
+      - name: Run persisted recovery tests
+        run: node case-triage/rehearsal-repair/persisted-recovery-tests.cjs
+      - name: Run persisted recovery chain
+        run: |
+          set -euo pipefail
+          ulimit -n 65535
+          node case-triage/rehearsal-repair/persisted-recovery.cjs \
+            --sandbox-dir "$NEAR_SANDBOX_BIN_PATH" \
+            --candidate-wasm case-triage/rehearsal-repair/generated/e8262f5a/candidate.wasm \
+            --candidate-patch case-triage/rehearsal-repair/generated/e8262f5a/repair.patch \
+            --candidate-identity case-triage/rehearsal-repair/generated/e8262f5a/candidate-identity.json \
+            --expected-wasm-sha256 49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923 \
+            --out "$RUNNER_TEMP/persisted-recovery"
+      - name: Verify persisted recovery
+        run: |
+          set -euo pipefail
+          node case-triage/rehearsal-repair/persisted-recovery-acceptance.cjs \
+            --report "$RUNNER_TEMP/persisted-recovery/persisted-recovery.json" \
+            --expected-wasm-sha256 49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923 \
+            --expected-patch-sha256 532741a3f689863844d0af147ec08d278420cd74920f68f817234747e295fedc \
+            --expected-source-sha256 82efc4225e307b97068cd7bd984da78f9a83ecf51e1b21749de344f45aa53b22 \
+            --patch case-triage/rehearsal-repair/generated/e8262f5a/repair.patch
+      - name: Upload recovery evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: persisted-bond-recovery
+          path: ${{ runner.temp }}/persisted-recovery/persisted-recovery.json
+          if-no-files-found: error

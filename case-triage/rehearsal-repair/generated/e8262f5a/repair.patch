@@ -1,0 +1,129 @@
+diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs
+index 3c41adf..4c7ea80 100644
+--- a/sputnikdao2/src/proposals.rs
++++ b/sputnikdao2/src/proposals.rs
+@@ -348,6 +348,23 @@ impl Contract {
+         Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond)
+     }
+ 
++    /// Persist settlement independently of status, which can change on retries.
++    fn internal_return_bonds_once(
++        &mut self,
++        policy: &Policy,
++        proposal: &Proposal,
++        proposal_id: u64,
++    ) -> PromiseOrValue<()> {
++        let mut key = b"sputnikdao2:proposal_bonds_returned:".to_vec();
++        key.extend_from_slice(&proposal_id.to_le_bytes());
++        if env::storage_has_key(&key) {
++            return PromiseOrValue::Value(());
++        }
++
++        env::storage_write(&key, &[1]);
++        self.internal_return_bonds(policy, proposal).into()
++    }
++
+     /// Executes given proposal and updates the contract's state.
+     fn internal_execute_proposal(
+         &mut self,
+@@ -466,13 +483,16 @@ impl Contract {
+                         .on_proposal_callback(proposal_id),
+                 )
+                 .into(),
+-            PromiseOrValue::Value(()) => self.internal_return_bonds(policy, proposal).into(),
++            PromiseOrValue::Value(()) => {
++                self.internal_return_bonds_once(policy, proposal, proposal_id)
++            }
+         }
+     }
+ 
+     pub(crate) fn internal_callback_proposal_success(
+         &mut self,
+         proposal: &mut Proposal,
++        proposal_id: u64,
+     ) -> PromiseOrValue<()> {
+         let policy = self.policy.get().unwrap().to_policy();
+         if let ProposalKind::BountyDone { bounty_id, .. } = proposal.kind {
+@@ -486,15 +506,17 @@ impl Contract {
+             }
+         }
+         proposal.status = ProposalStatus::Approved;
+-        self.internal_return_bonds(&policy, proposal).into()
++        self.internal_return_bonds_once(&policy, proposal, proposal_id)
+     }
+ 
+     pub(crate) fn internal_callback_proposal_fail(
+         &mut self,
+         proposal: &mut Proposal,
++        proposal_id: u64,
+     ) -> PromiseOrValue<()> {
++        let policy = self.policy.get().unwrap().to_policy();
+         proposal.status = ProposalStatus::Failed;
+-        PromiseOrValue::Value(())
++        self.internal_return_bonds_once(&policy, proposal, proposal_id)
+     }
+ 
+     /// Process rejecting proposal.
+@@ -502,11 +524,13 @@ impl Contract {
+         &mut self,
+         policy: &Policy,
+         proposal: &Proposal,
++        proposal_id: u64,
+         return_bonds: bool,
+     ) -> PromiseOrValue<()> {
+         if return_bonds {
+             // Return bond to the proposer.
+-            self.internal_return_bonds(policy, proposal).detach();
++            self.internal_return_bonds_once(policy, proposal, proposal_id)
++                .detach();
+         }
+ 
+         let proposal_data = proposal;
+@@ -642,12 +666,12 @@ impl Contract {
+                         .detach();
+                     true
+                 } else if proposal.status == ProposalStatus::Removed {
+-                    self.internal_reject_proposal(&policy, &proposal, false)
++                    self.internal_reject_proposal(&policy, &proposal, id, false)
+                         .detach();
+                     self.proposals.remove(&id);
+                     false
+                 } else if proposal.status == ProposalStatus::Rejected {
+-                    self.internal_reject_proposal(&policy, &proposal, true)
++                    self.internal_reject_proposal(&policy, &proposal, id, true)
+                         .detach();
+                     true
+                 } else {
+@@ -674,7 +698,7 @@ impl Contract {
+                             .detach();
+                     }
+                     ProposalStatus::Expired => {
+-                        self.internal_reject_proposal(&policy, &proposal, true)
++                        self.internal_reject_proposal(&policy, &proposal, id, true)
+                             .detach();
+                     }
+                     _ => {
+@@ -696,9 +720,9 @@ impl Contract {
+     }
+ 
+     /// Receiving callback after the proposal has been finalized.
+-    /// If successful, returns bond money to the proposal originator.
++    /// Returns bond money to the proposal originator once, regardless of outcome.
+     /// If the proposal execution failed (funds didn't transfer or function call failure),
+-    /// move proposal to "Failed" state.
++    /// move proposal to "Failed" state, allowing execution to be retried.
+     #[private]
+     pub fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()> {
+         let mut proposal: Proposal = self
+@@ -712,9 +736,9 @@ impl Contract {
+             "ERR_UNEXPECTED_CALLBACK_PROMISES"
+         );
+         let result = if utils::is_promise_success() {
+-            self.internal_callback_proposal_success(&mut proposal)
++            self.internal_callback_proposal_success(&mut proposal, proposal_id)
+         } else {
+-            self.internal_callback_proposal_fail(&mut proposal)
++            self.internal_callback_proposal_fail(&mut proposal, proposal_id)
+         };
+         self.proposals
+             .insert(&proposal_id, &VersionedProposal::Latest(proposal));
