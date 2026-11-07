@@ -1,109 +1,89 @@
-# NEAR Rehearsal
+# NEAR Rehearsal Repair
 
-**Upgrade rehearsal for DAOs and agent treasuries.** Capture the state that matters, apply a declared migration, run the same obligation, and export a review that another machine can verify.
+Generate a source patch for a supported NEAR contract failure, compile it, and check the monetary result with an independent local replay. Download the source diff and the exact tested WASM with their replay evidence.
 
-Most upgrade tests start from a clean fixture. That misses the dangerous case: an upgrade that compiles and passes fresh-state tests, but changes the meaning of an obligation already stored on chain. NEAR Rehearsal runs the real Sputnik DAO v2 contract family against a frozen inherited state and shows the consequence before the provenance.
+The supported repair case is [Sputnik DAO #238](https://github.com/near-daos/sputnik-dao-contract/issues/238): a failed asynchronous proposal retains its 1 NEAR bond. Rehearsal asks the configured model for a patch, then independently checks the built contract's bond return, receipt-backed retry, healthy payout and authority behavior. The model cannot edit the acceptance criteria.
 
-## What this proves
+## Choose a workflow
 
-- A **baseline** operation still pays the declared recipient after the upgrade.
-- A **candidate** upgrade can be run against the same frozen state without touching the original proof.
-- A **correction** can be rerun from the same frozen bundle with different WASM bytes.
-- A complete review exports the captured state, actual candidate/correction WASMs, raw receipts, verdict and portable verify/replay instructions.
-- A failed, timed-out or interrupted job is **inconclusive**, not a stale success.
+| Workflow | Open | Runtime | What it executes |
+| --- | --- | --- | --- |
+| Source repair | `/repair` | Sandbox **2.14.0**, Rust **1.86.0**, configured local model provider | Fresh baseline → generated patch → build → replay → acceptance → diff and review bundle |
+| Manual upgrade comparison | `/` | Sandbox **2.6.2**, no model account or Rust build needed | Same frozen inherited state → baseline, supplied candidate and correction → verification/export |
 
-The supported case is one Sputnik DAO v2 proposal with a `Transfer` obligation: the proposal declares one recipient and one amount, and the rehearsal checks the actual receipt graph and recipient balance against that obligation.
+These are different tested flows. Do not replace one runtime version with the other. The manual comparison's seeded regression and correction are labelled authored fixtures. The model repair currently checks equivalent initialized states; it does not establish recovery of an already-failed proposal after an upgrade. A successful result covers its declared local case, not arbitrary contracts or production safety.
 
-## The demo
+## Install and run the offline tests
 
-1. Open the local page and run the default case.
-2. The baseline is `preserved`.
-3. The seeded bad candidate is `regressed`: the operation fails and the recipient is not paid.
-4. Select a correction and rerun from the same frozen bundle.
-5. The correction is `preserved`.
-6. Export the completed correction run, then verify the downloaded JSON with the repo helper.
-
-That is the whole product: **consequence first, proof second, portable review last.** No “trust the green badge” step.
-
-## Run it locally
-
-Requirements: Node.js 24.22.1 and a local NEAR Sandbox 2.6.2 runtime. The documented path is Linux x86_64; the owner’s macOS arm64 path uses the directory containing `near-sandbox` as `NEAR_SANDBOX_BIN_PATH`.
+Use Node **24** (the reference version in `.nvmrc`) or Node **26**. Both run the offline CI suite. Native macOS arm64 execution has also been exercised on Node 26. Requirements for the actual chain/build paths are listed below.
 
 ```sh
 git clone https://github.com/dolepee/near-rehearsal.git
 cd near-rehearsal
-git switch feat/sputnik-release-review
-npm ci --ignore-scripts
-node scripts/patch-near-sandbox.cjs
+git switch main
+npm run setup
+npm test
 ```
 
-Acquire the official NEAR sandbox:
+`setup` uses `npm ci --ignore-scripts`, then applies the repository's compatibility shim so an explicitly configured Sandbox directory is honored. It does not install Rust, start a chain, log into a provider or purchase anything. `npm test` runs the offline core suite, including report/verifier controls, UI/history behavior and setup failure checks. Its final output explicitly states that live model and Sandbox execution were not run. The real Sandbox flow and Rust/Repair suites run separately in CI.
+
+## Try the manual comparison without a model account
+
+The following download is the Linux x86_64 runtime tested by the manual CI job. For native macOS arm64 and the repair runtime, see [runtime setup](docs/local-repair-setup.md#sandbox-runtimes).
 
 ```sh
-SANDBOX_DIR="$PWD/.sandbox"
+SANDBOX_DIR="$PWD/.local/sandbox-2.6.2"
 mkdir -p "$SANDBOX_DIR"
-curl -fsSL \
+curl --fail --location --max-time 300 \
   https://s3-us-west-1.amazonaws.com/build.nearprotocol.com/nearcore/Linux-x86_64/2.6.2/near-sandbox.tar.gz \
-  -o "$SANDBOX_DIR/near-sandbox.tar.gz"
-echo "58c6d71091bc7a329b9d90784be42d1f313e0bf9fc4e1f2b967d60cdc407cdcf  $SANDBOX_DIR/near-sandbox.tar.gz" \
-  | sha256sum -c -
-tar --no-same-owner -xzf "$SANDBOX_DIR/near-sandbox.tar.gz" -C "$SANDBOX_DIR"
-chmod +x "$SANDBOX_DIR/Linux-x86_64/near-sandbox"
+  --output "$SANDBOX_DIR/archive.tar.gz"
+echo "58c6d71091bc7a329b9d90784be42d1f313e0bf9fc4e1f2b967d60cdc407cdcf  $SANDBOX_DIR/archive.tar.gz" | sha256sum -c -
+tar -xzf "$SANDBOX_DIR/archive.tar.gz" -C "$SANDBOX_DIR"
 export NEAR_SANDBOX_BIN_PATH="$SANDBOX_DIR/Linux-x86_64"
 export NEAR_SANDBOX_BINARY_PATH="$NEAR_SANDBOX_BIN_PATH"
+npm run doctor -- --flow manual
 ulimit -n 65535
 PORT=4174 npm run ui:sputnik
 ```
 
-Open `http://127.0.0.1:4174`. The server binds to localhost only.
+Open **http://127.0.0.1:4174/**. Choose the default bad candidate and correction, then **Run three-branch rehearsal**. The expected recipient changes are baseline **+1 NEAR**, seeded bad candidate **0**, correction **+1 NEAR**. The page shows the same starting state and receipt-derived outcomes. Select **Verify and export** to create a portable review. A contract regression is a completed measured result; infrastructure failures remain inconclusive.
 
-## Portable export verification
+## Run a genuine model repair
 
-The export is self-contained. Use the repo helper; do not execute shell text embedded in a downloaded review:
+The local producer needs your own existing supported Codex CLI login, an available model, the pinned source checkout, a dedicated temporary provider runtime, an enforced provider policy and the Rust build tools. Rehearsal never includes credentials in a bundle. Provider availability, subscription entitlement and output quality are not guaranteed.
+
+Follow [local repair setup](docs/local-repair-setup.md) to configure those requirements. Then:
+
+```sh
+npm run doctor -- --flow repair --generate
+ulimit -n 65535
+PORT=4174 npm run ui:repair
+```
+
+Open **http://127.0.0.1:4174/repair** and choose **Run fresh repair**. The checked launcher reports missing configuration before starting the app. If you start the server directly without a provider, its repair job completes the baseline and reports **Inconclusive**; it never substitutes the authored `repair.patch` as model output. A generated candidate that fails acceptance remains rejected. Only accepted repair results offer a review bundle; available generated patches remain inspectable on failed attempts.
+
+The doctor is a local configuration check, not a login/model call or an execution attestation. Actual generation still verifies the provider boundary and can fail honestly. Running a recorded export or the authored control is not fresh model generation.
+
+## Verify and replay an export
+
+Manual comparison exports contain the frozen state, candidate/correction WASMs, receipts and review metadata. Use the repository helper, not command text from an untrusted file:
 
 ```sh
 node case-triage/sputnik-public-capture/export-helper.cjs verify \
   --export /path/to/sputnik-export.json --out /tmp/sputnik-verify
-
 node case-triage/sputnik-public-capture/export-helper.cjs replay \
   --export /path/to/sputnik-export.json --out /tmp/sputnik-replay \
-  --sandbox-dir /path/to/directory-containing-near-sandbox
+  --sandbox-dir /path/to/sandbox-2.6.2-directory
 ```
 
-`--sandbox-dir` is the **directory** containing the patched `near-sandbox` binary, not the binary path itself. Verify unpacks the included frozen bundle, WASMs, manifest and raw report, then invokes the shared verifier. Replay invokes the known runner from the unpacked bundle and verifies the new report; it does not trust the exported result.
+Repair review bundles contain the canonical patch, compiled WASM, candidate identity and exact serialized baseline/candidate reports with matching hashes. See the [repair pipeline documentation](case-triage/rehearsal-repair/README.md) for reconstruction and acceptance. Fresh replay requires Sandbox 2.14.0. Hash checks establish byte consistency, not a cryptographic execution attestation.
 
-## What is checked
+## Scope and source
 
-- Candidate and correction bytes match their declared SHA-256 hashes and WASM code hashes.
-- The frozen state, code hash, policy, proposal and recipient identity match the bundle.
-- The actual transfer operation matches the frozen `proposal.kind.Transfer`: recipient, amount, token, message and proposal ID.
-- Every root and child receipt resolves exactly once; no missing child, duplicate ID or unbound executor passes.
-- Retry snapshots recompute recipient, contract and proposer balances instead of accepting stored booleans.
-- Summary and comparison verdicts match the recomputed branch results, including the candidate.
-
-The verifier’s output is **offline consistency**, not a cryptographic execution attestation. A complete exported review is evidence of a local replay and its stated checks, not a production authorization or an audit.
-
-## Claim boundaries
-
-- The bad candidate is a deliberately seeded local fixture derived from a verified candidate. It is not a live vulnerability, lost funds or a production incident.
-- The local contract holds test funds; nothing is spent on a public chain.
-- The UI and runner are local-only. There is no hosted reviewer service, custody, upgrade authorization or mainnet execution.
-- The supported family is `sputnik-dao-v2` with a `Transfer` proposal. Unsupported families and methods are rejected.
-- The export helper does not execute command strings from an untrusted file.
-
-## Repository layout
-
-- `case-triage/sputnik-public-capture/` — frozen-state runner, fixtures, verifier and portable export helper.
-- `ui/sputnik/` — local consequence-first interface and job controller.
-- `docs/` — supporting notes; the historical refund app is preserved in `docs/legacy-refund-app.md`.
-
-## Test and review commands
-
-```sh
-node --check case-triage/sputnik-public-capture/local-three-branch.cjs
-node --check case-triage/sputnik-public-capture/verify-local-three.cjs
-node case-triage/sputnik-public-capture/export-helper.cjs verify \
-  --export /tmp/sputnik-export.json --out /tmp/sputnik-verify
-```
-
-For a complete UI run, the page performs the verifier before enabling export. The server preserves completed reports across restart and marks interrupted jobs `inconclusive`.
+- Execution uses local test funds. No public-chain payment, live DAO recovery or automatic upgrade authorization is claimed.
+- The repair target is source revision `5434a59dec23ee0c49df8c8c4350c208a7e75b0b` and `sputnikdao2/src/proposals.rs`. Unsupported families are not automatically repaired.
+- Source input, build, artifact identity and declared behavioral checks are independent of the model response. A pass covers the exact code and tested inputs.
+- `case-triage/rehearsal-repair/` contains the source repair producer/controller/build/replay path.
+- `case-triage/sputnik-public-capture/` contains the inherited-state manual comparison and export helper.
+- `ui/sputnik/` serves the two local workflows. `docs/legacy-refund-app.md` preserves the earlier refund example.
+- The server binds to localhost by default. This repository does not provide a hosted model service or universally portable Docker image.

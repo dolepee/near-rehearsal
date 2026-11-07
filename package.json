@@ -29,7 +29,10 @@
     "test:ui-upload": "node ui/sputnik/test-upload-selection.cjs",
     "test:classification": "node case-triage/sputnik-public-capture/test-classification.cjs",
     "test:operation-classification": "node scripts/test-operation-classification.cjs",
-    "test:release-review": "node scripts/test-release-review-guards.cjs"
+    "test:release-review": "node scripts/test-release-review-guards.cjs",
+    "test": "node scripts/test-core.cjs",
+    "doctor": "node scripts/check-setup.cjs",
+    "ui:repair": "node scripts/start-rehearsal.cjs --flow repair"
   },
   "dependencies": {
     "near-workspaces": "5.0.0"
