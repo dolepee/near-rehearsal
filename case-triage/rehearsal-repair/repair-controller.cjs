@@ -247,24 +247,46 @@ function makeFreshTree(sourceDir) {
   if (archive.status !== 0) throw new Error(`cannot archive pinned source: ${(archive.stderr || archive.stdout || '').trim()}`);
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'repair-apply-'));
   try {
-    const extract = spawnSync('tar', ['-xf', '-', '-C', temp], {
-      input: archive.stdout,
-      encoding: 'utf8',
-      timeout: 120000,
-      maxBuffer: MAX_BUFFER,
-    });
-    if (extract.status !== 0) throw new Error(`cannot extract pinned source: ${(extract.stderr || '').trim()}`);
-    const init = runGit(['init', '-q'], temp);
-    if (init.status !== 0) throw new Error(`cannot initialize disposable tree: ${(init.stderr || '').trim()}`);
-    const add = runGit(['add', '-A'], temp);
-    if (add.status !== 0) throw new Error(`cannot stage disposable tree: ${(add.stderr || '').trim()}`);
-    const commit = runGit(['-c', 'user.name=repair-controller', '-c', 'user.email=repair-controller@localhost', 'commit', '-qm', 'base'], temp);
-    if (commit.status !== 0) throw new Error(`cannot commit disposable tree: ${(commit.stderr || '').trim()}`);
+    extractArchive(archive.stdout, temp);
+    initializeTree(temp);
     return temp;
   } catch (error) {
     fs.rmSync(temp, {recursive: true, force: true});
     throw error;
   }
+}
+
+function extractArchive(archive, destination) {
+  const extract = spawnSync('tar', ['-xf', '-', '-C', destination], {
+    input: archive,
+    encoding: 'utf8',
+    timeout: 120000,
+    maxBuffer: MAX_BUFFER,
+  });
+  if (extract.status !== 0) throw new Error(`cannot extract pinned source: ${(extract.stderr || '').trim()}`);
+}
+
+function initializeTree(destination) {
+  const init = runGit(['init', '-q'], destination);
+  if (init.status !== 0) throw new Error(`cannot initialize disposable tree: ${(init.stderr || '').trim()}`);
+  const add = runGit(['add', '-A'], destination);
+  if (add.status !== 0) throw new Error(`cannot stage disposable tree: ${(add.stderr || '').trim()}`);
+  const commit = runGit(['-c', 'user.name=repair-controller', '-c', 'user.email=repair-controller@localhost', 'commit', '-qm', 'base'], destination);
+  if (commit.status !== 0) throw new Error(`cannot commit disposable tree: ${(commit.stderr || '').trim()}`);
+}
+
+function materializeAppliedTree(patch, sourceDir, destination) {
+  if (!destination || fs.existsSync(destination)) throw new Error(`applied tree destination already exists: ${destination}`);
+  const archive = runGit(['-C', sourceDir, 'archive', '--format=tar', 'HEAD'], process.cwd(), undefined, null);
+  if (archive.status !== 0) throw new Error(`cannot archive pinned source: ${(archive.stderr || archive.stdout || '').trim()}`);
+  fs.mkdirSync(destination, {recursive: true});
+  extractArchive(archive.stdout, destination);
+  initializeTree(destination);
+  const check = runGit(['apply', '--check', '--whitespace=nowarn', '-'], destination, patch);
+  if (check.status !== 0) throw new Error(`git apply --check failed: ${(check.stderr || check.stdout || '').trim()}`);
+  const apply = runGit(['apply', '--whitespace=nowarn', '-'], destination, patch);
+  if (apply.status !== 0) throw new Error(`git apply failed: ${(apply.stderr || apply.stdout || '').trim()}`);
+  return {changedPaths: changedPaths(destination), source: destination};
 }
 
 function changedPaths(temp) {
@@ -342,4 +364,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = {applyPatchInFreshTree, changedPaths, parsePatch, patchPaths, verifyPatch, verifyPatchInTree};
+module.exports = {applyPatchInFreshTree, changedPaths, materializeAppliedTree, parsePatch, patchPaths, verifyPatch, verifyPatchInTree};

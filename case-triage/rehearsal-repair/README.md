@@ -60,10 +60,32 @@ node case-triage/rehearsal-repair/acceptance.cjs
 node case-triage/rehearsal-repair/acceptance-tests.cjs
 ```
 
-The first checks base/repaired artifact identity, healthy payout and beneficiary/amount, failed status, base stranded bond, repaired zero contract delta and gas-only proposer delta, rejected unauthorized callback, and identical starting state within each run. The second is the positive control plus eight targeted rejections: hidden base bond, double refund, missing payout, false failed status, changed artifact identity, accepted unauthorized callback, changed beneficiary, and the partial source repair.
+The first checks base/repaired artifact identity, healthy payout and beneficiary/amount, failed status, base stranded bond, repaired zero contract delta and gas-only proposer delta, rejected unauthorized callback, and identical starting state within each run. The second is the positive control plus targeted rejections: hidden base bond, double refund, missing payout, false failed status, changed artifact identity, accepted unauthorized callback, changed beneficiary, partial source repair, and changed candidate identity/report/wasm controls.
 
 This is an authored deterministic patch, not a model-generated patch. The model
 provenance gate remains separate and blocked at authentication.
+
+For a real model candidate, acceptance accepts a controller-owned identity:
+`candidate-identity.cjs` hashes the patch, the cleanly applied allowlisted
+source and the actual built WASM after the build. Acceptance re-hashes those
+same files, compares the replay report's WASM hash to the identity, and still
+runs every behavioral predicate. With no identity, the authored repaired hash
+remains the default; the expected hash is never overwritten.
+
+## Controller pipeline
+
+`repair-pipeline.cjs` performs the real candidate path: patch guard, clean
+apply in a fresh pinned tree, build, new Sandbox replay report, candidate
+identity and acceptance with changed-artifact rejection. It writes a separate
+candidate report under `--out`; it never treats the authored repaired report as
+the model report.
+
+```sh
+node case-triage/rehearsal-repair/repair-pipeline.cjs \
+  --patch <model.diff> \
+  --source /workspace/near-rehearsal/rebuild-base \
+  --out out/model-candidate
+```
 
 ## Controller allowlist
 

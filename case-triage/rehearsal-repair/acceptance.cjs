@@ -10,8 +10,38 @@ const path = require('node:path');
 const BOND = 10n ** 24n;
 const TRANSFER = 10n ** 23n;
 const GAS_ONLY_MAX = 10n ** 22n;
+const AUTHORED_REPAIRED_SHA = '41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5';
 
-function verify(base, repaired) {
+function sha256File(file) {
+  return require('node:crypto').createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+
+function verifyCandidateFiles(identity, files) {
+  const errors = [];
+  const fail = (m) => errors.push(m);
+  if (identity?.schema !== 'near-rehearsal/repair-candidate-identity/v1') fail('candidate identity schema');
+  if (!identity?.source?.commit) fail('candidate identity source commit');
+  if (!identity?.source?.path) fail('candidate identity source path');
+  if (!/^[0-9a-f]{64}$/.test(identity?.source?.sha256 || '')) fail('candidate identity source hash');
+  if (!/^[0-9a-f]{64}$/.test(identity?.patch?.sha256 || '')) fail('candidate identity patch hash');
+  if (!/^[0-9a-f]{64}$/.test(identity?.wasm?.sha256 || '')) fail('candidate identity wasm hash');
+  if (!files?.patch || !files?.source || !files?.wasm) {
+    fail('candidate identity requires actual patch, applied source and wasm files');
+    return errors;
+  }
+  for (const [name, file] of Object.entries(files)) {
+    try {
+      const actual = sha256File(file);
+      const expected = name === 'patch' ? identity?.patch?.sha256 : name === 'source' ? identity?.source?.sha256 : identity?.wasm?.sha256;
+      if (actual !== expected) fail(`candidate ${name} hash does not match identity`);
+    } catch (error) {
+      fail(`cannot read candidate ${name}: ${error.message}`);
+    }
+  }
+  return errors;
+}
+
+function verify(base, repaired, options = {}) {
   const errors = [];
   const fail = (m) => errors.push(m);
   for (const [name, report] of [['base', base], ['repaired', repaired]]) {
@@ -35,7 +65,18 @@ function verify(base, repaired) {
   if (JSON.stringify(base?.healthy?.before?.state) !== JSON.stringify(repaired?.healthy?.before?.state)) fail('base and repaired branches did not start from the same frozen state');
   if (JSON.stringify(base?.healthy?.before?.policy) !== JSON.stringify(repaired?.healthy?.before?.policy)) fail('base and repaired policy differ');
   if (base?.source?.wasmSha256 !== '5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578') fail('base artifact identity');
-  if (repaired?.source?.wasmSha256 !== '41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5') fail('repaired artifact identity');
+  if (options.candidateIdentity) {
+    const identity = options.candidateIdentity;
+    if (identity?.schema !== 'near-rehearsal/repair-candidate-identity/v1') fail('candidate identity schema');
+    if (identity?.source?.commit !== repaired?.source?.commit) fail('candidate source commit does not match repaired report');
+    if (!identity?.source?.path) fail('candidate source path missing');
+    if (!/^[0-9a-f]{64}$/.test(identity?.source?.sha256 || '')) fail('candidate source hash invalid');
+    if (!/^[0-9a-f]{64}$/.test(identity?.patch?.sha256 || '')) fail('candidate patch hash invalid');
+    if (repaired?.source?.wasmSha256 !== identity?.wasm?.sha256) fail('repaired artifact does not match controller-built candidate');
+    if (options.candidateFiles) errors.push(...verifyCandidateFiles(identity, options.candidateFiles));
+  } else if (repaired?.source?.wasmSha256 !== AUTHORED_REPAIRED_SHA) {
+    fail('repaired artifact identity');
+  }
   if (BigInt(base?.failed?.deltas?.contract ?? '0') !== BOND) fail('base failed branch did not strand the bond');
   if (BigInt(repaired?.failed?.deltas?.contract ?? '1') !== 0n) fail('repair did not return the bond exactly once');
   if (BigInt(repaired?.failed?.deltas?.proposer ?? '0') >= 0n) fail('repaired proposer did not pay gas');
@@ -46,15 +87,32 @@ function verify(base, repaired) {
 
 if (require.main === module) {
   const here = __dirname;
-  const base = JSON.parse(fs.readFileSync(path.join(here, 'out/issue238-local.json'), 'utf8'));
-  const repaired = JSON.parse(fs.readFileSync(path.join(here, 'out/issue238-repaired.json'), 'utf8'));
-  const errors = verify(base, repaired);
+  const args = process.argv.slice(2);
+  const opts = {};
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === '--base') opts.base = path.resolve(args[++i]);
+    else if (args[i] === '--repaired') opts.repaired = path.resolve(args[++i]);
+    else if (args[i] === '--identity') opts.identity = path.resolve(args[++i]);
+    else if (args[i] === '--patch') opts.patch = path.resolve(args[++i]);
+    else if (args[i] === '--source') opts.source = path.resolve(args[++i]);
+    else if (args[i] === '--wasm') opts.wasm = path.resolve(args[++i]);
+    else throw new Error(`unknown argument: ${args[i]}`);
+  }
+  const base = JSON.parse(fs.readFileSync(opts.base || path.join(here, 'out/issue238-local.json'), 'utf8'));
+  const repaired = JSON.parse(fs.readFileSync(opts.repaired || path.join(here, 'out/issue238-repaired.json'), 'utf8'));
+  const candidateIdentity = opts.identity ? JSON.parse(fs.readFileSync(opts.identity, 'utf8')) : undefined;
+  if (candidateIdentity && (!opts.patch || !opts.source || !opts.wasm)) {
+    throw new Error('candidate identity requires --patch, --source and --wasm');
+  }
+  const candidateFiles = candidateIdentity ? {patch: opts.patch, source: opts.source, wasm: opts.wasm} : undefined;
+  const errors = verify(base, repaired, {candidateIdentity, candidateFiles});
   const frozenStateEqual = JSON.stringify(base.healthy.before.state) === JSON.stringify(repaired.healthy.before.state);
   const policyEqual = JSON.stringify(base.healthy.before.policy) === JSON.stringify(repaired.healthy.before.policy);
   const withinRunBeforeEqual = ['base', 'repaired'].every((name) => JSON.stringify((name === 'base' ? base : repaired).healthy.before) === JSON.stringify((name === 'base' ? base : repaired).failed.before));
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-acceptance/v1',
     ok: errors.length === 0,
+    candidateIdentity: Boolean(candidateIdentity),
     frozenStateEqual,
     policyEqual,
     withinRunBeforeEqual,
@@ -65,4 +123,4 @@ if (require.main === module) {
   }, null, 2));
   if (errors.length) process.exitCode = 1;
 }
-module.exports = {verify};
+module.exports = {verify, verifyCandidateFiles, AUTHORED_REPAIRED_SHA};
