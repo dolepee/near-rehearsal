@@ -67,13 +67,20 @@ provenance gate remains separate and blocked at authentication.
 
 ## Controller allowlist
 
-`repair-controller.cjs` validates a source-only patch before it can be applied:
-only `sputnikdao2/src/proposals.rs` is allowed; tests, acceptance files, Cargo
-configuration and build scripts are forbidden, as are absolute or escaping
-paths. `controller-tests.cjs` covers the authored patch and five rejections.
+`repair-controller.cjs` validates every patch section, not only `diff --git`
+headers: only `sputnikdao2/src/proposals.rs` is allowed; tests, acceptance
+files, Cargo configuration and build scripts are forbidden, as are absolute or
+escaping paths, mixed header paths, repeated targets, renames/copies and
+identity-changing sections. It can also apply the patch in a fresh copy of the
+pinned source and enumerate the paths that actually changed before any build.
+`controller-tests.cjs` covers the authored positive control, the mixed-format
+forbidden-file regression, and apply-enumeration positive and negative cases.
 
 ```sh
 node case-triage/rehearsal-repair/repair-controller.cjs case-triage/rehearsal-repair/repair.patch
+REPAIR_SOURCE_DIR=/workspace/near-rehearsal/rebuild-base \
+  node case-triage/rehearsal-repair/repair-controller.cjs case-triage/rehearsal-repair/repair.patch \
+  case-triage/rehearsal-repair/controller-manifest.json /workspace/near-rehearsal/rebuild-base
 node case-triage/rehearsal-repair/controller-tests.cjs
 ```
 
@@ -81,15 +88,21 @@ node case-triage/rehearsal-repair/controller-tests.cjs
 
 `model-prompt.md` and `controller-manifest.json` define the source-only repair
 input: one allowlisted file, no tests or build scripts, and controller-owned
-acceptance. `model-producer.cjs` is the inert producer adapter: it runs an
-authorized coding CLI from `MODEL_PRODUCER_CMD`, requires a unified git diff,
-and applies the same controller allowlist before writing a candidate. It does
-not apply, build or accept anything. Its preflight mode only checks whether a
-model can answer a fixed one-line prompt:
+acceptance. `model-input.cjs` builds the model input from the task plus only
+the pinned allowlisted source file; it has no path for tests, the authored
+patch or the rest of the tree. `model-producer.cjs` runs an authorized coding
+CLI from `MODEL_PRODUCER_CMD`, requires a unified git diff, applies the
+controller allowlist, and verifies the actual changed paths in a fresh source
+tree before writing a candidate. It does not build, accept or publish anything.
+Its preflight requires a fresh nonce, not merely a zero exit status.
 
 ```sh
 MODEL_PRODUCER_CMD='["<coding-cli>","-p","{prompt}"]' \
   node case-triage/rehearsal-repair/model-producer.cjs --preflight
+
+MODEL_PRODUCER_CMD='["<coding-cli>","-p","{prompt}"]' \
+  node case-triage/rehearsal-repair/model-producer.cjs \
+  --source /workspace/near-rehearsal/rebuild-base
 ```
 
 Current free preflight: the CLI is authenticated, but a one-line inference

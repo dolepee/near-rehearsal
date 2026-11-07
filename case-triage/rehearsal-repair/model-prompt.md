@@ -5,8 +5,9 @@ You are repairing the pinned Sputnik DAO v2 source at commit
 
 Allowed edit: `sputnikdao2/src/proposals.rs` only.
 
-Do not read or modify tests, acceptance predicates, expected balances, build
-scripts, `Cargo.toml`, `Cargo.lock`, or any file outside the allowed path.
+Your input includes the pinned contents of that one file. Use only that
+source; do not request or read tests, acceptance predicates, the authored
+patch, or any other file.
 
 Defect: when a proposal execution callback fails, the proposal is marked
 `Failed` but its proposal bond remains in the contract. A failed async action

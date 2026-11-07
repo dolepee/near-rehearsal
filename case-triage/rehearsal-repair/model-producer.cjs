@@ -8,15 +8,17 @@
  *   MODEL_PRODUCER_CMD='["some-cli","-p","{prompt}"]' \
  *     node model-producer.cjs --prompt model-prompt.md --out out/model
  *
- * The adapter never applies, builds or accepts a patch. It only captures the
- * producer result, requires a unified git diff, and runs the existing
- * controller allowlist before writing the candidate.
+ * The adapter never builds or accepts a patch. It captures the producer
+ * result, requires a unified git diff, runs the controller allowlist, and
+ * applies only in a disposable copy to enumerate actual changed paths before
+ * writing the candidate.
  */
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
-const {verifyPatch} = require('./repair-controller.cjs');
+const {verifyPatch, verifyPatchInTree, patchPaths} = require('./repair-controller.cjs');
+const {buildPrompt} = require('./model-input.cjs');
 
 const here = __dirname;
 
@@ -25,7 +27,8 @@ function usage() {
     'usage: node model-producer.cjs [options]',
     '',
     '  --preflight          check authentication/model availability only',
-    '  --prompt <file>      prompt file (default: model-prompt.md)',
+    '  --prompt <file>      task prompt file (default: model-prompt.md)',
+    '  --source <dir>       pinned source tree (required except preflight)',
     '  --out <dir>          output directory (default: out/model-producer)',
     '  --timeout-ms <n>     command timeout (default: 120000)',
     '',
@@ -35,12 +38,13 @@ function usage() {
 }
 
 function parseArgs(argv) {
-  const opts = {preflight: false, prompt: path.join(here, 'model-prompt.md'), out: path.join(here, 'out', 'model-producer'), timeoutMs: 120000};
+  const opts = {preflight: false, prompt: path.join(here, 'model-prompt.md'), source: process.env.REPAIR_SOURCE_DIR || null, out: path.join(here, 'out', 'model-producer'), timeoutMs: 120000};
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') opts.help = true;
     else if (arg === '--preflight') opts.preflight = true;
     else if (arg === '--prompt') opts.prompt = path.resolve(argv[++i]);
+    else if (arg === '--source') opts.source = path.resolve(argv[++i]);
     else if (arg === '--out') opts.out = path.resolve(argv[++i]);
     else if (arg === '--timeout-ms') opts.timeoutMs = Number(argv[++i]);
     else throw new Error(`unknown argument: ${arg}`);
@@ -132,13 +136,16 @@ function baseReport({mode, argv, result}) {
   };
 }
 
-function produce({preflight = false, promptPath, outDir, timeoutMs = 120000, env = process.env, cwd = process.cwd()} = {}) {
-  const prompt = fs.readFileSync(promptPath, 'utf8');
+function produce({preflight = false, promptPath, sourceDir = process.env.REPAIR_SOURCE_DIR || null, outDir, timeoutMs = 120000, env = process.env, cwd = process.cwd()} = {}) {
   const argv = producerArgv(env);
-  const actualPrompt = preflight ? 'Reply with exactly OK.' : prompt;
+  const nonce = preflight ? `NONCE ${crypto.randomBytes(16).toString('hex')}` : null;
+  const actualPrompt = preflight
+    ? `Reply with exactly: ${nonce}`
+    : buildPrompt({sourceDir, promptPath});
   const result = runProducer(argv, actualPrompt, {cwd, timeoutMs});
   const report = baseReport({mode: preflight ? 'preflight' : 'repair', argv, result});
   let patch = null;
+  if (nonce) report.nonceSha256 = sha256(nonce);
 
   if (result.exitCode !== 0 || result.error) {
     report.status = preflight ? 'blocked' : 'failed';
@@ -147,6 +154,12 @@ function produce({preflight = false, promptPath, outDir, timeoutMs = 120000, env
   }
 
   if (preflight) {
+    if (String(result.stdout).trim() !== nonce) {
+      report.status = 'rejected';
+      report.error = 'preflight response did not match the fresh nonce';
+      writeReport(outDir, report, null);
+      return {ok: false, report};
+    }
     report.status = 'ok';
     writeReport(outDir, report, null);
     return {ok: true, report};
@@ -157,9 +170,17 @@ function produce({preflight = false, promptPath, outDir, timeoutMs = 120000, env
     const manifest = JSON.parse(fs.readFileSync(path.join(here, 'controller-manifest.json'), 'utf8'));
     const errors = verifyPatch(patch, manifest);
     report.patchSha256 = sha256(patch);
-    report.paths = [...new Set([...patch.matchAll(/^diff --git a\/(.+?) b\/(.+)$/gm)].flatMap((m) => [m[1], m[2]]))];
+    report.paths = patchPaths(patch);
     report.controllerErrors = errors;
     if (errors.length) {
+      report.status = 'rejected';
+      writeReport(outDir, report, null);
+      return {ok: false, report};
+    }
+    const applied = verifyPatchInTree(patch, manifest, sourceDir);
+    report.appliedPaths = applied.changedPaths;
+    report.applyErrors = applied.errors;
+    if (applied.errors.length) {
       report.status = 'rejected';
       writeReport(outDir, report, null);
       return {ok: false, report};
@@ -182,7 +203,7 @@ if (require.main === module) {
     if (opts.help) {
       console.log(usage());
     } else {
-      const result = produce({preflight: opts.preflight, promptPath: opts.prompt, outDir: opts.out, timeoutMs: opts.timeoutMs});
+      const result = produce({preflight: opts.preflight, promptPath: opts.prompt, sourceDir: opts.source, outDir: opts.out, timeoutMs: opts.timeoutMs});
       console.log(JSON.stringify(result.report, null, 2));
       if (!result.ok) process.exitCode = 1;
     }
