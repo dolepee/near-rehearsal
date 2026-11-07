@@ -111,6 +111,9 @@ function fakeSpawn() {
   assert.equal(bundle.recovery.report.schema, 'near-rehearsal/persisted-bond-recovery/v1');
   assert.equal(bundle.recovery.reportSha256, manager.get(started.id).recovery.reportSha256);
   assert.match(bundle.commands.recovery, /persisted-recovery-acceptance\.cjs/);
+  assert.match(bundle.commands.recovery, /--source <applied-proposals\.rs>/);
+  assert.match(bundle.commands.recovery, /--expected-source-sha256/);
+  assert.equal(bundle.recovery.appliedSource.sha256, JSON.parse(fs.readFileSync(candidateIdentity, 'utf8')).source.sha256);
   assert.equal(bundle.checks.recoveryAccepted, true);
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-recovery-integration-tests/v1',

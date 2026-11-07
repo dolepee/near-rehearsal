@@ -186,6 +186,7 @@
         check('First recovery FINAL', summary.firstFinal === 'FINAL' && firstGross === c.bond, 'gross credit and locked delta reconciled to the bond'),
         check('Second retry FINAL', summary.secondFinal === 'FINAL' && BigInt(secondGross) === 0n, 'no second refund; proposal ended Failed'),
         check('Healthy control preserved', summary.healthyControl, 'past-settled payout remained unchanged'),
+        check('Inherited pending Transfer paid once', summary.pendingHealthy, 'old-code pending proposal paid after upgrade with bond separated'),
       ].join('');
     }
     $('checks-list').innerHTML = [

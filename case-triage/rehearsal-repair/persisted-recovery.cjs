@@ -131,8 +131,13 @@ function summarize(final) {
       receiverId: final?.status?.transaction?.receiver_id ?? null,
       actions: (final?.status?.transaction?.actions ?? []).map((action) => {
         // The authority update carries the full candidate WASM as a FunctionCall
-        // argument. Keep its action shape and a digest, not a second copy of the
-        // bytes; the candidate file itself is the byte-identity source.
+        // argument, and deploy carries it as contract code. Keep each action
+        // shape and a digest, not a second copy of the bytes; the candidate file
+        // itself is the byte-identity source.
+        if (action?.DeployContract && String(action.DeployContract.code || '').length > 2048) {
+          const bytes = Buffer.from(action.DeployContract.code, 'base64');
+          return {DeployContract: {...action.DeployContract, code: null, codeBytes: bytes.length, codeSha256: sha256(bytes)}};
+        }
         if (!action?.FunctionCall || String(action.FunctionCall.args || '').length <= 2048) return action;
         const bytes = Buffer.from(action.FunctionCall.args, 'base64');
         return {FunctionCall: {...action.FunctionCall, args: null, argsBytes: bytes.length, argsSha256: sha256(bytes)}};
@@ -501,21 +506,59 @@ async function runHealthyPreservation(worker, candidateWasm) {
   await finalStatus(worker, vote, base.proposer.accountId);
   await settle(worker, base.dao, base.proposer, base.recipient);
   const settled = await snapshot(worker, base.dao, base.proposer, base.recipient, proposalId);
+
+  // A Transfer that is still InProgress on the old code. It was never approved
+  // or paid before the code replacement, so this control exercises an inherited
+  // pending obligation across the upgrade rather than a fresh payment.
+  const pendingAdd = await base.proposer.callRaw(base.dao, 'add_proposal', {
+    proposal: {description: 'inherited unpaid healthy control', kind},
+  }, {gas: GAS, attachedDeposit: BOND});
+  const pendingAddFinal = await finalStatus(worker, pendingAdd, base.proposer.accountId);
+  const pendingId = pendingAdd.parseResult();
+  const pendingBefore = await snapshot(worker, base.dao, base.proposer, base.recipient, pendingId);
+
   const candidateHash = hashContract(candidateWasm);
   const upgradeFinal = await accountDeployAndMigrate(worker, base.dao, candidateWasm);
   if (upgradeFinal.receiptFailure) throw new Error('past-settled control upgrade receipt failed');
   await waitCode(worker, base.dao, candidateHash);
   const afterUpgrade = await snapshot(worker, base.dao, base.proposer, base.recipient, proposalId);
+  const pendingAfterUpgrade = await snapshot(worker, base.dao, base.proposer, base.recipient, pendingId);
   const finalizeAttempt = await attempt('finalize past-settled proposal', async () => {
     const tx = await base.proposer.callRaw(base.dao, 'act_proposal', {id: proposalId, action: 'Finalize', proposal: kind}, {gas: GAS});
     return summarize(await finalStatus(worker, tx, base.proposer.accountId));
   });
   const afterAttempt = await snapshot(worker, base.dao, base.proposer, base.recipient, proposalId);
+  const pendingBeforePayout = await snapshot(worker, base.dao, base.proposer, base.recipient, pendingId);
+
+  const pendingTx = await base.proposer.callRaw(base.dao, 'act_proposal', {id: pendingId, action: 'VoteApprove', proposal: kind}, {gas: GAS});
+  const pendingFinal = await finalStatus(worker, pendingTx, base.proposer.accountId);
+  const pendingProposal = await waitProposal(worker, base.dao, pendingId);
+  await settle(worker, base.dao, base.proposer, base.recipient);
+  const pendingAfter = await snapshot(worker, base.dao, base.proposer, base.recipient, pendingId);
+  const pendingGas = summarize(pendingFinal).gasBurntYocto;
+  const pendingDeltas = {
+    contract: (BigInt(pendingAfter.contractBalance) - BigInt(pendingBeforePayout.contractBalance)).toString(),
+    proposer: (BigInt(pendingAfter.proposerBalance) - BigInt(pendingBeforePayout.proposerBalance)).toString(),
+    recipient: (BigInt(pendingAfter.recipientBalance) - BigInt(pendingBeforePayout.recipientBalance)).toString(),
+    locked: (BigInt(pendingAfter.lockedAmount) - BigInt(pendingBeforePayout.lockedAmount)).toString(),
+  };
   return {
     proposalId,
     before,
     add: summarize(addFinal),
     settled,
+    pending: {
+      proposalId: pendingId,
+      add: summarize(pendingAddFinal),
+      before: pendingBefore,
+      afterUpgrade: pendingAfterUpgrade,
+      beforePayout: pendingBeforePayout,
+      final: summarize(pendingFinal),
+      proposal: pendingProposal,
+      after: pendingAfter,
+      deltas: pendingDeltas,
+      gasBurntYocto: pendingGas,
+    },
     upgrade: upgradeFinal.deploy,
     migrate: upgradeFinal.migrate,
     upgradeMethod: upgradeFinal.method,
@@ -528,8 +571,14 @@ async function runHealthyPreservation(worker, candidateWasm) {
       upgradeCode: afterUpgrade.codeHash === candidateHash,
       proposalPreserved: JSON.stringify(afterUpgrade.proposal) === JSON.stringify(settled.proposal),
       recipientPreserved: afterUpgrade.recipientBalance === settled.recipientBalance,
-      lockedCleared: afterUpgrade.lockedAmount === '0',
+      lockedCleared: settled.lockedAmount === '0' && pendingAfter.lockedAmount === '0',
       noFurtherPayout: afterAttempt.recipientBalance === settled.recipientBalance,
+      pendingPreserved: JSON.stringify(pendingAfterUpgrade.proposal) === JSON.stringify(pendingBefore.proposal)
+        && pendingAfterUpgrade.lockedAmount === pendingBefore.lockedAmount
+        && pendingAfterUpgrade.codeHash === candidateHash,
+      pendingPayout: pendingDeltas.recipient === TRANSFER.toString(),
+      pendingBondReturned: BigInt(pendingDeltas.proposer) + BigInt(pendingGas) === BOND,
+      pendingNoSecondPayout: pendingDeltas.recipient === TRANSFER.toString() && pendingProposal.status === 'Approved',
     },
   };
 }

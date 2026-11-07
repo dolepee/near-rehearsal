@@ -242,7 +242,16 @@ function deriveRecoverySummary(report) {
     preservedProposal: JSON.stringify(report.failed?.frozen?.proposal ?? null) === JSON.stringify(report.upgraded?.proposal ?? null),
     authorityRejected: report.authority?.unauthorizedUpdateProbe?.ok === true && report.authority?.unauthorizedFinalizeProbe?.ok === true,
     healthyControl: report.healthyPreservation?.settled?.recipientBalance === report.healthyPreservation?.afterAttempt?.recipientBalance
-      && BigInt(report.healthyPreservation?.afterUpgrade?.lockedAmount ?? '-1') === 0n,
+      && BigInt(report.healthyPreservation?.settled?.lockedAmount ?? '-1') === 0n,
+    pendingHealthy: (() => {
+      const pending = report.healthyPreservation?.pending;
+      if (!pending?.deltas) return false;
+      const gas = BigInt(pending.final?.transactionOutcome?.tokensBurntYocto ?? 0)
+        + (pending.final?.receipts || []).reduce((sum, receipt) => sum + BigInt(receipt?.tokensBurntYocto ?? 0), 0n);
+      return BigInt(pending.deltas.recipient ?? 0) === BigInt(CASE.obligation.transfer)
+        && BigInt(pending.deltas.proposer ?? 0) + gas === BOND
+        && pending.final?.receiptFailure === false;
+    })(),
   };
 }
 
@@ -787,12 +796,13 @@ function createManager(options = {}) {
         reportSha256: sha256File(recoveryReportPath),
         summary: run.recovery.summary,
         acceptance: run.recovery.acceptance,
-        distinction: 'Fresh-state checks prove prevention from clean state. The persisted report proves recovery after a real old-code failure, preservation of frozen state, authorization, and exactly-once accounting.',
+        appliedSource: {path: CASE.source.path, sha256: identity?.source?.sha256 || null},
+        distinction: 'Fresh-state checks prove prevention from clean state. The persisted report proves recovery after a real old-code failure, preservation of frozen state, authorization, an inherited pending Transfer, and exactly-once accounting.',
       },
       commands: {
         verify: 'node case-triage/rehearsal-repair/acceptance.cjs --base <baseline-report.json> --repaired <candidate-report.json> --identity <candidate-identity.json> --patch <repair.patch> --source <applied-proposals.rs> --wasm <candidate.wasm>',
-        recovery: 'node case-triage/rehearsal-repair/persisted-recovery-acceptance.cjs --report <persisted-recovery.json> --wasm <candidate.wasm> --patch <repair.patch> --expected-wasm-sha256 <candidate.wasm sha256>',
-        recipe: 'From the pinned source commit, apply repair.patch, unpack baseline.report, candidate.report, persisted-recovery.json and candidate.wasm, then run both acceptance commands above. Check every recorded SHA-256 before running them. No absolute paths or account runtime files are included.',
+        recovery: 'node case-triage/rehearsal-repair/persisted-recovery-acceptance.cjs --report <persisted-recovery.json> --wasm <candidate.wasm> --patch <repair.patch> --source <applied-proposals.rs> --expected-wasm-sha256 <candidate.wasm sha256> --expected-patch-sha256 <repair.patch sha256> --expected-source-sha256 <applied-proposals.rs sha256>',
+        recipe: 'From the pinned source commit, apply repair.patch, unpack baseline.report, candidate.report, persisted-recovery.json, candidate.wasm and applied-proposals.rs, then run both acceptance commands above. Check every recorded SHA-256 before running them. No absolute paths or account runtime files are included.',
       },
       boundary: CASE.boundary,
     };

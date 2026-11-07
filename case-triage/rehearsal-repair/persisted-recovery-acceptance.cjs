@@ -75,6 +75,30 @@ function hasFailure(summary, executorId, needle) {
   );
 }
 
+function functionCall(summary, method) {
+  for (const action of summary?.transaction?.actions || []) {
+    if (action?.FunctionCall?.method_name !== method) continue;
+    let args = null;
+    try { args = action.FunctionCall.args ? JSON.parse(Buffer.from(action.FunctionCall.args, 'base64').toString('utf8')) : null; } catch {}
+    return {method, args, deposit: action.FunctionCall.deposit, action};
+  }
+  return null;
+}
+
+function hasAction(summary, name) {
+  return (summary?.transaction?.actions || []).some((action) => action?.[name]);
+}
+
+function assertProposalAction(summary, label, report, proposalId, action, fail) {
+  if (!summary?.transaction) { fail(`${label} has no transaction`); return; }
+  if (summary.transaction.signerId !== report?.accounts?.proposer) fail(`${label} signer is not the recorded proposer`);
+  if (summary.transaction.receiverId !== report?.accounts?.contract) fail(`${label} receiver is not the contract`);
+  const call = functionCall(summary, 'act_proposal');
+  if (!call) { fail(`${label} has no act_proposal action`); return; }
+  if (String(call.args?.id) !== String(proposalId)) fail(`${label} proposal id does not match the recorded obligation`);
+  if (call.args?.action !== action) fail(`${label} action is not ${action}`);
+}
+
 function verify(report, options = {}) {
   const errors = [];
   const fail = (message) => errors.push(message);
@@ -83,7 +107,6 @@ function verify(report, options = {}) {
   if (report?.runtime?.commit !== SANDBOX_COMMIT) fail('Sandbox commit');
   if (Number(report?.runtime?.protocol) !== SANDBOX_PROTOCOL) fail('Sandbox protocol');
   if (report?.source?.baseWasmSha256 !== BASE_WASM_SHA) fail('base WASM identity');
-  if (report?.initialization?.calls !== 1 || report?.initialization?.onlyOnce !== true) fail('contract was not initialized exactly once');
 
   // Bind the actual candidate bytes, not a report-only hash.
   if (!options.wasmPath) fail('candidate WASM file is required for byte/code identity');
@@ -139,10 +162,34 @@ function verify(report, options = {}) {
   const finalizeProbe = report?.authority?.unauthorizedFinalizeProbe;
   if (!finalizeProbe?.ok || finalizeProbe?.value?.finalExecutionStatus !== 'FINAL') fail('unauthorized finalize probe was not an executed FINAL transaction');
   else if (!hasFailure(finalizeProbe.value, report?.accounts?.contract, 'ERR_PERMISSION_DENIED')) fail('unauthorized finalize did not fail with the expected permission error');
+  // Upgrade path: deploy + migrate on the contract account, both FINAL and
+  // successful, with no initializer call. The base init is the only new().
+  const baseDeploy = report?.deploy;
+  const baseInit = report?.init;
+  if (!baseDeploy?.transaction || !baseInit?.transaction) fail('base deploy/init summaries are missing');
+  else {
+    if (baseDeploy.transaction.signerId !== report?.accounts?.contract || baseDeploy.transaction.receiverId !== report?.accounts?.contract) fail('base deploy signer/receiver is not the contract');
+    if (!hasAction(baseDeploy, 'DeployContract')) fail('base deploy has no DeployContract action');
+    if (baseInit.transaction.signerId !== report?.accounts?.factory || baseInit.transaction.receiverId !== report?.accounts?.contract) fail('base init signer/receiver does not match the recorded factory/contract');
+    if (!functionCall(baseInit, 'new')) fail('base init has no new() action');
+  }
+  const upgradeDeploy = report?.upgrade?.final;
+  const upgradeMigrate = report?.upgrade?.migrate;
+  for (const [label, summary] of [['upgrade deploy', upgradeDeploy], ['upgrade migrate', upgradeMigrate]]) {
+    receiptGraphErrors(summary, label, fail);
+    if (summary?.receiptFailure !== false) fail(`${label} did not produce a successful receipt`);
+    if (summary?.transaction?.signerId !== report?.accounts?.contract) fail(`${label} signer is not the contract`);
+    if (summary?.transaction?.receiverId !== report?.accounts?.contract) fail(`${label} receiver is not the contract`);
+  }
+  if (!hasAction(upgradeDeploy, 'DeployContract')) fail('upgrade deploy has no DeployContract action');
+  if (functionCall(upgradeDeploy, 'new')) fail('upgrade deploy unexpectedly calls new()');
+  if (!functionCall(upgradeMigrate, 'migrate')) fail('upgrade migrate has no migrate() action');
+  if (functionCall(upgradeMigrate, 'new')) fail('upgrade migrate unexpectedly calls new()');
+  if (hasAction(upgradeMigrate, 'DeployContract')) fail('upgrade migrate contains an unexpected deploy action');
   if (report?.authority?.upgradeMethod !== 'account-key deploy + private migrate') fail('upgrade method is not the declared account-key deploy/migrate path');
-  if (report?.upgrade?.final?.transaction?.signerId !== report?.accounts?.contract) fail('deploy signer is not the recorded contract account');
-  if (report?.upgrade?.migrate?.transaction?.signerId !== report?.accounts?.contract) fail('migrate signer is not the recorded contract account');
-  if (report?.firstRecovery?.final?.transaction?.signerId !== report?.accounts?.proposer) fail('finalize signer is not the recorded proposer');
+
+  assertProposalAction(report?.firstRecovery?.final, 'first recovery', report, report?.failed?.proposalId, 'Finalize', fail);
+  assertProposalAction(report?.secondRetry?.final, 'second retry', report, report?.failed?.proposalId, 'Finalize', fail);
 
   receiptGraphErrors(report?.firstRecovery?.final, 'first recovery', fail);
   receiptGraphErrors(report?.secondRetry?.final, 'second retry', fail);
@@ -209,10 +256,44 @@ function verify(report, options = {}) {
     if (afterUpgrade?.codeHash !== candidateCodeHash) fail('past-settled control was not upgraded to candidate code');
     if (!sameJson(afterUpgrade?.proposal, settled?.proposal)) fail('past-settled proposal changed across upgrade');
     if (afterUpgrade?.recipientBalance !== settled?.recipientBalance) fail('past-settled recipient changed across upgrade');
-    if (BigInt(afterUpgrade?.lockedAmount ?? '-1') !== 0n) fail('past-settled control still has locked funds');
+    if (BigInt(settled?.lockedAmount ?? '-1') !== 0n) fail('past-settled control still has locked funds');
     if (!healthy?.finalizeAttempt?.ok || healthy?.finalizeAttempt?.value?.finalExecutionStatus !== 'FINAL') fail('past-settled finalize probe was not an executed FINAL transaction');
     else if (!healthy.finalizeAttempt.value.receiptFailure || !hasFailure(healthy.finalizeAttempt.value, report?.accounts?.contract, 'ERR_PROPOSAL_NOT_IN_PROGRESS')) fail('past-settled finalize did not fail as expected');
     if (afterAttempt?.recipientBalance !== settled?.recipientBalance) fail('past-settled control paid again after finalize attempt');
+
+    // A Transfer that was still pending on the old code must survive the code
+    // replacement and pay exactly once with its bond accounted separately.
+    const pending = healthy?.pending;
+    if (!pending) {
+      fail('unpaid pending Transfer control missing');
+    } else {
+      const pendingBefore = pending.before;
+      const pendingUpgrade = pending.afterUpgrade;
+      const pendingFinal = pending.final;
+      const pendingAfter = pending.after;
+      if (pendingBefore?.proposal?.status !== 'InProgress') fail('pending Transfer was not InProgress before upgrade');
+      if (BigInt(pendingBefore?.lockedAmount ?? '-1') !== BOND) fail('pending Transfer did not lock its bond before upgrade');
+      if (pendingUpgrade?.codeHash !== candidateCodeHash) fail('pending Transfer was not preserved on candidate code');
+      if (!sameJson(pendingUpgrade?.proposal, pendingBefore?.proposal)) fail('pending Transfer proposal changed across upgrade');
+      if (String(pendingUpgrade?.lockedAmount) !== String(pendingBefore?.lockedAmount)) fail('pending Transfer bond changed across upgrade');
+      receiptGraphErrors(pendingFinal, 'pending healthy Transfer', fail);
+      if (pendingFinal?.finalExecutionStatus !== 'FINAL' || pendingFinal?.receiptFailure !== false) fail('pending healthy Transfer did not execute successfully');
+      assertProposalAction(pendingFinal, 'pending healthy Transfer', report, pending.proposalId, 'VoteApprove', fail);
+      if (pendingAfter?.proposal?.status !== 'Approved') fail('pending healthy Transfer did not end Approved');
+      const payoutBase = pending.beforePayout || healthy.afterAttempt;
+      const pendingDeltas = {
+        contract: BigInt(pendingAfter?.contractBalance ?? 0) - BigInt(payoutBase?.contractBalance ?? 0),
+        proposer: BigInt(pendingAfter?.proposerBalance ?? 0) - BigInt(payoutBase?.proposerBalance ?? 0),
+        recipient: BigInt(pendingAfter?.recipientBalance ?? 0) - BigInt(payoutBase?.recipientBalance ?? 0),
+        locked: BigInt(pendingAfter?.lockedAmount ?? 0) - BigInt(payoutBase?.lockedAmount ?? 0),
+      };
+      const pendingGas = summaryGas(pendingFinal);
+      if (pendingDeltas.locked !== -BOND) fail('pending Transfer did not clear its bond liability');
+      if (pendingDeltas.contract !== -(BOND + TRANSFER)) fail('pending Transfer contract delta is not the bond plus the transfer');
+      if (pendingDeltas.recipient !== TRANSFER) fail('pending Transfer did not pay the declared recipient exactly once');
+      if (pendingDeltas.proposer + pendingGas !== BOND) fail('pending Transfer proposer credit is not bond minus receipt-derived gas');
+      if (pendingDeltas.contract + pendingDeltas.proposer + pendingDeltas.recipient !== -pendingGas) fail('pending Transfer account deltas do not conserve transaction gas');
+    }
   }
   return errors;
 }

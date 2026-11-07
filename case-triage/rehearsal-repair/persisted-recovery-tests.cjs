@@ -86,6 +86,22 @@ reject('healthy proposal changed', (r) => { r.healthyPreservation.afterUpgrade.p
 reject('healthy paid again', (r) => {
   r.healthyPreservation.afterAttempt.recipientBalance = (BigInt(r.healthyPreservation.afterAttempt.recipientBalance) + 1n).toString();
 });
+reject('pending Transfer payout wrong', (r) => {
+  r.healthyPreservation.pending.after.recipientBalance = (BigInt(r.healthyPreservation.pending.after.recipientBalance) - 1n).toString();
+});
+reject('pending Transfer bond not returned', (r) => {
+  r.healthyPreservation.pending.after.proposerBalance = (BigInt(r.healthyPreservation.pending.after.proposerBalance) - 1n).toString();
+});
+reject('pending Transfer final not FINAL', (r) => { r.healthyPreservation.pending.final.finalExecutionStatus = 'None'; });
+reject('pending Transfer receipt failed', (r) => { r.healthyPreservation.pending.final.receiptFailure = true; });
+reject('pending Transfer signer wrong', (r) => { r.healthyPreservation.pending.final.transaction.signerId = r.accounts.recipient; });
+reject('upgrade deploy not FINAL', (r) => { r.upgrade.final.finalExecutionStatus = 'None'; });
+reject('upgrade migrate calls new', (r) => {
+  r.upgrade.migrate.transaction.actions.push({FunctionCall: {method_name: 'new', args: 'e30=', deposit: '0', gas: 1}});
+});
+reject('base init has no new', (r) => {
+  r.init.transaction.actions = r.init.transaction.actions.filter((a) => a?.FunctionCall?.method_name !== 'new');
+});
 
 console.log(JSON.stringify({
   schema: 'near-rehearsal/persisted-bond-recovery-tests/v1',
@@ -97,7 +113,7 @@ console.log(JSON.stringify({
     'second-gross', 'second-final-status', 'second-proposer-accounting', 'second-locked',
     'unauthorized-update-transport', 'unauthorized-update-evidence',
     'unauthorized-finalize-transport', 'healthy-finalize-transport', 'healthy-payout',
-    'healthy-proposal', 'healthy-paid-again',
+    'healthy-proposal', 'healthy-paid-again', 'pending-payout', 'pending-bond', 'pending-final', 'pending-failed', 'pending-signer', 'upgrade-final', 'upgrade-new', 'base-init',
   ],
   passed: true,
 }, null, 2));
