@@ -81,9 +81,28 @@ node case-triage/rehearsal-repair/controller-tests.cjs
 
 `model-prompt.md` and `controller-manifest.json` define the source-only repair
 input: one allowlisted file, no tests or build scripts, and controller-owned
-acceptance. No model call has completed; the coding CLI authentication failure
-is recorded without credentials. The authored patch is evidence for the
-controller path, not evidence of a model-generated repair.
+acceptance. `model-producer.cjs` is the inert producer adapter: it runs an
+authorized coding CLI from `MODEL_PRODUCER_CMD`, requires a unified git diff,
+and applies the same controller allowlist before writing a candidate. It does
+not apply, build or accept anything. Its preflight mode only checks whether a
+model can answer a fixed one-line prompt:
+
+```sh
+MODEL_PRODUCER_CMD='["<coding-cli>","-p","{prompt}"]' \
+  node case-triage/rehearsal-repair/model-producer.cjs --preflight
+```
+
+Current free preflight: the CLI is authenticated, but a one-line inference
+request exits `1` with `Failed to authenticate. API Error: 403 This agent's
+plan does not include this model. Continue with its configured model.` No
+model call completed, no patch was produced, and no paid fallback was used.
+The authored patch remains controller evidence only, not a model-generated
+repair.
+
+```sh
+node case-triage/rehearsal-repair/model-producer-tests.cjs
+node case-triage/rehearsal-repair/controller-tests.cjs
+```
 
 ## Next bounded step
 
