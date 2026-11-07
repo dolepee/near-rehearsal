@@ -32,6 +32,21 @@ export REPAIR_SANDBOX_DIR="$REPAIR_RUNTIME/Darwin-arm64"
 npm run doctor -- --flow repair
 ```
 
+For native Linux x86_64, the recovery CI job downloads and executes this exact 2.14.0 archive. Use its verified digest before extraction:
+
+```sh
+REPAIR_RUNTIME="$PWD/.local/sandbox-2.14.0"
+mkdir -p "$REPAIR_RUNTIME"
+curl --fail --location --max-time 300 \
+  https://s3-us-west-1.amazonaws.com/build.nearprotocol.com/nearcore/Linux-x86_64/2.14.0/near-sandbox.tar.gz \
+  --output "$REPAIR_RUNTIME/archive.tar.gz"
+echo "a0ba004218b218bd74351795e7ce2eda4a2b6af5cd3e252bd5e8bfe3c8f2e691  $REPAIR_RUNTIME/archive.tar.gz" | sha256sum -c -
+tar -xzf "$REPAIR_RUNTIME/archive.tar.gz" -C "$REPAIR_RUNTIME"
+chmod +x "$REPAIR_RUNTIME/Linux-x86_64/near-sandbox"
+export REPAIR_SANDBOX_DIR="$REPAIR_RUNTIME/Linux-x86_64"
+npm run doctor -- --flow repair
+```
+
 For manual execution on native macOS arm64, acquire the official `Darwin-arm64/2.6.2` archive and set `NEAR_SANDBOX_BIN_PATH` to its extracted directory. For Linux repair, use `Linux-x86_64/2.14.0`. These supplied-runtime paths must pass the release/commit/protocol check; do not relabel an older binary. No claim is made that arbitrary Linux arm64 hosts or Docker emulation work. Runtime downloads can take minutes and depend on network access.
 
 When serving both routes in one process, leave `NEAR_SANDBOX_BIN_PATH` and `NEAR_SANDBOX_BINARY_PATH` pointing at 2.6.2, and set `REPAIR_SANDBOX_DIR` separately to 2.14.0. Repair children select their own runtime. The launcher does not replace the manual runtime globally.
