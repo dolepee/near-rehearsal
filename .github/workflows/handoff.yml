@@ -77,3 +77,37 @@ jobs:
           SPUTNIK_OUT_DIR="$run_dir/out" node case-triage/sputnik-public-capture/local-three-branch.cjs
           CASE_DIR="$run_dir" node case-triage/sputnik-public-capture/verify-local-three.cjs
           CASE_DIR="$run_dir" node case-triage/sputnik-public-capture/negative-local-verifier-tests.cjs
+
+  repair:
+    name: Repair suites
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Install Rust 1.86.0
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+              | sh -s -- -y --profile minimal --default-toolchain 1.86.0
+          fi
+          [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+          rustup toolchain install 1.86.0 --profile minimal
+          rustup default 1.86.0
+          cargo --version
+          rustc --version
+      - name: Run Repair suites
+        run: |
+          set -euo pipefail
+          node case-triage/rehearsal-repair/codex-producer-tests.cjs
+          node case-triage/rehearsal-repair/model-producer-tests.cjs
+          node case-triage/rehearsal-repair/controller-tests.cjs
+          node case-triage/rehearsal-repair/acceptance.cjs
+          node case-triage/rehearsal-repair/acceptance-tests.cjs
+          node case-triage/rehearsal-repair/pipeline-guards-tests.cjs

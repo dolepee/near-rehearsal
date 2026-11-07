@@ -1,0 +1,22 @@
+{
+  "schema": "near-rehearsal/rebuild-check/v1",
+  "sourceCommit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b",
+  "command": "cargo build --target wasm32-unknown-unknown --release --locked -p sputnikdao2",
+  "worktrees": {
+    "base": "/workspace/near-rehearsal/rebuild-base",
+    "repaired": "/workspace/near-rehearsal/rebuild-repaired"
+  },
+  "base": {
+    "sha256": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578",
+    "matchesRecorded": true
+  },
+  "repaired": {
+    "sha256": "41001450691f372c38f8841795dcd7c3a113c62fc750bfd9a7b5e280fd3ecdf5",
+    "matchesRecorded": true
+  },
+  "reproducibleEntry": {
+    "command": "(cd sputnikdao2 && cargo near build reproducible-wasm)",
+    "run": false,
+    "reason": "cargo-near is not installed in this environment"
+  }
+}

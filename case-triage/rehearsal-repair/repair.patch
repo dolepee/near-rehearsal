@@ -1,0 +1,150 @@
+diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs
+index 3c41adf..04faf0d 100644
+--- a/sputnikdao2/src/proposals.rs
++++ b/sputnikdao2/src/proposals.rs
+@@ -336,7 +336,38 @@ impl Contract {
+         }
+     }
+ 
+-    fn internal_return_bonds(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
++    fn proposal_bond_key(proposal_id: u64) -> Vec<u8> {
++        let mut key = b"proposal_bond:".to_vec();
++        key.extend_from_slice(&proposal_id.to_le_bytes());
++        key
++    }
++
++    fn internal_return_proposal_bond(
++        &mut self,
++        proposal_id: u64,
++        policy: &Policy,
++        proposal: &Proposal,
++    ) -> PromiseOrValue<()> {
++        let key = Self::proposal_bond_key(proposal_id);
++        let bond = match env::storage_read(&key) {
++            Some(value) if value.len() == 16 => {
++                let amount = u128::from_le_bytes(value.try_into().unwrap());
++                if amount == 0 {
++                    return PromiseOrValue::Value(());
++                }
++                NearToken::from_yoctonear(amount)
++            }
++            // Legacy proposals lack a recorded amount; consume one policy bond
++            // and leave the zero sentinel so a second callback cannot refund it.
++            None => policy.proposal_bond,
++            Some(_) => return PromiseOrValue::Value(()),
++        };
++        env::storage_write(&key, &0u128.to_le_bytes());
++        self.locked_amount = self.locked_amount.saturating_sub(bond);
++        Promise::new(proposal.proposer.clone()).transfer(bond).into()
++    }
++
++    fn internal_return_bonds(&mut self, proposal_id: u64, policy: &Policy, proposal: &Proposal) -> PromiseOrValue<()> {
+         if let ProposalKind::BountyDone { .. } = &proposal.kind {
+             self.locked_amount = self.locked_amount.saturating_sub(policy.bounty_bond);
+             Promise::new(proposal.proposer.clone())
+@@ -344,8 +375,7 @@ impl Contract {
+                 .detach();
+         }
+ 
+-        self.locked_amount = self.locked_amount.saturating_sub(policy.proposal_bond);
+-        Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond)
++        self.internal_return_proposal_bond(proposal_id, policy, proposal)
+     }
+ 
+     /// Executes given proposal and updates the contract's state.
+@@ -466,12 +496,13 @@ impl Contract {
+                         .on_proposal_callback(proposal_id),
+                 )
+                 .into(),
+-            PromiseOrValue::Value(()) => self.internal_return_bonds(policy, proposal).into(),
++            PromiseOrValue::Value(()) => self.internal_return_bonds(proposal_id, policy, proposal),
+         }
+     }
+ 
+     pub(crate) fn internal_callback_proposal_success(
+         &mut self,
++        proposal_id: u64,
+         proposal: &mut Proposal,
+     ) -> PromiseOrValue<()> {
+         let policy = self.policy.get().unwrap().to_policy();
+@@ -486,27 +517,30 @@ impl Contract {
+             }
+         }
+         proposal.status = ProposalStatus::Approved;
+-        self.internal_return_bonds(&policy, proposal).into()
++        self.internal_return_bonds(proposal_id, &policy, proposal)
+     }
+ 
+     pub(crate) fn internal_callback_proposal_fail(
+         &mut self,
++        proposal_id: u64,
+         proposal: &mut Proposal,
+     ) -> PromiseOrValue<()> {
+         proposal.status = ProposalStatus::Failed;
+-        PromiseOrValue::Value(())
++        let policy = self.policy.get().unwrap().to_policy();
++        self.internal_return_proposal_bond(proposal_id, &policy, proposal)
+     }
+ 
+     /// Process rejecting proposal.
+     fn internal_reject_proposal(
+         &mut self,
++        proposal_id: u64,
+         policy: &Policy,
+         proposal: &Proposal,
+         return_bonds: bool,
+     ) -> PromiseOrValue<()> {
+         if return_bonds {
+             // Return bond to the proposer.
+-            self.internal_return_bonds(policy, proposal).detach();
++            self.internal_return_bonds(proposal_id, policy, proposal).detach();
+         }
+ 
+         let proposal_data = proposal;
+@@ -583,6 +617,10 @@ impl Contract {
+ 
+         self.proposals
+             .insert(&id, &VersionedProposal::Latest(proposal));
++        env::storage_write(
++            &Self::proposal_bond_key(id),
++            &env::attached_deposit().as_yoctonear().to_le_bytes(),
++        );
+         self.last_proposal_id += 1;
+         self.locked_amount = self.locked_amount.saturating_add(env::attached_deposit());
+         id
+@@ -642,12 +680,12 @@ impl Contract {
+                         .detach();
+                     true
+                 } else if proposal.status == ProposalStatus::Removed {
+-                    self.internal_reject_proposal(&policy, &proposal, false)
++                    self.internal_reject_proposal(id, &policy, &proposal, false)
+                         .detach();
+                     self.proposals.remove(&id);
+                     false
+                 } else if proposal.status == ProposalStatus::Rejected {
+-                    self.internal_reject_proposal(&policy, &proposal, true)
++                    self.internal_reject_proposal(id, &policy, &proposal, true)
+                         .detach();
+                     true
+                 } else {
+@@ -674,7 +712,7 @@ impl Contract {
+                             .detach();
+                     }
+                     ProposalStatus::Expired => {
+-                        self.internal_reject_proposal(&policy, &proposal, true)
++                        self.internal_reject_proposal(id, &policy, &proposal, true)
+                             .detach();
+                     }
+                     _ => {
+@@ -712,9 +750,9 @@ impl Contract {
+             "ERR_UNEXPECTED_CALLBACK_PROMISES"
+         );
+         let result = if utils::is_promise_success() {
+-            self.internal_callback_proposal_success(&mut proposal)
++            self.internal_callback_proposal_success(proposal_id, &mut proposal)
+         } else {
+-            self.internal_callback_proposal_fail(&mut proposal)
++            self.internal_callback_proposal_fail(proposal_id, &mut proposal)
+         };
+         self.proposals
+             .insert(&proposal_id, &VersionedProposal::Latest(proposal));

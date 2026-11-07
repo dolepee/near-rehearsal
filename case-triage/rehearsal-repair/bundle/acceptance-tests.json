@@ -1,0 +1,24 @@
+accepted: base reproduction plus repaired control
+rejected: partial source repair (Transfer-only bond return)
+rejected: base failed branch hides the stranded bond
+rejected: repair double-returns the bond
+rejected: healthy payout missing
+rejected: failed proposal marked approved
+rejected: repaired artifact identity changed
+rejected: unauthorized callback recorded as accepted
+rejected: healthy beneficiary changed
+{
+  "schema": "near-rehearsal/repair-acceptance-tests/v1",
+  "positiveControl": true,
+  "cases": [
+    "base-stranded-bond",
+    "double-refund",
+    "missing-payout",
+    "false-failed-status",
+    "artifact-identity",
+    "unauthorized-callback",
+    "beneficiary-immutability",
+    "partial-source-repair"
+  ],
+  "passed": true
+}

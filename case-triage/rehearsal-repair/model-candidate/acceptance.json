@@ -1,0 +1,12 @@
+{
+  "schema": "near-rehearsal/repair-acceptance/v1",
+  "ok": true,
+  "candidateIdentity": true,
+  "frozenStateEqual": true,
+  "policyEqual": true,
+  "withinRunBeforeEqual": true,
+  "baseFailedContractDelta": "1000000000000000000000000",
+  "repairedFailedContractDelta": "0",
+  "repairedFailedProposerDelta": "-933328001216500000000",
+  "errors": []
+}

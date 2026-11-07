@@ -1,0 +1,1574 @@
+{
+  "schema": "near-rehearsal/issue238-local/v1",
+  "generatedAt": "2026-11-07T15:02:57.906Z",
+  "source": {
+    "repository": "https://github.com/near-daos/sputnik-dao-contract",
+    "commit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b",
+    "issue": "https://github.com/near-daos/sputnik-dao-contract/issues/238",
+    "wasmSha256": "539f1bb88d00dc8cc7153a7d6d00a3cbeab1579fd1fdfc2931d36e85adc710ff",
+    "wasmHash": "6dRZCKJ3rWtKCxfXYgVbnhxhzx2vtdQVznpXX54E2VdG"
+  },
+  "runtime": {
+    "nearWorkspaces": "5.0.0",
+    "sandbox": "2.14.0",
+    "commit": "bc4e9e8cfb03d9e82f027883055624e18576993e",
+    "protocol": 88,
+    "binary": "/workspace/tools/near-sandbox-2.14-wrapper/near-sandbox",
+    "binarySha256": "6fb550b3cda8d877e86b9da7aed7f6dffe4a320c59def0dc6fd016e65d8605c2",
+    "targetSha256": "6fb550b3cda8d877e86b9da7aed7f6dffe4a320c59def0dc6fd016e65d8605c2",
+    "versionOutput": "neard (release 2.14.0) (build 2.14.0) (commit bc4e9e8cfb03d9e82f027883055624e18576993e) (rustc 1.95.0) (min_protocol 84) (protocol 88) (db 51)\nfeatures: [default, dump_test_contract, json_rpc, near_dump_test_contract, rosetta_rpc, sandbox]\n\n<jemalloc>: MADV_DONTNEED does not work (memset will be used instead)\n<jemalloc>: (This is the expected behaviour if you are running under QEMU)"
+  },
+  "healthy": {
+    "label": "healthy-control",
+    "kind": {
+      "Transfer": {
+        "token_id": "",
+        "receiver_id": "recipient.test.near",
+        "amount": "100000000000000000000000",
+        "msg": null
+      }
+    },
+    "unauthorizedCallback": {
+      "transactionHash": "GZpQ6W1CAmvjZrWgYSL5XbConGV4c8Ft2MvPs8MWS7Sg",
+      "succeeded": true,
+      "transactionOutcomeStatus": {
+        "SuccessReceiptId": "FG7WRSSbbV1FYjNmVdSzvp534hTqNGerBPWxooyYi97j"
+      },
+      "transactionOutcomeGasBurnt": "309823797455",
+      "transactionOutcomeTokensBurntYocto": "30982379745500000000",
+      "receiptTokensBurntYocto": "150534832541300000000",
+      "totalTokensBurntYocto": "181517212286800000000",
+      "receipts": [
+        {
+          "id": "FG7WRSSbbV1FYjNmVdSzvp534hTqNGerBPWxooyYi97j",
+          "receiptIds": [
+            "GwNt2DxSQRkyA8qe5sjGAcVzbQWYhgotbGDHdteThUD5"
+          ],
+          "executorId": "dao.test.near",
+          "status": {
+            "Failure": {
+              "ActionError": {
+                "index": 0,
+                "kind": {
+                  "FunctionCallError": {
+                    "ExecutionError": "Smart contract panicked: Method on_proposal_callback is private"
+                  }
+                }
+              }
+            }
+          },
+          "gasBurntUnits": "1505348325413",
+          "tokensBurntYocto": "150534832541300000000",
+          "logs": []
+        },
+        {
+          "id": "GwNt2DxSQRkyA8qe5sjGAcVzbQWYhgotbGDHdteThUD5",
+          "receiptIds": [],
+          "executorId": "proposer.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "logs": []
+        }
+      ],
+      "transaction": {
+        "signerId": "proposer.test.near",
+        "receiverId": "dao.test.near",
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJwcm9wb3NhbF9pZCI6MH0=",
+              "deposit": "0",
+              "gas": 300000000000000,
+              "method_name": "on_proposal_callback"
+            }
+          }
+        ]
+      }
+    },
+    "afterUnauthorized": {
+      "contract": "99896163562351742600000000",
+      "proposer": "99998963255661691200000000",
+      "recipient": "10100000000000000000000000",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "CAAAAGlzc3VlMjM4JwAAAGJvdW5kZWQgbG9jYWwgc291cmNlLWJ1aWx0IHJlcHJvZHVjdGlvbgAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "AwAAAAAAAAAA",
+          "value": "ARIAAABwcm9wb3Nlci50ZXN0Lm5lYXIYAAAAaGVhbHRoeS1jb250cm9sIHByb3Bvc2FsBwAAAAATAAAAcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAASAAAAcHJvcG9zZXIudGVzdC5uZWFyALlOUvtiy+UYAgAAACUAAAAAAAAALAAAAAAAAAA="
+        },
+        {
+          "key": "cHJvcG9zYWxfYm9uZDoAAAAAAAAAAA==",
+          "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAQAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcCAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAACUAAAAAAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAAiwAAAAAAAAA"
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ]
+    },
+    "contractId": "dao.test.near",
+    "proposerId": "proposer.test.near",
+    "recipientId": "recipient.test.near",
+    "artifacts": {
+      "wasmSha256": "539f1bb88d00dc8cc7153a7d6d00a3cbeab1579fd1fdfc2931d36e85adc710ff",
+      "wasmHash": "6dRZCKJ3rWtKCxfXYgVbnhxhzx2vtdQVznpXX54E2VdG",
+      "wasmBytes": 529218
+    },
+    "deploy": {
+      "final": "FINAL",
+      "summary": {
+        "transactionHash": "CaguGzsRjonLAXpuUAjo1VYFRGsmgbGrc4EnqEoZb6kN",
+        "succeeded": true,
+        "transactionOutcomeStatus": {
+          "SuccessReceiptId": "98x2Cu2WcUvYBXai4ifJntwPEMRZ3fiLGeMomdPVCqaY"
+        },
+        "transactionOutcomeGasBurnt": "3898386954782",
+        "transactionOutcomeTokensBurntYocto": "389838695478200000000",
+        "receiptTokensBurntYocto": "3446598952779200000000",
+        "totalTokensBurntYocto": "3836437648257400000000",
+        "receipts": [
+          {
+            "id": "98x2Cu2WcUvYBXai4ifJntwPEMRZ3fiLGeMomdPVCqaY",
+            "receiptIds": [
+              "7WoYdQSNQA8xkTduvuH2SEnQxx9Btzy8jEwGmbAJMFHX"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "34465989527792",
+            "tokensBurntYocto": "3446598952779200000000",
+            "logs": []
+          },
+          {
+            "id": "7WoYdQSNQA8xkTduvuH2SEnQxx9Btzy8jEwGmbAJMFHX",
+            "receiptIds": [],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "dao.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "DeployContract": {
+                "code": "U58buI0A3IzHFTp9bQCjy+qxV5/R/fwpMdNuha3HEP8="
+              }
+            }
+          ]
+        }
+      }
+    },
+    "add": {
+      "proposalId": 0,
+      "final": "FINAL",
+      "summary": {
+        "transactionHash": "DV3iNTxHerJFNBbiQfa399d9V1pQUnxhQitpyvZ3jo1D",
+        "succeeded": true,
+        "transactionOutcomeStatus": {
+          "SuccessReceiptId": "ijbwGwozpFonZ8AamFojN4tTmkjfhUK5KN2AHgeNRr5"
+        },
+        "transactionOutcomeGasBurnt": "316928670990",
+        "transactionOutcomeTokensBurntYocto": "31692867099000000000",
+        "receiptTokensBurntYocto": "210053860273900000000",
+        "totalTokensBurntYocto": "241746727372900000000",
+        "receipts": [
+          {
+            "id": "ijbwGwozpFonZ8AamFojN4tTmkjfhUK5KN2AHgeNRr5",
+            "receiptIds": [
+              "ADcEFer1ak9rEjmYypJ5TEF8TzBZCSfFUoas8WEmDTBy"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": "MA=="
+            },
+            "gasBurntUnits": "2100538602739",
+            "tokensBurntYocto": "210053860273900000000",
+            "logs": []
+          },
+          {
+            "id": "ADcEFer1ak9rEjmYypJ5TEF8TzBZCSfFUoas8WEmDTBy",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "proposer.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJwcm9wb3NhbCI6eyJkZXNjcmlwdGlvbiI6ImhlYWx0aHktY29udHJvbCBwcm9wb3NhbCIsImtpbmQiOnsiVHJhbnNmZXIiOnsidG9rZW5faWQiOiIiLCJyZWNlaXZlcl9pZCI6InJlY2lwaWVudC50ZXN0Lm5lYXIiLCJhbW91bnQiOiIxMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJtc2ciOm51bGx9fX19",
+                "deposit": "1000000000000000000000000",
+                "gas": 300000000000000,
+                "method_name": "add_proposal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "vote": {
+      "final": "FINAL",
+      "summary": {
+        "transactionHash": "6XEUcwDxSFWVFQGZpm52iK2Nr5GT2ukBvrnBmnhs4zr2",
+        "succeeded": true,
+        "transactionOutcomeStatus": {
+          "SuccessReceiptId": "CnS7PX9b2zir3gH1yYAba3zMzKU1cwmQq2FjSkghWu4N"
+        },
+        "transactionOutcomeGasBurnt": "315974996690",
+        "transactionOutcomeTokensBurntYocto": "31597499669000000000",
+        "receiptTokensBurntYocto": "581882898980100000000",
+        "totalTokensBurntYocto": "613480398649100000000",
+        "receipts": [
+          {
+            "id": "CnS7PX9b2zir3gH1yYAba3zMzKU1cwmQq2FjSkghWu4N",
+            "receiptIds": [
+              "8qbt7Amm7TeZazt1SMmV1HKsrMZesQvXgT9ySEf7ExGC",
+              "2DD2z56vYqZPxnsQGqQK8WjoJZuh5eVYZJj8c3VBjeC9",
+              "Gsz769uWNDbMSyDFrudv3yEaLkzLkaF2qNRZwdGTZNaX"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "2885059633505",
+            "tokensBurntYocto": "288505963350500000000",
+            "logs": []
+          },
+          {
+            "id": "8qbt7Amm7TeZazt1SMmV1HKsrMZesQvXgT9ySEf7ExGC",
+            "receiptIds": [
+              "4Y2BEnWqvtEppm9opKUkXu34DWiSHkFTTGJHpnHW67TD"
+            ],
+            "executorId": "recipient.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "22318256250000000000",
+            "logs": []
+          },
+          {
+            "id": "4Y2BEnWqvtEppm9opKUkXu34DWiSHkFTTGJHpnHW67TD",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "2DD2z56vYqZPxnsQGqQK8WjoJZuh5eVYZJj8c3VBjeC9",
+            "receiptIds": [
+              "HqRnDY6b19PDdTVxkygBgqwVUEaxffGAavCcckJ7tP5C",
+              "FKE7w9EuUvCNcncyDoJKutvRUmyoiDbF1SEt9QdCyUyN"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessReceiptId": "HqRnDY6b19PDdTVxkygBgqwVUEaxffGAavCcckJ7tP5C"
+            },
+            "gasBurntUnits": "2487404231296",
+            "tokensBurntYocto": "248740423129600000000",
+            "logs": []
+          },
+          {
+            "id": "HqRnDY6b19PDdTVxkygBgqwVUEaxffGAavCcckJ7tP5C",
+            "receiptIds": [
+              "FWUomDYCakNAs1ihe2uPdSsCfqXHhGuYkexXRsXp8L97"
+            ],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "22318256250000000000",
+            "logs": []
+          },
+          {
+            "id": "FWUomDYCakNAs1ihe2uPdSsCfqXHhGuYkexXRsXp8L97",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "FKE7w9EuUvCNcncyDoJKutvRUmyoiDbF1SEt9QdCyUyN",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "Gsz769uWNDbMSyDFrudv3yEaLkzLkaF2qNRZwdGTZNaX",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "proposer.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MCwiYWN0aW9uIjoiVm90ZUFwcHJvdmUiLCJwcm9wb3NhbCI6eyJUcmFuc2ZlciI6eyJ0b2tlbl9pZCI6IiIsInJlY2VpdmVyX2lkIjoicmVjaXBpZW50LnRlc3QubmVhciIsImFtb3VudCI6IjEwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCIsIm1zZyI6bnVsbH19fQ==",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "act_proposal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "before": {
+      "contract": "99996163562351742600000000",
+      "proposer": "100000000000000000000000000",
+      "recipient": "10000000000000000000000000",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "CAAAAGlzc3VlMjM4JwAAAGJvdW5kZWQgbG9jYWwgc291cmNlLWJ1aWx0IHJlcHJvZHVjdGlvbgAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAAAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcAAAAA"
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ],
+      "policy": {
+        "roles": [
+          {
+            "name": "all",
+            "kind": "Everyone",
+            "permissions": [
+              "*:AddProposal"
+            ],
+            "vote_policy": {}
+          },
+          {
+            "name": "council",
+            "kind": {
+              "Group": [
+                "proposer.test.near"
+              ]
+            },
+            "permissions": [
+              "*:AddProposal",
+              "*:Finalize",
+              "*:VoteReject",
+              "*:VoteApprove",
+              "*:VoteRemove"
+            ],
+            "vote_policy": {}
+          }
+        ],
+        "default_vote_policy": {
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [
+            1,
+            2
+          ]
+        },
+        "proposal_bond": "1000000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "1000000000000000000000000",
+        "bounty_forgiveness_period": "86400000000000"
+      }
+    },
+    "afterAdd": {
+      "contract": "100996163562351742600000000",
+      "proposer": "98999758253272627100000000",
+      "recipient": "10000000000000000000000000",
+      "proposal": {
+        "id": 0,
+        "proposer": "proposer.test.near",
+        "description": "healthy-control proposal",
+        "kind": {
+          "Transfer": {
+            "token_id": "",
+            "receiver_id": "recipient.test.near",
+            "amount": "100000000000000000000000",
+            "msg": null
+          }
+        },
+        "status": "InProgress",
+        "vote_counts": {},
+        "votes": {},
+        "submission_time": "1794063652560719545",
+        "last_actions_log": [
+          {
+            "block_height": "37"
+          }
+        ]
+      }
+    },
+    "after": {
+      "contract": "99896163562351742600000000",
+      "proposer": "99999144772873978000000000",
+      "recipient": "10100000000000000000000000",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "CAAAAGlzc3VlMjM4JwAAAGJvdW5kZWQgbG9jYWwgc291cmNlLWJ1aWx0IHJlcHJvZHVjdGlvbgAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "AwAAAAAAAAAA",
+          "value": "ARIAAABwcm9wb3Nlci50ZXN0Lm5lYXIYAAAAaGVhbHRoeS1jb250cm9sIHByb3Bvc2FsBwAAAAATAAAAcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAASAAAAcHJvcG9zZXIudGVzdC5uZWFyALlOUvtiy+UYAgAAACUAAAAAAAAALAAAAAAAAAA="
+        },
+        {
+          "key": "cHJvcG9zYWxfYm9uZDoAAAAAAAAAAA==",
+          "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAQAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcCAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAACUAAAAAAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAAiwAAAAAAAAA"
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ],
+      "policy": {
+        "roles": [
+          {
+            "name": "all",
+            "kind": "Everyone",
+            "permissions": [
+              "*:AddProposal"
+            ],
+            "vote_policy": {}
+          },
+          {
+            "name": "council",
+            "kind": {
+              "Group": [
+                "proposer.test.near"
+              ]
+            },
+            "permissions": [
+              "*:AddProposal",
+              "*:VoteApprove",
+              "*:VoteReject",
+              "*:Finalize",
+              "*:VoteRemove"
+            ],
+            "vote_policy": {}
+          }
+        ],
+        "default_vote_policy": {
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [
+            1,
+            2
+          ]
+        },
+        "proposal_bond": "1000000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "1000000000000000000000000",
+        "bounty_forgiveness_period": "86400000000000"
+      },
+      "proposal": {
+        "id": 0,
+        "proposer": "proposer.test.near",
+        "description": "healthy-control proposal",
+        "kind": {
+          "Transfer": {
+            "token_id": "",
+            "receiver_id": "recipient.test.near",
+            "amount": "100000000000000000000000",
+            "msg": null
+          }
+        },
+        "status": "Approved",
+        "vote_counts": {
+          "council": [
+            "1",
+            "0",
+            "0"
+          ]
+        },
+        "votes": {
+          "proposer.test.near": "Approve"
+        },
+        "submission_time": "1794063652560719545",
+        "last_actions_log": [
+          {
+            "block_height": "37"
+          },
+          {
+            "block_height": "44"
+          }
+        ]
+      }
+    },
+    "retry": {
+      "final": "FINAL",
+      "summary": {
+        "transactionHash": "8THWxdv9SEk5Qozsk1pjaY9rRD1gr1vLWhjJMSmmwdw3",
+        "succeeded": true,
+        "transactionOutcomeStatus": {
+          "SuccessReceiptId": "2waDXLQPMvzjzKPdauF6MYLjVUHxmQgejTqfCeHdhgAU"
+        },
+        "transactionOutcomeGasBurnt": "315831945545",
+        "transactionOutcomeTokensBurntYocto": "31583194554500000000",
+        "receiptTokensBurntYocto": "194705911158500000000",
+        "totalTokensBurntYocto": "226289105713000000000",
+        "receipts": [
+          {
+            "id": "2waDXLQPMvzjzKPdauF6MYLjVUHxmQgejTqfCeHdhgAU",
+            "receiptIds": [
+              "ZrxfZi9hPrXv4ku3NQ7ma3m6orGdxYNLSyf4BhJDEDU"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "Failure": {
+                "ActionError": {
+                  "index": 0,
+                  "kind": {
+                    "FunctionCallError": {
+                      "ExecutionError": "Smart contract panicked: panicked at sputnikdao2/src/policy.rs:386:9:\nERR_PROPOSAL_NOT_IN_PROGRESS"
+                    }
+                  }
+                }
+              }
+            },
+            "gasBurntUnits": "1947059111585",
+            "tokensBurntYocto": "194705911158500000000",
+            "logs": []
+          },
+          {
+            "id": "ZrxfZi9hPrXv4ku3NQ7ma3m6orGdxYNLSyf4BhJDEDU",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "proposer.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MCwiYWN0aW9uIjoiRmluYWxpemUiLCJwcm9wb3NhbCI6eyJUcmFuc2ZlciI6eyJ0b2tlbl9pZCI6IiIsInJlY2VpdmVyX2lkIjoicmVjaXBpZW50LnRlc3QubmVhciIsImFtb3VudCI6IjEwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCIsIm1zZyI6bnVsbH19fQ==",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "act_proposal"
+              }
+            }
+          ]
+        }
+      },
+      "before": {
+        "contract": "99896163562351742600000000",
+        "proposer": "99998963255661691200000000",
+        "recipient": "10100000000000000000000000",
+        "state": [
+          {
+            "key": "AA==",
+            "value": "CAAAAGlzc3VlMjM4JwAAAGJvdW5kZWQgbG9jYWwgc291cmNlLWJ1aWx0IHJlcHJvZHVjdGlvbgAAAAA="
+          },
+          {
+            "key": "AQ==",
+            "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+          },
+          {
+            "key": "AwAAAAAAAAAA",
+            "value": "ARIAAABwcm9wb3Nlci50ZXN0Lm5lYXIYAAAAaGVhbHRoeS1jb250cm9sIHByb3Bvc2FsBwAAAAATAAAAcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAASAAAAcHJvcG9zZXIudGVzdC5uZWFyALlOUvtiy+UYAgAAACUAAAAAAAAALAAAAAAAAAA="
+          },
+          {
+            "key": "cHJvcG9zYWxfYm9uZDoAAAAAAAAAAA==",
+            "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+          },
+          {
+            "key": "RkFDVE9SWQ==",
+            "value": "CQAAAHRlc3QubmVhcgE="
+          },
+          {
+            "key": "U1RBVEU=",
+            "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAQAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcCAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAACUAAAAAAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAAiwAAAAAAAAA"
+          },
+          {
+            "key": "U1RBVEVWRVJTSU9O",
+            "value": "AQ=="
+          }
+        ]
+      },
+      "after": {
+        "contract": "99896163562351742600000000",
+        "proposer": "99998736966555978200000000",
+        "recipient": "10100000000000000000000000",
+        "state": [
+          {
+            "key": "AA==",
+            "value": "CAAAAGlzc3VlMjM4JwAAAGJvdW5kZWQgbG9jYWwgc291cmNlLWJ1aWx0IHJlcHJvZHVjdGlvbgAAAAA="
+          },
+          {
+            "key": "AQ==",
+            "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+          },
+          {
+            "key": "AwAAAAAAAAAA",
+            "value": "ARIAAABwcm9wb3Nlci50ZXN0Lm5lYXIYAAAAaGVhbHRoeS1jb250cm9sIHByb3Bvc2FsBwAAAAATAAAAcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAASAAAAcHJvcG9zZXIudGVzdC5uZWFyALlOUvtiy+UYAgAAACUAAAAAAAAALAAAAAAAAAA="
+          },
+          {
+            "key": "cHJvcG9zYWxfYm9uZDoAAAAAAAAAAA==",
+            "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+          },
+          {
+            "key": "RkFDVE9SWQ==",
+            "value": "CQAAAHRlc3QubmVhcgE="
+          },
+          {
+            "key": "U1RBVEU=",
+            "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAQAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcCAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAACUAAAAAAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAAiwAAAAAAAAA"
+          },
+          {
+            "key": "U1RBVEVWRVJTSU9O",
+            "value": "AQ=="
+          }
+        ],
+        "proposal": {
+          "id": 0,
+          "proposer": "proposer.test.near",
+          "description": "healthy-control proposal",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "Approved",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "proposer.test.near": "Approve"
+          },
+          "submission_time": "1794063652560719545",
+          "last_actions_log": [
+            {
+              "block_height": "37"
+            },
+            {
+              "block_height": "44"
+            }
+          ]
+        }
+      },
+      "deltas": {
+        "contract": "0",
+        "proposer": "-226289105713000000000",
+        "recipient": "0"
+      },
+      "stateChanged": false
+    },
+    "deltas": {
+      "contract": "-100000000000000000000000",
+      "proposer": "-855227126022000000000",
+      "recipient": "100000000000000000000000"
+    },
+    "stateChanged": true,
+    "bondDeclaredYocto": "1000000000000000000000000",
+    "transferDeclaredYocto": "100000000000000000000000"
+  },
+  "failed": {
+    "label": "failed-async",
+    "kind": {
+      "FunctionCall": {
+        "receiver_id": "missing-target.test.near",
+        "actions": [
+          {
+            "method_name": "ping",
+            "args": "",
+            "deposit": "0",
+            "gas": "20000000000000"
+          }
+        ]
+      }
+    },
+    "unauthorizedCallback": {
+      "transactionHash": "DuMU7otzN1ZHDjkAEp2KBQ1yYWnVCb4NSsy8jDn4RU4a",
+      "succeeded": true,
+      "transactionOutcomeStatus": {
+        "SuccessReceiptId": "2Tb7WQSXjV8DC4LEFKgmg2evgLtBaSYLSxCyaSA9vRqF"
+      },
+      "transactionOutcomeGasBurnt": "309823797455",
+      "transactionOutcomeTokensBurntYocto": "30982379745500000000",
+      "receiptTokensBurntYocto": "150534832541300000000",
+      "totalTokensBurntYocto": "181517212286800000000",
+      "receipts": [
+        {
+          "id": "2Tb7WQSXjV8DC4LEFKgmg2evgLtBaSYLSxCyaSA9vRqF",
+          "receiptIds": [
+            "A2CR3qdwXmCcARn9BnuVgTbS7phwyAjKNZnVTSKHuLkU"
+          ],
+          "executorId": "dao.test.near",
+          "status": {
+            "Failure": {
+              "ActionError": {
+                "index": 0,
+                "kind": {
+                  "FunctionCallError": {
+                    "ExecutionError": "Smart contract panicked: Method on_proposal_callback is private"
+                  }
+                }
+              }
+            }
+          },
+          "gasBurntUnits": "1505348325413",
+          "tokensBurntYocto": "150534832541300000000",
+          "logs": []
+        },
+        {
+          "id": "A2CR3qdwXmCcARn9BnuVgTbS7phwyAjKNZnVTSKHuLkU",
+          "receiptIds": [],
+          "executorId": "proposer.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "logs": []
+        }
+      ],
+      "transaction": {
+        "signerId": "proposer.test.near",
+        "receiverId": "dao.test.near",
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJwcm9wb3NhbF9pZCI6MH0=",
+              "deposit": "0",
+              "gas": 300000000000000,
+              "method_name": "on_proposal_callback"
+            }
+          }
+        ]
+      }
+    },
+    "afterUnauthorized": {
+      "contract": "99996163562351742600000000",
+      "proposer": "99998885096126663300000000",
+      "recipient": "10000000000000000000000000",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "CAAAAGlzc3VlMjM4JwAAAGJvdW5kZWQgbG9jYWwgc291cmNlLWJ1aWx0IHJlcHJvZHVjdGlvbgAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "AwAAAAAAAAAA",
+          "value": "ARIAAABwcm9wb3Nlci50ZXN0Lm5lYXIVAAAAZmFpbGVkLWFzeW5jIHByb3Bvc2FsBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAASAAAAcHJvcG9zZXIudGVzdC5uZWFyABPSKsV6y+UYAgAAACQAAAAAAAAALAAAAAAAAAA="
+        },
+        {
+          "key": "cHJvcG9zYWxfYm9uZDoAAAAAAAAAAA==",
+          "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAQAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcCAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAACQAAAAAAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAAiwAAAAAAAAA"
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ]
+    },
+    "contractId": "dao.test.near",
+    "proposerId": "proposer.test.near",
+    "recipientId": "recipient.test.near",
+    "artifacts": {
+      "wasmSha256": "539f1bb88d00dc8cc7153a7d6d00a3cbeab1579fd1fdfc2931d36e85adc710ff",
+      "wasmHash": "6dRZCKJ3rWtKCxfXYgVbnhxhzx2vtdQVznpXX54E2VdG",
+      "wasmBytes": 529218
+    },
+    "deploy": {
+      "final": "FINAL",
+      "summary": {
+        "transactionHash": "E5KZdzxt4ZaUKwJcZLG7UYvf2jRWoB6MVauNWak3c191",
+        "succeeded": true,
+        "transactionOutcomeStatus": {
+          "SuccessReceiptId": "ACqDM28nrjbGRWiowCddpW6pHvs3E9yEJb6Uu5uZgJJX"
+        },
+        "transactionOutcomeGasBurnt": "3898386954782",
+        "transactionOutcomeTokensBurntYocto": "389838695478200000000",
+        "receiptTokensBurntYocto": "3446598952779200000000",
+        "totalTokensBurntYocto": "3836437648257400000000",
+        "receipts": [
+          {
+            "id": "ACqDM28nrjbGRWiowCddpW6pHvs3E9yEJb6Uu5uZgJJX",
+            "receiptIds": [
+              "GXjWdCKkDHLd47TzF3a7aCXyLr65EyJCf9pEX3hiGyHv"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "34465989527792",
+            "tokensBurntYocto": "3446598952779200000000",
+            "logs": []
+          },
+          {
+            "id": "GXjWdCKkDHLd47TzF3a7aCXyLr65EyJCf9pEX3hiGyHv",
+            "receiptIds": [],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "dao.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "DeployContract": {
+                "code": "U58buI0A3IzHFTp9bQCjy+qxV5/R/fwpMdNuha3HEP8="
+              }
+            }
+          ]
+        }
+      }
+    },
+    "add": {
+      "proposalId": 0,
+      "final": "FINAL",
+      "summary": {
+        "transactionHash": "S75ZwXK83tr3Yx6SznhbLjkW2LbwuE97vXqDU6inSaN",
+        "succeeded": true,
+        "transactionOutcomeStatus": {
+          "SuccessReceiptId": "9F9ExrkPPY9GwWwKbPMqpkLn6xakZX8FsNR5Aa6yHygi"
+        },
+        "transactionOutcomeGasBurnt": "318216131295",
+        "transactionOutcomeTokensBurntYocto": "31821613129500000000",
+        "receiptTokensBurntYocto": "210381953663500000000",
+        "totalTokensBurntYocto": "242203566793000000000",
+        "receipts": [
+          {
+            "id": "9F9ExrkPPY9GwWwKbPMqpkLn6xakZX8FsNR5Aa6yHygi",
+            "receiptIds": [
+              "9keCpVQn8QFCzqJTbAdyABxYf3n1Xhp33Fhu6T61PVEK"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": "MA=="
+            },
+            "gasBurntUnits": "2103819536635",
+            "tokensBurntYocto": "210381953663500000000",
+            "logs": []
+          },
+          {
+            "id": "9keCpVQn8QFCzqJTbAdyABxYf3n1Xhp33Fhu6T61PVEK",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "proposer.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJwcm9wb3NhbCI6eyJkZXNjcmlwdGlvbiI6ImZhaWxlZC1hc3luYyBwcm9wb3NhbCIsImtpbmQiOnsiRnVuY3Rpb25DYWxsIjp7InJlY2VpdmVyX2lkIjoibWlzc2luZy10YXJnZXQudGVzdC5uZWFyIiwiYWN0aW9ucyI6W3sibWV0aG9kX25hbWUiOiJwaW5nIiwiYXJncyI6IiIsImRlcG9zaXQiOiIwIiwiZ2FzIjoiMjAwMDAwMDAwMDAwMDAifV19fX19",
+                "deposit": "1000000000000000000000000",
+                "gas": 300000000000000,
+                "method_name": "add_proposal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "vote": {
+      "final": "FINAL",
+      "summary": {
+        "transactionHash": "HpGTb94RT8p9X93VPdATLNXSCfivMqX3j46EeSQsouNY",
+        "succeeded": true,
+        "transactionOutcomeStatus": {
+          "SuccessReceiptId": "9WcmoUcEG7oXyiLQc2yuKBr2UZWJHycjmQYHtQf11T5p"
+        },
+        "transactionOutcomeGasBurnt": "317405508140",
+        "transactionOutcomeTokensBurntYocto": "31740550814000000000",
+        "receiptTokensBurntYocto": "659442543442900000000",
+        "totalTokensBurntYocto": "691183094256900000000",
+        "receipts": [
+          {
+            "id": "9WcmoUcEG7oXyiLQc2yuKBr2UZWJHycjmQYHtQf11T5p",
+            "receiptIds": [
+              "EWGBbefy3kRiQekNAvWLR2HBxZyXmJkvYgkrhe3cacM9",
+              "2jchWhDcD6YtrVhmjTP3nmGPrF2vSqMnoecWUhN3nvXo",
+              "5SyDWe5kevvcF8k4YRk8L9v7u95tCKpUqAp7ZWt8JwsC"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "2988972570244",
+            "tokensBurntYocto": "298897257024400000000",
+            "logs": []
+          },
+          {
+            "id": "EWGBbefy3kRiQekNAvWLR2HBxZyXmJkvYgkrhe3cacM9",
+            "receiptIds": [
+              "GpV3AmDvNEskvvCrAbUoQtmsC4jjG4HM5kruWBHZB8sd"
+            ],
+            "executorId": "missing-target.test.near",
+            "status": {
+              "Failure": {
+                "ActionError": {
+                  "index": 0,
+                  "kind": {
+                    "AccountDoesNotExist": {
+                      "account_id": "missing-target.test.near"
+                    }
+                  }
+                }
+              }
+            },
+            "gasBurntUnits": "888068443736",
+            "tokensBurntYocto": "88806844373600000000",
+            "logs": []
+          },
+          {
+            "id": "GpV3AmDvNEskvvCrAbUoQtmsC4jjG4HM5kruWBHZB8sd",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "2jchWhDcD6YtrVhmjTP3nmGPrF2vSqMnoecWUhN3nvXo",
+            "receiptIds": [
+              "8HajD2vS7fuPphsfhQ5efMJuSZqPNzC43EyMCsWE3XZd",
+              "9fanruheVoubsTTtvnL8NQ7ddnio2aGjNkEPvCew6HFa"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessReceiptId": "8HajD2vS7fuPphsfhQ5efMJuSZqPNzC43EyMCsWE3XZd"
+            },
+            "gasBurntUnits": "2494201857949",
+            "tokensBurntYocto": "249420185794900000000",
+            "logs": []
+          },
+          {
+            "id": "8HajD2vS7fuPphsfhQ5efMJuSZqPNzC43EyMCsWE3XZd",
+            "receiptIds": [
+              "FMxKDkugU1LGE38zyuHAbR5vVFQVSnPU1hAifsUpTd6y"
+            ],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "22318256250000000000",
+            "logs": []
+          },
+          {
+            "id": "FMxKDkugU1LGE38zyuHAbR5vVFQVSnPU1hAifsUpTd6y",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "9fanruheVoubsTTtvnL8NQ7ddnio2aGjNkEPvCew6HFa",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "5SyDWe5kevvcF8k4YRk8L9v7u95tCKpUqAp7ZWt8JwsC",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "proposer.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MCwiYWN0aW9uIjoiVm90ZUFwcHJvdmUiLCJwcm9wb3NhbCI6eyJGdW5jdGlvbkNhbGwiOnsicmVjZWl2ZXJfaWQiOiJtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIiLCJhY3Rpb25zIjpbeyJtZXRob2RfbmFtZSI6InBpbmciLCJhcmdzIjoiIiwiZGVwb3NpdCI6IjAiLCJnYXMiOiIyMDAwMDAwMDAwMDAwMCJ9XX19fQ==",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "act_proposal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "before": {
+      "contract": "99996163562351742600000000",
+      "proposer": "100000000000000000000000000",
+      "recipient": "10000000000000000000000000",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "CAAAAGlzc3VlMjM4JwAAAGJvdW5kZWQgbG9jYWwgc291cmNlLWJ1aWx0IHJlcHJvZHVjdGlvbgAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAAAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcAAAAA"
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ],
+      "policy": {
+        "roles": [
+          {
+            "name": "all",
+            "kind": "Everyone",
+            "permissions": [
+              "*:AddProposal"
+            ],
+            "vote_policy": {}
+          },
+          {
+            "name": "council",
+            "kind": {
+              "Group": [
+                "proposer.test.near"
+              ]
+            },
+            "permissions": [
+              "*:AddProposal",
+              "*:Finalize",
+              "*:VoteReject",
+              "*:VoteApprove",
+              "*:VoteRemove"
+            ],
+            "vote_policy": {}
+          }
+        ],
+        "default_vote_policy": {
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [
+            1,
+            2
+          ]
+        },
+        "proposal_bond": "1000000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "1000000000000000000000000",
+        "bounty_forgiveness_period": "86400000000000"
+      }
+    },
+    "afterAdd": {
+      "contract": "100996163562351742600000000",
+      "proposer": "98999757796433207000000000",
+      "recipient": "10000000000000000000000000",
+      "proposal": {
+        "id": 0,
+        "proposer": "proposer.test.near",
+        "description": "failed-async proposal",
+        "kind": {
+          "FunctionCall": {
+            "receiver_id": "missing-target.test.near",
+            "actions": [
+              {
+                "method_name": "ping",
+                "args": "",
+                "deposit": "0",
+                "gas": "20000000000000"
+              }
+            ]
+          }
+        },
+        "status": "InProgress",
+        "vote_counts": {},
+        "votes": {},
+        "submission_time": "1794063754731377171",
+        "last_actions_log": [
+          {
+            "block_height": "36"
+          }
+        ]
+      }
+    },
+    "after": {
+      "contract": "99996163562351742600000000",
+      "proposer": "99999066613338950100000000",
+      "recipient": "10000000000000000000000000",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "CAAAAGlzc3VlMjM4JwAAAGJvdW5kZWQgbG9jYWwgc291cmNlLWJ1aWx0IHJlcHJvZHVjdGlvbgAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "AwAAAAAAAAAA",
+          "value": "ARIAAABwcm9wb3Nlci50ZXN0Lm5lYXIVAAAAZmFpbGVkLWFzeW5jIHByb3Bvc2FsBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAASAAAAcHJvcG9zZXIudGVzdC5uZWFyABPSKsV6y+UYAgAAACQAAAAAAAAALAAAAAAAAAA="
+        },
+        {
+          "key": "cHJvcG9zYWxfYm9uZDoAAAAAAAAAAA==",
+          "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAQAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcCAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAACQAAAAAAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAAiwAAAAAAAAA"
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ],
+      "policy": {
+        "roles": [
+          {
+            "name": "all",
+            "kind": "Everyone",
+            "permissions": [
+              "*:AddProposal"
+            ],
+            "vote_policy": {}
+          },
+          {
+            "name": "council",
+            "kind": {
+              "Group": [
+                "proposer.test.near"
+              ]
+            },
+            "permissions": [
+              "*:AddProposal",
+              "*:VoteApprove",
+              "*:VoteReject",
+              "*:Finalize",
+              "*:VoteRemove"
+            ],
+            "vote_policy": {}
+          }
+        ],
+        "default_vote_policy": {
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [
+            1,
+            2
+          ]
+        },
+        "proposal_bond": "1000000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "1000000000000000000000000",
+        "bounty_forgiveness_period": "86400000000000"
+      },
+      "proposal": {
+        "id": 0,
+        "proposer": "proposer.test.near",
+        "description": "failed-async proposal",
+        "kind": {
+          "FunctionCall": {
+            "receiver_id": "missing-target.test.near",
+            "actions": [
+              {
+                "method_name": "ping",
+                "args": "",
+                "deposit": "0",
+                "gas": "20000000000000"
+              }
+            ]
+          }
+        },
+        "status": "Failed",
+        "vote_counts": {
+          "council": [
+            "1",
+            "0",
+            "0"
+          ]
+        },
+        "votes": {
+          "proposer.test.near": "Approve"
+        },
+        "submission_time": "1794063754731377171",
+        "last_actions_log": [
+          {
+            "block_height": "36"
+          },
+          {
+            "block_height": "44"
+          }
+        ]
+      }
+    },
+    "retry": {
+      "final": "FINAL",
+      "summary": {
+        "transactionHash": "FyNnGuuwBGRckGABkxfz9gZSyjBLk1KHVoP6HBnjFbFP",
+        "succeeded": true,
+        "transactionOutcomeStatus": {
+          "SuccessReceiptId": "A2HTjmnSLSLrn8RznjWgGuVrWWSLHRqtnh56mxXdCZ2k"
+        },
+        "transactionOutcomeGasBurnt": "317262456995",
+        "transactionOutcomeTokensBurntYocto": "31726245699500000000",
+        "receiptTokensBurntYocto": "602021189943000000000",
+        "totalTokensBurntYocto": "633747435642500000000",
+        "receipts": [
+          {
+            "id": "A2HTjmnSLSLrn8RznjWgGuVrWWSLHRqtnh56mxXdCZ2k",
+            "receiptIds": [
+              "2vT2jMwEJ4K1H3itJCyQbULtCMx2pBTu5WpzwHiNjhUP",
+              "apnsz7u54eEwfmueMdxYdAq2kcUkjUciMUVFbWJKmBj",
+              "D24pS7h6yBzqCdjUZ6qS5uZamXQvuizvp59gdQivM3ia"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "2958801552251",
+            "tokensBurntYocto": "295880155225100000000",
+            "logs": []
+          },
+          {
+            "id": "2vT2jMwEJ4K1H3itJCyQbULtCMx2pBTu5WpzwHiNjhUP",
+            "receiptIds": [
+              "9KJ7bEYMFyMTxUrqWuLhvBoNNGdFLkuK1SNpcLAY7VVY"
+            ],
+            "executorId": "missing-target.test.near",
+            "status": {
+              "Failure": {
+                "ActionError": {
+                  "index": 0,
+                  "kind": {
+                    "AccountDoesNotExist": {
+                      "account_id": "missing-target.test.near"
+                    }
+                  }
+                }
+              }
+            },
+            "gasBurntUnits": "888068443736",
+            "tokensBurntYocto": "88806844373600000000",
+            "logs": []
+          },
+          {
+            "id": "9KJ7bEYMFyMTxUrqWuLhvBoNNGdFLkuK1SNpcLAY7VVY",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "apnsz7u54eEwfmueMdxYdAq2kcUkjUciMUVFbWJKmBj",
+            "receiptIds": [
+              "HD7wFKpF2TmHehvK6SsT4HvSprdXzwxp98e4EtT7jsAP"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": "bnVsbA=="
+            },
+            "gasBurntUnits": "2173341903443",
+            "tokensBurntYocto": "217334190344300000000",
+            "logs": []
+          },
+          {
+            "id": "HD7wFKpF2TmHehvK6SsT4HvSprdXzwxp98e4EtT7jsAP",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "D24pS7h6yBzqCdjUZ6qS5uZamXQvuizvp59gdQivM3ia",
+            "receiptIds": [],
+            "executorId": "proposer.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "proposer.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MCwiYWN0aW9uIjoiRmluYWxpemUiLCJwcm9wb3NhbCI6eyJGdW5jdGlvbkNhbGwiOnsicmVjZWl2ZXJfaWQiOiJtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIiLCJhY3Rpb25zIjpbeyJtZXRob2RfbmFtZSI6InBpbmciLCJhcmdzIjoiIiwiZGVwb3NpdCI6IjAiLCJnYXMiOiIyMDAwMDAwMDAwMDAwMCJ9XX19fQ==",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "act_proposal"
+              }
+            }
+          ]
+        }
+      },
+      "before": {
+        "contract": "99996163562351742600000000",
+        "proposer": "99998885096126663300000000",
+        "recipient": "10000000000000000000000000",
+        "state": [
+          {
+            "key": "AA==",
+            "value": "CAAAAGlzc3VlMjM4JwAAAGJvdW5kZWQgbG9jYWwgc291cmNlLWJ1aWx0IHJlcHJvZHVjdGlvbgAAAAA="
+          },
+          {
+            "key": "AQ==",
+            "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+          },
+          {
+            "key": "AwAAAAAAAAAA",
+            "value": "ARIAAABwcm9wb3Nlci50ZXN0Lm5lYXIVAAAAZmFpbGVkLWFzeW5jIHByb3Bvc2FsBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAASAAAAcHJvcG9zZXIudGVzdC5uZWFyABPSKsV6y+UYAgAAACQAAAAAAAAALAAAAAAAAAA="
+          },
+          {
+            "key": "cHJvcG9zYWxfYm9uZDoAAAAAAAAAAA==",
+            "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+          },
+          {
+            "key": "RkFDVE9SWQ==",
+            "value": "CQAAAHRlc3QubmVhcgE="
+          },
+          {
+            "key": "U1RBVEU=",
+            "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAQAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcCAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAACQAAAAAAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAAiwAAAAAAAAA"
+          },
+          {
+            "key": "U1RBVEVWRVJTSU9O",
+            "value": "AQ=="
+          }
+        ]
+      },
+      "after": {
+        "contract": "99996163562351742600000000",
+        "proposer": "99998251348691020800000000",
+        "recipient": "10000000000000000000000000",
+        "state": [
+          {
+            "key": "AA==",
+            "value": "CAAAAGlzc3VlMjM4JwAAAGJvdW5kZWQgbG9jYWwgc291cmNlLWJ1aWx0IHJlcHJvZHVjdGlvbgAAAAA="
+          },
+          {
+            "key": "AQ==",
+            "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+          },
+          {
+            "key": "AwAAAAAAAAAA",
+            "value": "ARIAAABwcm9wb3Nlci50ZXN0Lm5lYXIVAAAAZmFpbGVkLWFzeW5jIHByb3Bvc2FsBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAASAAAAcHJvcG9zZXIudGVzdC5uZWFyABPSKsV6y+UYAwAAACQAAAAAAAAALAAAAAAAAAA+AAAAAAAAAA=="
+          },
+          {
+            "key": "cHJvcG9zYWxfYm9uZDoAAAAAAAAAAA==",
+            "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+          },
+          {
+            "key": "RkFDVE9SWQ==",
+            "value": "CQAAAHRlc3QubmVhcgE="
+          },
+          {
+            "key": "U1RBVEU=",
+            "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAQAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcDAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAACQAAAAAAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAAAiwAAAAAAAAAEgAAAHByb3Bvc2VyLnRlc3QubmVhcgAAAAAAAAAABT4AAAAAAAAA"
+          },
+          {
+            "key": "U1RBVEVWRVJTSU9O",
+            "value": "AQ=="
+          }
+        ],
+        "proposal": {
+          "id": 0,
+          "proposer": "proposer.test.near",
+          "description": "failed-async proposal",
+          "kind": {
+            "FunctionCall": {
+              "receiver_id": "missing-target.test.near",
+              "actions": [
+                {
+                  "method_name": "ping",
+                  "args": "",
+                  "deposit": "0",
+                  "gas": "20000000000000"
+                }
+              ]
+            }
+          },
+          "status": "Failed",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "proposer.test.near": "Approve"
+          },
+          "submission_time": "1794063754731377171",
+          "last_actions_log": [
+            {
+              "block_height": "36"
+            },
+            {
+              "block_height": "44"
+            },
+            {
+              "block_height": "62"
+            }
+          ]
+        }
+      },
+      "deltas": {
+        "contract": "0",
+        "proposer": "-633747435642500000000",
+        "recipient": "0"
+      },
+      "stateChanged": true
+    },
+    "deltas": {
+      "contract": "0",
+      "proposer": "-933386661049900000000",
+      "recipient": "0"
+    },
+    "stateChanged": true,
+    "bondDeclaredYocto": "1000000000000000000000000",
+    "transferDeclaredYocto": "0"
+  },
+  "conclusion": {
+    "failedStatus": "Failed",
+    "failedContractDelta": "0",
+    "failedProposerDelta": "-933386661049900000000",
+    "failedBondDeclared": "1000000000000000000000000",
+    "healthyStatus": "Approved",
+    "healthyContractDelta": "-100000000000000000000000",
+    "healthyProposerDelta": "-855227126022000000000"
+  }
+}
