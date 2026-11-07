@@ -271,7 +271,9 @@ function verify(report, options = {}) {
       const pendingUpgrade = pending.afterUpgrade;
       const pendingFinal = pending.final;
       const pendingAfter = pending.after;
+      const pendingKind = pendingBefore?.proposal?.kind?.Transfer;
       if (pendingBefore?.proposal?.status !== 'InProgress') fail('pending Transfer was not InProgress before upgrade');
+      if (!pendingKind || pendingKind.receiver_id !== report?.accounts?.recipient || pendingKind.amount !== TRANSFER.toString()) fail('pending Transfer beneficiary/amount does not match the recorded obligation');
       if (BigInt(pendingBefore?.lockedAmount ?? '-1') !== BOND) fail('pending Transfer did not lock its bond before upgrade');
       if (pendingUpgrade?.codeHash !== candidateCodeHash) fail('pending Transfer was not preserved on candidate code');
       if (!sameJson(pendingUpgrade?.proposal, pendingBefore?.proposal)) fail('pending Transfer proposal changed across upgrade');

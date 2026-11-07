@@ -86,6 +86,12 @@ reject('healthy proposal changed', (r) => { r.healthyPreservation.afterUpgrade.p
 reject('healthy paid again', (r) => {
   r.healthyPreservation.afterAttempt.recipientBalance = (BigInt(r.healthyPreservation.afterAttempt.recipientBalance) + 1n).toString();
 });
+reject('pending Transfer beneficiary changed', (r) => {
+  r.healthyPreservation.pending.before.proposal.kind.Transfer.receiver_id = 'other.test.near';
+});
+reject('pending Transfer amount changed', (r) => {
+  r.healthyPreservation.pending.before.proposal.kind.Transfer.amount = '1';
+});
 reject('pending Transfer payout wrong', (r) => {
   r.healthyPreservation.pending.after.recipientBalance = (BigInt(r.healthyPreservation.pending.after.recipientBalance) - 1n).toString();
 });
@@ -113,7 +119,7 @@ console.log(JSON.stringify({
     'second-gross', 'second-final-status', 'second-proposer-accounting', 'second-locked',
     'unauthorized-update-transport', 'unauthorized-update-evidence',
     'unauthorized-finalize-transport', 'healthy-finalize-transport', 'healthy-payout',
-    'healthy-proposal', 'healthy-paid-again', 'pending-payout', 'pending-bond', 'pending-final', 'pending-failed', 'pending-signer', 'upgrade-final', 'upgrade-new', 'base-init',
+    'healthy-proposal', 'healthy-paid-again', 'pending-beneficiary', 'pending-amount', 'pending-payout', 'pending-bond', 'pending-final', 'pending-failed', 'pending-signer', 'upgrade-final', 'upgrade-new', 'base-init',
   ],
   passed: true,
 }, null, 2));
