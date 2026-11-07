@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {EventEmitter} = require('node:events');
+const crypto = require('node:crypto');
 const {createManager} = require('./repair-job.cjs');
 
 const root = path.resolve(__dirname, '..', '..');
@@ -109,11 +110,15 @@ function fakeSpawn() {
   assert.equal(run.recovery.summary.secondGrossRecoveryYocto, '0');
   const bundle = manager.bundle(started.id);
   assert.equal(bundle.recovery.report.schema, 'near-rehearsal/persisted-bond-recovery/v1');
-  assert.equal(bundle.recovery.reportSha256, manager.get(started.id).recovery.reportSha256);
+  const sha = (value) => crypto.createHash('sha256').update(value).digest('hex');
+  assert.equal(bundle.recovery.reportSha256, sha(bundle.recovery.reportText));
+  assert.equal(bundle.recovery.reportSha256, sha(JSON.stringify(bundle.recovery.report)));
+  assert.equal(bundle.recovery.rawReportSha256, manager.get(started.id).recovery.reportSha256);
   assert.match(bundle.commands.recovery, /persisted-recovery-acceptance\.cjs/);
   assert.match(bundle.commands.recovery, /--source <applied-proposals\.rs>/);
   assert.match(bundle.commands.recovery, /--expected-source-sha256/);
   assert.equal(bundle.recovery.appliedSource.sha256, JSON.parse(fs.readFileSync(candidateIdentity, 'utf8')).source.sha256);
+  assert.equal(bundle.recovery.report.identity.source.sha256, bundle.recovery.appliedSource.sha256);
   assert.equal(bundle.checks.recoveryAccepted, true);
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-recovery-integration-tests/v1',

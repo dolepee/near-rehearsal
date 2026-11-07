@@ -755,13 +755,25 @@ function createManager(options = {}) {
     const candidate = readJson(path.join(pipelineDir, 'replay/issue238-local.json'));
     const identity = readJson(path.join(pipelineDir, 'candidate-identity.json'), {});
     const recoveryReportPath = path.join(dir, 'recovery/persisted-recovery.json');
-    const recoveryReport = readJson(recoveryReportPath);
+    const rawRecoveryReport = readJson(recoveryReportPath);
     const patchPath = path.join(producerDir, 'canonical.patch');
     const wasmPath = path.join(pipelineDir, 'applied/target/wasm32-unknown-unknown/release/sputnikdao2.wasm');
+    const sourcePath = path.join(pipelineDir, 'applied', CASE.source.path);
     if (!fs.existsSync(patchPath) || !fs.existsSync(wasmPath)) throw new Error('Accepted repair bundle files are missing.');
-    if (!run.recovery?.ok || !recoveryReport) throw new Error('Accepted repair is missing its persisted recovery evidence.');
+    if (!run.recovery?.ok || !rawRecoveryReport) throw new Error('Accepted repair is missing its persisted recovery evidence.');
     const patch = fs.readFileSync(patchPath);
     const wasm = fs.readFileSync(wasmPath);
+    const identityValue = sanitizeValue(identity);
+    const identityText = JSON.stringify(identityValue);
+    const sourceSha256 = fs.existsSync(sourcePath) ? sha256File(sourcePath) : (identity?.source?.sha256 || null);
+    // Export the same canonical text+digest pattern as baseline/candidate.
+    // sanitizeValue intentionally strips identity; put the safe identity triple
+    // back so the exported report itself remains independently verifiable.
+    const recoveryReport = sanitizeValue(rawRecoveryReport);
+    recoveryReport.identity = identityValue;
+    const recoveryReportText = JSON.stringify(recoveryReport);
+    const recoveryReportSha256 = sha256(recoveryReportText);
+    const rawRecoveryReportSha256 = sha256File(recoveryReportPath);
     return {
       schema: 'near-rehearsal/repair-review-bundle/v1',
       createdAt: nowIso(), runId: id, caseId: CASE_ID,
@@ -780,8 +792,6 @@ function createManager(options = {}) {
       candidate: (() => {
         const report = sanitizeValue(candidate);
         const reportText = JSON.stringify(report);
-        const identityValue = sanitizeValue(identity);
-        const identityText = JSON.stringify(identityValue);
         return {
           report, reportText, reportSha256: sha256(reportText),
           identity: identityValue, identityText, identitySha256: sha256(identityText),
@@ -792,17 +802,27 @@ function createManager(options = {}) {
       })(),
       consequence: run.consequence, checks: run.checks,
       recovery: {
-        report: sanitizeValue(recoveryReport),
-        reportSha256: sha256File(recoveryReportPath),
+        report: recoveryReport,
+        reportText: recoveryReportText,
+        reportSha256: recoveryReportSha256,
+        rawReportSha256: rawRecoveryReportSha256,
+        identity: identityValue,
+        identityText,
+        identitySha256: sha256(identityText),
         summary: run.recovery.summary,
         acceptance: run.recovery.acceptance,
-        appliedSource: {path: CASE.source.path, sha256: identity?.source?.sha256 || null},
+        appliedSource: {path: CASE.source.path, sha256: sourceSha256},
+        artifacts: {
+          patch: {filename: 'repair.patch', sha256: sha256(patch), bytes: patch.length},
+          wasm: {filename: 'candidate.wasm', sha256: sha256(wasm), bytes: wasm.length},
+          source: {filename: 'applied-proposals.rs', path: CASE.source.path, sha256: sourceSha256},
+        },
         distinction: 'Fresh-state checks prove prevention from clean state. The persisted report proves recovery after a real old-code failure, preservation of frozen state, authorization, an inherited pending Transfer, and exactly-once accounting.',
       },
       commands: {
         verify: 'node case-triage/rehearsal-repair/acceptance.cjs --base <baseline-report.json> --repaired <candidate-report.json> --identity <candidate-identity.json> --patch <repair.patch> --source <applied-proposals.rs> --wasm <candidate.wasm>',
-        recovery: 'node case-triage/rehearsal-repair/persisted-recovery-acceptance.cjs --report <persisted-recovery.json> --wasm <candidate.wasm> --patch <repair.patch> --source <applied-proposals.rs> --expected-wasm-sha256 <candidate.wasm sha256> --expected-patch-sha256 <repair.patch sha256> --expected-source-sha256 <applied-proposals.rs sha256>',
-        recipe: 'From the pinned source commit, apply repair.patch, unpack baseline.report, candidate.report, persisted-recovery.json, candidate.wasm and applied-proposals.rs, then run both acceptance commands above. Check every recorded SHA-256 before running them. No absolute paths or account runtime files are included.',
+        recovery: `node case-triage/rehearsal-repair/persisted-recovery-acceptance.cjs --report <persisted-recovery.json> --wasm <candidate.wasm> --patch <repair.patch> --source <applied-proposals.rs> --expected-wasm-sha256 ${sha256(wasm)} --expected-patch-sha256 ${sha256(patch)} --expected-source-sha256 ${sourceSha256 || '<applied-proposals.rs sha256>'}`,
+        recipe: 'From the pinned source commit, apply repair.patch, unpack baseline.report, candidate.report, persisted-recovery.json, candidate.wasm and applied-proposals.rs, then run both acceptance commands above. Check every recorded SHA-256 before running them, including recovery.reportText -> recovery.reportSha256. No absolute paths or account runtime files are included.',
       },
       boundary: CASE.boundary,
     };
