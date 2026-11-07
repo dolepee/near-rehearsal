@@ -1,8 +1,11 @@
 'use strict';
 // Offline checks: no Sandbox process, provider call, credentials or token funding.
 const path = require('node:path');
+const fs = require('node:fs');
 const {spawnSync} = require('node:child_process');
 const root = path.resolve(__dirname, '..');
+const results = path.join(root, '.local', 'test-results');
+fs.mkdirSync(results, {recursive: true});
 const suites = [
   'case-triage/sputnik-public-capture/test-classification.cjs',
   'scripts/test-operation-classification.cjs',
@@ -26,6 +29,7 @@ for (const suite of suites) {
   console.log(`\n> ${suite}`);
   const run = spawnSync(process.execPath, [path.join(root, suite)], {
     cwd: root, stdio: 'inherit', timeout: 120_000,
+    env: {...process.env, REHEARSAL_TEST_RESULTS_DIR: results},
   });
   if (run.error || run.status !== 0) {
     console.error(`FAILED: ${suite}${run.error ? ` (${run.error.message})` : ''}`);

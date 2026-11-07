@@ -37,6 +37,8 @@ const cases = [
   run('missing-transaction-graph', (b) => { delete b.baseline.tx.transaction; delete b.baseline.tx.receiptIds; }),
 ];
 const result = { schema: 'near-rehearsal/public-verifier-negative-tests/v1', allRejected: cases.every((c) => c.rejected), cases };
-fs.writeFileSync(path.join(out, 'negative-verifier-tests.json'), JSON.stringify(result, null, 2) + '\n');
+const resultDir = process.env.REHEARSAL_TEST_RESULTS_DIR ? path.resolve(process.env.REHEARSAL_TEST_RESULTS_DIR) : out;
+fs.mkdirSync(resultDir, {recursive: true});
+fs.writeFileSync(path.join(resultDir, 'negative-verifier-tests.json'), JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify(result, null, 2));
 if (!result.allRejected) process.exitCode = 1;

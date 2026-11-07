@@ -2,9 +2,14 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
-const {checkSetup, parseArgs} = require('./check-setup.cjs');
+const {checkSetup, parseArgs, providerPrefix} = require('./check-setup.cjs');
 assert.throws(() => parseArgs(['--flow', 'other']), /manual or repair/);
 assert.throws(() => parseArgs(['--flow', 'manual', '--generate']), /requires/);
+for (const flags of [['--permission-profile', 'local'], ['--permission-profile=local'], ['-P', 'local'], ['--permission-profile', '{profile}']]) {
+  assert.doesNotThrow(() => providerPrefix(JSON.stringify(['codex', ...flags, '{workspace}']), 'local'));
+}
+assert.throws(() => providerPrefix(JSON.stringify(['codex', '-P', 'other', '{workspace}']), 'local'), /does not match/);
+assert.throws(() => providerPrefix(JSON.stringify(['codex', '-P', 'local']), 'local'), /workspace/);
 const empty = {PATH: process.env.PATH, CODEX_AUTH_SOURCE: '/nonexistent-rehearsal-test-auth'};
 const report = checkSetup({flow: 'repair', generate: true}, empty, '24.22.1');
 assert.equal(report.ready, false);

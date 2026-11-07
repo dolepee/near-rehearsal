@@ -5,6 +5,8 @@ const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const {resolveConfig, resolveExecutable} = require('../ui/sputnik/repair-job.cjs');
 const {verifyToolchain} = require('../case-triage/rehearsal-repair/repair-pipeline.cjs');
+const {sandboxArgv} = require('../case-triage/rehearsal-repair/model-producer.cjs');
+const {verifiedOuterProfile} = require('../case-triage/rehearsal-repair/codex-producer.cjs');
 const ROOT = path.resolve(__dirname, '..');
 const RUNTIMES = {
   manual: {version: '2.6.2', commit: '2f9ddb711ebd94a306eaec06030d87ef8dfc51fa', protocol: 77},
@@ -22,6 +24,13 @@ function parseArgs(argv) {
   if (!RUNTIMES[options.flow]) throw new Error('--flow must be manual or repair');
   if (options.generate && options.flow !== 'repair') throw new Error('--generate requires --flow repair');
   return options;
+}
+
+function providerPrefix(raw, profile) {
+  const prefix = sandboxArgv({MODEL_PRODUCER_SANDBOX_CMD: raw});
+  if (!prefix) throw new Error('MODEL_PRODUCER_SANDBOX_CMD is required.');
+  verifiedOuterProfile(prefix.map((part) => part.replaceAll('{profile}', profile || '{profile}')), profile);
+  return prefix;
 }
 
 function checkSetup(options, env = process.env, nodeVersion = process.versions.node) {
@@ -74,11 +83,7 @@ function checkSetup(options, env = process.env, nodeVersion = process.versions.n
     check('Provider configuration', () => {
       const missing = config.missing.filter((name) => name.startsWith('CODEX_') || name === 'MODEL_PRODUCER_SANDBOX_CMD' || name === 'REPAIR_BASE_WASM');
       if (missing.length) throw new Error(`Missing: ${missing.join(', ')}. See docs/local-repair-setup.md.`);
-      let prefix;
-      try { prefix = JSON.parse(env.MODEL_PRODUCER_SANDBOX_CMD); } catch { throw new Error('MODEL_PRODUCER_SANDBOX_CMD must be a JSON argv array.'); }
-      if (!Array.isArray(prefix) || !prefix.length || prefix.some((s) => typeof s !== 'string' || !s) || !prefix.some((s) => s.includes('{workspace}'))) throw new Error('Provider prefix must be a nonempty string argv array containing {workspace}.');
-      const profileAt = prefix.indexOf('--permission-profile');
-      if (profileAt < 0 || prefix[profileAt + 1] !== env.CODEX_PERMISSION_PROFILE) throw new Error('Provider prefix must name the matching --permission-profile.');
+      const prefix = providerPrefix(env.MODEL_PRODUCER_SANDBOX_CMD, env.CODEX_PERMISSION_PROFILE);
       for (const command of [env.CODEX_BIN || 'codex', prefix[0]]) {
         const executable = resolveExecutable(command, env.PATH);
         if (!executable) throw new Error('Codex or the configured provider wrapper could not be found.');
@@ -99,4 +104,4 @@ if (require.main === module) {
     else { const report = checkSetup(options); console.log(JSON.stringify(report, null, 2)); process.exitCode = report.ready ? 0 : 1; }
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
-module.exports = {checkSetup, parseArgs, RUNTIMES};
+module.exports = {checkSetup, parseArgs, providerPrefix, RUNTIMES};
