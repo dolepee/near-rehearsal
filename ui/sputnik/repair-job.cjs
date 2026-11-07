@@ -319,7 +319,6 @@ function createManager(options = {}) {
   }
 
   async function execute(run) {
-    const started = Date.parse(run.startedAt);
     const overall = setTimeout(() => {
       if (run.status !== 'running') return;
       run.timedOut = true;
