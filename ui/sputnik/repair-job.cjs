@@ -603,14 +603,20 @@ function createManager(options = {}) {
           acceptanceErrors: [],
         };
       } else {
-        const recoveryAcceptance = spawnSync(process.execPath, [
+        const identity = readJson(identityPath, {});
+        const acceptanceArgs = [
           PERSISTED_ACCEPTANCE,
           '--report', recoveryReportPath,
           '--wasm', wasmPath,
           '--patch', patchPath,
           '--expected-wasm-sha256', pipeline?.hashes?.wasm || sha256File(wasmPath),
           '--expected-patch-sha256', run.patch.sha256,
-        ], {encoding: 'utf8', timeout: 60_000});
+        ];
+        if (fs.existsSync(appliedSourcePath)) {
+          acceptanceArgs.push('--source', appliedSourcePath);
+          if (identity?.source?.sha256) acceptanceArgs.push('--expected-source-sha256', identity.source.sha256);
+        }
+        const recoveryAcceptance = spawnSync(process.execPath, acceptanceArgs, {encoding: 'utf8', timeout: 60_000});
         let acceptanceDoc = null;
         try { acceptanceDoc = JSON.parse(recoveryAcceptance.stdout); } catch {}
         const acceptanceErrors = acceptanceDoc?.errors || [];
