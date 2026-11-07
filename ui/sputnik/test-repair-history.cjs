@@ -58,7 +58,7 @@ const context = {
   console,
   document: {activeElement: null, getElementById: getElement},
   fetch: null,
-  setInterval: () => 1,
+  setInterval: (fn) => { if (!pollCallback) pollCallback = fn; return 1; },
   clearInterval: () => {},
   setTimeout: () => 0,
   clearTimeout: () => {},
@@ -90,6 +90,10 @@ const rejectedRun = {
 };
 let historyRenders = 0;
 let runRequests = 0;
+let pollCallback = null;
+let waitRunA = false;
+let resolveRunA = null;
+let rejectRunA = null;
 context.fetch = async (url) => {
   if (url === '/api/repair/case') return {ok: true, json: async () => caseData};
   if (url === '/api/repair/runs') {
@@ -101,6 +105,7 @@ context.fetch = async (url) => {
     return {ok: true, json: async () => ({run: {...historyRun, caseId: caseData.case.id}})};
   }
   if (url === '/api/repair/runs/run-rejected') return {ok: true, json: async () => rejectedRun};
+  if (url === '/api/repair/runs/run-1' && waitRunA) return new Promise((resolve, reject) => { resolveRunA = resolve; rejectRunA = reject; });
   if (url.startsWith('/api/repair/runs/')) return {ok: true, json: async () => historyRun};
   return {ok: false, json: async () => ({error: 'unexpected'})};
 };
@@ -127,12 +132,30 @@ const wait = () => new Promise((resolve) => setImmediate(resolve));
   assert.equal(first.getAttribute('aria-current'), 'true', 'the active run is exposed as the current history item');
   assert.equal(first.classList.contains('selected'), true);
 
-  // A rejected result must format negative deltas with one sign and must not
-  // turn a zero-delta, non-FINAL retry into a green success card.
+  // A delayed response from the old run must not overwrite the newly selected
+  // result. The poll is in flight before the history click.
   const rejectedButton = list.children.find((button) => button.dataset.runId === 'run-rejected');
   assert.ok(rejectedButton, 'rejected history item rendered');
+  waitRunA = true;
+  const stalePoll = pollCallback();
   rejectedButton.dispatch('click');
   await wait(); await wait();
+  assert.equal(getElement('result-state').hidden, false, 'selected rejected result rendered');
+  resolveRunA({ok: true, json: async () => historyRun});
+  await stalePoll;
+  assert.equal(getElement('result-state').hidden, false, 'stale poll did not replace the selected result');
+  assert.equal(getElement('running-state').hidden, true, 'stale poll did not switch back to the running view');
+
+  // A late error from an earlier openRun request is likewise ignored.
+  waitRunA = true;
+  first.dispatch('click');
+  rejectedButton.dispatch('click');
+  await wait(); await wait();
+  rejectRunA(new Error('late request failure'));
+  await wait(); await wait();
+  assert.equal(getElement('result-state').hidden, false, 'stale openRun error did not replace the selected result');
+  assert.notEqual(getElement('error-copy').textContent, 'late request failure');
+
   const cards = getElement('consequence-grid').innerHTML;
   assert.match(cards, /-0\.1 NEAR/, 'negative fractional contract delta keeps one sign');
   assert.doesNotMatch(cards, /0\.-1/, 'negative fractional delta does not leave a sign after the decimal');
@@ -142,6 +165,6 @@ const wait = () => new Promise((resolve) => setImmediate(resolve));
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-browser-history-focus-tests/v1',
     passed: true,
-    checks: ['unchanged-history-node-preserved', 'focus-preserved', 'active-run-aria-current', 'active-run-selection', 'negative-delta-format', 'retry-requires-final-receipt'],
+    checks: ['unchanged-history-node-preserved', 'focus-preserved', 'active-run-aria-current', 'active-run-selection', 'stale-poll-ignored', 'stale-open-error-ignored', 'negative-delta-format', 'retry-requires-final-receipt'],
   }, null, 2));
 })().catch((error) => { console.error(error.stack || error); process.exitCode = 1; });

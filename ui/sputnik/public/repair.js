@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = {case: null, config: null, run: null, poll: null, clock: null, failures: 0, historySignature: null};
+  const state = {case: null, config: null, run: null, poll: null, clock: null, failures: 0, historySignature: null, selectionVersion: 0};
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
   const short = (value, n = 12) => value ? `${String(value).slice(0, n)}…${String(value).slice(-6)}` : '—';
   const near = (value) => {
@@ -216,15 +216,27 @@
   }
 
   function startPoll() {
-    clearInterval(state.poll); clearInterval(state.clock);
+    stopPoll();
     state.poll = setInterval(poll, 1000);
     state.clock = setInterval(() => { if (state.run?.status === 'running') $('elapsed').textContent = elapsed(state.run); }, 1000);
   }
 
+  function stopPoll() {
+    clearInterval(state.poll); clearInterval(state.clock);
+    state.poll = null; state.clock = null;
+  }
+
+  function selectionCurrent(version, runId = null) {
+    return version === state.selectionVersion && (!runId || state.run?.id === runId);
+  }
+
   async function poll() {
-    if (!state.run?.id) return;
+    const runId = state.run?.id;
+    if (!runId) return;
+    const version = state.selectionVersion;
     try {
-      const response = await fetch(`/api/repair/runs/${state.run.id}`, {cache: 'no-store'});
+      const response = await fetch(`/api/repair/runs/${runId}`, {cache: 'no-store'});
+      if (!selectionCurrent(version, runId)) return;
       if (!response.ok) {
         state.failures += 1;
         if (state.failures >= 3) throw new Error('Run state is unavailable; the server may have restarted. This run is interrupted, not accepted.');
@@ -232,27 +244,33 @@
       }
       state.failures = 0;
       const run = await response.json();
+      if (!selectionCurrent(version, runId)) return;
       state.run = run;
       if (run.status === 'running') { renderRunning(run); loadHistory(); return; }
-      clearInterval(state.poll); clearInterval(state.clock);
+      stopPoll();
       renderRun(run); loadHistory();
     } catch (error) {
-      clearInterval(state.poll); clearInterval(state.clock);
+      if (!selectionCurrent(version, runId)) return;
+      stopPoll();
       state.run = {...state.run, status: 'interrupted', error: error.message};
       renderError(state.run);
     }
   }
 
   async function openRun(id) {
+    const version = ++state.selectionVersion;
+    stopPoll();
     try {
       const response = await fetch(`/api/repair/runs/${id}`, {cache: 'no-store'});
       const run = await response.json();
+      if (!selectionCurrent(version)) return;
       if (!response.ok) throw new Error(run.error || 'Repair run not found.');
       state.run = run; state.failures = 0;
       updateHistorySelection();
       if (run.status === 'running') { renderRunning(run); startPoll(); }
       else renderRun(run);
     } catch (error) {
+      if (!selectionCurrent(version)) return;
       $('error-title').textContent = 'Could not load that run';
       $('error-copy').textContent = error.message;
       show('error-state'); setStatus('Run unavailable', 'error');
@@ -261,16 +279,20 @@
 
   async function startRun() {
     if (!state.case || state.run?.status === 'running') return;
+    const version = ++state.selectionVersion;
+    stopPoll();
     setButton(true); setStatus('Starting / fresh run', 'running');
     try {
       const response = await fetch('/api/repair/run', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({caseId: state.case.id})});
       const data = await response.json();
+      if (!selectionCurrent(version)) return;
       if (!response.ok) throw new Error(data.error || 'Could not start repair.');
       state.run = data.run; state.failures = 0;
       updateHistorySelection();
       $('logs').textContent = 'Waiting for the run to report its first phase…';
       renderRunning(state.run); startPoll(); loadHistory();
     } catch (error) {
+      if (!selectionCurrent(version)) return;
       setButton(false);
       $('error-title').textContent = 'Could not start the repair';
       $('error-copy').textContent = error.message;
@@ -279,8 +301,8 @@
   }
 
   $('run-button').addEventListener('click', startRun);
-  $('retry-button').addEventListener('click', () => { show('empty-state'); state.run = null; setStatus('No repair run yet'); loadHistory(); });
-  $('case-choice').addEventListener('change', () => { state.run = null; show('empty-state'); });
+  $('retry-button').addEventListener('click', () => { state.selectionVersion += 1; stopPoll(); show('empty-state'); state.run = null; setStatus('No repair run yet'); loadHistory(); });
+  $('case-choice').addEventListener('change', () => { state.selectionVersion += 1; stopPoll(); state.run = null; show('empty-state'); });
   (async () => {
     try {
       await loadCase();
