@@ -383,6 +383,16 @@ if (require.main === module) {
   recoverRuns();
   repairManager.recover();
   server.listen(PORT, HOST, () => console.log(`Sputnik rehearsal UI: http://${HOST}:${PORT}`));
+  let stopping = false;
+  const stop = async () => {
+    if (stopping) return;
+    stopping = true;
+    server.close();
+    try { await repairManager.shutdown(); } catch {}
+    process.exit(0);
+  };
+  process.on('SIGINT', stop);
+  process.on('SIGTERM', stop);
 } else {
   module.exports = {finalizeRun, repairManager};
 }

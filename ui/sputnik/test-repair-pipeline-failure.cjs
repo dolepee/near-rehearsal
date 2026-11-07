@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {EventEmitter} = require('node:events');
+const {spawn, execFileSync} = require('node:child_process');
 const {createManager} = require('./repair-job.cjs');
 
 const sha = (value) => crypto.createHash('sha256').update(value).digest('hex');
@@ -105,9 +106,33 @@ function fakeChild(handler) {
   assert.equal(fs.existsSync(privateRuntime), true, 'a preexisting runtime directory is kept');
   assert.deepEqual(fs.readdirSync(privateRuntime), [], 'runtime contents created by the run are cleared');
 
+  // Recovery must retain the active lock until a recorded process group exits.
+  const recoveryId = '66666666-6666-4666-8666-666666666666';
+  const recoveryDir = path.join(runsRoot, recoveryId);
+  const recoveryRuntime = path.join(tmp, 'reclaim-runtime');
+  fs.mkdirSync(recoveryDir, {recursive: true});
+  fs.mkdirSync(recoveryRuntime, {recursive: true});
+  fs.writeFileSync(path.join(recoveryRuntime, 'created-by-job'), 'cleanup');
+  const orphan = spawn(process.execPath, ['-e', 'process.on("SIGTERM", () => {}); setInterval(() => {}, 1000)'], {detached: true, stdio: 'ignore'});
+  orphan.unref();
+  const orphanStart = execFileSync('ps', ['-o', 'lstart=', '-p', String(orphan.pid)], {encoding: 'utf8'}).trim();
+  fs.writeFileSync(path.join(recoveryDir, 'run.json'), JSON.stringify({
+    schema: 'near-rehearsal/repair-browser-run/v1', id: recoveryId, caseId: 'sputnik-238-async-bond',
+    status: 'running', phase: 'generating', startedAt: new Date().toISOString(), finishedAt: null,
+    error: null, phaseLog: [], source: {}, obligation: {}, baseline: null, candidate: null,
+    consequence: null, checks: null, childPid: orphan.pid, childStart: orphanStart,
+    runtimePath: recoveryRuntime, runtimeProbe: {existed: false, isDirectory: false, wasEmpty: null},
+  }));
+  manager.recover();
+  assert.equal(manager.active(), recoveryId, 'recovery holds the active lock while reclaiming');
+  const deadline = Date.now() + 5000;
+  while (manager.active() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(manager.active(), null, 'recovery releases the lock only after the group exits');
+  assert.equal(fs.existsSync(recoveryRuntime), false, 'reclaimed runtime is removed');
+
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-browser-pipeline-failure-tests/v1',
     passed: true,
-    checks: ['completed-rejection-parsed', 'measured-consequence-retained', 'patch-retained', 'bundle-withheld', 'preexisting-runtime-preserved'],
+    checks: ['completed-rejection-parsed', 'measured-consequence-retained', 'patch-retained', 'bundle-withheld', 'preexisting-runtime-preserved', 'recovery-reclaims-recorded-group'],
   }, null, 2));
 })().catch((error) => { console.error(error.stack || error); process.exitCode = 1; });

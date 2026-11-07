@@ -12,7 +12,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {spawn} = require('node:child_process');
+const {spawn, execFileSync} = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const REPAIR = path.join(ROOT, 'case-triage/rehearsal-repair');
@@ -67,13 +67,28 @@ function readJson(file, fallback = null) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
 }
 
+function resolveExecutable(command, pathValue = process.env.PATH) {
+  if (!command) return null;
+  if (path.isAbsolute(command)) return command;
+  if (command.includes('/') || command.includes('\\')) {
+    const candidate = path.resolve(command);
+    return fs.existsSync(candidate) ? candidate : null;
+  }
+  for (const directory of String(pathValue || '').split(path.delimiter)) {
+    if (!directory) continue;
+    const candidate = path.join(directory, command);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
 function resolveConfig(env = process.env) {
   const sourceDir = env.REPAIR_SOURCE_DIR ? path.resolve(env.REPAIR_SOURCE_DIR) : null;
   const baseWasm = path.resolve(env.REPAIR_BASE_WASM || DEFAULT_BASE_WASM);
   const sandboxDir = env.REPAIR_SANDBOX_DIR
     ? path.resolve(env.REPAIR_SANDBOX_DIR)
     : (env.NEAR_SANDBOX_BIN_PATH ? path.resolve(env.NEAR_SANDBOX_BIN_PATH) : null);
-  const codexBin = env.CODEX_BIN || 'codex';
+  const codexBin = env.CODEX_BIN ? resolveExecutable(env.CODEX_BIN, env.PATH) : null;
   const profile = env.CODEX_PERMISSION_PROFILE || null;
   const privateRuntime = path.resolve(env.CODEX_PRIVATE_RUNTIME || path.join(os.tmpdir(), 'near-repair-provider-runtime'));
   const authSource = env.CODEX_AUTH_SOURCE ? path.resolve(env.CODEX_AUTH_SOURCE) : path.join(os.homedir(), '.codex', 'auth.json');
@@ -282,6 +297,8 @@ function createManager(options = {}) {
       error: run.error || null, phaseLog: run.phaseLog || [], source: CASE.source,
       obligation: CASE.obligation, baseline: run.baseline || null, candidate: run.candidate || null,
       consequence: run.consequence || null, checks: run.checks || null,
+      childPid: run.childPid || null, childStart: run.childStart || null,
+      runtimePath: run.runtimePath || null, runtimeProbe: run.runtimeProbe || null,
     };
     fs.mkdirSync(runDir(run.id), {recursive: true});
     fs.writeFileSync(path.join(runDir(run.id), 'run.json'), json(meta));
@@ -315,6 +332,43 @@ function createManager(options = {}) {
     }
   }
 
+  function processStart(pid) {
+    if (!pid || process.platform === 'win32') return null;
+    try {
+      return execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim() || null;
+    } catch { return null; }
+  }
+
+  function groupAlive(pid) {
+    if (!pid || process.platform === 'win32') return false;
+    try { process.kill(-pid, 0); return true; }
+    catch (error) { return error.code === 'EPERM'; }
+  }
+
+  // Reclaim only a group whose leader still has the start time recorded with
+  // this run. A reused PID or an unverifiable legacy record is left alone.
+  function reclaimInterrupted(meta) {
+    const pid = Number(meta?.childPid);
+    if (!Number.isInteger(pid) || pid <= 1 || !meta?.childStart) return false;
+    if (!groupAlive(pid)) {
+      cleanupPrivateRuntime(meta.runtimePath || config.privateRuntime, meta.runtimeProbe);
+      return false;
+    }
+    if (processStart(pid) !== meta.childStart) return false;
+    activeId = meta.id;
+    terminateTree({pid}, 'SIGTERM');
+    const force = setTimeout(() => terminateTree({pid}, 'SIGKILL'), 1500);
+    force.unref?.();
+    const wait = setInterval(() => {
+      if (groupAlive(pid)) return;
+      clearInterval(wait); clearTimeout(force);
+      cleanupPrivateRuntime(meta.runtimePath || config.privateRuntime, meta.runtimeProbe);
+      if (activeId === meta.id) activeId = null;
+    }, 100);
+    wait.unref?.();
+    return true;
+  }
+
   function spawnStep(run, label, command, args, options = {}) {
     return new Promise((resolve, reject) => {
       if (run.timedOut || run.status !== 'running') {
@@ -341,6 +395,9 @@ function createManager(options = {}) {
         hardTimer.unref?.();
       }, options.timeoutMs);
       run.currentChild = child;
+      run.childPid = child.pid;
+      run.childStart = processStart(child.pid);
+      writeMeta(run);
       child.stdout?.on('data', (chunk) => appendLog(run, chunk));
       child.stderr?.on('data', (chunk) => appendLog(run, chunk));
       child.on('error', (error) => {
@@ -352,7 +409,7 @@ function createManager(options = {}) {
       child.on('close', (code, signal) => {
         if (settled) return;
         settled = true; clearTimeout(timer); clearTimeout(hardTimer);
-        run.currentChild = null;
+        run.currentChild = null; run.childPid = null; run.childStart = null;
         if (timedOut || run.timedOut) reject(Object.assign(new Error(`${label} exceeded its ${Math.round(options.timeoutMs / 1000)}s limit.`), {status: 'interrupted', phase: run.phase}));
         else if (code === 0) resolve({code, signal});
         else reject(Object.assign(new Error(`${label} exited ${code ?? signal}.`), {status: 'inconclusive', phase: run.phase, exitCode: code}));
@@ -372,6 +429,9 @@ function createManager(options = {}) {
 
   async function execute(run) {
     const runtimeProbe = probePrivateRuntime(config.privateRuntime);
+    run.runtimePath = config.privateRuntime;
+    run.runtimeProbe = runtimeProbe;
+    writeMeta(run);
     const overall = setTimeout(() => {
       if (run.status !== 'running') return;
       run.timedOut = true;
@@ -421,9 +481,12 @@ function createManager(options = {}) {
       const producerArgs = [
         PRODUCER, '--source', config.sourceDir, '--out', producerDir,
         '--profile', config.profile, '--private-runtime', config.privateRuntime,
-        '--auth-source', config.authSource, '--codex-bin', config.codexBin,
-        '--no-pipeline', '--timeout-ms', String(config.timeouts.generationMs),
+        '--auth-source', config.authSource,
       ];
+      // Only pass an explicit executable when it resolved through PATH. Passing
+      // the default "codex" makes the producer treat it as a repo-relative path.
+      if (config.codexBin) producerArgs.push('--codex-bin', config.codexBin);
+      producerArgs.push('--no-pipeline', '--timeout-ms', String(config.timeouts.generationMs));
       if (config.model) producerArgs.push('--model', config.model);
       await spawnStep(run, 'Model generation', process.execPath, producerArgs, {timeoutMs: config.timeouts.generationMs});
       const producer = readJson(path.join(producerDir, 'producer.json'));
@@ -477,7 +540,10 @@ function createManager(options = {}) {
       }
     } catch (error) {
       if (watcher) clearInterval(watcher);
-      if (run.timedOut) {
+      if (run.shutdown) {
+        run.status = 'interrupted'; run.phase = 'interrupted';
+        run.error = 'Server shutting down; the repair was interrupted and is not accepted.';
+      } else if (run.timedOut) {
         run.status = 'interrupted'; run.phase = 'interrupted';
         run.error = `Repair job exceeded the ${Math.round(config.timeouts.jobMs / 60000)}-minute limit; it is not accepted.`;
       } else {
@@ -489,8 +555,11 @@ function createManager(options = {}) {
     } finally {
       clearTimeout(overall);
       run.finishedAt = nowIso();
-      run.currentChild = null;
-      if (run.timedOut) { run.status = 'interrupted'; run.phase = 'interrupted'; }
+      run.currentChild = null; run.childPid = null; run.childStart = null;
+      if (run.shutdown) {
+        run.status = 'interrupted'; run.phase = 'interrupted';
+        run.error = 'Server shutting down; the repair was interrupted and is not accepted.';
+      } else if (run.timedOut) { run.status = 'interrupted'; run.phase = 'interrupted'; }
       if (run.status === 'running') { run.status = 'inconclusive'; run.phase = 'inconclusive'; run.error = 'Repair job ended without a terminal result.'; }
       cleanupPrivateRuntime(config.privateRuntime, runtimeProbe);
       activeId = activeId === run.id ? null : activeId;
@@ -508,7 +577,7 @@ function createManager(options = {}) {
       error: null, logs: [], phaseLog: [], baseline: null, candidate: null, consequence: null, checks: null, patch: null, evidence: null,
     };
     runs.set(id, run); activeId = id; writeMeta(run);
-    execute(run);
+    run.done = execute(run);
     return normalizedRun(run);
   }
 
@@ -525,7 +594,10 @@ function createManager(options = {}) {
         meta.error = 'Server restarted before this repair job completed; it is not accepted.';
         meta.finishedAt = nowIso();
         meta.phaseLog = [...(meta.phaseLog || []), {phase: 'interrupted', startedAt: meta.finishedAt, finishedAt: meta.finishedAt}];
+        reclaimInterrupted(meta);
         fs.writeFileSync(path.join(dir, 'run.json'), json(meta));
+      } else if (meta.childPid) {
+        reclaimInterrupted(meta);
       }
       const run = {
         id, caseId: meta.caseId || CASE_ID, status: meta.status, phase: meta.phase || meta.status,
@@ -605,7 +677,18 @@ function createManager(options = {}) {
     return run ? normalizedRun(run) : null;
   }
 
-  return {config, case: CASE, start, get, list, active, recover, publicRun, patchFile, bundle, runsRoot};
+  async function shutdown() {
+    const run = runs.get(activeId);
+    if (!run?.done) return;
+    run.shutdown = true;
+    run.status = 'interrupted'; run.phase = 'interrupted';
+    run.error = 'Server shutting down; the repair was interrupted and is not accepted.';
+    terminateTree(run.currentChild, 'SIGTERM');
+    setTimeout(() => terminateTree(run.currentChild, 'SIGKILL'), 1500).unref?.();
+    await Promise.race([run.done, new Promise((resolve) => setTimeout(resolve, 5000))]);
+  }
+
+  return {config, case: CASE, start, get, list, active, recover, shutdown, publicRun, patchFile, bundle, runsRoot};
 }
 
-module.exports = {CASE, CASE_ID, createManager, cleanupPrivateRuntime, deriveConsequence, metrics, probePrivateRuntime, resolveConfig, sanitizeValue, normalizedRun, summary, computeSha256: sha256};
+module.exports = {CASE, CASE_ID, createManager, cleanupPrivateRuntime, deriveConsequence, metrics, probePrivateRuntime, resolveConfig, resolveExecutable, sanitizeValue, normalizedRun, summary, computeSha256: sha256};

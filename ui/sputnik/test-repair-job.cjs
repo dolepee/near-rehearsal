@@ -109,9 +109,13 @@ try {
 
   const env = {...process.env};
   for (const key of ['MODEL_PRODUCER_SANDBOX_CMD', 'CODEX_PERMISSION_PROFILE', 'CODEX_AUTH_SOURCE']) delete env[key];
+  env.CODEX_BIN = '';
   const config = resolveConfig(env);
   assert.equal(config.providerConfigured, false);
   assert.ok(config.missing.includes('MODEL_PRODUCER_SANDBOX_CMD'));
+  assert.equal(config.codexBin, null, 'the default codex executable is left for producer PATH lookup');
+  const explicitCodex = resolveConfig({...env, CODEX_BIN: 'node'});
+  assert.ok(path.isAbsolute(explicitCodex.codexBin), 'an explicit bare CODEX_BIN is resolved before passing it');
 
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'repair-manager-test-'));
   const id = '11111111-1111-4111-8111-111111111111';
