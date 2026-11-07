@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches:
+      - main
       - feat/sputnik-release-review
 
 permissions:
@@ -111,3 +112,5 @@ jobs:
           node case-triage/rehearsal-repair/acceptance.cjs
           node case-triage/rehearsal-repair/acceptance-tests.cjs
           node case-triage/rehearsal-repair/pipeline-guards-tests.cjs
+          node ui/sputnik/test-repair-job.cjs
+          node ui/sputnik/test-repair-ui.cjs

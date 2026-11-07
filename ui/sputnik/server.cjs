@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const {spawn, spawnSync} = require('node:child_process');
+const {createManager: createRepairManager} = require('./repair-job.cjs');
 
 const ROOT = path.join(__dirname, '..', '..');
 const CASE = path.join(ROOT, 'case-triage/sputnik-public-capture');
@@ -16,6 +17,7 @@ const HOST = process.env.HOST || '127.0.0.1';
 const MAX_BODY = 8 * 1024 * 1024;
 const MAX_LOG = 180;
 const MAX_RUN_MS = 12 * 60 * 1000;
+const repairManager = createRepairManager();
 
 const runs = new Map();
 const RUNS_ROOT = path.join(ROOT, 'out/sputnik-ui/runs');
@@ -259,7 +261,40 @@ function verify(run) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${HOST}:${PORT}`);
   try {
-    if (url.pathname === '/api/health') return send(res, 200, {ok: true, running: !!activeId});
+    if (url.pathname === '/api/health') return send(res, 200, {ok: true, running: !!activeId, repairRunning: Boolean(repairManager.active())});
+    if (url.pathname === '/api/repair/case') return send(res, 200, {
+      case: repairManager.case,
+      configured: repairManager.config.configured,
+      providerConfigured: repairManager.config.providerConfigured,
+      missing: repairManager.config.missing,
+      timeouts: repairManager.config.timeouts,
+    });
+    if (url.pathname === '/api/repair/runs' && req.method === 'GET') return send(res, 200, {runs: repairManager.list(), active: repairManager.active()});
+    if (url.pathname === '/api/repair/run' && req.method === 'POST') {
+      const payload = JSON.parse(await readBody(req) || '{}');
+      const run = repairManager.start(payload.caseId);
+      return send(res, 202, {run});
+    }
+    const repairRun = url.pathname.match(/^\/api\/repair\/runs\/([0-9a-f-]+)$/);
+    if (repairRun && req.method === 'GET') {
+      const run = repairManager.publicRun(repairRun[1]);
+      if (!run) return send(res, 404, {error: 'Repair run not found.'});
+      return send(res, 200, run);
+    }
+    const repairDownload = url.pathname.match(/^\/api\/repair\/runs\/([0-9a-f-]+)\/(patch|bundle)$/);
+    if (repairDownload && req.method === 'GET') {
+      const id = repairDownload[1];
+      if (repairDownload[2] === 'patch') {
+        const patchFile = repairManager.patchFile(id);
+        if (!patchFile || !fs.existsSync(patchFile)) return send(res, 404, {error: 'This run has no generated patch.'});
+        const data = fs.readFileSync(patchFile);
+        res.writeHead(200, {'content-type': 'text/x-diff; charset=utf-8', 'content-disposition': `attachment; filename="repair-${id}.patch"`, 'content-length': data.length, 'cache-control': 'no-store'});
+        res.end(data); return;
+      }
+      const data = Buffer.from(JSON.stringify(repairManager.bundle(id), null, 2) + '\n');
+      res.writeHead(200, {'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="repair-bundle-${id}.json"`, 'content-length': data.length, 'cache-control': 'no-store'});
+      res.end(data); return;
+    }
     if (url.pathname === '/api/supported') return send(res, 200, {
       family: FAMILY.family, label: FAMILY.label, expected: FAMILY.expected, limitations: FAMILY.limitations,
       artifacts: Object.fromEntries(Object.entries(FAMILY.artifacts).map(([k, v]) => [k, {sha256: v.sha256, label: v.label || k, provenance: v.provenance || `manifest artifact ${k}`, roles: v.roles}])),
@@ -337,15 +372,17 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (url.pathname === '/' || url.pathname === '/index.html') return file(res, 'index.html');
-    if (['/app.js', '/styles.css'].includes(url.pathname)) return file(res, url.pathname.slice(1));
+    if (url.pathname === '/repair' || url.pathname === '/repair/') return file(res, 'repair.html');
+    if (['/app.js', '/styles.css', '/repair.js', '/repair.css'].includes(url.pathname)) return file(res, url.pathname.slice(1));
     return send(res, 404, {error: 'Not found.'});
   } catch (e) {
-    return send(res, 400, {error: e.message});
+    return send(res, e.statusCode || 400, {error: e.message});
   }
 });
 if (require.main === module) {
   recoverRuns();
+  repairManager.recover();
   server.listen(PORT, HOST, () => console.log(`Sputnik rehearsal UI: http://${HOST}:${PORT}`));
 } else {
-  module.exports = {finalizeRun};
+  module.exports = {finalizeRun, repairManager};
 }

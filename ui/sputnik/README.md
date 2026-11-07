@@ -36,6 +36,41 @@ invalid file leaves the input cleared. The runner labels each artifact from that
 manifest, not from a hardcoded filename. Alternate builds are accepted within
 the declared family exports (`update`, `migrate`, `act_proposal`).
 
+## Repair journey
+
+`/repair` is the supported Sputnik issue #238 repair slice. It keeps the manual
+release-comparison journey at `/` and uses the existing
+`case-triage/rehearsal-repair/codex-producer.cjs` and
+`repair-pipeline.cjs` as the execution path.
+
+The browser sends only the supported case ID. Configure the local operator
+environment on the server (never in the browser):
+
+```sh
+REPAIR_SOURCE_DIR=/path/to/pinned/rebuild-base \
+REPAIR_SANDBOX_DIR=/path/to/directory-containing-near-sandbox \
+MODEL_PRODUCER_SANDBOX_CMD='["<outer-policy-wrapper>","--permission-profile","<profile>","{workspace}","--"]' \
+CODEX_PERMISSION_PROFILE='<profile>' \
+CODEX_AUTH_SOURCE="$HOME/.codex/auth.json" \
+CODEX_BIN="$(command -v codex)" \
+PORT=4174 npm run ui:sputnik
+```
+
+`REPAIR_SOURCE_DIR` must be the exact pinned source tree. The default base WASM
+is the retained `case-triage/rehearsal-repair/bundle/artifacts/base.wasm`.
+`CODEX_PRIVATE_RUNTIME` can name a temporary private runtime; no token values
+are read into the app. The server checks the configuration and reports missing
+items without exposing paths or secrets.
+
+One click starts a fresh baseline reproduction, one model generation, the
+pinned build, a local Sandbox replay and the existing acceptance checks. Run
+directories are unique under `out/sputnik-ui/repair-runs`. The page shows the
+actual `reproducing`, `generating`, `compiling` and `replaying` phases, elapsed
+time and one truthful terminal state. It never substitutes a committed report
+or authored patch. A generated patch can be downloaded after generation; the
+review bundle is available only after an accepted run. Completed results remain
+addressable after refresh or restart; interrupted jobs are marked interrupted.
+
 ## Outcomes
 
 The default run is expected to show:
