@@ -154,6 +154,7 @@ jobs:
           node case-triage/rehearsal-repair/persisted-recovery-acceptance.cjs \
             --report "$RUNNER_TEMP/persisted-recovery/persisted-recovery.json" \
             --wasm case-triage/rehearsal-repair/generated/e8262f5a/candidate.wasm \
+            --base-wasm case-triage/rehearsal-repair/bundle/artifacts/base.wasm \
             --expected-wasm-sha256 49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923 \
             --expected-patch-sha256 532741a3f689863844d0af147ec08d278420cd74920f68f817234747e295fedc \
             --expected-source-sha256 82efc4225e307b97068cd7bd984da78f9a83ecf51e1b21749de344f45aa53b22 \

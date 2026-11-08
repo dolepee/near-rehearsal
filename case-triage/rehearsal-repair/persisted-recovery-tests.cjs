@@ -8,6 +8,7 @@ const here = __dirname;
 const report = JSON.parse(fs.readFileSync(path.join(here, 'out/persisted-recovery.json'), 'utf8'));
 const opts = {
   wasmPath: path.join(here, 'generated/e8262f5a/candidate.wasm'),
+  baseWasmPath: path.join(here, 'bundle/artifacts/base.wasm'),
   patchPath: path.join(here, 'generated/e8262f5a/repair.patch'),
   expectedWasmSha256: '49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923',
   expectedPatchSha256: '532741a3f689863844d0af147ec08d278420cd74920f68f817234747e295fedc',
@@ -43,6 +44,10 @@ reject('proposal changed across upgrade', (r) => { r.upgraded.proposal.status = 
 reject('locked amount changed across upgrade', (r) => { r.upgraded.lockedAmount = '0'; });
 reject('candidate code not applied', (r) => { r.upgraded.codeHash = '0'.repeat(44); });
 reject('candidate bytes mismatch', (r) => { r.candidate.wasmSha256 = '0'.repeat(64); });
+reject('first recovery detached from preRecovery', (r) => { r.firstRecovery.before.contractBalance = (BigInt(r.firstRecovery.before.contractBalance) + 1n).toString(); });
+reject('second retry detached from first recovery', (r) => { r.secondRetry.before.contractBalance = (BigInt(r.secondRetry.before.contractBalance) + 1n).toString(); });
+reject('frozen code is not the pinned base artifact', (r) => { r.failed.frozen.codeHash = r.candidate.wasmHash; });
+reject('base deploy digest does not match the pinned base artifact', (r) => { r.deploy.transaction.actions[0].DeployContract.code = Buffer.from('00'.repeat(32), 'hex').toString('base64'); });
 reject('first cached gross wrong', (r) => { r.firstRecovery.grossRecoveryYocto = '1'; });
 reject('first final not FINAL', (r) => { r.firstRecovery.final.finalExecutionStatus = 'None'; });
 reject('first missing downstream failure', (r) => { r.firstRecovery.final.receipts = r.firstRecovery.final.receipts.filter((x) => x.executorId !== r.accounts.failedTarget); });
@@ -114,7 +119,7 @@ console.log(JSON.stringify({
   accepted: ['actual-positive-control', 'cached-booleans-ignored'],
   rejected: [
     'state-changed', 'policy-changed', 'proposal-changed', 'locked-changed', 'candidate-code',
-    'candidate-bytes', 'first-gross', 'first-final-status', 'first-downstream-failure', 'first-root-receipt', 'first-outcome-gas', 'first-unrooted-receipt', 'first-outcome-failure',
+    'candidate-bytes', 'first-window-link', 'second-window-link', 'frozen-base-code', 'base-deploy-digest', 'first-gross', 'first-final-status', 'first-downstream-failure', 'first-root-receipt', 'first-outcome-gas', 'first-unrooted-receipt', 'first-outcome-failure',
     'first-proposer-accounting', 'first-contract-accounting', 'first-recipient',
     'second-gross', 'second-final-status', 'second-proposer-accounting', 'second-locked',
     'unauthorized-update-transport', 'unauthorized-update-evidence',

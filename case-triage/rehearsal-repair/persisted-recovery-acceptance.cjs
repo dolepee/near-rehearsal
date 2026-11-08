@@ -108,6 +108,33 @@ function verify(report, options = {}) {
   if (Number(report?.runtime?.protocol) !== SANDBOX_PROTOCOL) fail('Sandbox protocol');
   if (report?.source?.baseWasmSha256 !== BASE_WASM_SHA) fail('base WASM identity');
 
+  // Bind the base artifact and candidate to their actual bytes.  A report-only
+  // hash must not be able to describe a different frozen or upgraded contract.
+  if (!options.baseWasmPath) fail('base WASM file is required for frozen-code identity');
+  let baseBytes = null;
+  let actualBaseSha = null;
+  let actualBaseCodeHash = null;
+  if (options.baseWasmPath) {
+    baseBytes = fs.readFileSync(options.baseWasmPath);
+    actualBaseSha = sha256(baseBytes);
+    actualBaseCodeHash = hashContract(baseBytes);
+    if (report?.source?.baseWasmSha256 !== actualBaseSha) fail('base WASM SHA-256 does not match the pinned base artifact');
+    if (report?.source?.baseWasmHash !== actualBaseCodeHash) fail('base WASM code hash does not match the pinned base artifact');
+    if (report?.failed?.frozen?.codeHash !== actualBaseCodeHash) fail('frozen code identity is not the pinned base artifact');
+    const baseDeployActions = (report?.deploy?.transaction?.actions || []).filter((action) => action?.DeployContract);
+    if (baseDeployActions.length !== 1) fail('base deploy must contain exactly one DeployContract action');
+    else {
+      const deploy = baseDeployActions[0].DeployContract;
+      let digest = null;
+      if (typeof deploy?.codeSha256 === 'string') digest = deploy.codeSha256;
+      else if (typeof deploy?.code === 'string') {
+        try { digest = Buffer.from(deploy.code, 'base64').toString('hex'); } catch {}
+      }
+      if (digest !== actualBaseSha) fail('base DeployContract digest does not match the pinned base artifact');
+      if (Number.isInteger(deploy?.codeBytes) && deploy.codeBytes !== baseBytes.length) fail('base DeployContract byte length does not match the pinned base artifact');
+    }
+  }
+
   // Bind the actual candidate bytes, not a report-only hash.
   if (!options.wasmPath) fail('candidate WASM file is required for byte/code identity');
   let candidateBytes = null;
@@ -122,6 +149,7 @@ function verify(report, options = {}) {
     if (report?.upgrade?.codeHash !== candidateCodeHash) fail('upgraded code hash does not match actual candidate bytes');
   }
   if (options.expectedWasmSha256 && report?.candidate?.wasmSha256 !== options.expectedWasmSha256) fail('candidate WASM SHA-256 expectation');
+  if (actualBaseCodeHash && candidateCodeHash && actualBaseCodeHash === candidateCodeHash) fail('old and candidate code hashes are identical');
   if (options.expectedPatchSha256 && report?.identity?.patch?.sha256 !== options.expectedPatchSha256) fail('candidate patch SHA-256 expectation');
   if (options.expectedSourceSha256 && report?.identity?.source?.sha256 !== options.expectedSourceSha256) fail('candidate source SHA-256 expectation');
   if (report?.identity?.wasm?.sha256 && report.identity.wasm.sha256 !== report.candidate.wasmSha256) fail('identity WASM does not match report');
@@ -201,6 +229,8 @@ function verify(report, options = {}) {
 
   const firstBefore = report?.firstRecovery?.before;
   const firstAfter = report?.firstRecovery?.after;
+  if (!sameJson(firstBefore, report?.preRecovery)) fail('first recovery does not start at the pre-recovery snapshot');
+  if (!sameJson(report?.secondRetry?.before, firstAfter)) fail('second retry does not start at the first-recovery end snapshot');
   const firstFinal = report?.firstRecovery?.final;
   if (firstFinal?.finalExecutionStatus !== 'FINAL') fail('first recovery was not FINAL');
   if (firstFinal?.receiptFailure !== true || !hasFailure(firstFinal, report?.accounts?.failedTarget)) fail('first recovery lacks the expected downstream failure receipt');
@@ -307,6 +337,7 @@ if (require.main === module) {
     const arg = args[i];
     if (arg === '--report') opts.report = args[++i];
     else if (arg === '--wasm') opts.wasmPath = args[++i];
+    else if (arg === '--base-wasm') opts.baseWasmPath = args[++i];
     else if (arg === '--expected-wasm-sha256') opts.expectedWasmSha256 = args[++i];
     else if (arg === '--expected-patch-sha256') opts.expectedPatchSha256 = args[++i];
     else if (arg === '--expected-source-sha256') opts.expectedSourceSha256 = args[++i];
@@ -316,6 +347,7 @@ if (require.main === module) {
   }
   if (!opts.report) throw new Error('--report is required');
   if (!opts.wasmPath) throw new Error('--wasm is required');
+  if (!opts.baseWasmPath) throw new Error('--base-wasm is required');
   const report = JSON.parse(fs.readFileSync(opts.report, 'utf8'));
   const errors = verify(report, opts);
   console.log(JSON.stringify({

@@ -617,6 +617,7 @@ function createManager(options = {}) {
           PERSISTED_ACCEPTANCE,
           '--report', recoveryReportPath,
           '--wasm', wasmPath,
+          '--base-wasm', config.baseWasm,
           '--patch', patchPath,
           '--expected-wasm-sha256', pipeline?.hashes?.wasm || sha256File(wasmPath),
           '--expected-patch-sha256', run.patch.sha256,
@@ -821,7 +822,7 @@ function createManager(options = {}) {
       },
       commands: {
         verify: 'node case-triage/rehearsal-repair/acceptance.cjs --base <baseline-report.json> --repaired <candidate-report.json> --identity <candidate-identity.json> --patch <repair.patch> --source <applied-proposals.rs> --wasm <candidate.wasm>',
-        recovery: `node case-triage/rehearsal-repair/persisted-recovery-acceptance.cjs --report <persisted-recovery.json> --wasm <candidate.wasm> --patch <repair.patch> --source <applied-proposals.rs> --expected-wasm-sha256 ${sha256(wasm)} --expected-patch-sha256 ${sha256(patch)} --expected-source-sha256 ${sourceSha256 || '<applied-proposals.rs sha256>'}`,
+        recovery: `node case-triage/rehearsal-repair/persisted-recovery-acceptance.cjs --report <persisted-recovery.json> --wasm <candidate.wasm> --base-wasm <base.wasm> --patch <repair.patch> --source <applied-proposals.rs> --expected-wasm-sha256 ${sha256(wasm)} --expected-patch-sha256 ${sha256(patch)} --expected-source-sha256 ${sourceSha256 || '<applied-proposals.rs sha256>'}`,
         recipe: 'From the pinned source commit, apply repair.patch, unpack baseline.report, candidate.report, persisted-recovery.json, candidate.wasm and applied-proposals.rs, then run both acceptance commands above. Check every recorded SHA-256 before running them, including recovery.reportText -> recovery.reportSha256. No absolute paths or account runtime files are included.',
       },
       boundary: CASE.boundary,
