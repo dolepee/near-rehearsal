@@ -4,10 +4,15 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {EventEmitter} = require('node:events');
+const crypto = require('node:crypto');
 const {createManager, exampleBundleText, validateBundle} = require('./review-job.cjs');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'near-review-job-'));
 const example = exampleBundleText();
+assert.notEqual(example.sha256, example.canonicalSha256, 'raw and canonical bundle hashes are distinct');
+const sandboxDir = path.join(tmp, 'sandbox');
+fs.mkdirSync(sandboxDir, {recursive: true});
+fs.writeFileSync(path.join(sandboxDir, 'near-sandbox'), '');
 
 function fakeSpawn({payload = null, code = 0, error = null, hold = false} = {}) {
   return (command, args) => {
@@ -65,8 +70,8 @@ const acceptedResult = {
 
 async function runAccepted() {
   const runsRoot = path.join(tmp, 'accepted');
-  const manager = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: '/opt/sandbox'}, spawn: fakeSpawn({payload: acceptedResult})});
-  const started = manager.start(example.bundle);
+  const manager = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({payload: acceptedResult})});
+  const started = manager.start(example.bundle, 'recorded-wasm');
   assert.equal(started.status, 'running');
   const run = manager.get(started.id);
   await run.done;
@@ -76,20 +81,26 @@ async function runAccepted() {
   const downloaded = fs.readFileSync(manager.download(started.id), 'utf8');
   assert.doesNotMatch(downloaded, /\/Users\/|\/tmp\/|\/opt\//);
   assert.match(downloaded, /"accepted": true/);
+  const inputFile = manager.input(started.id);
+  const inputHash = crypto.createHash('sha256').update(fs.readFileSync(inputFile)).digest('hex');
+  assert.equal(run.bundle.sha256, inputHash, 'reported bundle hash is the stored/downloaded bytes');
+  assert.equal(run.bundle.canonicalSha256, example.canonicalSha256, 'canonical compact JSON hash is separate');
+  assert.equal(run.result.bundle.sha256, inputHash, 'result metadata uses the stored bytes hash');
+  assert.equal(run.result.bundle.canonicalSha256, example.canonicalSha256, 'result metadata keeps the canonical content hash');
   assert.ok(manager.input(started.id));
   assert.ok(manager.evidence(started.id));
   assert.doesNotMatch(fs.readFileSync(manager.evidence(started.id), 'utf8'), /\/Users\/|\/tmp\/|\/opt\//);
   assert.equal(manager.list()[0].accepted, true);
 
-  const recovered = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: '/opt/sandbox'}});
+  const recovered = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: sandboxDir}});
   recovered.recover();
   assert.equal(recovered.get(started.id).status, 'accepted');
   assert.equal(recovered.list().length, 1);
 }
 
 async function runRejected() {
-  const manager = createManager({runsRoot: path.join(tmp, 'rejected'), env: {REPAIR_SANDBOX_DIR: '/opt/sandbox'}, spawn: fakeSpawn({code: 1, error: 'recorded recovery failed at /tmp/private'})});
-  const started = manager.start(example.bundle);
+  const manager = createManager({runsRoot: path.join(tmp, 'rejected'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({code: 1, error: 'recorded recovery failed at /tmp/private'})});
+  const started = manager.start(example.bundle, 'recorded-wasm');
   await manager.get(started.id).done;
   const run = manager.get(started.id);
   assert.equal(run.status, 'rejected');
@@ -98,13 +109,16 @@ async function runRejected() {
 }
 
 async function runActive() {
-  const manager = createManager({runsRoot: path.join(tmp, 'active'), env: {REPAIR_SANDBOX_DIR: '/opt/sandbox'}, spawn: fakeSpawn({hold: true})});
-  manager.start(example.bundle);
-  assert.throws(() => manager.start(example.bundle), (error) => error.statusCode === 409);
+  const manager = createManager({runsRoot: path.join(tmp, 'active'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({hold: true})});
+  manager.start(example.bundle, 'recorded-wasm');
+  assert.throws(() => manager.start(example.bundle, 'recorded-wasm'), (error) => error.statusCode === 409);
   await manager.shutdown();
 }
 
 function validation() {
+  const manager = createManager({runsRoot: path.join(tmp, 'validation'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({hold: true})});
+  assert.throws(() => manager.start(example.bundle, 'not-a-mode'), (error) => error.statusCode === 400);
+  assert.throws(() => manager.start(example.bundle, 'source-build'), (error) => error.statusCode === 409);
   assert.throws(() => validateBundle({schema: 'wrong'}), /schema/);
   assert.throws(() => validateBundle({...example.bundle, candidate: {...example.bundle.candidate, wasm: {...example.bundle.candidate.wasm, sha256: '0'.repeat(64)}}}), /WASM hash/);
   const checked = validateBundle(example.bundle);

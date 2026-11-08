@@ -31,9 +31,17 @@ REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14 PORT=4174 npm run ui:review
 ```
 
 Open `http://127.0.0.1:4174/review`, select the bundle JSON or load the example,
-then **Run recorded review**. The page uses the same `recorded-wasm` path,
-keeps addressable history and offers a sanitized `review-result.json` only after
-acceptance. It does not expose host paths or raw runtime files.
+then choose one of the two modes:
+
+- **Source build** (default when configured) applies the supplied patch to the
+  server-configured pinned checkout, builds with Rust 1.86.0 and
+  `wasm32-unknown-unknown`, then runs the persisted recovery and acceptance.
+- **Recorded WASM replay** executes the supplied artifact without a build.
+
+The page uses the same `repair-review` CLI, keeps addressable history and offers
+distinct input, evidence and sanitized result downloads only after acceptance.
+It does not expose host paths or raw runtime files. The example is a recorded
+model candidate; the page still executes it in a fresh Sandbox.
 
 ## Commands
 

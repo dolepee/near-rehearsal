@@ -100,7 +100,7 @@ NEAR Rehearsal is a local review surface for one supported Sputnik DAO v2 obliga
 
 The `/repair` route reuses the existing Sputnik app shell and adds a single supported repair journey. The older `/` manual release-comparison journey remains intact. Every accepted result names the boundary in plain language: this is a local reproduction from pinned upstream source, not a live DAO, a public-state migration, an audit or production approval.
 
-The `/review` route is the reviewer-facing handoff for a downloaded repair bundle. It verifies the bundle before starting a recorded-WASM replay, shows the money and preservation checks, keeps addressable history and offers a sanitized result download only after acceptance. It does not call a model or build source.
+The `/review` route is the reviewer-facing handoff for a downloaded repair bundle. It verifies the bundle before starting either a source build or a recorded-WASM replay, shows the money and preservation checks, keeps addressable history and offers distinct input, evidence and sanitized result downloads only after acceptance. It does not call a model.
 
 ## Colors
 

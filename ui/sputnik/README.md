@@ -75,10 +75,11 @@ addressable after refresh or restart; interrupted jobs are marked interrupted.
 
 `/review` is the reviewer-facing entry point for a downloaded repair bundle. It
 accepts a JSON bundle in the browser, verifies its declared hashes and
-identities, and runs `scripts/repair-review.cjs --mode recorded-wasm` against
-the local Sandbox 2.14 directory. The page keeps addressable history and offers
-a sanitized `review-result.json` only after acceptance. It does not call a model
-or build source.
+identities, and then runs either `scripts/repair-review.cjs --mode source-build`
+with the server-configured pinned source and Rust 1.86 toolchain, or
+`--mode recorded-wasm` against the local Sandbox 2.14 directory. The page keeps
+addressable history and offers distinct input, evidence and sanitized result
+downloads only after acceptance. It does not call a model.
 
 ```sh
 REPAIR_SANDBOX_DIR=/path/to/directory-containing-near-sandbox \

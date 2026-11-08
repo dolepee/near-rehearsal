@@ -8,14 +8,17 @@ const html = fs.readFileSync(path.join(root, 'public', 'review.html'), 'utf8');
 const js = fs.readFileSync(path.join(root, 'public', 'review.js'), 'utf8');
 const server = fs.readFileSync(path.join(root, 'server.cjs'), 'utf8');
 
-for (const id of ['bundle-file', 'example-button', 'run-button', 'history-list', 'result-state', 'downloads', 'status']) {
+for (const id of ['bundle-file', 'example-button', 'run-button', 'history-list', 'result-state', 'downloads', 'status', 'mode-source', 'mode-recorded', 'mode-source-status', 'mode-recorded-status']) {
   assert.match(html, new RegExp(`id="${id}"`), `missing #${id}`);
 }
+assert.match(html, /Source build/);
 assert.match(html, /Recorded WASM replay/);
+assert.match(html, /recorded candidate/);
 assert.match(html, /Local evidence only/);
 assert.match(js, /\/api\/review\/runs/);
 assert.match(js, /downloadUrl/);
 assert.match(js, /No bundle selected/);
+assert.match(js, /schedulePoll/);
 assert.match(server, /\/api\/review\/example/);
 assert.match(server, /\/api\/review\/runs/);
 assert.match(server, /\/download/);

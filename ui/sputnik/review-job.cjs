@@ -10,8 +10,9 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const {spawn} = require('node:child_process');
+const {spawn, spawnSync} = require('node:child_process');
 const {checkBundle} = require('../../scripts/repair-review.cjs');
+const {verifyToolchain} = require('../../case-triage/rehearsal-repair/repair-pipeline.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const REVIEW = path.join(ROOT, 'scripts/repair-review.cjs');
@@ -21,7 +22,13 @@ const CASE_ID = 'sputnik-238-async-bond';
 const SCHEMA = 'near-rehearsal/repair-review-bundle/v1';
 const MAX_BUNDLE_BYTES = 8 * 1024 * 1024;
 const MAX_LOG = 180;
-const RUN_LIMIT_MS = 20 * 60 * 1000;
+const RUN_LIMIT_MS = 35 * 60 * 1000;
+const SOURCE_COMMIT = '5434a59dec23ee0c49df8c8c4350c208a7e75b0b';
+const BUILD_MANIFEST = path.join(ROOT, 'case-triage/rehearsal-repair/build-manifest.json');
+const MODE_LABELS = {
+  'recorded-wasm': {label: 'Recorded WASM replay', detail: 'Supplied artifact; no source build.'},
+  'source-build': {label: 'Source build', detail: 'Build the supplied patch and replay it.'},
+};
 const SANDBOX_ENV_KEYS = ['REPAIR_SANDBOX_DIR', 'NEAR_SANDBOX_BIN_PATH', 'NEAR_SANDBOX_BINARY_PATH'];
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
@@ -36,6 +43,70 @@ function resolveSandboxDir(env = process.env) {
     if (env[key]) return path.resolve(env[key]);
   }
   return null;
+}
+
+function sourceState(env, expected = SOURCE_COMMIT) {
+  const sourceDir = env.REPAIR_SOURCE_DIR ? path.resolve(env.REPAIR_SOURCE_DIR) : null;
+  if (!sourceDir) return {configured: false, missing: ['REPAIR_SOURCE_DIR'], head: null, clean: null};
+  if (!fs.existsSync(path.join(sourceDir, '.git'))) return {configured: false, missing: ['REPAIR_SOURCE_DIR'], head: null, clean: null};
+  const headRun = spawnSync('git', ['-C', sourceDir, 'rev-parse', 'HEAD'], {encoding: 'utf8', timeout: 10_000});
+  const head = headRun.status === 0 ? headRun.stdout.trim() : null;
+  if (!head) return {configured: false, missing: ['REPAIR_SOURCE_DIR'], head: null, clean: null};
+  if (head !== expected) return {configured: false, missing: ['REPAIR_SOURCE_DIR'], head, clean: null};
+  const statusRun = spawnSync('git', ['-C', sourceDir, 'status', '--porcelain', '--untracked-files=all'], {encoding: 'utf8', timeout: 10_000, maxBuffer: 16 * 1024 * 1024});
+  const clean = statusRun.status === 0 && !statusRun.stdout.trim();
+  return {configured: clean, missing: clean ? [] : ['REPAIR_SOURCE_DIR'], head, clean};
+}
+
+function toolchainState() {
+  try {
+    const manifest = JSON.parse(fs.readFileSync(BUILD_MANIFEST, 'utf8'));
+    const toolchain = verifyToolchain(manifest);
+    const target = spawnSync(toolchain.env.RUSTC, ['--print', 'target-libdir', '--target', manifest.toolchain.target], {
+      env: {...process.env, ...toolchain.env}, encoding: 'utf8', timeout: 10_000,
+    });
+    if (target.status !== 0 || !fs.existsSync(target.stdout.trim())) throw new Error('wasm32 target is not installed');
+    return {configured: true, cargo: toolchain.cargoVersion, rustc: toolchain.rustcVersion, target: manifest.toolchain.target};
+  } catch (error) {
+    return {configured: false, error: error.message};
+  }
+}
+
+function modeStatus(mode, bundle, env, rust = toolchainState()) {
+  if (!MODE_LABELS[mode]) return {mode, configured: false, missing: ['unknown mode'], label: mode, detail: ''};
+  const sandboxDir = resolveSandboxDir(env);
+  const missing = [];
+  if (!sandboxDir || !fs.existsSync(path.join(sandboxDir, 'near-sandbox'))) missing.push('REPAIR_SANDBOX_DIR');
+  let source = null;
+  if (mode === 'source-build') {
+    source = sourceState(env, bundle?.source?.commit || SOURCE_COMMIT);
+    if (!source.configured) missing.push('REPAIR_SOURCE_DIR');
+    if (!rust.configured) missing.push('Rust 1.86.0 + wasm32-unknown-unknown');
+  }
+  return {
+    mode,
+    label: MODE_LABELS[mode].label,
+    detail: MODE_LABELS[mode].detail,
+    configured: missing.length === 0,
+    missing: [...new Set(missing)],
+    source: source ? {configured: source.configured, head: source.head, clean: source.clean} : null,
+    rust: mode === 'source-build' ? {configured: rust.configured, target: rust.target || null} : null,
+  };
+}
+
+function resolveReviewConfig(env = process.env, bundle = null) {
+  const rust = toolchainState();
+  const modes = {
+    'recorded-wasm': modeStatus('recorded-wasm', bundle, env, rust),
+    'source-build': modeStatus('source-build', bundle, env, rust),
+  };
+  const defaultMode = modes['source-build'].configured ? 'source-build' : 'recorded-wasm';
+  return {
+    configured: modes[defaultMode].configured,
+    defaultMode,
+    modes,
+    missing: modes[defaultMode].missing,
+  };
 }
 
 function validateBundle(bundle) {
@@ -53,7 +124,7 @@ function validateBundle(bundle) {
   }
   return {
     bundle,
-    sha256: sha256(text),
+    canonicalSha256: sha256(text),
     runId: bundle.runId,
     caseId: bundle.caseId,
     source: {
@@ -95,14 +166,19 @@ function sanitizeEvidence(value) {
 }
 
 function buildEvidence(run) {
-  const replayDir = path.join(run.outDir, 'recorded-replay');
+  const recorded = run.mode !== 'source-build';
+  const evidenceDir = recorded ? path.join(run.outDir, 'recorded-replay') : path.join(run.outDir, 'source-build');
+  const persistedDir = recorded ? evidenceDir : path.join(evidenceDir, 'persisted');
   return sanitizeEvidence({
     schema: 'near-rehearsal/review-browser-evidence/v1',
     createdAt: run.finishedAt || nowIso(),
+    mode: run.mode,
     bundle: run.bundle,
     result: run.result || null,
-    recovery: readJson(path.join(replayDir, 'persisted-recovery.json')),
-    acceptance: readJson(path.join(replayDir, 'persisted-recovery-acceptance.json')),
+    pipeline: recorded ? null : readJson(path.join(evidenceDir, 'pipeline.json')),
+    identity: recorded ? null : readJson(path.join(evidenceDir, 'candidate-identity.json')),
+    recovery: readJson(path.join(persistedDir, 'persisted-recovery.json')),
+    acceptance: readJson(path.join(persistedDir, 'persisted-recovery-acceptance.json')),
   });
 }
 
@@ -113,6 +189,8 @@ function publicResult(result, meta) {
     createdAt: result.createdAt || meta.finishedAt || nowIso(),
     bundle: {
       sha256: meta.bundleSha256,
+      canonicalSha256: meta.bundle.canonicalSha256 || null,
+      bytes: meta.bundle.bytes || null,
       runId: meta.bundle.runId,
       caseId: meta.bundle.caseId,
       source: meta.bundle.source,
@@ -145,6 +223,7 @@ function publicRun(run) {
     error: run.error ? cleanError(run.error) : null,
     logs: (run.logs || []).slice(-MAX_LOG).map(cleanError),
     bundle: run.bundle,
+    mode: run.mode || 'recorded-wasm',
     result: run.result || null,
     downloadUrl: run.status === 'accepted' ? `/api/review/runs/${run.id}/download` : null,
     inputUrl: `/api/review/runs/${run.id}/input`,
@@ -163,6 +242,7 @@ function summary(run) {
     error: run.error ? cleanError(run.error) : null,
     bundle: run.bundle,
     accepted: run.result?.summary?.checks?.accepted === true,
+    mode: run.mode || 'recorded-wasm',
     downloadUrl: run.status === 'accepted' ? `/api/review/runs/${run.id}/download` : null,
     inputUrl: `/api/review/runs/${run.id}/input`,
     evidenceUrl: run.status === 'accepted' ? `/api/review/runs/${run.id}/evidence` : null,
@@ -172,6 +252,7 @@ function summary(run) {
 function createManager(options = {}) {
   const runsRoot = options.runsRoot || DEFAULT_RUNS_ROOT;
   const spawnImpl = options.spawn || spawn;
+  const env = options.env || process.env;
   const runs = new Map();
   let activeId = null;
 
@@ -188,6 +269,7 @@ function createManager(options = {}) {
       finishedAt: run.finishedAt || null,
       error: run.error ? cleanError(run.error) : null,
       bundle: run.bundle,
+      mode: run.mode || 'recorded-wasm',
       result: run.result || null,
       logs: (run.logs || []).slice(-MAX_LOG).map(cleanError),
     };
@@ -238,9 +320,10 @@ function createManager(options = {}) {
       REVIEW,
       '--bundle', bundlePath,
       '--out', run.outDir,
-      '--mode', 'recorded-wasm',
+      '--mode', run.mode,
     ];
     if (run.sandboxDir) args.push('--sandbox-dir', run.sandboxDir);
+    if (run.mode === 'source-build' && run.sourceDir) args.push('--source', run.sourceDir);
     return new Promise((resolve) => {
       let settled = false;
       const done = (options = {}) => {
@@ -296,16 +379,23 @@ function createManager(options = {}) {
     });
   }
 
-  function start(bundle) {
+  function start(bundle, requestedMode = 'source-build') {
     if (activeId) throw Object.assign(new Error('A review is already active.'), {statusCode: 409});
+    if (!MODE_LABELS[requestedMode]) throw Object.assign(new Error('Choose source-build or recorded-wasm.'), {statusCode: 400});
     const validated = validateBundle(bundle);
+    const status = modeStatus(requestedMode, bundle, env);
+    if (!status.configured) {
+      throw Object.assign(new Error(`The ${requestedMode} mode is not ready: ${status.missing.join(', ')}.`), {statusCode: 409});
+    }
     ensureRoot();
     const id = crypto.randomUUID();
     const dir = runDir(id);
     const outDir = path.join(dir, 'review');
     fs.mkdirSync(dir, {recursive: true});
     const bundlePath = path.join(dir, 'bundle.json');
-    fs.writeFileSync(bundlePath, json(bundle));
+    const storedBundle = json(bundle);
+    fs.writeFileSync(bundlePath, storedBundle);
+    const storedBundleSha256 = sha256(Buffer.from(storedBundle, 'utf8'));
     const run = {
       id,
       status: 'running',
@@ -314,17 +404,21 @@ function createManager(options = {}) {
       finishedAt: null,
       error: null,
       logs: [],
+      mode: requestedMode,
+      sourceDir: requestedMode === 'source-build' ? path.resolve(env.REPAIR_SOURCE_DIR) : null,
       bundle: {
-        sha256: validated.sha256,
+        sha256: storedBundleSha256,
+        canonicalSha256: validated.canonicalSha256,
+        bytes: Buffer.byteLength(storedBundle),
         runId: validated.runId,
         caseId: validated.caseId,
         source: validated.source,
         candidate: validated.candidate,
         createdAt: validated.createdAt,
       },
-      bundleSha256: validated.sha256,
+      bundleSha256: storedBundleSha256,
       outDir,
-      sandboxDir: resolveSandboxDir(options.env || process.env),
+      sandboxDir: resolveSandboxDir(env),
       currentChild: null,
     };
     runs.set(id, run);
@@ -350,6 +444,7 @@ function createManager(options = {}) {
         finishedAt: meta.finishedAt || null,
         error: meta.error || null,
         logs: meta.logs || [],
+        mode: meta.mode || 'recorded-wasm',
         bundle: meta.bundle || null,
         bundleSha256: meta.bundle?.sha256 || null,
         result: meta.result || null,
@@ -423,8 +518,9 @@ function createManager(options = {}) {
     input,
     evidence,
     runsRoot,
-    configured: Boolean(resolveSandboxDir(options.env || process.env)),
-    missing: resolveSandboxDir(options.env || process.env) ? [] : ['REPAIR_SANDBOX_DIR'],
+    config(bundle = null) { return resolveReviewConfig(env, bundle); },
+    configured: Boolean(resolveSandboxDir(env)),
+    missing: resolveSandboxDir(env) ? [] : ['REPAIR_SANDBOX_DIR'],
   };
 }
 
@@ -432,7 +528,7 @@ function exampleBundleText() {
   const text = fs.readFileSync(EXAMPLE_BUNDLE, 'utf8');
   const bundle = JSON.parse(text);
   const checked = validateBundle(bundle);
-  return {bundle, sha256: checked.sha256, filename: path.basename(EXAMPLE_BUNDLE)};
+  return {bundle, sha256: sha256(Buffer.from(text, 'utf8')), canonicalSha256: checked.canonicalSha256, filename: path.basename(EXAMPLE_BUNDLE)};
 }
 
 module.exports = {

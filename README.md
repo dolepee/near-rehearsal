@@ -72,7 +72,12 @@ For a reviewer who already has an accepted bundle and only needs the recorded re
 REPAIR_SANDBOX_DIR=/path/to/Linux-x86_64 PORT=4174 npm run ui:review
 ```
 
-Open **http://127.0.0.1:4174/review**, choose the bundle JSON or **Load the example bundle**, then **Run recorded review**. This uses `--mode recorded-wasm`: it verifies the supplied hashes and identities, replays the candidate artifact, and runs the declared acceptance checks. It does not call a model, build source, publish anything or treat an earlier report as the result. Accepted runs keep an addressable history and offer a sanitized `review-result.json` download.
+Open **http://127.0.0.1:4174/review**, choose the bundle JSON or **Load example (recorded candidate)**, then choose **Source build** or **Recorded WASM replay** and run it.
+
+- **Source build** applies the supplied patch to the server-configured pinned checkout at `5434a59`, builds with Rust 1.86.0 and `wasm32-unknown-unknown`, then runs the same recovery/acceptance path. This is the default when those prerequisites are present.
+- **Recorded WASM replay** executes the supplied artifact without a build.
+
+Both modes verify the bundle hashes and candidate identities before reserving an output directory, and neither calls a model. Accepted runs keep an addressable history and offer distinct input, evidence and sanitized result downloads. The example is a recorded model candidate, not a new model run; the page still performs a fresh Sandbox execution.
 
 ## Verify and replay an export
 

@@ -32,15 +32,21 @@
         </label>
         <p id="bundle-help" class="hint">JSON only, up to 8 MB. The file stays local to this server.</p>
         <div id="selection" class="selection" role="status" aria-live="polite">No bundle selected.</div>
-        <button id="example-button" class="secondary" type="button">Load the example bundle</button>
+        <button id="example-button" class="secondary" type="button">Load example (recorded candidate)</button>
 
-        <div class="mode-card">
-          <div class="eyebrow">Execution mode</div>
-          <b>Recorded WASM replay</b>
-          <p class="small muted">Runs the candidate WASM supplied in the bundle against Sandbox 2.14.0. No model call and no source build. The result is an artifact replay, not a fresh source reproduction.</p>
-        </div>
+        <fieldset class="mode-card mode-picker">
+          <legend class="eyebrow">Execution mode</legend>
+          <label class="mode-option" for="mode-source">
+            <input id="mode-source" type="radio" name="review-mode" value="source-build">
+            <span><b>Source build</b><small>Apply the supplied patch to the pinned source, build with Rust 1.86, then replay in Sandbox 2.14.</small><em id="mode-source-status">Checking prerequisites…</em></span>
+          </label>
+          <label class="mode-option" for="mode-recorded">
+            <input id="mode-recorded" type="radio" name="review-mode" value="recorded-wasm">
+            <span><b>Recorded WASM replay</b><small>Execute the candidate artifact in Sandbox 2.14 without rebuilding. No model call.</small><em id="mode-recorded-status">Checking prerequisites…</em></span>
+          </label>
+        </fieldset>
 
-        <button id="run-button" class="primary" type="button" disabled>Run recorded review</button>
+        <button id="run-button" class="primary" type="button" disabled>Select a bundle to run</button>
         <div id="runtime-note" class="notice" role="status" aria-live="polite">Checking the local runtime…</div>
         <div class="boundary"><strong>Local evidence only</strong><p>Accepted means the supplied artifact passed the declared local checks. It is not production approval, an audit, or a claim about other contracts.</p></div>
 
@@ -55,7 +61,7 @@
           <div class="empty-mark" aria-hidden="true">↺</div>
           <div class="eyebrow">Nothing running</div>
           <h2>Start with the supplied evidence.</h2>
-          <p>Open a downloaded repair bundle, or load the example. The page verifies the bundle, replays the recorded candidate, and reports the money and preservation checks. It does not call a model or trust a committed report as a result.</p>
+          <p>Open a downloaded repair bundle, or load the example. The page verifies the bundle, then either builds the supplied patch from pinned source or replays the recorded artifact, and reports the money and preservation checks. It does not call a model or trust a committed report as a result.</p>
         </section>
 
         <section id="running-state" class="running panel" hidden>
@@ -88,7 +94,7 @@
           </section>
 
           <section class="details panel" aria-labelledby="download-title">
-            <div class="section-head"><div><div class="eyebrow">Portable result</div><h3 id="download-title">Download the review result</h3></div></div>
+            <div class="section-head"><div><div class="eyebrow">Portable result</div><h3 id="download-title">Download result, input and evidence</h3></div></div>
             <p class="small muted">This is the sanitized browser result for this review. It carries the bundle hash, candidate identity, checks and replay summary, without host paths or runtime files.</p>
             <div id="downloads" class="downloads"></div>
           </section>

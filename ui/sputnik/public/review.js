@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = {config: null, selected: null, run: null, runId: null, poll: null, failures: 0, historySignature: null};
+  const state = {config: null, selected: null, mode: null, run: null, runId: null, openEpoch: 0, poll: null, failures: 0, historySignature: null};
   const terminal = new Set(['accepted', 'rejected', 'interrupted']);
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
   const short = (value, n = 14) => value ? `${String(value).slice(0, n)}…${String(value).slice(-6)}` : '—';
@@ -19,6 +19,9 @@
     el.className = `status-pill ${kind}`;
   };
   const runIsActive = () => Boolean(state.run && !terminal.has(state.run.status));
+  const modeValue = () => state.mode || state.config?.defaultMode || 'recorded-wasm';
+  const modeInfo = () => state.config?.modes?.[modeValue()] || null;
+  const modeReady = () => modeInfo()?.configured === true;
   const show = (id) => {
     for (const key of ['empty-state', 'running-state', 'error-state', 'result-state']) $(key).hidden = key !== id;
   };
@@ -41,7 +44,7 @@
     const {bundle, label} = state.selected;
     selection.className = 'selection ready';
     selection.innerHTML = `<b>${esc(label)}</b><span>Run ${esc(short(bundle.runId))} · ${esc(bundle.source?.commit || 'source commit missing')}</span><span class="mono">candidate ${esc(short(bundle.candidate?.wasm?.sha256 || bundle.candidate?.wasmSha256 || ''))}</span>`;
-    setRunButton(runIsActive() || !state.config?.configured, runIsActive() ? 'One review at a time' : 'Run recorded review');
+    setRunButton(runIsActive() || !modeReady(), runIsActive() ? 'One review at a time' : modeReady() ? (modeValue() === 'source-build' ? 'Run source build' : 'Run recorded review') : 'Mode not ready');
   }
 
   function renderConfig() {
@@ -52,14 +55,28 @@
       setRunButton(true, 'Checking runtime');
       return;
     }
-    if (state.config.configured) {
+    const modes = state.config.modes || {};
+    state.mode = modes[state.mode] ? state.mode : (modes[state.config.defaultMode] ? state.config.defaultMode : 'recorded-wasm');
+    for (const mode of ['source-build', 'recorded-wasm']) {
+      const input = $(mode === 'source-build' ? 'mode-source' : 'mode-recorded');
+      const status = $(mode === 'source-build' ? 'mode-source-status' : 'mode-recorded-status');
+      const info = modes[mode];
+      if (input) { input.checked = mode === state.mode; input.disabled = !info?.configured; }
+      if (status) {
+        status.className = `mode-option-status${info?.configured ? ' ready' : ''}`;
+        status.textContent = info?.configured ? 'Ready: local prerequisites present.' : `Not available: ${info?.missing?.join(', ') || 'prerequisites missing'}.`;
+      }
+    }
+    if (modeReady()) {
       note.className = 'notice provider-ok';
-      note.textContent = 'Sandbox 2.14 directory is configured. This page will not call a model.';
-      setRunButton(runIsActive() || !state.selected, runIsActive() ? 'One review at a time' : state.selected ? 'Run recorded review' : 'Select a bundle to run');
+      note.textContent = modeValue() === 'source-build'
+        ? 'Pinned source, Rust 1.86 and the local Sandbox are configured. This page will not call a model.'
+        : 'Sandbox 2.14 directory is configured. This page will not call a model.';
+      setRunButton(runIsActive() || !state.selected, runIsActive() ? 'One review at a time' : state.selected ? (modeValue() === 'source-build' ? 'Run source build' : 'Run recorded review') : 'Select a bundle to run');
     } else {
       note.className = 'notice provider-bad';
-      note.textContent = `Recorded replay is not configured: ${state.config.missing?.join(', ') || 'Sandbox directory missing'}. Set the runtime on the server before running.`;
-      setRunButton(true, 'Runtime not configured');
+      note.textContent = `${modeValue() === 'source-build' ? 'Source build' : 'Recorded replay'} is not configured: ${modeInfo()?.missing?.join(', ') || 'prerequisites missing'}. Choose the available mode or configure the server.`;
+      setRunButton(true, 'Mode not ready');
     }
   }
 
@@ -87,7 +104,7 @@
       const bundle = JSON.parse(text);
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
       const sha256 = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-      state.selected = {bundle, sha256, label: file.name};
+      state.selected = {bundle, sha256, label: file.name, example: false};
       renderSelection();
     } catch (error) {
       setSelectionError(`That file is not a readable JSON bundle (${error.message}).`);
@@ -110,23 +127,26 @@
       const response = await fetch('/api/review/example', {headers: {'accept': 'application/json'}});
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not load the example bundle.');
-      state.selected = {bundle: data.bundle, sha256: data.sha256, label: data.filename};
+      state.selected = {bundle: data.bundle, sha256: data.sha256, label: data.label || data.filename, example: true};
       renderSelection();
     } catch (error) {
       setSelectionError(error.message);
     } finally {
       button.disabled = false;
-      button.textContent = 'Load the example bundle';
+      button.textContent = 'Load example (recorded candidate)';
     }
   }
 
   function renderRunning(run) {
     show('running-state');
+    const sourceBuild = (run.mode || modeValue()) === 'source-build';
     $('run-id').textContent = run.id;
-    $('running-title').textContent = 'Replaying the supplied candidate…';
-    $('running-copy').textContent = 'The bundle was checked before the replay directory was reserved. The candidate is executed against the local Sandbox; no model is called.';
+    $('running-title').textContent = sourceBuild ? 'Building and replaying the supplied patch…' : 'Replaying the supplied candidate…';
+    $('running-copy').textContent = sourceBuild
+      ? 'The bundle was checked before the output directory was reserved. The patch is applied to pinned source, built with Rust 1.86, then replayed in the local Sandbox; no model is called.'
+      : 'The bundle was checked before the replay directory was reserved. The candidate is executed against the local Sandbox; no model is called.';
     $('elapsed').textContent = duration(run.elapsedMs);
-    $('phase-current').textContent = run.phase === 'accepting' ? 'Running the declared acceptance checks…' : 'Executing the recorded recovery and retry…';
+    $('phase-current').textContent = run.phase === 'accepting' ? 'Running the declared acceptance checks…' : sourceBuild ? 'Building the patch, then executing the recovery and retry…' : 'Executing the recorded recovery and retry…';
     for (const item of document.querySelectorAll('#phase-list li')) {
       const phase = item.dataset.phase;
       item.classList.toggle('active', phase === (run.phase === 'accepting' ? 'accepting' : 'replaying'));
@@ -148,16 +168,21 @@
     const s = result?.summary || {};
     const checks = s.checks || {};
     const accepted = checks.accepted === true && run.status === 'accepted';
+    const sourceBuild = (result?.run?.mode || s.mode || run.mode) === 'source-build';
     $('result-banner').className = `result-banner${accepted ? '' : ' bad'}`;
-    $('result-banner').textContent = accepted ? 'Review passed — the recorded candidate met the declared checks.' : 'Review did not pass — no accepted result is available.';
+    $('result-banner').textContent = accepted
+      ? (sourceBuild ? 'Review passed — the supplied patch built and met the declared checks.' : 'Review passed — the recorded candidate met the declared checks.')
+      : 'Review did not pass — no accepted result is available.';
     $('result-copy').textContent = accepted
-      ? `Bundle ${short(result.bundle?.sha256 || run.bundle?.sha256)} was replayed from its supplied artifact. The result below is the measured outcome, not a cached report.`
-      : 'The recorded candidate did not pass acceptance. Inspect the checks and the review output before trying another bundle.';
+      ? (sourceBuild
+        ? `Bundle file ${short(result.bundle?.sha256 || run.bundle?.sha256)} was built from its supplied patch and replayed. The result below is the measured outcome, not a cached report.`
+        : `Bundle file ${short(result.bundle?.sha256 || run.bundle?.sha256)} was replayed from its supplied artifact. The result below is the measured outcome, not a cached report.`)
+      : 'The candidate did not pass acceptance. Inspect the checks and the review output before trying another bundle.';
     const preserved = checks.preservedState === true && checks.preservedPolicy === true && checks.preservedProposal === true;
     const healthy = checks.healthyControl === true && checks.pendingHealthy === true;
     $('review-grid').innerHTML = [
-      card('Mode', s.modeLabel || 'Recorded WASM replay', 'Supplied artifact, no source build and no model call.'),
-      card('Candidate WASM', short(s.candidateWasmSha256 || result.bundle?.candidate?.wasmSha256), 'Exact artifact exercised by the replay.', 'good'),
+      card('Mode', s.modeLabel || (sourceBuild ? 'Source build' : 'Recorded WASM replay'), sourceBuild ? 'Fresh build from the supplied patch, then local Sandbox replay.' : 'Supplied artifact, no source build and no model call.'),
+      card(sourceBuild ? 'Built WASM' : 'Recorded artifact', short(s.candidateWasmSha256 || result.bundle?.candidate?.wasmSha256), sourceBuild ? 'Artifact produced by the build and exercised by the replay.' : 'Exact artifact exercised by the replay.', 'good'),
       card('First recovery', s.firstRecovery?.gross || '—', `${s.firstRecovery?.gas || '—'} gas · proposer net ${s.firstRecovery?.proposerNet || '—'}`, s.firstRecovery?.gross === '0 NEAR' ? 'bad' : 'good'),
       card('Retry', s.retry?.gross || '—', `${s.retry?.gas || '—'} gas · no additional principal`, s.retry?.gross === '0 NEAR' ? 'good' : 'bad'),
       card('Preserved state', preserved ? 'Yes' : 'No', 'Inherited state, policy and proposal remain present.', preserved ? 'good' : 'bad'),
@@ -165,7 +190,9 @@
       card('Healthy controls', healthy ? 'Both pass' : 'Incomplete', 'Already-paid obligation and inherited pending Transfer.', healthy ? 'good' : 'bad'),
       card('Acceptance', accepted ? 'Pass' : 'Fail', 'Declared persisted-recovery acceptance receipt.', accepted ? 'good' : 'bad'),
     ].join('');
-    $('meaning-note').textContent = 'This is a recorded artifact replay. It shows the supplied candidate passed the declared local checks. It does not rebuild source, call a model, publish anything, or prove production safety.';
+    $('meaning-note').textContent = sourceBuild
+      ? 'This is a fresh source build from the supplied patch followed by a local Sandbox replay. It does not call a model, publish anything, or prove production safety.'
+      : 'This is a recorded artifact replay. It shows the supplied candidate passed the declared local checks. It does not rebuild source, call a model, publish anything, or prove production safety.';
     const rows = [
       ['Frozen old-code failure reproduced', s.frozenOldCodeFailure === true],
       ['First recovery returns the bond exactly once', s.firstRecovery?.gross !== '0 NEAR' && s.firstRecovery?.contractDelta === '-1 NEAR'],
@@ -185,7 +212,7 @@
       : '<span class="download-button disabled" aria-disabled="true">Result download withheld</span>';
     $('result-json').textContent = JSON.stringify(result, null, 2);
     setStatus(accepted ? 'Review accepted' : 'Review not accepted', accepted ? 'accepted' : 'rejected');
-    setRunButton(!state.config?.configured || !state.selected, !state.selected ? 'Select a bundle to run' : 'Run another review');
+    setRunButton(!modeReady() || !state.selected, !state.selected ? 'Select a bundle to run' : modeValue() === 'source-build' ? 'Run another source build' : 'Run another review');
   }
 
   function renderError(run) {
@@ -194,7 +221,7 @@
     $('error-copy').textContent = run.error || 'No accepted result was produced.';
     $('error-log').textContent = (run.logs || []).slice(-40).join('\n') || 'No runner output was captured.';
     setStatus(run.status === 'interrupted' ? 'Review interrupted' : 'Review not accepted', run.status === 'interrupted' ? 'interrupted' : 'rejected');
-    setRunButton(!state.config?.configured || !state.selected, !state.selected ? 'Select a bundle to run' : 'Try another bundle');
+    setRunButton(!modeReady() || !state.selected, !state.selected ? 'Select a bundle to run' : 'Try another bundle');
   }
 
   function renderRun(run) {
@@ -214,15 +241,20 @@
 
   async function poll() {
     if (!state.runId) return;
+    const id = state.runId;
+    const epoch = state.openEpoch;
     try {
-      const response = await fetch(`/api/review/runs/${state.runId}`, {headers: {'accept': 'application/json'}});
+      const response = await fetch(`/api/review/runs/${id}`, {headers: {'accept': 'application/json'}});
+      if (epoch !== state.openEpoch || state.runId !== id) return;
       if (response.status === 404) throw new Error('That review run no longer exists.');
       const run = await response.json();
+      if (epoch !== state.openEpoch || state.runId !== id) return;
       if (!response.ok) throw new Error(run.error || 'Could not read the review run.');
       state.failures = 0;
       renderRun(run);
       if (!terminal.has(run.status)) schedulePoll();
     } catch (error) {
+      if (epoch !== state.openEpoch || state.runId !== id) return;
       state.failures += 1;
       if (state.failures >= 4) {
         renderError({status: 'interrupted', error: error.message, logs: []});
@@ -234,19 +266,20 @@
 
   async function startReview() {
     if (!state.selected) return;
-    if (!state.config?.configured) {
-      state.config = {...state.config, missing: state.config?.missing || ['REPAIR_SANDBOX_DIR']};
+    if (!modeReady()) {
       renderConfig();
       return;
     }
-    setRunButton(true, 'Starting review');
+    setRunButton(true, modeValue() === 'source-build' ? 'Starting source build' : 'Starting review');
+    const epoch = ++state.openEpoch;
     try {
       const response = await fetch('/api/review/runs', {
         method: 'POST',
         headers: {'content-type': 'application/json', 'accept': 'application/json'},
-        body: JSON.stringify({bundle: state.selected.bundle}),
+        body: JSON.stringify({bundle: state.selected.bundle, mode: modeValue()}),
       });
       const data = await response.json();
+      if (epoch !== state.openEpoch) return;
       if (!response.ok) throw new Error(data.error || 'Could not start the review.');
       state.failures = 0;
       renderRun(data.run);
@@ -257,7 +290,7 @@
       $('error-copy').textContent = error.message;
       $('error-log').textContent = '';
       setStatus('Review not started', 'rejected');
-      setRunButton(!state.config?.configured || !state.selected, !state.selected ? 'Select a bundle to run' : 'Try again');
+      setRunButton(!modeReady() || !state.selected, !state.selected ? 'Select a bundle to run' : 'Try again');
     }
   }
 
@@ -289,15 +322,24 @@
   }
 
   async function openRun(id) {
+    const epoch = ++state.openEpoch;
     try {
       const response = await fetch(`/api/review/runs/${id}`, {headers: {'accept': 'application/json'}});
+      if (epoch !== state.openEpoch) return;
       const run = await response.json();
+      if (epoch !== state.openEpoch) return;
       if (!response.ok) throw new Error(run.error || 'Could not read that review run.');
       state.runId = id;
       state.failures = 0;
+      if (run.mode && state.config?.modes?.[run.mode]) {
+        state.mode = run.mode;
+        renderConfig();
+      }
       renderRun(run);
+      if (!terminal.has(run.status)) schedulePoll();
       await refreshHistory();
     } catch (error) {
+      if (epoch !== state.openEpoch) return;
       show('error-state');
       $('error-title').textContent = 'That review could not be opened.';
       $('error-copy').textContent = error.message;
@@ -305,6 +347,13 @@
     }
   }
 
+  for (const input of document.querySelectorAll('input[name="review-mode"]')) {
+    input.addEventListener('change', () => {
+      state.mode = input.value;
+      renderConfig();
+      renderSelection();
+    });
+  }
   $('bundle-file').addEventListener('change', (event) => {
     selectFile(event.target.files?.[0]);
   });
