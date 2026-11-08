@@ -89,6 +89,16 @@ interrupted, never accepted. A bundle read that has been superseded, and a
 startup restoration of the previous run, are discarded rather than replacing
 the reviewer's current choice.
 
+Source-build uses the clean pinned checkout and the Sandbox directory:
+
+```sh
+REPAIR_SOURCE_DIR=/path/to/clean/sputnik-dao-contract \
+REPAIR_SANDBOX_DIR=/path/to/directory-containing-near-sandbox \
+PORT=4174 npm run ui:review
+```
+
+Recorded-only replay uses just the Sandbox directory:
+
 ```sh
 REPAIR_SANDBOX_DIR=/path/to/directory-containing-near-sandbox \
 PORT=4174 npm run ui:review

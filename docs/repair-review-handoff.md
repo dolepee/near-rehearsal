@@ -9,7 +9,9 @@ before a file is written or a command is executed.
 
 For `source-build` (the default):
 
-- Node.js and `npm ci` in this repository.
+- Node.js and `npm run setup` in this repository. The setup command performs
+  the supported clean install with install hooks ignored and applies the
+  compatibility shim.
 - Git checkout of `near-daos/sputnik-dao-contract` at
   `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`.
 - Rust `1.86.0` with the `wasm32-unknown-unknown` target.
@@ -23,8 +25,16 @@ upgrades an external contract.
 
 ## Browser reviewer
 
-For a bundle-only review, start the local UI with the Sandbox directory
-configured and open `/review`:
+For a bundle-only review, start the local UI and open `/review`. Source-build
+needs both the clean pinned source checkout and the Sandbox directory:
+
+```sh
+REPAIR_SOURCE_DIR=/path/to/clean/sputnik-dao-contract \
+REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14 \
+PORT=4174 npm run ui:review
+```
+
+For recorded-only review, omit the source checkout:
 
 ```sh
 REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14 PORT=4174 npm run ui:review
@@ -53,7 +63,7 @@ reviewer opened explicitly.
 ## Commands
 
 ```sh
-npm ci
+npm run setup
 npm run test:repair-review
 
 npm run repair:review -- \
@@ -119,7 +129,7 @@ case, not production authorization.
 
 Common blockers and the honest response:
 
-- **`near-workspaces` missing** — run `npm ci` in this repository. The chain
+- **`near-workspaces` missing** — run `npm run setup` in this repository. The chain
   must not be started with a partially installed workspace.
 - **source HEAD mismatch** — check out the exact commit; do not edit the
   recorded source identity to fit a newer tree.
