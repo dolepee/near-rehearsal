@@ -10,7 +10,7 @@ before a file is written or a command is executed.
 For `source-build` (the default):
 
 - Node.js and `npm ci` in this repository.
-- Git checkout of `near-dao/sputnik-dao-contract` at
+- Git checkout of `near-daos/sputnik-dao-contract` at
   `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`.
 - Rust `1.86.0` with the `wasm32-unknown-unknown` target.
 - A supplied NEAR Sandbox `2.14.0` binary directory, passed with
@@ -42,7 +42,8 @@ The output directory must be absent or empty. The command verifies:
 - the recorded recovery acceptance and artifact identities;
 - the candidate source identity;
 - the supplied base WASM hash;
-- the exact source checkout HEAD (source-build mode);
+- the exact clean source checkout HEAD (source-build mode), including no
+  untracked inputs;
 - the new build's identity against the pipeline report.
 
 A failure is reported before the chain is started. A mismatch is never
@@ -50,20 +51,25 @@ repaired by substituting a default or reusing another run's artifact.
 
 ## Modes are not interchangeable
 
-`source-build` produces a new WASM from the supplied patch. Its digest is
-expected to differ from the recorded artifact, and the result file records both
-digests. It runs the baseline, candidate identity and persisted recovery path.
+`source-build` produces a WASM by executing the supplied patch. Its digest may
+match the recorded artifact or differ; either way this is a new execution, not a
+byte-reproducibility claim. The result file records both digests.
 
 `recorded-wasm` runs the exact supplied candidate bytes. It proves that the
 artifact can be unpacked and executed, but it does **not** prove that a source
 build produces those bytes. The result file labels it accordingly.
+
+The source checkout must be a clean pinned tree: tracked changes and untracked
+inputs are rejected before the build. A dirty or locally modified tree is not
+the source revision named by the bundle.
 
 ## Evidence and outcome
 
 After a successful run, inspect:
 
 - `review-result.json` — mode, bundle and source hashes, new/recorded WASM,
-  first recovery gross/gas, retry gross/gas, preservation and authority checks;
+  first recovery gross/gas/proposer-net, retry gross/gas/proposer-net and signed
+  account deltas, preservation and authority checks;
 - `source-build/pipeline.json` — patch application, toolchain, new artifact and
   fresh-state checks;
 - `source-build/candidate-identity.json` — the new build's identity;
@@ -94,6 +100,10 @@ Common blockers and the honest response:
   an older runtime.
 - **acceptance failure** — keep the raw report. A rejected candidate is a
   measured failure, not a reason to switch modes silently.
+
+If a run fails after preflight, the output directory is deliberately retained
+with the raw input and any execution evidence. Use a new `--out` for a retry;
+the command never silently reuses a partial run.
 
 The command does not merge, open a pull request, publish a report or perform a
 live upgrade. Those are separate review actions.

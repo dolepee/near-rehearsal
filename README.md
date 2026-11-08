@@ -82,15 +82,15 @@ Repair review bundles contain the canonical patch, compiled WASM, candidate iden
 
 See [repair review handoff](docs/repair-review-handoff.md) for prerequisites, mode boundaries and failure handling.
 
-A downloaded repair bundle has its own operator entry point. It verifies the bundle before writing or running anything, uses a fresh output directory, and labels a new build separately from a recorded artifact:
+A downloaded repair bundle has its own operator entry point. It verifies the bundle before writing or running anything, uses a fresh output directory, and records which mode was executed:
 
 ```sh
 # Build the supplied patch from the exact upstream checkout (default).
 npm run repair:review -- \
   --bundle /path/to/repair-browser-export.json \
   --out /tmp/repair-handoff \
-  --source /path/to/sputnik-source \
-  --sandbox-dir /path/to/Linux-x86_64
+  --source /path/to/sputnik-source
+# REPAIR_SANDBOX_DIR=/path/to/Linux-x86_64 may be used instead of --sandbox-dir.
 
 # Replay the supplied WASM when no Rust build is available.
 npm run repair:review -- \
@@ -100,7 +100,7 @@ npm run repair:review -- \
   --sandbox-dir /path/to/Linux-x86_64
 ```
 
-The source-build mode requires Rust 1.86.0 with the `wasm32-unknown-unknown` target and `npm ci`. It applies the exported patch to the clean checkout, builds a **new** candidate WASM, then runs the persisted-recovery and acceptance path. The recorded-WASM mode never claims that build. Both modes write `review-result.json`, the unpacked reports, the acceptance receipt and the source-build or replay directory. The command refuses a dirty output directory or a hash mismatch; it does not merge, publish or upgrade an external contract.
+The source-build mode requires Rust 1.86.0 with the `wasm32-unknown-unknown` target and `npm ci`. It applies the exported patch to a clean pinned checkout and builds a WASM by executing the patch. Its digest may match or differ from the recorded artifact; either way it is a new execution, not a byte-reproducibility claim. The recorded-WASM mode never claims that build. Both modes write `review-result.json`, the unpacked reports, the acceptance receipt and the source-build or replay directory. The command checks source, runtime and base-artifact preconditions before reserving the output directory, refuses local source changes or untracked inputs, and refuses a non-empty output directory. It does not merge, publish or upgrade an external contract.
 
 ## Scope and source
 

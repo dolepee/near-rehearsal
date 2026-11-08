@@ -43,6 +43,7 @@ const requireDir = (dir, label) => {
   return path.resolve(dir);
 };
 const same = (a, b) => String(a ?? '') === String(b ?? '');
+const SANDBOX_ENV_KEYS = ['REPAIR_SANDBOX_DIR', 'NEAR_SANDBOX_BIN_PATH', 'NEAR_SANDBOX_BINARY_PATH'];
 const parseArgs = (argv) => {
   const opts = {
     mode: 'source-build',
@@ -68,6 +69,12 @@ const parseArgs = (argv) => {
 const help = `Usage:
   npm run repair:review -- --bundle <export.json> --out <fresh-dir> --source <checkout> [--sandbox-dir <bin-dir>]
   npm run repair:review -- --bundle <export.json> --out <fresh-dir> --mode recorded-wasm [--sandbox-dir <bin-dir>]
+
+The Sandbox directory may also come from REPAIR_SANDBOX_DIR (or the existing
+NEAR_SANDBOX_BIN_PATH / NEAR_SANDBOX_BINARY_PATH variables). The output
+directory must be new. Preconditions are checked before the output directory is
+reserved, so a missing source, runtime or base artifact does not leave a
+partial run behind.
 
 Modes:
   source-build   (default) Apply the exported patch to an exact upstream checkout,
@@ -205,18 +212,55 @@ const runAcceptance = (reportPath, wasmPath, basePath, patchPath, sourcePath, ex
 const sourceHead = (sourceDir) => {
   const result = spawnSync('git', ['-C', sourceDir, 'rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 30000 });
   if (result.status !== 0) fail(`source checkout is not a readable Git worktree: ${sourceDir}`);
-  const dirty = spawnSync('git', ['-C', sourceDir, 'status', '--porcelain', '--untracked-files=no'], { encoding: 'utf8', timeout: 30000 });
+  const dirty = spawnSync('git', ['-C', sourceDir, 'status', '--porcelain', '--untracked-files=all'], { encoding: 'utf8', timeout: 30000, maxBuffer: 16 * 1024 * 1024 });
   if (dirty.status !== 0) fail(`could not inspect source checkout status: ${sourceDir}`);
-  if (dirty.stdout.trim()) fail(`source checkout has tracked modifications; use a clean checkout: ${sourceDir}`);
+  if (dirty.stdout.trim()) fail(`source checkout has local changes or untracked inputs; use a clean pinned checkout: ${sourceDir}`);
   return result.stdout.trim();
+};
+
+const sandboxFromEnvironment = () => {
+  for (const key of SANDBOX_ENV_KEYS) {
+    if (process.env[key]) return process.env[key];
+  }
+  return '';
+};
+
+const checkOutput = (outDir) => {
+  if (!fs.existsSync(outDir)) return;
+  if (!fs.statSync(outDir).isDirectory()) fail(`output path is not a directory: ${outDir}`);
+  if (fs.readdirSync(outDir).length) {
+    fail(`output directory is not empty: ${outDir}; use a new --out. Existing failed-run evidence is left untouched.`);
+  }
+};
+
+const preflight = (bundle, opts, outDir) => {
+  if (opts.mode !== 'source-build' && opts.mode !== 'recorded-wasm') fail(`unknown mode: ${opts.mode}`);
+  const basePath = baseWasm(opts);
+  checkOutput(outDir);
+  const sandboxDir = requireDir(opts.sandboxDir || sandboxFromEnvironment(), 'Sandbox binary directory');
+  if (!fs.existsSync(path.join(sandboxDir, 'near-sandbox'))) {
+    fail(`Sandbox binary not found in ${sandboxDir}; point REPAIR_SANDBOX_DIR or --sandbox-dir at the extracted directory`);
+  }
+  let sourceDir = null;
+  let head = null;
+  if (opts.mode === 'source-build') {
+    if (!opts.source) fail('--source is required for source-build mode');
+    sourceDir = requireDir(opts.source, 'source checkout');
+    head = sourceHead(sourceDir);
+    if (head !== bundle.source.commit) {
+      fail(`source checkout HEAD ${head} does not match bundle commit ${bundle.source.commit}`);
+    }
+  }
+  return { basePath, sandboxDir, sourceDir, sourceHead: head };
 };
 
 const runSourceBuild = (bundle, prepared, outDir, opts) => {
   const sourceIdentity = prepared.sourceIdentity;
   if (!opts.source) fail('--source is required for source-build mode');
   const sourceDir = requireDir(opts.source, 'source checkout');
-  if (sourceHead(sourceDir) !== bundle.source.commit) {
-    fail(`source checkout HEAD ${sourceHead(sourceDir)} does not match bundle commit ${bundle.source.commit}`);
+  const head = sourceHead(sourceDir);
+  if (head !== bundle.source.commit) {
+    fail(`source checkout HEAD ${head} does not match bundle commit ${bundle.source.commit}`);
   }
   const sandboxDir = requireDir(opts.sandboxDir || '', 'Sandbox binary directory');
   const buildDir = path.join(outDir, 'source-build');
@@ -260,9 +304,9 @@ const runSourceBuild = (bundle, prepared, outDir, opts) => {
   );
   return {
     mode: 'source-build',
-    modeLabel: 'source build (new Rust 1.86 WASM; distinct from the recorded artifact)',
+    modeLabel: 'source build (new execution from the supplied patch; digest may match the recorded artifact)',
     sourceDir,
-    sourceHead: sourceHead(sourceDir),
+    sourceHead: head,
     buildDir,
     pipelinePath,
     pipelineReport,
@@ -323,16 +367,21 @@ const runRecorded = (bundle, prepared, outDir, opts) => {
   };
 };
 
-const yoctoNear = (value) => {
+const formatYocto = (value) => {
+  let n;
   try {
-    const n = BigInt(value);
-    const whole = n / 1000000000000000000000000n;
-    const fraction = (n % 1000000000000000000000000n).toString().padStart(24, '0').replace(/0+$/, '');
-    return `${whole}${fraction ? `.${fraction}` : ''} NEAR`;
+    n = BigInt(value);
   } catch {
     return String(value ?? 'n/a');
   }
+  const negative = n < 0n;
+  const absolute = negative ? -n : n;
+  const whole = absolute / 1000000000000000000000000n;
+  const fraction = (absolute % 1000000000000000000000000n)
+    .toString().padStart(24, '0').replace(/0+$/, '');
+  return `${negative ? '-' : ''}${whole}${fraction ? `.${fraction}` : ''} NEAR`;
 };
+const yoctoNear = formatYocto; // kept for callers of the earlier module surface
 
 const summarize = (report, run) => {
   const first = report.firstRecovery || {};
@@ -349,17 +398,33 @@ const summarize = (report, run) => {
     sourceCommit: report.source?.commit,
     frozenOldCodeFailure: report.failed?.proposal?.status === 'Failed' && report.failed?.frozen?.proposal?.status === 'Failed',
     firstRecovery: {
-      gross: yoctoNear(gross),
+      gross: formatYocto(gross),
       grossYocto: String(gross ?? ''),
-      gas: yoctoNear(gas),
+      gas: formatYocto(gas),
       gasYocto: String(gas ?? ''),
+      proposerNet: formatYocto(first.deltas?.proposer),
+      proposerNetYocto: String(first.deltas?.proposer ?? ''),
+      contractDelta: formatYocto(first.deltas?.contract),
+      contractDeltaYocto: String(first.deltas?.contract ?? ''),
+      recipientDelta: formatYocto(first.deltas?.recipient),
+      recipientDeltaYocto: String(first.deltas?.recipient ?? ''),
+      lockedDelta: formatYocto(first.deltas?.locked),
+      lockedDeltaYocto: String(first.deltas?.locked ?? ''),
       endedFailed: first.endedFailed === true,
     },
     retry: {
-      gross: yoctoNear(secondGross),
+      gross: formatYocto(secondGross),
       grossYocto: String(secondGross ?? ''),
-      gas: yoctoNear(secondGas),
+      gas: formatYocto(secondGas),
       gasYocto: String(secondGas ?? ''),
+      proposerNet: formatYocto(second.deltas?.proposer),
+      proposerNetYocto: String(second.deltas?.proposer ?? ''),
+      contractDelta: formatYocto(second.deltas?.contract),
+      contractDeltaYocto: String(second.deltas?.contract ?? ''),
+      recipientDelta: formatYocto(second.deltas?.recipient),
+      recipientDeltaYocto: String(second.deltas?.recipient ?? ''),
+      lockedDelta: formatYocto(second.deltas?.locked),
+      lockedDeltaYocto: String(second.deltas?.locked ?? ''),
       endedFailed: second.endedFailed === true,
     },
     checks: {
@@ -385,8 +450,8 @@ const render = (result) => {
     result.run.mode === 'source-build' ? `Built from patch: ${result.run.builtWasmSha256}` : `Recorded artifact: ${result.run.wasmSha256}`,
     '',
     `Frozen old-code failure: ${s.frozenOldCodeFailure ? 'yes' : 'NO'}`,
-    `First deliberate operation: recovered ${s.firstRecovery.gross} gross, ${s.firstRecovery.gas} gas, ended ${s.firstRecovery.endedFailed}`,
-    `Retry: ${s.retry.gross} gross, ${s.retry.gas} gas — no extra principal`,
+    `First deliberate operation: recovered ${s.firstRecovery.gross} gross, ${s.firstRecovery.gas} gas, proposer net ${s.firstRecovery.proposerNet}, ended ${s.firstRecovery.endedFailed}`,
+    `Retry: ${s.retry.gross} gross, ${s.retry.gas} gas, proposer net ${s.retry.proposerNet} — no extra principal`,
     `Preserved inherited state/policy/proposal: ${s.checks.preservedState}/${s.checks.preservedPolicy}/${s.checks.preservedProposal}`,
     `Unauthorized update/finalize rejected: ${s.checks.authorityRejected ? 'yes' : 'NO'}`,
     `Healthy controls (already-paid + pending Transfer): ${s.checks.healthyControl}/${s.checks.pendingHealthy}`,
@@ -407,9 +472,12 @@ const main = () => {
   const bundle = readJson(bundlePath, 'bundle');
   const { sourceIdentity } = checkBundle(bundle);
   const outDir = path.resolve(opts.out);
+  const plan = preflight(bundle, opts, outDir);
+  opts.sandboxDir = plan.sandboxDir;
+  opts.baseWasm = plan.basePath;
+  if (plan.sourceDir) opts.source = plan.sourceDir;
   bundle._sourceIdentity = sourceIdentity;
   const prepared = prepare(bundle, outDir);
-  if (opts.mode !== 'source-build' && opts.mode !== 'recorded-wasm') fail(`unknown mode: ${opts.mode}`);
   const run = opts.mode === 'source-build'
     ? runSourceBuild(bundle, prepared, outDir, opts)
     : runRecorded(bundle, prepared, outDir, opts);
@@ -450,4 +518,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { checkBundle, yoctoNear, summarize };
+module.exports = { checkBundle, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment };

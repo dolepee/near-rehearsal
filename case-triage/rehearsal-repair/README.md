@@ -126,7 +126,7 @@ npm run repair:review -- \
   --sandbox-dir /path/to/Linux-x86_64
 ```
 
-This is the `source-build` path: it checks the bundle hashes, applies the exported patch to the exact upstream commit, builds a new WASM with Rust 1.86, and runs the persisted-recovery acceptance above. `--mode recorded-wasm` replays the supplied artifact without a source build and labels it separately. The output directory must be fresh. The command writes `review-result.json`, `source-build/pipeline.json`, the new candidate identity, the persisted report and the acceptance receipt. See [repair review handoff](../../docs/repair-review-handoff.md).
+This is the `source-build` path: it checks the bundle hashes, applies the exported patch to the exact clean upstream commit, builds a WASM with Rust 1.86, and runs the persisted-recovery acceptance above. The new digest may match or differ from the recorded artifact; it is not a byte-reproducibility claim. `--mode recorded-wasm` replays the supplied artifact without a source build and labels it separately. The output directory must be fresh, and `REPAIR_SANDBOX_DIR` is honored when `--sandbox-dir` is omitted. The command writes `review-result.json`, `source-build/pipeline.json`, the new candidate identity, the persisted report and the acceptance receipt. See [repair review handoff](../../docs/repair-review-handoff.md).
 
 ## Controller pipeline
 
