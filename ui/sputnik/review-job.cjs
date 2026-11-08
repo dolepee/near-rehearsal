@@ -412,6 +412,10 @@ function createManager(options = {}) {
         if (!run.error) run.error = cleanError(error.message);
       });
       child.on('close', (code, signal) => {
+        if (settled) return;
+        // The leader can exit on TERM before descendants do. Finish its
+        // isolated group before clearing escalation or resolving the run.
+        killTree(child, 'SIGKILL');
         clearRunTimers();
         done({code, signal, timedOut: run.timedOut});
       });

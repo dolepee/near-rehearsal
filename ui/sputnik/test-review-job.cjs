@@ -26,7 +26,8 @@ function fakeSpawn({payload = null, code = 0, error = null, hold = false} = {}) 
       child.signals.push(signal);
       if (hold) setImmediate(() => child.emit('close', null, signal));
     };
-    child.pid = 12345;
+    // Synthetic children must not signal a real process group on this host.
+    child.pid = undefined;
     if (hold) return child;
     const out = args[args.indexOf('--out') + 1];
     setTimeout(() => {

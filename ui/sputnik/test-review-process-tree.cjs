@@ -69,7 +69,8 @@ const waitDead = async (pid, timeoutMs = 2000) => {
   throw new Error(`process ${pid} is still alive after ${timeoutMs}ms`);
 };
 
-async function managerTreeCase(kind) {
+async function managerTreeCase(kind, parentIgnoresTerm = true) {
+  const label = `${kind}${parentIgnoresTerm ? '' : '-parent-exits'}`;
   const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), `near-review-${kind}-runs-`));
   const pidRoot = fs.mkdtempSync(path.join(os.tmpdir(), `near-review-${kind}-pids-`));
   const sandbox = path.join(runRoot, 'sandbox');
@@ -89,13 +90,13 @@ async function managerTreeCase(kind) {
     const fs = require('node:fs');
     fs.writeFileSync(${JSON.stringify(parentPidFile)}, String(process.pid));
     spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], {stdio: 'ignore'});
-    process.on('SIGTERM', () => fs.writeFileSync(${JSON.stringify(termFile)}, 'parent'));
+    ${parentIgnoresTerm ? `process.on('SIGTERM', () => fs.writeFileSync(${JSON.stringify(termFile)}, 'parent'));` : ''}
     setInterval(() => {}, 1000);
   `;
   const manager = createManager({
     runsRoot: runRoot,
     env: {REPAIR_SANDBOX_DIR: sandbox},
-    runLimitMs: 120,
+    runLimitMs: 500,
     killGraceMs: 80,
     spawn: (command, args, options) => spawn(process.execPath, ['-e', parent], options),
   });
@@ -116,7 +117,7 @@ async function managerTreeCase(kind) {
     assert.equal(run.status, 'interrupted', `${kind}: stopped run is interrupted`);
     assert.match(run.error, kind === 'timeout' ? /limit/ : /server shut down/, `${kind}: reason is recorded`);
     assert.equal(manager.active(), null, `${kind}: no review remains active`);
-    console.log(`review-process-tree: ${kind} terminates the group, including an orphaned descendant`);
+    console.log(`review-process-tree: ${label} terminates the group, including an orphaned descendant`);
   } finally {
     for (const pid of [grandchildPid, parentPid]) {
       if (alive(pid)) { try { process.kill(pid, 'SIGKILL'); } catch {} }
@@ -130,6 +131,8 @@ async function managerTreeCase(kind) {
   try {
     await managerTreeCase('timeout');
     await managerTreeCase('shutdown');
+    await managerTreeCase('timeout', false);
+    await managerTreeCase('shutdown', false);
   } catch (error) {
     console.error(error.stack || error);
     process.exitCode = 1;
