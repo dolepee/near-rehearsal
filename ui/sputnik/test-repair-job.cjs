@@ -145,6 +145,7 @@ try {
   fs.mkdirSync(path.join(accepted, 'baseline'), {recursive: true});
   fs.mkdirSync(path.join(accepted, 'pipeline/replay'), {recursive: true});
   fs.mkdirSync(path.join(accepted, 'pipeline/applied/target/wasm32-unknown-unknown/release'), {recursive: true});
+  fs.mkdirSync(path.join(accepted, 'recovery'), {recursive: true});
   const patch = 'diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs\n';
   const wasm = Buffer.from('fake-wasm');
   fs.writeFileSync(path.join(accepted, 'producer/canonical.patch'), patch);
@@ -152,11 +153,12 @@ try {
   fs.writeFileSync(path.join(accepted, 'baseline/issue238-local.json'), JSON.stringify(report({failedContract: BOND})));
   fs.writeFileSync(path.join(accepted, 'pipeline/replay/issue238-local.json'), JSON.stringify(report({failedContract: 0n})));
   fs.writeFileSync(path.join(accepted, 'pipeline/candidate-identity.json'), JSON.stringify({schema: 'near-rehearsal/repair-candidate-identity/v1', source: {path: 'sputnikdao2/src/proposals.rs'}, patch: {sha256: sha(patch)}, wasm: {sha256: sha(wasm)}}));
+  fs.writeFileSync(path.join(accepted, 'recovery/persisted-recovery.json'), JSON.stringify({schema: 'near-rehearsal/persisted-bond-recovery/v1', firstRecovery: {grossRecoveryYocto: BOND.toString(), final: {finalExecutionStatus: 'FINAL'}}, secondRetry: {grossRecoveryYocto: '0'}}));
   fs.writeFileSync(path.join(accepted, 'pipeline/pipeline.json'), JSON.stringify({schema: 'near-rehearsal/repair-pipeline/v1', ok: true, acceptanceErrors: [], changedArtifactRejected: true, hashes: {patch: sha(patch), wasm: sha(wasm)}, baseReport: '/workspace/local/base.json', candidateReport: '/workspace/local/candidate.json'}));
   fs.writeFileSync(path.join(accepted, 'run.json'), JSON.stringify({
     schema: 'near-rehearsal/repair-browser-run/v1', id: acceptedId, caseId: 'sputnik-238-async-bond',
     status: 'accepted', phase: 'accepted', startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(),
-    error: null, phaseLog: [], source: {}, obligation: {}, baseline: {reportPath: 'baseline/issue238-local.json'}, candidate: {pipeline: {ok: true}, wasm: {sha256: sha(wasm)}}, consequence, checks: consequence.checks,
+    error: null, phaseLog: [], source: {}, obligation: {}, baseline: {reportPath: 'baseline/issue238-local.json'}, candidate: {pipeline: {ok: true}, wasm: {sha256: sha(wasm)}}, consequence, checks: consequence.checks, recovery: {ok: true, status: 'accepted', summary: {firstGrossRecoveryYocto: BOND.toString(), secondGrossRecoveryYocto: '0'}},
   }));
   fs.writeFileSync(path.join(accepted, 'result.json'), JSON.stringify({
     id: acceptedId, status: 'accepted', phase: 'accepted', startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(),
@@ -172,6 +174,8 @@ try {
   assert.equal(bundle.candidate.identitySha256, sha(bundle.candidate.identityText));
   assert.equal(JSON.stringify(bundle).includes('/workspace'), false);
   assert.match(bundle.commands.verify, /acceptance\.cjs/);
+  assert.match(bundle.commands.recovery, /persisted-recovery-acceptance\.cjs/);
+  assert.equal(bundle.recovery.report.schema, 'near-rehearsal/persisted-bond-recovery/v1');
   assert.equal(bundle.candidate.wasm.base64, wasm.toString('base64'));
   assert.throws(() => manager.bundle(id), /Only an accepted repair/);
 

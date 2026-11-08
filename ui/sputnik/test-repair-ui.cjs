@@ -16,6 +16,9 @@ assert.match(html, /data-phase="reproducing"/);
 assert.match(html, /data-phase="generating"/);
 assert.match(html, /data-phase="compiling"/);
 assert.match(html, /data-phase="replaying"/);
+assert.match(html, /data-phase="recovering"/);
+assert.match(html, /id="recovery-panel"/);
+assert.match(html, /id="recovery-checks"/);
 assert.match(html, /role="status" aria-live="polite"/);
 assert.match(html, /id="downloads"/);
 assert.match(html, /id="error-patch"/);
@@ -52,5 +55,5 @@ assert.doesNotMatch(js, /The healthy Transfer still pays the declared 0\.1 NEAR 
 console.log(JSON.stringify({
   schema: 'near-rehearsal/repair-browser-ui-tests/v1',
   passed: true,
-  checks: ['route-content', 'boundary-copy', 'phases', 'live-status', 'downloads', 'measured-result-copy', 'no-credential-form', 'no-arbitrary-input', 'reduced-motion', '44px-controls', 'case-only-request', 'history-focus', 'balance-change-label', 'retry-authoritative-check', 'selection-race-guard', 'same-run-poll-ordering'],
+  checks: ['route-content', 'boundary-copy', 'phases', 'persisted-recovery-panel', 'live-status', 'downloads', 'measured-result-copy', 'no-credential-form', 'no-arbitrary-input', 'reduced-motion', '44px-controls', 'case-only-request', 'history-focus', 'balance-change-label', 'retry-authoritative-check', 'selection-race-guard', 'same-run-poll-ordering'],
 }, null, 2));

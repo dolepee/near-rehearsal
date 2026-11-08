@@ -357,7 +357,7 @@ function main() {
       'You are repairing the pinned Sputnik DAO v2 source.',
       `The only allowed source file is ${file}. Do not ask for tools, read other files, run commands, or edit anything.`,
       'Return ONLY a unified Git diff in your final message. The diff must change only the allowed file.',
-      'The defect: when a proposal execution callback fails, the proposal is marked Failed but its bond remains in the contract. A failed async action must return the bond to the proposer exactly once; a later authorized Finalize retry must not return it again. It must not create a payout or change the beneficiary/amount.',
+      'The defect: when a proposal execution callback fails, the proposal is marked Failed but its bond remains in the contract. The repair must cover both prevention and an inherited state that already contains a Failed proposal whose bond is still unpaid: a failed async action must return the bond to the proposer exactly once. A later authorized Finalize retry must not return it again. It must not create a payout or change the beneficiary/amount.',
       '',
       `Pinned source (${file}):`,
       '```rust',

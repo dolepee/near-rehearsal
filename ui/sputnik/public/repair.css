@@ -19,7 +19,7 @@
 .history-item[aria-current="true"] { box-shadow: inset 3px 0 var(--green); }
 .history-item b { display: block; font-size: 12px; }
 .history-item small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; overflow-wrap: anywhere; }
-.phase-list { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 0; margin: 18px 0; }
+.phase-list { list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; padding: 0; margin: 18px 0; }
 .phase-list li { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: #111614; display: grid; gap: 3px; min-width: 0; }
 .phase-list li b { font-size: 12px; }
 .phase-list li small { color: var(--muted); font-size: 10px; }
