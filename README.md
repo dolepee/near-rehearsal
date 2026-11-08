@@ -76,7 +76,31 @@ node case-triage/sputnik-public-capture/export-helper.cjs replay \
   --sandbox-dir /path/to/sandbox-2.6.2-directory
 ```
 
-Repair review bundles contain the canonical patch, compiled WASM, candidate identity and exact serialized baseline, candidate and persisted-recovery reports with matching hashes. The recovery report's exported canonical text and raw execution file have separate digests. See the [repair pipeline documentation](case-triage/rehearsal-repair/README.md) for reconstruction and acceptance, or [rerun the recorded generated artifact](case-triage/rehearsal-repair/README.md#persisted-failure-recovery) without another model call. Reconstructing a downloaded repair bundle still requires unpacking its reports/artifacts and applying the patch to the pinned source; the manual comparison helper above does not accept repair bundles. Fresh chain replay requires Sandbox 2.14.0. Hash checks establish byte consistency, not a cryptographic execution attestation.
+Repair review bundles contain the canonical patch, compiled WASM, candidate identity and exact serialized baseline, candidate and persisted-recovery reports with matching hashes. The recovery report's exported canonical text and raw execution file have separate digests. See the [repair pipeline documentation](case-triage/rehearsal-repair/README.md) for reconstruction and acceptance, or [rerun the recorded generated artifact](case-triage/rehearsal-repair/README.md#persisted-failure-recovery) without another model call. Fresh chain replay requires Sandbox 2.14.0. Hash checks establish byte consistency, not a cryptographic execution attestation.
+
+### One-command repair handoff
+
+See [repair review handoff](docs/repair-review-handoff.md) for prerequisites, mode boundaries and failure handling.
+
+A downloaded repair bundle has its own operator entry point. It verifies the bundle before writing or running anything, uses a fresh output directory, and records which mode was executed:
+
+```sh
+# Build the supplied patch from the exact upstream checkout (default).
+npm run repair:review -- \
+  --bundle /path/to/repair-browser-export.json \
+  --out /tmp/repair-handoff \
+  --source /path/to/sputnik-source
+# REPAIR_SANDBOX_DIR=/path/to/Linux-x86_64 may be used instead of --sandbox-dir.
+
+# Replay the supplied WASM when no Rust build is available.
+npm run repair:review -- \
+  --bundle /path/to/repair-browser-export.json \
+  --out /tmp/repair-replay \
+  --mode recorded-wasm \
+  --sandbox-dir /path/to/Linux-x86_64
+```
+
+The source-build mode requires Rust 1.86.0 with the `wasm32-unknown-unknown` target and `npm ci`. It applies the exported patch to a clean pinned checkout and builds a WASM by executing the patch. Its digest may match or differ from the recorded artifact; either way it is a new execution, not a byte-reproducibility claim. The recorded-WASM mode never claims that build. Both modes write `review-result.json`, the unpacked reports, the acceptance receipt and the source-build or replay directory. The command checks source, runtime and base-artifact preconditions before reserving the output directory, refuses local source changes or untracked inputs, and refuses a non-empty output directory. It does not merge, publish or upgrade an external contract.
 
 ## Scope and source
 
