@@ -37,6 +37,9 @@ rejects('patch text hash', (b) => { b.candidate.patch.text += '\n'; });
 rejects('wasm bytes hash', (b) => { b.candidate.wasm.base64 = Buffer.from('not the candidate').toString('base64'); });
 rejects('wasm byte count', (b) => { b.candidate.wasm.bytes += 1; });
 rejects('baseline report hash', (b) => { b.baseline.reportText += ' '; });
+rejects('candidate report text', (b) => { b.candidate.reportText += ' '; });
+rejects('candidate report digest', (b) => { b.candidate.reportSha256 = '0'.repeat(64); });
+rejects('missing candidate report', (b) => { delete b.candidate.reportText; });
 rejects('recovery report hash', (b) => { b.recovery.reportText += ' '; });
 rejects('failed recovery acceptance', (b) => { b.recovery.acceptance.ok = false; });
 rejects('acceptance candidate mismatch', (b) => { b.recovery.acceptance.candidateWasmSha256 = '0'.repeat(64); });
@@ -44,6 +47,8 @@ rejects('artifact patch mismatch', (b) => { b.recovery.artifacts.patch.sha256 = 
 rejects('artifact wasm mismatch', (b) => { b.recovery.artifacts.wasm.sha256 = '0'.repeat(64); });
 rejects('identity patch mismatch', (b) => { b.candidate.identity.patch.sha256 = '0'.repeat(64); });
 rejects('identity source mismatch', (b) => { b.candidate.identity.source.sha256 = '0'.repeat(64); });
+rejects('missing candidate identity text', (b) => { delete b.candidate.identityText; });
+rejects('missing recovery identity text', (b) => { delete b.recovery.identityText; });
 rejects('missing source identity', (b) => { delete b.candidate.identity.source; delete b.recovery.artifacts.source; });
 
 // The documented normal setup uses REPAIR_SANDBOX_DIR without --sandbox-dir.
@@ -70,7 +75,7 @@ try {
 console.log(JSON.stringify({
   schema: 'near-rehearsal/repair-review-guards/v1',
   ok: true,
-  checks: 21,
+  checks: 26,
   fixture: path.relative(path.join(__dirname, '..'), fixture),
   fixtureSha256: crypto.createHash('sha256').update(fs.readFileSync(fixture)).digest('hex'),
 }, null, 2));

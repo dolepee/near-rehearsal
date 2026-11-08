@@ -84,6 +84,32 @@ Modes:
 The output directory must be new. The command verifies every supplied hash before
 writing or running anything. It does not merge, publish or update external state.`;
 
+const verifiedIdentity = (entry, label) => {
+  if (typeof entry.identityText !== "string" || !entry.identityText.trim()) {
+    fail(`${label} serialized identity is missing`);
+  }
+  if (!hex(entry.identitySha256)) fail(`${label} identity digest is missing or invalid`);
+  if (sha256(Buffer.from(entry.identityText, "utf8")) !== entry.identitySha256) {
+    fail(`${label} serialized identity digest does not match`);
+  }
+  let identity;
+  try {
+    identity = JSON.parse(entry.identityText);
+  } catch (error) {
+    fail(`${label} serialized identity is not valid JSON: ${error.message}`);
+  }
+  if (!identity || identity.schema !== "near-rehearsal/repair-candidate-identity/v1") {
+    fail(`${label} serialized identity schema is invalid`);
+  }
+  if (!identity.source?.path || !hex(identity.source.sha256) || !identity.source.commit) {
+    fail(`${label} serialized identity has no complete source`);
+  }
+  if (!hex(identity.patch?.sha256) || !hex(identity.wasm?.sha256)) {
+    fail(`${label} serialized identity has no complete patch/WASM identity`);
+  }
+  return identity;
+};
+
 const checkBundle = (bundle) => {
   if (!bundle || bundle.schema !== SCHEMA) fail(`bundle schema must be ${SCHEMA}`);
   if (!bundle.runId) fail('bundle runId is missing');
@@ -101,27 +127,39 @@ const checkBundle = (bundle) => {
   if (!wasm.length) fail('bundle candidate WASM is empty');
   if (sha256(wasm) !== bundle.candidate.wasm.sha256) fail('bundle candidate WASM hash does not match its bytes');
   if (!Number.isFinite(bundle.candidate.wasm.bytes) || bundle.candidate.wasm.bytes !== wasm.length) fail('bundle candidate WASM length does not match');
-  for (const [label, value] of [['baseline report', bundle.baseline?.reportText], ['recovery report', bundle.recovery?.reportText]]) {
+  for (const [label, value] of [['baseline report', bundle.baseline?.reportText], ['candidate report', bundle.candidate?.reportText], ['recovery report', bundle.recovery?.reportText]]) {
     if (typeof value !== 'string' || !value.trim()) fail(`bundle ${label} is missing`);
   }
   if (sha256(Buffer.from(bundle.baseline.reportText, 'utf8')) !== bundle.baseline.reportSha256) fail('bundle baseline report hash does not match its text');
+  if (sha256(Buffer.from(bundle.candidate.reportText, 'utf8')) !== bundle.candidate.reportSha256) fail('bundle candidate report hash does not match its text');
   if (sha256(Buffer.from(bundle.recovery.reportText, 'utf8')) !== bundle.recovery.reportSha256) fail('bundle recovery report hash does not match its text');
   if (bundle.recovery?.acceptance?.ok !== true) fail('bundle recovery acceptance is not recorded as passing');
   if (bundle.recovery.acceptance.candidateWasmSha256 !== bundle.candidate.wasm.sha256) fail('bundle acceptance is for a different candidate WASM');
   if (bundle.recovery?.candidateWasmSha256 && bundle.recovery.candidateWasmSha256 !== bundle.candidate.wasm.sha256) fail('bundle recovery candidate hash does not match');
   if (bundle.candidate.patch.sha256 !== bundle.recovery?.artifacts?.patch?.sha256) fail('bundle recovery patch artifact does not match the candidate patch');
   if (bundle.candidate.wasm.sha256 !== bundle.recovery?.artifacts?.wasm?.sha256) fail('bundle recovery WASM artifact does not match the candidate WASM');
-  if (!bundledIdentityMatches(bundle)) fail('bundle candidate identity is internally inconsistent');
-  if (bundle.candidate.identityText && bundle.candidate.identitySha256
-      && sha256(Buffer.from(bundle.candidate.identityText, 'utf8')) !== bundle.candidate.identitySha256) {
-    fail('bundle candidate identity text hash does not match');
+  const candidateIdentity = verifiedIdentity(bundle.candidate, 'candidate');
+  const recoveryIdentity = verifiedIdentity(bundle.recovery, 'recovery');
+  if (bundle.candidate.identity && JSON.stringify(bundle.candidate.identity) !== JSON.stringify(candidateIdentity)) {
+    fail('bundle candidate identity object disagrees with its verified serialized identity');
   }
-  if (bundle.recovery.identityText && bundle.recovery.identitySha256
-      && sha256(Buffer.from(bundle.recovery.identityText, 'utf8')) !== bundle.recovery.identitySha256) {
-    fail('bundle recovery identity text hash does not match');
+  if (bundle.recovery.identity && JSON.stringify(bundle.recovery.identity) !== JSON.stringify(recoveryIdentity)) {
+    fail('bundle recovery identity object disagrees with its verified serialized identity');
   }
-  const sourceIdentity = bundle.candidate.source || bundle.recovery?.artifacts?.source || bundle.candidate.identity?.source;
-  if (!sourceIdentity?.path || !hex(sourceIdentity.sha256)) fail('bundle candidate source identity is incomplete');
+  if (candidateIdentity.patch.sha256 !== bundle.candidate.patch.sha256) fail('verified candidate identity patch does not match');
+  if (candidateIdentity.wasm.sha256 !== bundle.candidate.wasm.sha256) fail('verified candidate identity WASM does not match');
+  if (candidateIdentity.source.commit !== bundle.source.commit) fail('verified candidate identity source commit does not match');
+  if (recoveryIdentity.patch.sha256 !== bundle.candidate.patch.sha256) fail('verified recovery identity patch does not match');
+  if (recoveryIdentity.wasm.sha256 !== bundle.candidate.wasm.sha256) fail('verified recovery identity WASM does not match');
+  if (recoveryIdentity.source.commit !== bundle.source.commit) fail('verified recovery identity source commit does not match');
+  if (JSON.stringify(candidateIdentity.source) !== JSON.stringify(recoveryIdentity.source)) {
+    fail('candidate and recovery source identities disagree');
+  }
+  const artifactSource = bundle.recovery?.artifacts?.source;
+  if (artifactSource && (artifactSource.path !== candidateIdentity.source.path || artifactSource.sha256 !== candidateIdentity.source.sha256)) {
+    fail('bundle recovery source artifact disagrees with the verified identity');
+  }
+  const sourceIdentity = candidateIdentity.source;
   return { patchText, wasm, sourceIdentity };
 };
 
