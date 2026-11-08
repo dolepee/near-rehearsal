@@ -1,6 +1,6 @@
 # Rehearsal Repair checkpoint
 
-Status: **source-built issue #238 reproduction, authored control and genuine local-model producer path are implemented. The browser supports a fresh model/build/replay attempt when its provider is configured. Per-run output must distinguish generated candidates from authored fixtures.**
+Status: **source-built issue #238 reproduction, authored control and genuine local-model producer path are implemented. The browser requires fresh-state replay and persisted-failure recovery of the same generated artifact when its provider is configured. Per-run output must distinguish generated candidates from authored fixtures.**
 
 ## Pinned source
 
@@ -62,6 +62,8 @@ Each branch runs in its own local worker with the same fixed account IDs and fun
 
 ## Independent acceptance
 
+The commands below check the original fresh-state controls. The separate [persisted-failure recovery](#persisted-failure-recovery) stage checks the old-code upgrade and inherited obligations.
+
 ```sh
 node case-triage/rehearsal-repair/acceptance.cjs
 node case-triage/rehearsal-repair/acceptance-tests.cjs
@@ -79,6 +81,38 @@ source and the actual built WASM after the build. Acceptance re-hashes those
 same files, compares the replay report's WASM hash to the identity, and still
 runs every behavioral predicate. With no identity, the authored repaired hash
 remains the default; the expected hash is never overwritten.
+
+## Persisted-failure recovery
+
+The browser's second replay creates a failed proposal under the original code and freezes its unpaid bond, proposal, policy and raw state. It deploys the same generated candidate and calls private `migrate` on that local account, without `new()`. It then measures the first refund and a second retry. An unpaid healthy Transfer created before upgrade must still pay its original beneficiary and amount; an already-paid Transfer must not pay again.
+
+`persisted-recovery-acceptance.cjs` checks the actual base/candidate artifacts, code transition, continuous snapshots, executed transaction actions and final receipts. Principal, net participant changes and receipt-derived gas are separate. This is an account-key upgrade exercise, not the timed factory or DAO-governance path. The runner creates a known unpaid history; unknown prior compensation or policy changes are not inferred from an absent refund marker.
+
+After installing dependencies and configuring `REPAIR_SANDBOX_DIR` for Sandbox 2.14.0, this reruns the recorded **generated** `e8262f5a` artifact without calling a model or rebuilding source. It is distinct from a fresh model attempt. Use a new output directory so a failed attempt cannot reuse an earlier report:
+
+```sh
+REPAIR_CASE="case-triage/rehearsal-repair"
+RECORDED_REPAIR="$REPAIR_CASE/generated/e8262f5a"
+mkdir -p .local
+RECOVERY_OUT="$(mktemp -d "$PWD/.local/recorded-recovery.XXXXXX")"
+node "$REPAIR_CASE/persisted-recovery.cjs" \
+  --sandbox-dir "$REPAIR_SANDBOX_DIR" \
+  --candidate-wasm "$RECORDED_REPAIR/candidate.wasm" \
+  --candidate-patch "$RECORDED_REPAIR/repair.patch" \
+  --candidate-identity "$RECORDED_REPAIR/candidate-identity.json" \
+  --expected-wasm-sha256 49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923 \
+  --out "$RECOVERY_OUT"
+node "$REPAIR_CASE/persisted-recovery-acceptance.cjs" \
+  --report "$RECOVERY_OUT/persisted-recovery.json" \
+  --wasm "$RECORDED_REPAIR/candidate.wasm" \
+  --base-wasm "$REPAIR_CASE/bundle/artifacts/base.wasm" \
+  --patch "$RECORDED_REPAIR/repair.patch" \
+  --expected-wasm-sha256 49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923 \
+  --expected-patch-sha256 532741a3f689863844d0af147ec08d278420cd74920f68f817234747e295fedc \
+  --expected-source-sha256 82efc4225e307b97068cd7bd984da78f9a83ecf51e1b21749de344f45aa53b22
+```
+
+The expected acceptance result is `ok: true`, errors `[]`. To bind a separately reconstructed source file too, pass its path as `--candidate-source` to the runner and `--source` to acceptance. The configured browser does this for each freshly built candidate. CI separately executes the recorded recovery on Linux x86_64; offline fixture tests are not a fresh model or Sandbox run.
 
 ## Controller pipeline
 

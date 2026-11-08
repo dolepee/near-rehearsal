@@ -8,10 +8,10 @@ The supported repair case is [Sputnik DAO #238](https://github.com/near-daos/spu
 
 | Workflow | Open | Runtime | What it executes |
 | --- | --- | --- | --- |
-| Source repair | `/repair` | Sandbox **2.14.0**, Rust **1.86.0**, configured local model provider | Fresh baseline → generated patch → build → replay → acceptance → diff and review bundle |
+| Source repair | `/repair` | Sandbox **2.14.0**, Rust **1.86.0**, configured local model provider | Fresh baseline → generated patch → build → fresh replay → persisted-failure recovery → acceptance → diff and review bundle |
 | Manual upgrade comparison | `/` | Sandbox **2.6.2**, no model account or Rust build needed | Same frozen inherited state → baseline, supplied candidate and correction → verification/export |
 
-These are different tested flows. Do not replace one runtime version with the other. The manual comparison's seeded regression and correction are labelled authored fixtures. The model repair currently checks equivalent initialized states; it does not establish recovery of an already-failed proposal after an upgrade. A successful result covers its declared local case, not arbitrary contracts or production safety.
+These are different tested flows. Do not replace one runtime version with the other. The manual comparison's seeded regression and correction are labelled authored fixtures. Source repair requires both fresh-state replay and recovery of a proposal that actually failed on the pinned old code. The same generated WASM replaces that account's code without calling `new()`. The recovery checks the first bond return, no additional refund on retry, and preservation of an unpaid healthy Transfer and an already-paid obligation. This uses local account-key deploy plus private `migrate`, not the timed factory or DAO-governance upgrade path. A successful result covers its declared local case, not arbitrary contracts or production safety.
 
 ## Install and run the offline tests
 
@@ -76,7 +76,7 @@ node case-triage/sputnik-public-capture/export-helper.cjs replay \
   --sandbox-dir /path/to/sandbox-2.6.2-directory
 ```
 
-Repair review bundles contain the canonical patch, compiled WASM, candidate identity and exact serialized baseline/candidate reports with matching hashes. See the [repair pipeline documentation](case-triage/rehearsal-repair/README.md) for reconstruction and acceptance. Fresh replay requires Sandbox 2.14.0. Hash checks establish byte consistency, not a cryptographic execution attestation.
+Repair review bundles contain the canonical patch, compiled WASM, candidate identity and exact serialized baseline, candidate and persisted-recovery reports with matching hashes. The recovery report's exported canonical text and raw execution file have separate digests. See the [repair pipeline documentation](case-triage/rehearsal-repair/README.md) for reconstruction and acceptance, or [rerun the recorded generated artifact](case-triage/rehearsal-repair/README.md#persisted-failure-recovery) without another model call. Reconstructing a downloaded repair bundle still requires unpacking its reports/artifacts and applying the patch to the pinned source; the manual comparison helper above does not accept repair bundles. Fresh chain replay requires Sandbox 2.14.0. Hash checks establish byte consistency, not a cryptographic execution attestation.
 
 ## Scope and source
 
