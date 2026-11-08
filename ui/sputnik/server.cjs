@@ -298,6 +298,15 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, {'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="review-result-${reviewDownload[1]}.json"`, 'content-length': data.length, 'cache-control': 'no-store'});
       res.end(data); return;
     }
+    const reviewArtifact = url.pathname.match(/^\/api\/review\/runs\/([0-9a-f-]+)\/(input|evidence)$/);
+    if (reviewArtifact && req.method === 'GET') {
+      const [kind, id] = [reviewArtifact[2], reviewArtifact[1]];
+      const filePath = kind === 'input' ? reviewManager.input(id) : reviewManager.evidence(id);
+      if (!filePath) return send(res, 404, {error: kind === 'input' ? 'No input bundle is available for this run.' : 'No accepted evidence is available for this run.'});
+      const data = fs.readFileSync(filePath);
+      res.writeHead(200, {'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="review-${kind}-${id}.json"`, 'content-length': data.length, 'cache-control': 'no-store'});
+      res.end(data); return;
+    }
     if (url.pathname === '/api/repair/case') return send(res, 200, {
       case: repairManager.case,
       configured: repairManager.config.configured,

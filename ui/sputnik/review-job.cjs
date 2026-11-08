@@ -78,6 +78,34 @@ function cleanError(value) {
     .slice(-2400);
 }
 
+function redactPathString(value) {
+  return String(value)
+    .replace(/(^|[\s"'(])(\/(?:Users|home|tmp|workspace|opt|var|private|root|mnt)\/[^\s"',)]*)/g, '$1<local-path>')
+    .replace(/\b[A-Za-z]:[\\/][^\s"',)]*/g, '<local-path>');
+}
+
+function sanitizeEvidence(value) {
+  if (Array.isArray(value)) return value.map(sanitizeEvidence);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [key, item] of Object.entries(value)) out[key] = sanitizeEvidence(item);
+    return out;
+  }
+  return typeof value === 'string' ? redactPathString(value) : value;
+}
+
+function buildEvidence(run) {
+  const replayDir = path.join(run.outDir, 'recorded-replay');
+  return sanitizeEvidence({
+    schema: 'near-rehearsal/review-browser-evidence/v1',
+    createdAt: run.finishedAt || nowIso(),
+    bundle: run.bundle,
+    result: run.result || null,
+    recovery: readJson(path.join(replayDir, 'persisted-recovery.json')),
+    acceptance: readJson(path.join(replayDir, 'persisted-recovery-acceptance.json')),
+  });
+}
+
 function publicResult(result, meta) {
   if (!result) return null;
   return {
@@ -119,6 +147,8 @@ function publicRun(run) {
     bundle: run.bundle,
     result: run.result || null,
     downloadUrl: run.status === 'accepted' ? `/api/review/runs/${run.id}/download` : null,
+    inputUrl: `/api/review/runs/${run.id}/input`,
+    evidenceUrl: run.status === 'accepted' ? `/api/review/runs/${run.id}/evidence` : null,
   };
 }
 
@@ -134,6 +164,8 @@ function summary(run) {
     bundle: run.bundle,
     accepted: run.result?.summary?.checks?.accepted === true,
     downloadUrl: run.status === 'accepted' ? `/api/review/runs/${run.id}/download` : null,
+    inputUrl: `/api/review/runs/${run.id}/input`,
+    evidenceUrl: run.status === 'accepted' ? `/api/review/runs/${run.id}/evidence` : null,
   };
 }
 
@@ -187,6 +219,7 @@ function createManager(options = {}) {
         run.phase = 'accepted';
         run.result = publicResult(result, {bundle: run.bundle, bundleSha256: run.bundleSha256, finishedAt: run.finishedAt});
         fs.writeFileSync(path.join(runDir(run.id), 'download.json'), json(run.result));
+        fs.writeFileSync(path.join(runDir(run.id), 'evidence.json'), json(buildEvidence(run)));
       } else {
         run.status = 'rejected';
         run.phase = 'rejected';
@@ -354,6 +387,21 @@ function createManager(options = {}) {
     const file = path.join(runDir(id), 'download.json');
     return fs.existsSync(file) ? file : null;
   }
+  function input(id) {
+    const run = runs.get(id);
+    if (!run) return null;
+    const file = path.join(runDir(id), 'bundle.json');
+    return fs.existsSync(file) ? file : null;
+  }
+  function evidence(id) {
+    const run = runs.get(id);
+    if (!run || run.status !== 'accepted') return null;
+    const file = path.join(runDir(id), 'evidence.json');
+    if (!fs.existsSync(file)) {
+      try { fs.writeFileSync(file, json(buildEvidence(run))); } catch { return null; }
+    }
+    return fs.existsSync(file) ? file : null;
+  }
   async function shutdown() {
     const run = runs.get(activeId);
     if (!run?.currentChild) return;
@@ -372,6 +420,8 @@ function createManager(options = {}) {
     shutdown,
     publicRun,
     download,
+    input,
+    evidence,
     runsRoot,
     configured: Boolean(resolveSandboxDir(options.env || process.env)),
     missing: resolveSandboxDir(options.env || process.env) ? [] : ['REPAIR_SANDBOX_DIR'],

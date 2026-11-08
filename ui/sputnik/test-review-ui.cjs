@@ -19,6 +19,8 @@ assert.match(js, /No bundle selected/);
 assert.match(server, /\/api\/review\/example/);
 assert.match(server, /\/api\/review\/runs/);
 assert.match(server, /\/download/);
+assert.match(server, /input/);
+assert.match(server, /evidence/);
 assert.match(js, /esc\(/);
 assert.match(js, /textContent/);
 console.log('review-ui: surface, route and download controls present');

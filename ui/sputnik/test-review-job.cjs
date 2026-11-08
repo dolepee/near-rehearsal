@@ -76,6 +76,9 @@ async function runAccepted() {
   const downloaded = fs.readFileSync(manager.download(started.id), 'utf8');
   assert.doesNotMatch(downloaded, /\/Users\/|\/tmp\/|\/opt\//);
   assert.match(downloaded, /"accepted": true/);
+  assert.ok(manager.input(started.id));
+  assert.ok(manager.evidence(started.id));
+  assert.doesNotMatch(fs.readFileSync(manager.evidence(started.id), 'utf8'), /\/Users\/|\/tmp\/|\/opt\//);
   assert.equal(manager.list()[0].accepted, true);
 
   const recovered = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: '/opt/sandbox'}});

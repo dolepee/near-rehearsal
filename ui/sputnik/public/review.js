@@ -181,7 +181,7 @@
     $('checks-badge').textContent = accepted ? 'Accepted' : 'Not accepted';
     const download = $('downloads');
     download.innerHTML = run.downloadUrl
-      ? `<a class="download-button" href="${esc(run.downloadUrl)}" download>Download review result</a>`
+      ? `<a class="download-button" href="${esc(run.downloadUrl)}" download>Download result</a>${run.inputUrl ? `<a class="download-button secondary-download" href="${esc(run.inputUrl)}" download>Download input bundle</a>` : ''}${run.evidenceUrl ? `<a class="download-button secondary-download" href="${esc(run.evidenceUrl)}" download>Download evidence</a>` : ''}`
       : '<span class="download-button disabled" aria-disabled="true">Result download withheld</span>';
     $('result-json').textContent = JSON.stringify(result, null, 2);
     setStatus(accepted ? 'Review accepted' : 'Review not accepted', accepted ? 'accepted' : 'rejected');
