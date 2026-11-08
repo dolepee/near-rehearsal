@@ -43,6 +43,13 @@ distinct input, evidence and sanitized result downloads only after acceptance.
 It does not expose host paths or raw runtime files. The example is a recorded
 model candidate; the page still executes it in a fresh Sandbox.
 
+A review runs as its own process group, so stopping the server terminates the
+build, pipeline and Sandbox descendants rather than leaving them running; the
+35-minute limit does the same and records the run as interrupted. Selecting a
+bundle clears the previous candidate and disables Run until the new bytes are
+read and hashed, and a delayed startup restoration never replaces a run the
+reviewer opened explicitly.
+
 ## Commands
 
 ```sh

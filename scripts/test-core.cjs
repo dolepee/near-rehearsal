@@ -28,6 +28,8 @@ const suites = [
   'ui/sputnik/test-review-ui.cjs',
   'ui/sputnik/test-review-polling.cjs',
   'ui/sputnik/test-review-stale.cjs',
+  'ui/sputnik/test-review-selection.cjs',
+  'ui/sputnik/test-review-process-tree.cjs',
   'scripts/test-setup.cjs',
 ];
 for (const suite of suites) {

@@ -81,12 +81,21 @@ with the server-configured pinned source and Rust 1.86 toolchain, or
 addressable history and offers distinct input, evidence and sanitized result
 downloads only after acceptance. It does not call a model.
 
+One review runs at a time, in its own process group. Stopping the server
+terminates that group with escalating signals, so the build, pipeline and
+Sandbox descendants stop too rather than continuing in the background; a review
+still open after 35 minutes is stopped the same way and recorded as
+interrupted, never accepted. A bundle read that has been superseded, and a
+startup restoration of the previous run, are discarded rather than replacing
+the reviewer's current choice.
+
 ```sh
 REPAIR_SANDBOX_DIR=/path/to/directory-containing-near-sandbox \
 PORT=4174 npm run ui:review
 ```
 
-Open `http://127.0.0.1:4174/review`. The example button loads the checked-in
+Open `http://127.0.0.1:4174/review`. A newly chosen bundle clears the previous
+one and disables Run until its bytes are read and hashed. The example button loads the checked-in
 `test-fixtures/repair-browser-export-1de7b8c5.json`; a real replay takes several
 minutes under a local Sandbox.
 

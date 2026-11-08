@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = {config: null, selected: null, mode: null, run: null, runId: null, openEpoch: 0, poll: null, failures: 0, historySignature: null};
+  const state = {config: null, selected: null, selectionEpoch: 0, selectionPending: null, mode: null, run: null, runId: null, openEpoch: 0, poll: null, failures: 0, historySignature: null};
   const terminal = new Set(['accepted', 'rejected', 'interrupted']);
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
   const short = (value, n = 14) => value ? `${String(value).slice(0, n)}…${String(value).slice(-6)}` : '—';
@@ -37,8 +37,8 @@
     const selection = $('selection');
     if (!state.selected) {
       selection.className = 'selection';
-      selection.textContent = 'No bundle selected.';
-      setRunButton(true, 'Select a bundle to run');
+      selection.textContent = state.selectionPending ? `Reading ${state.selectionPending}…` : 'No bundle selected.';
+      setRunButton(true, state.selectionPending ? 'Reading bundle' : 'Select a bundle to run');
       return;
     }
     const {bundle, label} = state.selected;
@@ -72,7 +72,7 @@
       note.textContent = modeValue() === 'source-build'
         ? 'Pinned source, Rust 1.86 and the local Sandbox are configured. This page will not call a model.'
         : 'Sandbox 2.14 directory is configured. This page will not call a model.';
-      setRunButton(runIsActive() || !state.selected, runIsActive() ? 'One review at a time' : state.selected ? (modeValue() === 'source-build' ? 'Run source build' : 'Run recorded review') : 'Select a bundle to run');
+      setRunButton(runIsActive() || !state.selected, runIsActive() ? 'One review at a time' : state.selected ? (modeValue() === 'source-build' ? 'Run source build' : 'Run recorded review') : state.selectionPending ? 'Reading bundle' : 'Select a bundle to run');
     } else {
       note.className = 'notice provider-bad';
       note.textContent = `${modeValue() === 'source-build' ? 'Source build' : 'Recorded replay'} is not configured: ${modeInfo()?.missing?.join(', ') || 'prerequisites missing'}. Choose the available mode or configure the server.`;
@@ -93,26 +93,45 @@
     }
   }
 
+  // Selecting a bundle is asynchronous (read, parse, hash). Every selection
+  // takes a generation token and clears the current bundle first, so a slow
+  // earlier read can neither publish over a newer choice nor leave the Run
+  // button pointing at the previous candidate while the read is pending.
+  function beginSelection(label) {
+    const epoch = ++state.selectionEpoch;
+    state.selected = null;
+    state.selectionPending = label;
+    renderSelection();
+    return epoch;
+  }
+
   async function selectFile(file) {
     if (!file) return;
+    const epoch = beginSelection(file.name);
     if (file.size > 8 * 1024 * 1024) {
-      setSelectionError('That file is larger than the 8 MB browser limit.');
+      setSelectionError('That file is larger than the 8 MB browser limit.', epoch);
       return;
     }
     try {
       const text = await file.text();
+      if (epoch !== state.selectionEpoch) return;
       const bundle = JSON.parse(text);
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+      if (epoch !== state.selectionEpoch) return;
       const sha256 = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+      state.selectionPending = null;
       state.selected = {bundle, sha256, label: file.name, example: false};
       renderSelection();
     } catch (error) {
-      setSelectionError(`That file is not a readable JSON bundle (${error.message}).`);
+      if (epoch !== state.selectionEpoch) return;
+      setSelectionError(`That file is not a readable JSON bundle (${error.message}).`, epoch);
     }
   }
 
-  function setSelectionError(message) {
+  function setSelectionError(message, epoch = state.selectionEpoch) {
+    if (epoch !== state.selectionEpoch) return;
     state.selected = null;
+    state.selectionPending = null;
     const selection = $('selection');
     selection.className = 'selection';
     selection.textContent = message;
@@ -121,16 +140,20 @@
 
   async function loadExample() {
     const button = $('example-button');
+    const epoch = beginSelection('the example bundle');
     button.disabled = true;
     button.textContent = 'Loading example…';
     try {
       const response = await fetch('/api/review/example', {headers: {'accept': 'application/json'}});
       const data = await response.json();
+      if (epoch !== state.selectionEpoch) return;
       if (!response.ok) throw new Error(data.error || 'Could not load the example bundle.');
+      state.selectionPending = null;
       state.selected = {bundle: data.bundle, sha256: data.sha256, label: data.label || data.filename, example: true};
       renderSelection();
     } catch (error) {
-      setSelectionError(error.message);
+      if (epoch !== state.selectionEpoch) return;
+      setSelectionError(error.message, epoch);
     } finally {
       button.disabled = false;
       button.textContent = 'Load example (recorded candidate)';
@@ -366,10 +389,17 @@
   });
 
   loadConfig();
+  // Startup restoration is best-effort and must never override a reviewer's
+  // explicit choice: any history open or new review bumps openEpoch, and the
+  // delayed history response is then abandoned.
+  const startupEpoch = state.openEpoch;
   refreshHistory().then(async () => {
+    if (state.openEpoch !== startupEpoch) return;
     const response = await fetch('/api/review/runs', {headers: {'accept': 'application/json'}}).catch(() => null);
+    if (state.openEpoch !== startupEpoch) return;
     if (!response?.ok) return;
     const data = await response.json().catch(() => null);
+    if (state.openEpoch !== startupEpoch) return;
     const target = data?.active || data?.runs?.[0]?.id;
     if (target) openRun(target);
   });

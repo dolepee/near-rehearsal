@@ -14,12 +14,18 @@ const sandboxDir = path.join(tmp, 'sandbox');
 fs.mkdirSync(sandboxDir, {recursive: true});
 fs.writeFileSync(path.join(sandboxDir, 'near-sandbox'), '');
 
+const spawnCalls = [];
 function fakeSpawn({payload = null, code = 0, error = null, hold = false} = {}) {
-  return (command, args) => {
+  return (command, args, options) => {
+    spawnCalls.push({command, args, options});
     const child = new EventEmitter();
     child.stdout = new EventEmitter();
     child.stderr = new EventEmitter();
-    child.kill = () => {};
+    child.signals = [];
+    child.kill = (signal = 'SIGTERM') => {
+      child.signals.push(signal);
+      if (hold) setImmediate(() => child.emit('close', null, signal));
+    };
     child.pid = 12345;
     if (hold) return child;
     const out = args[args.indexOf('--out') + 1];
@@ -73,6 +79,8 @@ async function runAccepted() {
   const manager = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({payload: acceptedResult})});
   const started = manager.start(example.bundle, 'recorded-wasm');
   assert.equal(started.status, 'running');
+  assert.equal(spawnCalls.at(-1)?.options?.detached, process.platform !== 'win32', 'the review runs in its own process group');
+  assert.equal(spawnCalls.at(-1)?.options?.stdio?.[0], 'ignore');
   const run = manager.get(started.id);
   await run.done;
   assert.equal(run.status, 'accepted');
@@ -110,9 +118,13 @@ async function runRejected() {
 
 async function runActive() {
   const manager = createManager({runsRoot: path.join(tmp, 'active'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({hold: true})});
-  manager.start(example.bundle, 'recorded-wasm');
+  const started = manager.start(example.bundle, 'recorded-wasm');
   assert.throws(() => manager.start(example.bundle, 'recorded-wasm'), (error) => error.statusCode === 409);
   await manager.shutdown();
+  const stopped = manager.get(started.id);
+  assert.equal(stopped.status, 'interrupted', 'a review stopped by shutdown is interrupted, not rejected');
+  assert.match(stopped.error, /server shut down/, 'the stop reason is recorded honestly');
+  assert.equal(manager.active(), null, 'no review stays active after shutdown');
 }
 
 function validation() {

@@ -31,12 +31,37 @@ const MODE_LABELS = {
 };
 const SANDBOX_ENV_KEYS = ['REPAIR_SANDBOX_DIR', 'NEAR_SANDBOX_BIN_PATH', 'NEAR_SANDBOX_BINARY_PATH'];
 
+const IS_WINDOWS = process.platform === 'win32';
+
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
 const nowIso = () => new Date().toISOString();
 const readJson = (file, fallback = null) => {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
 };
+
+/*
+ * A review is launched as its own process group leader, because the review
+ * script starts the pipeline, Cargo and Sandbox as descendants. Signalling the
+ * top-level PID alone leaves those building and replaying after shutdown, so
+ * every stop path signals the whole group and escalates to SIGKILL.
+ */
+function killTree(child, signal = 'SIGTERM') {
+  if (!child) return;
+  const pid = Number(child.pid);
+  let groupSignalled = false;
+  if (!IS_WINDOWS && Number.isInteger(pid) && pid > 0) {
+    try {
+      process.kill(-pid, signal);
+      groupSignalled = true;
+    } catch {
+      groupSignalled = false;
+    }
+  }
+  if (!groupSignalled) {
+    try { child.kill?.(signal); } catch {}
+  }
+}
 
 function resolveSandboxDir(env = process.env) {
   for (const key of SANDBOX_ENV_KEYS) {
@@ -289,10 +314,12 @@ function createManager(options = {}) {
     if (activeId === run.id) activeId = null;
     run.finishedAt = nowIso();
     run.currentChild = null;
-    if (timedOut) {
+    if (timedOut || run.stopping) {
       run.status = 'interrupted';
       run.phase = 'interrupted';
-      run.error = 'The recorded replay exceeded its 20-minute limit; it is not accepted.';
+      run.error = run.stopping
+        ? 'The review was stopped because the server shut down; it is not accepted.'
+        : `The review exceeded its ${Math.round(RUN_LIMIT_MS / 60000)}-minute limit; it is not accepted.`;
     } else {
       const resultPath = path.join(run.outDir, 'review-result.json');
       const result = readJson(resultPath);
@@ -338,6 +365,7 @@ function createManager(options = {}) {
           cwd: ROOT,
           env: {...process.env},
           stdio: ['ignore', 'pipe', 'pipe'],
+          detached: !IS_WINDOWS,
         });
       } catch (error) {
         run.status = 'rejected';
@@ -362,7 +390,7 @@ function createManager(options = {}) {
       watch.unref?.();
       const timer = setTimeout(() => {
         run.timedOut = true;
-        try { child.kill('SIGKILL'); } catch {}
+        killTree(child, 'SIGKILL');
       }, RUN_LIMIT_MS);
       timer.unref?.();
       child.on('error', (error) => {
@@ -500,9 +528,21 @@ function createManager(options = {}) {
   async function shutdown() {
     const run = runs.get(activeId);
     if (!run?.currentChild) return;
-    try { run.currentChild.kill('SIGTERM'); } catch {}
-    setTimeout(() => { try { run.currentChild?.kill('SIGKILL'); } catch {} }, 1500).unref?.();
-    await Promise.race([run.done, new Promise((resolve) => setTimeout(resolve, 3000))]);
+    // Capture the child: finish() clears run.currentChild as soon as the
+    // process exits, which would otherwise disarm the SIGKILL escalation.
+    const child = run.currentChild;
+    run.stopping = true;
+    killTree(child, 'SIGTERM');
+    const escalation = setTimeout(() => killTree(child, 'SIGKILL'), 1500);
+    escalation.unref?.();
+    await Promise.race([
+      Promise.resolve(run.done),
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
+    clearTimeout(escalation);
+    // The top-level process can exit from SIGTERM while its build or replay
+    // descendants are still running, so always finish the group with SIGKILL.
+    killTree(child, 'SIGKILL');
   }
 
   return {
@@ -538,6 +578,7 @@ module.exports = {
   SCHEMA,
   createManager,
   exampleBundleText,
+  killTree,
   publicResult,
   resolveSandboxDir,
   validateBundle,
