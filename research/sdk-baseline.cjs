@@ -14,13 +14,18 @@ const {spawnSync} = require('node:child_process');
 const {Worker, parseNEAR, hashContract} = require('near-workspaces');
 
 const ROOT = path.resolve(__dirname, '..');
-const REPAIR = path.join(ROOT, 'case-triage', 'rehearsal-repair');
-const BASE = path.join(REPAIR, 'bundle', 'artifacts', 'base.wasm');
-const CANDIDATE = path.join(REPAIR, 'generated', 'e8262f5a', 'candidate.wasm');
-const PATCH = path.join(REPAIR, 'generated', 'e8262f5a', 'repair.patch');
-const IDENTITY = path.join(REPAIR, 'generated', 'e8262f5a', 'candidate-identity.json');
-const SOURCE = '/workspace/near-rehearsal/sputnik-dao-contract/sputnikdao2/src/proposals.rs';
-const OUT = path.join(ROOT, 'research', 'sdk-baseline-report.json');
+const envPath = (name, fallback) => path.resolve(process.env[name] || fallback);
+const REPAIR = envPath('NEAR_REPAIR_DIR', path.join(ROOT, 'case-triage', 'rehearsal-repair'));
+const BASE = envPath('NEAR_BASE_WASM', path.join(REPAIR, 'bundle', 'artifacts', 'base.wasm'));
+const CANDIDATE = envPath('NEAR_CANDIDATE_WASM', path.join(REPAIR, 'generated', 'e8262f5a', 'candidate.wasm'));
+const PATCH = envPath('NEAR_PATCH', path.join(REPAIR, 'generated', 'e8262f5a', 'repair.patch'));
+const IDENTITY = envPath('NEAR_IDENTITY', path.join(REPAIR, 'generated', 'e8262f5a', 'candidate-identity.json'));
+// Default is the result of applying the bound repair.patch to upstream 5434 in a clean checkout.
+// NEAR_SOURCE_FILE can point at another clean applied copy; NEAR_UPSTREAM_SOURCE is the unpatched file.
+const SOURCE = envPath('NEAR_SOURCE_FILE', path.join(ROOT, 'research', 'applied-source', 'sputnikdao2', 'src', 'proposals.rs'));
+const UPSTREAM_SOURCE = process.env.NEAR_UPSTREAM_SOURCE ? path.resolve(process.env.NEAR_UPSTREAM_SOURCE) : '';
+const OUT = envPath('NEAR_BASELINE_OUT', path.join(ROOT, 'research', 'sdk-baseline-report-applied-source.json'));
+const RUN_STARTED = new Date();
 const BOND = parseNEAR('1');
 const TRANSFER = parseNEAR('0.1');
 const GAS = 300_000_000_000_000n;
@@ -30,6 +35,15 @@ const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 const b64 = (b) => Buffer.from(b).toString('base64');
 const json = (v) => JSON.stringify(v, (_, x) => typeof x === 'bigint' ? x.toString() : x, 2) + '\n';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+function assertChecks(value, prefix = '') {
+  for (const [key, item] of Object.entries(value)) {
+    const label = prefix ? `${prefix}.${key}` : key;
+    if (typeof item === 'object' && item !== null) assertChecks(item, label);
+    else if (item !== true) throw new Error(`required check failed: ${label}`);
+  }
+}
 
 function runtime() {
   const dir = process.env.NEAR_SANDBOX_BIN_PATH;
@@ -272,6 +286,28 @@ async function recovery(worker, candidate) {
   };
 }
 
+function recoveryChecks(r) {
+  const missingFailure = r.vote.receipts.some((receipt) =>
+    receipt.executor === MISSING
+      && receipt.status?.Failure?.ActionError?.kind?.AccountDoesNotExist?.account_id === MISSING);
+  return {
+    inheritedRawState: r.frozen.stateHash === r.afterUpgrade.stateHash && same(r.frozen.state, r.afterUpgrade.state),
+    policyPreserved: same(r.frozen.policy, r.afterUpgrade.policy),
+    proposalPreserved: same(r.frozen.proposal, r.afterUpgrade.proposal),
+    lockedBondPreserved: r.frozen.locked === r.afterUpgrade.locked,
+    firstRecoveredOneBond: r.first.delta.locked === `-${BOND}`,
+    secondDidNotRecoverAgain: r.second.delta.locked === '0',
+    noTargetPayment: r.first.delta.recipient === '0' && r.second.delta.recipient === '0',
+    grossContractDelta: r.first.delta.contract === `-${BOND}`,
+    firstProposerDeltaPlusGas: (BigInt(r.first.delta.proposer) + BigInt(r.first.final.totalGas)).toString() === BOND.toString(),
+    secondProposerDeltaPlusGas: (BigInt(r.second.delta.proposer) + BigInt(r.second.final.totalGas)).toString() === '0',
+    codeIdentity: r.upgrade.codeHash === hashContract(fs.readFileSync(CANDIDATE)),
+    missingTargetFailureObserved: missingFailure,
+    firstFinalizeSucceeded: r.first.final.succeeded === true,
+    secondFinalizeSucceeded: r.second.final.succeeded === true,
+  };
+}
+
 async function healthyControls(worker, candidate) {
   const base = await init(worker);
   const kind = {Transfer: {token_id: '', receiver_id: base.recipient.accountId,
@@ -334,7 +370,6 @@ async function healthyControls(worker, candidate) {
   if (sha(candidate) !== '49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923') throw new Error('candidate hash mismatch');
   if (sha(base) !== '5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578') throw new Error('base hash mismatch');
   if (sha(fs.readFileSync(PATCH)) !== identity.patch.sha256) throw new Error('patch hash mismatch');
-  const sourceSha = sha(fs.readFileSync(SOURCE));
   if (identity.wasm.sha256 !== sha(candidate)) throw new Error('identity candidate mismatch');
   const rt = runtime();
   process.env.NEAR_SANDBOX_BIN_PATH = path.dirname(rt.binary);
@@ -342,7 +377,6 @@ async function healthyControls(worker, candidate) {
   const worker = await Worker.init({network: 'sandbox'});
   const report = {schema: 'near-rehearsal/sdk-baseline/v1', generatedAt: new Date().toISOString(),
     runtime: rt, identity: {sourceCommit: identity.source.commit, sourceSha256: identity.source.sha256,
-      sourceFileSha256: sourceSha, sourceHashMatches: sourceSha === identity.source.sha256,
       baseSha256: sha(base), candidateSha256: sha(candidate), patchSha256: sha(fs.readFileSync(PATCH)),
       candidateWasmHash: hashContract(candidate), baseWasmHash: hashContract(base)},
     rpc: local(worker)};
@@ -351,16 +385,30 @@ async function healthyControls(worker, candidate) {
     const healthyWorker = await Worker.init({network: 'sandbox'});
     try { report.controls = await healthyControls(healthyWorker, candidate); }
     finally { await healthyWorker.tearDown(); }
+    const sourceSha = sha(fs.readFileSync(SOURCE));
+    const upstreamSha = UPSTREAM_SOURCE ? sha(fs.readFileSync(UPSTREAM_SOURCE)) : null;
+    report.source = {
+      appliedFile: SOURCE,
+      appliedSha256: sourceSha,
+      upstreamFile: UPSTREAM_SOURCE || null,
+      upstreamSha256: upstreamSha,
+      patchedFromUpstream: upstreamSha === '40ff45770a444fe3581d55eea9c968fc58954633d0c96df09232f078c0ab68c4',
+    };
+    report.identity.sourceFileSha256 = sourceSha;
+    report.identity.sourceHashMatches = sourceSha === identity.source.sha256;
     report.checks = {
-      firstRecoveredOneBond: report.recovery.first.delta.locked === `-${BOND}`,
-      secondDidNotRecoverAgain: report.recovery.second.delta.locked === '0',
-      noTargetPayment: report.recovery.first.delta.recipient === '0' && report.recovery.second.delta.recipient === '0',
-      firstProposerDeltaPlusGas: (BigInt(report.recovery.first.delta.proposer) + BigInt(report.recovery.first.final.totalGas)).toString() === BOND.toString(),
-      secondProposerDeltaPlusGas: (BigInt(report.recovery.second.delta.proposer) + BigInt(report.recovery.second.final.totalGas)).toString() === '0',
-      codeIdentity: report.recovery.upgrade.codeHash === hashContract(candidate),
+      sourceIdentity: report.identity.sourceHashMatches,
+      patchIdentity: report.identity.patchSha256 === identity.patch.sha256,
+      artifactIdentity: report.identity.candidateSha256 === identity.wasm.sha256
+        && report.identity.baseSha256 === '5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578',
+      ...recoveryChecks(report.recovery),
       controls: report.controls.checks,
     };
   } finally { await worker.tearDown(); }
+  report.run = {startedAt: RUN_STARTED.toISOString(), finishedAt: new Date().toISOString(),
+    durationMs: Date.now() - RUN_STARTED.getTime()};
+  fs.mkdirSync(path.dirname(OUT), {recursive: true});
   fs.writeFileSync(OUT, json(report));
+  assertChecks(report.checks);
   console.log(json(report));
 })().catch((e) => { console.error(e.stack || e); process.exit(1); });
