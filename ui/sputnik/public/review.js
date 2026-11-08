@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = {config: null, selected: null, selectionEpoch: 0, selectionPending: null, mode: null, run: null, runId: null, openEpoch: 0, poll: null, failures: 0, historySignature: null};
+  const state = {config: null, selected: null, selectionEpoch: 0, selectionPending: null, mode: null, run: null, runId: null, openEpoch: 0, poll: null, failures: 0, historySignature: null, submitting: false, submitMode: null};
   const terminal = new Set(['accepted', 'rejected', 'interrupted']);
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
   const short = (value, n = 14) => value ? `${String(value).slice(0, n)}…${String(value).slice(-6)}` : '—';
@@ -33,18 +33,34 @@
     button.setAttribute('aria-busy', String(disabled));
   }
 
+  // The Run button is derived, never toggled ad hoc: a start request that is
+  // still in flight locks it regardless of a newer selection or a config
+  // re-render, so two competing starts can never be posted for one click each.
+  const submitPending = () => state.submitting === true;
+  const submitLabel = () => state.submitMode === 'source-build' ? 'Starting source build' : 'Starting review';
+
+  function paintRunButton() {
+    if (submitPending()) return setRunButton(true, submitLabel());
+    if (!state.config) return setRunButton(true, 'Checking runtime');
+    if (!modeReady()) return setRunButton(true, 'Mode not ready');
+    if (runIsActive()) return setRunButton(true, 'One review at a time');
+    if (state.selectionPending) return setRunButton(true, 'Reading bundle');
+    if (!state.selected) return setRunButton(true, 'Select a bundle to run');
+    return setRunButton(false, modeValue() === 'source-build' ? 'Run source build' : 'Run recorded review');
+  }
+
   function renderSelection() {
     const selection = $('selection');
     if (!state.selected) {
       selection.className = 'selection';
       selection.textContent = state.selectionPending ? `Reading ${state.selectionPending}…` : 'No bundle selected.';
-      setRunButton(true, state.selectionPending ? 'Reading bundle' : 'Select a bundle to run');
+      paintRunButton();
       return;
     }
     const {bundle, label} = state.selected;
     selection.className = 'selection ready';
     selection.innerHTML = `<b>${esc(label)}</b><span>Run ${esc(short(bundle.runId))} · ${esc(bundle.source?.commit || 'source commit missing')}</span><span class="mono">candidate ${esc(short(bundle.candidate?.wasm?.sha256 || bundle.candidate?.wasmSha256 || ''))}</span>`;
-    setRunButton(runIsActive() || !modeReady(), runIsActive() ? 'One review at a time' : modeReady() ? (modeValue() === 'source-build' ? 'Run source build' : 'Run recorded review') : 'Mode not ready');
+    paintRunButton();
   }
 
   function renderConfig() {
@@ -52,7 +68,7 @@
     if (!state.config) {
       note.className = 'notice';
       note.textContent = 'Checking the local runtime…';
-      setRunButton(true, 'Checking runtime');
+      paintRunButton();
       return;
     }
     const modes = state.config.modes || {};
@@ -72,11 +88,11 @@
       note.textContent = modeValue() === 'source-build'
         ? 'Pinned source, Rust 1.86 and the local Sandbox are configured. This page will not call a model.'
         : 'Sandbox 2.14 directory is configured. This page will not call a model.';
-      setRunButton(runIsActive() || !state.selected, runIsActive() ? 'One review at a time' : state.selected ? (modeValue() === 'source-build' ? 'Run source build' : 'Run recorded review') : state.selectionPending ? 'Reading bundle' : 'Select a bundle to run');
+      paintRunButton();
     } else {
       note.className = 'notice provider-bad';
       note.textContent = `${modeValue() === 'source-build' ? 'Source build' : 'Recorded replay'} is not configured: ${modeInfo()?.missing?.join(', ') || 'prerequisites missing'}. Choose the available mode or configure the server.`;
-      setRunButton(true, 'Mode not ready');
+      paintRunButton();
     }
   }
 
@@ -288,18 +304,25 @@
   }
 
   async function startReview() {
+    // One start at a time: the manager runs one review, so a second POST would
+    // only be rejected while the first response is discarded as stale.
+    if (state.submitting || runIsActive()) return;
     if (!state.selected) return;
     if (!modeReady()) {
       renderConfig();
       return;
     }
-    setRunButton(true, modeValue() === 'source-build' ? 'Starting source build' : 'Starting review');
+    const {bundle} = state.selected;
+    const mode = modeValue();
+    state.submitting = true;
+    state.submitMode = mode;
     const epoch = ++state.openEpoch;
+    paintRunButton();
     try {
       const response = await fetch('/api/review/runs', {
         method: 'POST',
         headers: {'content-type': 'application/json', 'accept': 'application/json'},
-        body: JSON.stringify({bundle: state.selected.bundle, mode: modeValue()}),
+        body: JSON.stringify({bundle, mode}),
       });
       const data = await response.json();
       if (epoch !== state.openEpoch) return;
@@ -308,12 +331,18 @@
       renderRun(data.run);
       schedulePoll();
     } catch (error) {
+      // A failure belongs to the navigation that issued it: if the reviewer
+      // has since opened another run, this one must not replace it.
+      if (epoch !== state.openEpoch) return;
       show('error-state');
       $('error-title').textContent = 'The review could not start.';
       $('error-copy').textContent = error.message;
       $('error-log').textContent = '';
       setStatus('Review not started', 'rejected');
-      setRunButton(!modeReady() || !state.selected, !state.selected ? 'Select a bundle to run' : 'Try again');
+    } finally {
+      state.submitting = false;
+      state.submitMode = null;
+      paintRunButton();
     }
   }
 
