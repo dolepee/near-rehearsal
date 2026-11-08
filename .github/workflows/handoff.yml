@@ -168,17 +168,34 @@ jobs:
           test -s "$out_dir/source-build/candidate-identity.json"
           test -s "$out_dir/source-build/persisted/persisted-recovery.json"
           test -s "$out_dir/source-build/persisted/persisted-recovery-acceptance.json"
-      - name: Upload source-build evidence
+      - name: Run actual repair review recorded replay
+        run: |
+          set -euo pipefail
+          ulimit -n 65535
+          out_dir="$RUNNER_TEMP/repair-replay"
+          test ! -e "$out_dir"
+          npm run repair:review -- \
+            --bundle test-fixtures/repair-browser-export-1de7b8c5.json \
+            --out "$out_dir" \
+            --mode recorded-wasm 2>&1 | tee "$RUNNER_TEMP/repair-replay.log"
+          test -s "$out_dir/review-result.json"
+          test -s "$out_dir/recorded-replay/persisted-recovery.json"
+          test -s "$out_dir/recorded-replay/persisted-recovery-acceptance.json"
+      - name: Upload repair review evidence
         uses: actions/upload-artifact@v4
         with:
           name: repair-review-source-build
           path: |
             ${{ runner.temp }}/repair-review.log
+            ${{ runner.temp }}/repair-replay.log
             ${{ runner.temp }}/repair-review/review-result.json
             ${{ runner.temp }}/repair-review/source-build/pipeline.json
             ${{ runner.temp }}/repair-review/source-build/candidate-identity.json
             ${{ runner.temp }}/repair-review/source-build/persisted/persisted-recovery.json
             ${{ runner.temp }}/repair-review/source-build/persisted/persisted-recovery-acceptance.json
+            ${{ runner.temp }}/repair-replay/review-result.json
+            ${{ runner.temp }}/repair-replay/recorded-replay/persisted-recovery.json
+            ${{ runner.temp }}/repair-replay/recorded-replay/persisted-recovery-acceptance.json
           if-no-files-found: error
 
   persisted-recovery:
