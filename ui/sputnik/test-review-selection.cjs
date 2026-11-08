@@ -80,14 +80,19 @@ const acceptedRun = {
 const runningRun = {id: 'run-1', status: 'running', phase: 'replaying', startedAt: now, elapsedMs: 1000, mode: 'recorded-wasm', logs: []};
 
 let runsCalls = 0;
+let postCalls = 0;
 let pendingRestore = null;
 let pendingExample = null;
-const fetch = async (url) => {
+const fetch = async (url, options = {}) => {
   if (url === '/api/review/config') {
     return {ok: true, json: async () => ({
       configured: true, defaultMode: 'recorded-wasm',
       modes: {'recorded-wasm': {configured: true, missing: []}, 'source-build': {configured: false, missing: ['REPAIR_SOURCE_DIR']}},
     })};
+  }
+  if (url === '/api/review/runs' && options.method === 'POST') {
+    postCalls += 1;
+    return {ok: false, json: async () => ({error: 'Run must stay disabled while a selection is pending.'})};
   }
   if (url === '/api/review/runs') {
     runsCalls += 1;
@@ -134,6 +139,9 @@ const selectFile = (file) => {
   selectFile({name: 'slow-a.json', size: 100, text: () => slow.promise});
   assert.equal(get('run-button').disabled, true, 'Run is disabled while a new bundle is being read');
   assert.match(get('selection').textContent, /Reading slow-a\.json/, 'the pending selection is shown, not the old one');
+  get('run-button').click();
+  await settle();
+  assert.equal(postCalls, 0, 'Run cannot start while the selected bundle is still being read');
 
   // 2. A newer selection wins; the earlier read must not publish over it.
   const fast = deferred();

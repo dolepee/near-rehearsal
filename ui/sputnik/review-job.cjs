@@ -278,6 +278,8 @@ function createManager(options = {}) {
   const runsRoot = options.runsRoot || DEFAULT_RUNS_ROOT;
   const spawnImpl = options.spawn || spawn;
   const env = options.env || process.env;
+  const runLimitMs = Number(options.runLimitMs) > 0 ? Number(options.runLimitMs) : RUN_LIMIT_MS;
+  const killGraceMs = Number(options.killGraceMs) > 0 ? Number(options.killGraceMs) : 1500;
   const runs = new Map();
   let activeId = null;
 
@@ -319,7 +321,7 @@ function createManager(options = {}) {
       run.phase = 'interrupted';
       run.error = run.stopping
         ? 'The review was stopped because the server shut down; it is not accepted.'
-        : `The review exceeded its ${Math.round(RUN_LIMIT_MS / 60000)}-minute limit; it is not accepted.`;
+        : `The review exceeded its ${Math.max(1, Math.round(runLimitMs / 60000))}-minute limit; it is not accepted.`;
     } else {
       const resultPath = path.join(run.outDir, 'review-result.json');
       const result = readJson(resultPath);
@@ -388,20 +390,29 @@ function createManager(options = {}) {
         }
       }, 500);
       watch.unref?.();
+      let killTimer = null;
+      const clearRunTimers = () => {
+        clearTimeout(timer);
+        if (killTimer) clearTimeout(killTimer);
+        clearInterval(watch);
+      };
       const timer = setTimeout(() => {
+        if (settled) return;
         run.timedOut = true;
-        killTree(child, 'SIGKILL');
-      }, RUN_LIMIT_MS);
+        // Give the group a bounded chance to stop cleanly, then force the
+        // entire group down if any build or replay descendant ignores TERM.
+        killTree(child, 'SIGTERM');
+        killTimer = setTimeout(() => killTree(child, 'SIGKILL'), killGraceMs);
+        killTimer.unref?.();
+      }, runLimitMs);
       timer.unref?.();
       child.on('error', (error) => {
-        clearTimeout(timer);
-        clearInterval(watch);
+        clearRunTimers();
         done({code: null, signal: null, timedOut: run.timedOut});
         if (!run.error) run.error = cleanError(error.message);
       });
       child.on('close', (code, signal) => {
-        clearTimeout(timer);
-        clearInterval(watch);
+        clearRunTimers();
         done({code, signal, timedOut: run.timedOut});
       });
     });
@@ -533,7 +544,7 @@ function createManager(options = {}) {
     const child = run.currentChild;
     run.stopping = true;
     killTree(child, 'SIGTERM');
-    const escalation = setTimeout(() => killTree(child, 'SIGKILL'), 1500);
+    const escalation = setTimeout(() => killTree(child, 'SIGKILL'), killGraceMs);
     escalation.unref?.();
     await Promise.race([
       Promise.resolve(run.done),

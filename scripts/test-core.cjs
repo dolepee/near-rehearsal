@@ -30,6 +30,7 @@ const suites = [
   'ui/sputnik/test-review-stale.cjs',
   'ui/sputnik/test-review-selection.cjs',
   'ui/sputnik/test-review-process-tree.cjs',
+  'ui/sputnik/test-review-start-race.cjs',
   'scripts/test-setup.cjs',
 ];
 for (const suite of suites) {

@@ -127,6 +127,31 @@ async function runActive() {
   assert.equal(manager.active(), null, 'no review stays active after shutdown');
 }
 
+function runRestartRecovery() {
+  const runsRoot = path.join(tmp, 'restart');
+  const dir = path.join(runsRoot, 'run-restart');
+  fs.mkdirSync(dir, {recursive: true});
+  fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify({
+    schema: 'near-rehearsal/review-browser-run/v1',
+    id: 'run-restart',
+    status: 'running',
+    phase: 'replaying',
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    error: null,
+    bundle: {sha256: 'a'.repeat(64)},
+    mode: 'recorded-wasm',
+    logs: [],
+  }));
+  const manager = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: sandboxDir}});
+  manager.recover();
+  const recovered = manager.get('run-restart');
+  assert.equal(recovered.status, 'interrupted', 'a restart marks an in-flight run interrupted');
+  assert.match(recovered.error, /restarted before this review completed/, 'the restart reason is explicit');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'run.json'), 'utf8')).status, 'interrupted',
+    'the interrupted state is persisted for the next restart');
+}
+
 function validation() {
   const manager = createManager({runsRoot: path.join(tmp, 'validation'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({hold: true})});
   assert.throws(() => manager.start(example.bundle, 'not-a-mode'), (error) => error.statusCode === 400);
@@ -144,6 +169,7 @@ function validation() {
     await runAccepted();
     await runRejected();
     await runActive();
+    runRestartRecovery();
     console.log('review-job: accepted, rejected, active-lock, recovery and sanitization checks passed');
   } finally {
     fs.rmSync(tmp, {recursive: true, force: true});
