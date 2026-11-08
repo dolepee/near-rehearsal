@@ -64,6 +64,16 @@ Open **http://127.0.0.1:4174/repair** and choose **Run fresh repair**. The check
 
 The doctor is a local configuration check, not a login/model call or an execution attestation. Actual generation still verifies the provider boundary and can fail honestly. Running a recorded export or the authored control is not fresh model generation.
 
+## Review a downloaded repair bundle
+
+For a reviewer who already has an accepted bundle and only needs the recorded replay, start the same local UI with the Sandbox 2.14 directory configured:
+
+```sh
+REPAIR_SANDBOX_DIR=/path/to/Linux-x86_64 PORT=4174 npm run ui:review
+```
+
+Open **http://127.0.0.1:4174/review**, choose the bundle JSON or **Load the example bundle**, then **Run recorded review**. This uses `--mode recorded-wasm`: it verifies the supplied hashes and identities, replays the candidate artifact, and runs the declared acceptance checks. It does not call a model, build source, publish anything or treat an earlier report as the result. Accepted runs keep an addressable history and offer a sanitized `review-result.json` download.
+
 ## Verify and replay an export
 
 Manual comparison exports contain the frozen state, candidate/correction WASMs, receipts and review metadata. Use the repository helper, not command text from an untrusted file:

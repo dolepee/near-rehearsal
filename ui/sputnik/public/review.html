@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Review a Sputnik repair bundle</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/review.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">R</span>
+        <div><div class="eyebrow">NEAR / reviewer handoff</div><h1>Review a repair bundle</h1></div>
+      </div>
+      <div class="top-actions">
+        <a class="nav-link" href="/repair">Repair journey</a>
+        <a class="nav-link" href="/">Release comparison</a>
+        <div id="status" class="status-pill idle" role="status" aria-live="polite">No review run yet</div>
+      </div>
+    </header>
+
+    <main class="layout review-layout">
+      <aside class="setup panel">
+        <div class="panel-kicker">Downloaded handoff</div>
+        <h2 class="review-heading">Open a repair bundle</h2>
+        <p class="hint">Choose the JSON bundle produced by an accepted repair. The server verifies its hashes and identities before it starts the recorded replay.</p>
+
+        <label class="field" for="bundle-file"><span>Repair bundle</span>
+          <input id="bundle-file" type="file" accept="application/json,.json" aria-describedby="bundle-help">
+        </label>
+        <p id="bundle-help" class="hint">JSON only, up to 8 MB. The file stays local to this server.</p>
+        <div id="selection" class="selection" role="status" aria-live="polite">No bundle selected.</div>
+        <button id="example-button" class="secondary" type="button">Load the example bundle</button>
+
+        <div class="mode-card">
+          <div class="eyebrow">Execution mode</div>
+          <b>Recorded WASM replay</b>
+          <p class="small muted">Runs the candidate WASM supplied in the bundle against Sandbox 2.14.0. No model call and no source build. The result is an artifact replay, not a fresh source reproduction.</p>
+        </div>
+
+        <button id="run-button" class="primary" type="button" disabled>Run recorded review</button>
+        <div id="runtime-note" class="notice" role="status" aria-live="polite">Checking the local runtime…</div>
+        <div class="boundary"><strong>Local evidence only</strong><p>Accepted means the supplied artifact passed the declared local checks. It is not production approval, an audit, or a claim about other contracts.</p></div>
+
+        <section class="history" aria-labelledby="history-title">
+          <div class="section-head compact"><div><div class="eyebrow">Earlier reviews</div><h3 id="history-title">Addressable results</h3></div></div>
+          <div id="history-list" class="history-list" role="list"><p class="muted small">No previous reviews.</p></div>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <section id="empty-state" class="empty panel">
+          <div class="empty-mark" aria-hidden="true">↺</div>
+          <div class="eyebrow">Nothing running</div>
+          <h2>Start with the supplied evidence.</h2>
+          <p>Open a downloaded repair bundle, or load the example. The page verifies the bundle, replays the recorded candidate, and reports the money and preservation checks. It does not call a model or trust a committed report as a result.</p>
+        </section>
+
+        <section id="running-state" class="running panel" hidden>
+          <div class="running-head"><div><div class="eyebrow">Real local replay</div><h2 id="running-title">Checking the bundle…</h2><p id="running-copy" class="muted">Hashes and identities are checked before the output directory is reserved.</p></div><div id="elapsed" class="elapsed" aria-label="Elapsed time">00:00</div></div>
+          <ol id="phase-list" class="phase-list review-phases" aria-label="Review phases">
+            <li data-phase="replaying"><span class="phase-dot"></span><b>Replaying</b><small>Sandbox 2.14</small></li>
+            <li data-phase="accepting"><span class="phase-dot"></span><b>Accepting</b><small>Declared checks</small></li>
+          </ol>
+          <p id="phase-current" class="phase-current" role="status" aria-live="polite">Verifying the bundle…</p>
+          <details class="log-card"><summary>Review output</summary><div class="log-head"><span>Current run</span><span id="run-id" class="mono"></span></div><pre id="logs" class="log-output">Waiting…</pre></details>
+        </section>
+
+        <section id="error-state" class="error-state panel" hidden>
+          <div class="eyebrow">No accepted result</div>
+          <h2 id="error-title">The review did not pass.</h2>
+          <p id="error-copy"></p>
+          <pre id="error-log" class="log-output compact"></pre>
+          <button id="retry-button" class="primary" type="button">Try another bundle</button>
+        </section>
+
+        <section id="result-state" hidden>
+          <div id="result-banner" class="result-banner"></div>
+          <p id="result-copy" class="result-copy"></p>
+          <div id="review-grid" class="review-grid"></div>
+          <div id="meaning-note" class="notice"></div>
+
+          <section class="details panel" aria-labelledby="checks-title">
+            <div class="section-head"><div><div class="eyebrow">Declared checks</div><h3 id="checks-title">What passed</h3></div><span id="checks-badge" class="badge subtle"></span></div>
+            <ul id="checks-list" class="checks-list"></ul>
+          </section>
+
+          <section class="details panel" aria-labelledby="download-title">
+            <div class="section-head"><div><div class="eyebrow">Portable result</div><h3 id="download-title">Download the review result</h3></div></div>
+            <p class="small muted">This is the sanitized browser result for this review. It carries the bundle hash, candidate identity, checks and replay summary, without host paths or runtime files.</p>
+            <div id="downloads" class="downloads"></div>
+          </section>
+
+          <details class="evidence-details panel">
+            <summary>Raw review result</summary>
+            <pre id="result-json" class="raw" tabindex="0" aria-label="Raw sanitized review result"></pre>
+          </details>
+        </section>
+      </section>
+    </main>
+  </div>
+  <script src="/review.js"></script>
+</body>
+</html>

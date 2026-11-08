@@ -71,6 +71,24 @@ or authored patch. A generated patch can be downloaded after generation; the
 review bundle is available only after an accepted run. Completed results remain
 addressable after refresh or restart; interrupted jobs are marked interrupted.
 
+## Reviewer handoff
+
+`/review` is the reviewer-facing entry point for a downloaded repair bundle. It
+accepts a JSON bundle in the browser, verifies its declared hashes and
+identities, and runs `scripts/repair-review.cjs --mode recorded-wasm` against
+the local Sandbox 2.14 directory. The page keeps addressable history and offers
+a sanitized `review-result.json` only after acceptance. It does not call a model
+or build source.
+
+```sh
+REPAIR_SANDBOX_DIR=/path/to/directory-containing-near-sandbox \
+PORT=4174 npm run ui:review
+```
+
+Open `http://127.0.0.1:4174/review`. The example button loads the checked-in
+`test-fixtures/repair-browser-export-1de7b8c5.json`; a real replay takes several
+minutes under a local Sandbox.
+
 ## Outcomes
 
 The default run is expected to show:

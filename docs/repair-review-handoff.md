@@ -21,6 +21,20 @@ For `--mode recorded-wasm`, Rust and the source checkout are not required.
 Neither mode downloads a runtime, calls a model, publishes anything or
 upgrades an external contract.
 
+## Browser reviewer
+
+For a bundle-only review, start the local UI with the Sandbox directory
+configured and open `/review`:
+
+```sh
+REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14 PORT=4174 npm run ui:review
+```
+
+Open `http://127.0.0.1:4174/review`, select the bundle JSON or load the example,
+then **Run recorded review**. The page uses the same `recorded-wasm` path,
+keeps addressable history and offers a sanitized `review-result.json` only after
+acceptance. It does not expose host paths or raw runtime files.
+
 ## Commands
 
 ```sh
