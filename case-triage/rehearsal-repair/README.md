@@ -114,6 +114,20 @@ node "$REPAIR_CASE/persisted-recovery-acceptance.cjs" \
 
 The expected acceptance result is `ok: true`, errors `[]`. To bind a separately reconstructed source file too, pass its path as `--candidate-source` to the runner and `--source` to acceptance. The configured browser does this for each freshly built candidate. CI separately executes the recorded recovery on Linux x86_64; offline fixture tests are not a fresh model or Sandbox run.
 
+## Operator handoff from a browser export
+
+A downloaded repair bundle can be unpacked and run with the repository-level command:
+
+```sh
+npm run repair:review -- \
+  --bundle /path/to/repair-browser-export.json \
+  --out /tmp/repair-handoff \
+  --source /path/to/sputnik-dao-contract \
+  --sandbox-dir /path/to/Linux-x86_64
+```
+
+This is the `source-build` path: it checks the bundle hashes, applies the exported patch to the exact upstream commit, builds a new WASM with Rust 1.86, and runs the persisted-recovery acceptance above. `--mode recorded-wasm` replays the supplied artifact without a source build and labels it separately. The output directory must be fresh. The command writes `review-result.json`, `source-build/pipeline.json`, the new candidate identity, the persisted report and the acceptance receipt. See [repair review handoff](../../docs/repair-review-handoff.md).
+
 ## Controller pipeline
 
 `repair-pipeline.cjs` performs the real candidate path: patch guard, clean

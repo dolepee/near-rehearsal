@@ -15,6 +15,7 @@ const suites = [
   'scripts/test-ui-polling.cjs',
   'ui/sputnik/test-upload-selection.cjs',
   'scripts/test-release-review-guards.cjs',
+  'scripts/test-repair-review.cjs',
   'case-triage/sputnik-public-capture/negative-verifier-tests.cjs',
   'case-triage/sputnik-public-capture/negative-local-verifier-tests.cjs',
   'scripts/verify-report.cjs',
