@@ -33,6 +33,8 @@ const get = (id) => {
 const timers = [];
 const document = {activeElement: null, getElementById: get, querySelectorAll: () => []};
 let runReads = 0;
+let readFailures = 0;
+let postCalls = 0;
 const running = {id: 'run-1', status: 'running', phase: 'replaying', startedAt: new Date().toISOString(), elapsedMs: 1000, mode: 'recorded-wasm', logs: []};
 const accepted = {
   id: 'run-1', status: 'accepted', phase: 'accepted', startedAt: new Date(Date.now() - 5000).toISOString(), finishedAt: new Date().toISOString(), elapsedMs: 5000, mode: 'recorded-wasm',
@@ -51,13 +53,18 @@ const accepted = {
   },
 };
 let runResponse = running;
-const fetch = async (url) => {
+const fetch = async (url, options = {}) => {
+  if (options.method === 'POST') { postCalls += 1; throw new Error('Unexpected duplicate start'); }
   if (url === '/api/review/config') return {ok: true, json: async () => ({
     configured: true, defaultMode: 'recorded-wasm',
     modes: {'recorded-wasm': {configured: true, missing: []}, 'source-build': {configured: false, missing: ['REPAIR_SOURCE_DIR']}},
   })};
   if (url === '/api/review/runs') return {ok: true, json: async () => ({runs: [{id: 'run-1', status: runResponse.status, mode: 'recorded-wasm'}], active: 'run-1'})};
-  if (url === '/api/review/runs/run-1') { runReads += 1; return {ok: true, json: async () => runResponse}; }
+  if (url === '/api/review/runs/run-1') {
+    runReads += 1;
+    if (readFailures > 0) { readFailures -= 1; throw new Error('Network unavailable'); }
+    return {ok: true, json: async () => runResponse};
+  }
   return {ok: false, json: async () => ({error: 'unexpected'})};
 };
 const context = {
@@ -77,10 +84,31 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
   await tick(); await tick();
   assert.ok(runReads >= 1, 'the restored run is polled after refresh');
   assert.ok(timers.length > 0, 'a running response schedules the next poll');
-  runResponse = accepted;
-  timers.shift()();
+  const exhaustPolls = async () => {
+    readFailures = 4;
+    for (let i = 0; i < 4; i += 1) {
+      assert.ok(timers.length, 'a retry is available before polling is exhausted');
+      timers.shift()();
+      await tick(); await tick(); await tick();
+    }
+    assert.equal(timers.length, 0, 'polling stops after the bounded failures');
+    assert.match(get('status').textContent, /unknown/, 'transport failure does not claim the job stopped');
+    assert.equal(get('retry-button').textContent, 'Reconnect to review', 'same-run recovery is available');
+  };
+  await exhaustPolls();
+  get('retry-button').click();
+  await tick(); await tick(); await tick();
+  assert.equal(get('running-state').hidden, false, 'reconnecting resumes the existing running review');
+  assert.equal(get('run-id').textContent, 'run-1', 'reconnection keeps the same run');
+  assert.ok(timers.length, 'reconnection schedules polling again');
+  assert.equal(postCalls, 0, 'reconnection does not submit a new review');
+  await exhaustPolls();
+  runResponse = accepted; // The server finished while polling was unavailable.
+  get('retry-button').click();
   await tick(); await tick(); await tick();
   assert.equal(get('result-state').hidden, false, 'terminal poll renders the result instead of freezing on Running');
   assert.match(get('status').textContent, /accepted/, 'accepted status is rendered');
-  console.log('review-polling: refresh during a running review restores polling and reaches the terminal result');
+  assert.equal(postCalls, 0, 'terminal reconnection does not submit a new review');
+  assert.equal(timers.length, 0, 'terminal reconnection stops polling');
+  console.log('review-polling: refresh and bounded-failure reconnect preserve the run and recover its terminal result');
 })().catch((error) => { console.error(error.stack || error); process.exitCode = 1; });

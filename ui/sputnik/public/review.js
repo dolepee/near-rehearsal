@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = {config: null, selected: null, selectionEpoch: 0, selectionPending: null, mode: null, run: null, runId: null, openEpoch: 0, poll: null, failures: 0, historySignature: null, submitting: false, submitMode: null};
+  const state = {config: null, selected: null, selectionEpoch: 0, selectionPending: null, mode: null, run: null, runId: null, openEpoch: 0, poll: null, failures: 0, historySignature: null, submitting: false, submitMode: null, connectionLost: false};
   const terminal = new Set(['accepted', 'rejected', 'interrupted']);
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
   const short = (value, n = 14) => value ? `${String(value).slice(0, n)}…${String(value).slice(-6)}` : '—';
@@ -256,14 +256,19 @@
 
   function renderError(run) {
     show('error-state');
-    $('error-title').textContent = run.status === 'interrupted' ? 'The review was interrupted.' : 'The review did not pass.';
-    $('error-copy').textContent = run.error || 'No accepted result was produced.';
+    const disconnected = run.connectionLost === true;
+    $('error-title').textContent = disconnected ? 'Connection to the review was lost.' : run.status === 'interrupted' ? 'The review was interrupted.' : 'The review did not pass.';
+    $('error-copy').textContent = disconnected
+      ? `The outcome is unknown; the server may still be working. Reconnect to check the same run without starting another. ${run.error || ''}`
+      : run.error || 'No accepted result was produced.';
     $('error-log').textContent = (run.logs || []).slice(-40).join('\n') || 'No runner output was captured.';
-    setStatus(run.status === 'interrupted' ? 'Review interrupted' : 'Review not accepted', run.status === 'interrupted' ? 'interrupted' : 'rejected');
-    setRunButton(!modeReady() || !state.selected, !state.selected ? 'Select a bundle to run' : 'Try another bundle');
+    $('retry-button').textContent = disconnected ? 'Reconnect to review' : 'Try another bundle';
+    setStatus(disconnected ? 'Connection lost — status unknown' : run.status === 'interrupted' ? 'Review interrupted' : 'Review not accepted', disconnected || run.status === 'interrupted' ? 'interrupted' : 'rejected');
+    paintRunButton();
   }
 
   function renderRun(run) {
+    state.connectionLost = false;
     state.run = run;
     state.runId = run.id;
     if (run.status === 'accepted') renderResult(run);
@@ -296,7 +301,8 @@
       if (epoch !== state.openEpoch || state.runId !== id) return;
       state.failures += 1;
       if (state.failures >= 4) {
-        renderError({status: 'interrupted', error: error.message, logs: []});
+        state.connectionLost = true;
+        renderError({connectionLost: true, error: error.message, logs: []});
         return;
       }
       schedulePoll();
@@ -412,6 +418,10 @@
   $('example-button').addEventListener('click', loadExample);
   $('run-button').addEventListener('click', startReview);
   $('retry-button').addEventListener('click', () => {
+    if (state.connectionLost && state.runId) {
+      openRun(state.runId);
+      return;
+    }
     show('empty-state');
     setStatus('No review run yet', 'idle');
     $('bundle-file').focus();
