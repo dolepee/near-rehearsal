@@ -2,6 +2,7 @@
   "name": "near-rehearsal",
   "version": "0.1.0",
   "private": true,
+  "license": "GPL-3.0-only",
   "description": "Bounded NEAR release rehearsal: capture existing contract state, apply a declared migration, compare the same user operation, and export a rerunnable regression.",
   "scripts": {
     "setup": "npm ci --ignore-scripts && node scripts/patch-near-sandbox.cjs",
