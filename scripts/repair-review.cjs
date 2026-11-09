@@ -114,6 +114,18 @@ const checkBundle = (bundle) => {
   if (!bundle || bundle.schema !== SCHEMA) fail(`bundle schema must be ${SCHEMA}`);
   if (!bundle.runId) fail('bundle runId is missing');
   if (bundle.caseId !== 'sputnik-238-async-bond') fail('bundle caseId is not sputnik-238-async-bond');
+  const obligation = bundle.case?.obligation;
+  if (obligation) {
+    const supported = {
+      bond: '1000000000000000000000000',
+      bondNear: '1',
+      transfer: '100000000000000000000000',
+      transferNear: '0.1',
+    };
+    for (const [key, value] of Object.entries(supported)) {
+      if (String(obligation[key] ?? '') !== value) fail(`bundle case obligation ${key} does not match the supported Sputnik case`);
+    }
+  }
   if (!bundle.source?.repository || !bundle.source?.commit) fail('bundle source identity is incomplete');
   if (bundle.build?.rust !== '1.86.0' || bundle.build?.target !== 'wasm32-unknown-unknown') {
     fail('bundle build must declare Rust 1.86.0 and wasm32-unknown-unknown');
@@ -425,6 +437,8 @@ const summarize = (report, run) => {
   const first = report.firstRecovery || {};
   const second = report.secondRetry || {};
   const healthy = report.healthyPreservation?.checks || {};
+  const healthySettled = healthy.settledPayout;
+  const healthyPending = report.healthyPreservation?.pending?.deltas?.recipient;
   const gas = first.gasBurntYocto ?? first.gasYocto;
   const secondGas = second.gasBurntYocto ?? second.gasYocto;
   const gross = first.grossRecoveryYocto;
@@ -464,6 +478,12 @@ const summarize = (report, run) => {
       lockedDelta: formatYocto(second.deltas?.locked),
       lockedDeltaYocto: String(second.deltas?.locked ?? ''),
       endedFailed: second.endedFailed === true,
+    },
+    healthy: {
+      settledTransfer: healthySettled ? formatYocto(healthySettled) : null,
+      settledTransferYocto: healthySettled ? String(healthySettled) : null,
+      pendingTransfer: healthyPending ? formatYocto(healthyPending) : null,
+      pendingTransferYocto: healthyPending ? String(healthyPending) : null,
     },
     checks: {
       preservedState: report.preservation?.state === true,

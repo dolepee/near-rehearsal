@@ -212,9 +212,12 @@
     $('result-banner').textContent = accepted
       ? (sourceBuild ? 'Review passed — the supplied patch built and met the declared checks.' : 'Review passed — the recorded candidate met the declared checks.')
       : 'Review did not pass — no accepted result is available.';
-    const obligation = run.bundle?.case?.obligation || result.bundle?.case?.obligation || {};
-    const frozenBond = s.firstRecovery?.gross || (obligation.bondNear ? `${obligation.bondNear} NEAR` : '—');
-    const healthyTransfer = obligation.transferNear ? `${obligation.transferNear} NEAR` : 'declared Transfer';
+    const frozenBond = s.firstRecovery?.gross || '—';
+    const verifiedHealthy = s.healthy || {};
+    const healthyTransfer = verifiedHealthy.settledTransfer || verifiedHealthy.pendingTransfer || '—';
+    const healthyCopy = verifiedHealthy.settledTransfer && verifiedHealthy.pendingTransfer
+      ? `Measured settled Transfer ${verifiedHealthy.settledTransfer}; inherited pending Transfer ${verifiedHealthy.pendingTransfer}.`
+      : 'Verified healthy obligation controls; amount unavailable.';
     const preserved = checks.preservedState === true && checks.preservedPolicy === true && checks.preservedProposal === true;
     const healthy = checks.healthyControl === true && checks.pendingHealthy === true;
     $('result-copy').textContent = accepted
@@ -224,7 +227,7 @@
       card('Frozen bond', frozenBond, 'Locked against the failed proposal. The proposal remains Failed; the debt is recovered, not the failed payment.', 'good'),
       card('First recovery', s.firstRecovery?.gross || '—', `${s.firstRecovery?.gas || '—'} gas · proposer net ${s.firstRecovery?.proposerNet || '—'}.`, s.firstRecovery?.gross === '0 NEAR' ? 'bad' : 'good'),
       card('Retry', s.retry?.gross === '0 NEAR' ? '0 NEAR extra principal' : (s.retry?.gross || '—'), `${s.retry?.gas || '—'} gas · no additional principal.`, s.retry?.gross === '0 NEAR' ? 'good' : 'bad'),
-      card('Healthy obligations', healthyTransfer, healthy ? 'Declared Transfer and inherited pending Transfer preserved.' : 'The healthy obligation controls did not all pass.', healthy ? 'good' : 'bad'),
+      card('Healthy obligations', healthyTransfer, healthy ? healthyCopy : 'The healthy obligation controls did not all pass.', healthy ? 'good' : 'bad'),
     ].join('');
     $('review-grid').innerHTML = [
       card('Mode', s.modeLabel || (sourceBuild ? 'Source build' : 'Recorded WASM replay'), sourceBuild ? 'Fresh build from the supplied patch, then local Sandbox replay.' : 'Supplied artifact, no source build and no model call.'),
