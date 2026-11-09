@@ -20,6 +20,9 @@
 .review-phases li.failed { border-color: #693834; }
 .review-phases li.failed .phase-dot { background: var(--red); }
 .review-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.money-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1200px) { .money-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 620px) { .money-grid { grid-template-columns: 1fr; } }
 .review-card { border: 1px solid var(--line); border-radius: 12px; padding: 13px; background: #111614; min-width: 0; }
 .review-card .eyebrow { margin-bottom: 6px; }
 .review-card strong { display: block; font-size: 18px; letter-spacing: -.02em; margin-bottom: 4px; overflow-wrap: anywhere; }

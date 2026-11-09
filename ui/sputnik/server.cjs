@@ -415,10 +415,11 @@ const server = http.createServer(async (req, res) => {
       res.end(data);
       return;
     }
-    if (url.pathname === '/' || url.pathname === '/index.html') return file(res, 'index.html');
+    if (url.pathname === '/') return file(res, 'home.html');
+    if (url.pathname === '/compare' || url.pathname === '/compare/' || url.pathname === '/index.html') return file(res, 'index.html');
     if (url.pathname === '/repair' || url.pathname === '/repair/') return file(res, 'repair.html');
     if (url.pathname === '/review' || url.pathname === '/review/') return file(res, 'review.html');
-    if (['/app.js', '/styles.css', '/repair.js', '/repair.css', '/review.js', '/review.css'].includes(url.pathname)) return file(res, url.pathname.slice(1));
+    if (['/app.js', '/styles.css', '/home.css', '/repair.js', '/repair.css', '/review.js', '/review.css'].includes(url.pathname)) return file(res, url.pathname.slice(1));
     return send(res, 404, {error: 'Not found.'});
   } catch (e) {
     return send(res, e.statusCode || 400, {error: e.message});

@@ -98,7 +98,9 @@ components:
 
 NEAR Rehearsal is a local review surface for one supported Sputnik DAO v2 obligation. The first task is to show the money consequence before the technical evidence: the failed async proposal retains a 1 NEAR bond, a generated source repair returns it without a second refund, and the healthy 0.1 NEAR Transfer still pays the declared recipient. The interface is deliberately dark, compact and evidence-led; it should feel like an operator's local console, not a public product dashboard or a live custody screen.
 
-The `/repair` route reuses the existing Sputnik app shell and adds a single supported repair journey. The older `/` manual release-comparison journey remains intact. Every accepted result names the boundary in plain language: this is a local reproduction from pinned upstream source, not a live DAO, a public-state migration, an audit or production approval.
+The root `/` is the maintainer front door: it names the supported stranded proposal-bond problem and offers two clear actions, **Generate a fresh repair** at `/repair` and **Independently review a repair** at `/review`. The older authored three-branch comparison is available at `/compare`; `/index.html` remains a legacy alias of that comparison.
+
+The `/repair` route reuses the existing Sputnik app shell and adds a single supported repair journey. Every accepted result names the boundary in plain language: this is a local reproduction from pinned upstream source, not a live DAO, a public-state migration, an audit or production approval.
 
 The `/review` route is the reviewer-facing handoff for a downloaded repair bundle. It verifies the bundle before starting either a source build or a recorded-WASM replay, shows the money and preservation checks, keeps addressable history and offers distinct input, evidence and sanitized result downloads only after acceptance. It does not call a model.
 

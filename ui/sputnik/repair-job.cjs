@@ -229,8 +229,10 @@ function deriveRecoverySummary(report) {
   return {
     firstGrossRecoveryYocto: first.grossRecoveryYocto || '0',
     firstGasYocto: gas(first.final).toString(),
+    firstProposerNetYocto: first.deltas?.proposer || '0',
     secondGasYocto: gas(second.final).toString(),
     secondGrossRecoveryYocto: second.grossRecoveryYocto || '0',
+    secondProposerNetYocto: second.deltas?.proposer || '0',
     firstProposalStatus: first.proposal?.status || null,
     secondProposalStatus: second.proposal?.status || null,
     firstFinal: first.final?.finalExecutionStatus || null,

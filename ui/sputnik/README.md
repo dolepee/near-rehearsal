@@ -10,7 +10,7 @@ runner; it does not load a committed report as a fresh result.
 PORT=4174 npm run ui:sputnik
 ```
 
-Open `http://127.0.0.1:4174`.
+Open `http://127.0.0.1:4174`. The root `/` is the maintainer front door: the supported stranded-bond problem and two actions, **Generate a fresh repair** (`/repair`) and **Independently review a repair** (`/review`). The older authored three-branch comparison is at `/compare`; `/index.html` remains a legacy alias of that comparison.
 
 Required local environment:
 
@@ -38,8 +38,8 @@ the declared family exports (`update`, `migrate`, `act_proposal`).
 
 ## Repair journey
 
-`/repair` is the supported Sputnik issue #238 repair slice. It keeps the manual
-release-comparison journey at `/` and uses the existing
+`/repair` is the supported Sputnik issue #238 repair slice. The older authored
+release-comparison journey is at `/compare`, not the front door, and uses the existing
 `case-triage/rehearsal-repair/codex-producer.cjs` and
 `repair-pipeline.cjs` as the execution path.
 
@@ -109,9 +109,24 @@ one and disables Run until its bytes are read and hashed. The example button loa
 `test-fixtures/repair-browser-export-1de7b8c5.json`; a real replay takes several
 minutes under a local Sandbox.
 
+## Results and handoff
+
+Accepted `/repair` results lead with the measured money consequence: the
+frozen bond, first gross recovery with gas and proposer net, the retry's zero
+extra principal and gas, and the preserved healthy obligations. The original
+proposal remains `Failed`; recovery clears the bond debt without re-executing
+the failed payment. Mode, source, patch and WASM identities stay in the
+technical details or downloads.
+
+An accepted repair offers both the bundle download and a reviewer handoff. Use
+`/review` for the model-free page, or the existing `npm run repair:review` CLI
+with the downloaded `repair-bundle-<run-id>.json`, an absent or empty `--out`
+directory and the explicit `--mode recorded-wasm` (or `--mode source-build`).
+The example remains a recorded model candidate with a fresh Sandbox execution.
+
 ## Outcomes
 
-The default run is expected to show:
+The default run of the authored comparison at `/compare` is expected to show:
 
 - baseline: `preserved`
 - seeded candidate: `regressed` with a failed contract call and zero recipient payout

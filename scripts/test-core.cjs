@@ -22,6 +22,7 @@ const suites = [
   'scripts/verify-public-report.cjs',
   'scripts/verify-oracle.cjs',
   'scripts/verify-refund-report.cjs',
+  'ui/sputnik/test-front-door.cjs',
   'ui/sputnik/test-repair-history.cjs',
   'ui/sputnik/test-repair-ui.cjs',
   'ui/sputnik/test-review-job.cjs',

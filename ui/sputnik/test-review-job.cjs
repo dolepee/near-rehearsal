@@ -86,6 +86,10 @@ async function runAccepted() {
   await run.done;
   assert.equal(run.status, 'accepted');
   assert.equal(run.result.summary.checks.accepted, true);
+  assert.equal(manager.publicRun(run).bundle.case.obligation.bondNear, '1', 'accepted result carries the declared frozen bond');
+  assert.equal(run.result.summary.firstRecovery.gross, '1 NEAR', 'accepted result carries measured first recovery');
+  assert.equal(run.result.summary.firstRecovery.proposerNet, '0.9993 NEAR', 'accepted result carries measured proposer net');
+  assert.equal(run.result.summary.retry.gross, '0 NEAR', 'accepted result carries zero retry principal');
   assert.equal(manager.publicRun(run).downloadUrl, `/api/review/runs/${started.id}/download`);
   const downloaded = fs.readFileSync(manager.download(started.id), 'utf8');
   assert.doesNotMatch(downloaded, /\/Users\/|\/tmp\/|\/opt\//);
