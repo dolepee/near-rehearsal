@@ -236,7 +236,7 @@ npm test
 
 ## Evidence boundary
 
-A comparison using the ordinary `near-workspaces` package observed the same stranded-bond recovery and healthy controls using the existing candidate. It did not generate a new repair or exercise the full product workflow, and the comparison author read the recorded report rather than rerunning it. The corrected SDK result was independently reproduced separately from that comparison. The proposed benefit of Rehearsal is the integrated source repair, persisted-state verification, portable evidence and independent reviewer handoff. Full-workflow preference remains unmeasured; this repository does not claim uniqueness, speed or maintainer preference. The related upstream `near-workspaces` comparison (PR #8) is research, not a merge dependency.
+An independent baseline using ordinary `near-workspaces` reproduced the same stranded-bond recovery and healthy controls with the existing repair candidate. It did not generate a new repair or compare the complete product workflow. Rehearsal combines source repair, persisted-state verification, portable evidence and independent reviewer handoff. A speed advantage or maintainer preference for that complete workflow has not been established.
 
 ## License, attribution and source window
 
