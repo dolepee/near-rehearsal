@@ -30,6 +30,17 @@ This is the shortest path for someone who has an accepted repair bundle, or who 
 
 The checksum-verified runtime download and source/compiler commands are in [local repair setup](docs/local-repair-setup.md#sandbox-runtimes). Do not substitute a newer or older Sandbox release; the acceptance path checks the release, commit and protocol.
 
+### Get the repository
+
+Use one clone and run the setup once, before the `.local` runtime/source commands below:
+
+```sh
+git clone https://github.com/dolepee/near-rehearsal.git
+cd near-rehearsal
+git switch main
+npm run setup
+```
+
 ### Sandbox 2.14 and pinned source
 
 Linux x86_64:
@@ -74,14 +85,9 @@ rustup target add wasm32-unknown-unknown --toolchain 1.86.0
 
 ### Start the reviewer page
 
-Recorded replay is the no-Rust path:
+From the repository root, recorded replay is the no-Rust path:
 
 ```sh
-git clone https://github.com/dolepee/near-rehearsal.git
-cd near-rehearsal
-git switch main
-npm run setup
-
 REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14 \
 PORT=4174 npm run ui:review
 ```
@@ -124,7 +130,7 @@ npm run repair:review -- \
 
 `REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14` may be used instead of `--sandbox-dir` in either command. The output directory must be absent or empty. After a successful run inspect `review-result.json`; it records the mode, bundle and source hashes, new or recorded WASM identity, first recovery and retry deltas, preservation and authority checks.
 
-Source-build applies the exported patch to a clean pinned checkout and builds the WASM by executing the patch. Its digest may match or differ from the recorded artifact; either way it is a new execution, not a byte-reproducibility claim. Recorded-WASM mode executes the exact supplied bytes and does **not** claim that a source build produces them. Both modes refuse local source changes or untracked inputs and never merge, publish or upgrade an external contract.
+Source-build applies the exported patch to a clean pinned checkout and builds the WASM by executing the patch. Its digest may match or differ from the recorded artifact; either way it is a new execution, not a byte-reproducibility claim. Recorded-WASM mode executes the exact supplied bytes and does **not** claim that a source build produces them. Source-build refuses local source changes or untracked inputs; recorded-WASM does not require or inspect a source checkout. Both modes verify the bundle identity and require an absent or empty output directory, and neither merges, publishes or upgrades an external contract.
 
 ## Generate a fresh model repair
 
@@ -187,24 +193,20 @@ The manual comparison's seeded regression and correction are labelled authored f
 
 ## Supported platforms and runtimes
 
-| Flow | Sandbox | Runtime platform | Build tools | Provider |
+| Flow | Sandbox | Tested chain/build coverage | Build tools | Provider generation |
 | --- | --- | --- | --- | --- |
-| `/review` recorded replay | 2.14.0 | Linux x86_64 or native macOS arm64 | None beyond Node | None |
-| `/review` source build | 2.14.0 | Linux x86_64 or native macOS arm64 | Rust 1.86.0 + `wasm32-unknown-unknown` | None |
-| `/repair` fresh generation | 2.14.0 | Linux x86_64 or native macOS arm64 | Rust 1.86.0 + `wasm32-unknown-unknown` | Existing Codex login, model and enforced policy |
-| `/` manual comparison | 2.6.2 | Linux x86_64 or native macOS arm64 | None beyond Node | None |
+| `/review` recorded replay | 2.14.0 | Linux x86_64 CI; native macOS arm64 chain/replay exercised | None beyond Node | None |
+| `/review` source build | 2.14.0 | Linux x86_64 CI; native macOS arm64 build/replay exercised | Rust 1.86.0 + `wasm32-unknown-unknown` | None |
+| `/repair` fresh generation | 2.14.0 | Linux x86_64 CI covers source build/replay; it does not exercise a live model provider | Rust 1.86.0 + `wasm32-unknown-unknown` | Existing Codex login, model and enforced policy; local prerequisite, not CI-proven |
+| `/` manual comparison | 2.6.2 | Linux x86_64 CI; native macOS arm64 chain/replay exercised | None beyond Node | None |
 
-Node 24 is the reference version; Node 26 is also supported for the offline suite and has been exercised natively on macOS arm64. The runtime archives for **Linux-x86_64** and **Darwin-arm64** are distinct and must not be relabelled. This repository does not claim arbitrary Linux arm64 or Docker-emulation support.
+Linux CI proves the source build/replay and manual chain paths. It does **not** prove Linux live model generation; provider availability, entitlement and output quality remain local prerequisites and separate from those CI results. Node 24 is the reference version; Node 26 is also supported for the offline suite and has been exercised natively on macOS arm64. The runtime archives for **Linux-x86_64** and **Darwin-arm64** are distinct and must not be relabelled. This repository does not claim arbitrary Linux arm64 or Docker-emulation support.
 
 ## Install and run the offline tests
 
-Use Node **24** (the reference version in `.nvmrc`) or Node **26**. Both run the offline CI suite.
+Use Node **24** (the reference version in `.nvmrc`) or Node **26**. Both run the offline CI suite. From the repository root after the setup above:
 
 ```sh
-git clone https://github.com/dolepee/near-rehearsal.git
-cd near-rehearsal
-git switch main
-npm run setup
 npm test
 ```
 
@@ -222,11 +224,11 @@ npm test
 - `ui/sputnik/` serves the reviewer, repair and manual routes. `docs/legacy-refund-app.md` preserves the earlier refund example.
 - The server binds to localhost by default. This repository does not provide a hosted model service or universally portable Docker image.
 
-## Provenance and release status
+## Provenance and attribution
 
 - [`provenance.json`](provenance.json) records the fixture, seeded candidates and public first-slice identities. [`substrate/provenance.json`](substrate/provenance.json) records the upstream test-fixture bytes and commits.
-- The upstream Sputnik evidence carries its MIT notice at [`case-triage/sputnik-226/review-packet/evidence/SPUTNIK-LICENSE`](case-triage/sputnik-226/review-packet/evidence/SPUTNIK-LICENSE). That upstream notice is not a license for this repository as a whole.
-- This repository has no root `LICENSE` file. Licensing and public redistribution are **owner decisions still to be made**; do not assume or add a project license. The private package metadata and the merge/release hold remain in force until the owner explicitly lifts them.
+- The supported case is [Sputnik DAO #238](https://github.com/near-daos/sputnik-dao-contract/issues/238), and the tested source is [`near-daos/sputnik-dao-contract` at `5434a59`](https://github.com/near-daos/sputnik-dao-contract/tree/5434a59dec23ee0c49df8c8c4350c208a7e75b0b).
+- The upstream Sputnik evidence includes its MIT notice at [`case-triage/sputnik-226/review-packet/evidence/SPUTNIK-LICENSE`](case-triage/sputnik-226/review-packet/evidence/SPUTNIK-LICENSE). That notice is retained as upstream attribution.
 
 ## Repository layout
 
