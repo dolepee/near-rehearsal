@@ -234,6 +234,18 @@ npm test
 - The supported case is [Sputnik DAO #238](https://github.com/near-daos/sputnik-dao-contract/issues/238), and the tested source is [`near-daos/sputnik-dao-contract` at `5434a59`](https://github.com/near-daos/sputnik-dao-contract/tree/5434a59dec23ee0c49df8c8c4350c208a7e75b0b).
 - The upstream Sputnik evidence includes its MIT notice at [`case-triage/sputnik-226/review-packet/evidence/SPUTNIK-LICENSE`](case-triage/sputnik-226/review-packet/evidence/SPUTNIK-LICENSE). That notice is retained as upstream attribution.
 
+## Evidence boundary
+
+A comparison using the ordinary `near-workspaces` package observed the same stranded-bond recovery and healthy controls using the existing candidate. It did not generate a new repair or exercise the full product workflow, and the comparison author read the recorded report rather than rerunning it. The corrected SDK result was independently reproduced separately from that comparison. The proposed benefit of Rehearsal is the integrated source repair, persisted-state verification, portable evidence and independent reviewer handoff. Full-workflow preference remains unmeasured; this repository does not claim uniqueness, speed or maintainer preference. The related upstream `near-workspaces` comparison (PR #8) is research, not a merge dependency.
+
+## License, attribution and source window
+
+The repository's original code is licensed under [GPL-3.0-only](LICENSE); upstream components retain their own terms. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [LICENSES/](LICENSES/) for the upstream texts and the recorded package/source discrepancies.
+
+Rehearsal's implementation was developed during the hackathon window beginning 19 October 2026 with AI coding assistance. Upstream source and tools predate the project and are credited in the notice above. Authored fixtures are kept distinct from the [actual recorded model-generated reviewer candidate](test-fixtures/repair-browser-export-1de7b8c5.json).
+
+`near-workspaces`, `wabt`, Node.js packages and the NEAR Sandbox runtime are downloaded dependencies, not bundled in this repository; `node_modules/` is not tracked.
+
 ## Repository layout
 
 - `case-triage/rehearsal-repair/` — source repair producer, controller, build, recovery and acceptance path.
