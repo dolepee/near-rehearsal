@@ -9,7 +9,9 @@ before a file is written or a command is executed.
 
 For `source-build` (the default):
 
-- Node.js and `npm ci` in this repository.
+- Node.js and `npm run setup` in this repository. The setup command performs
+  the supported clean install with install hooks ignored and applies the
+  compatibility shim.
 - Git checkout of `near-daos/sputnik-dao-contract` at
   `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`.
 - Rust `1.86.0` with the `wasm32-unknown-unknown` target.
@@ -21,10 +23,47 @@ For `--mode recorded-wasm`, Rust and the source checkout are not required.
 Neither mode downloads a runtime, calls a model, publishes anything or
 upgrades an external contract.
 
+## Browser reviewer
+
+For a bundle-only review, start the local UI and open `/review`. Source-build
+needs both the clean pinned source checkout and the Sandbox directory:
+
+```sh
+REPAIR_SOURCE_DIR=/path/to/clean/sputnik-dao-contract \
+REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14 \
+PORT=4174 npm run ui:review
+```
+
+For recorded-only review, omit the source checkout:
+
+```sh
+REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14 PORT=4174 npm run ui:review
+```
+
+Open `http://127.0.0.1:4174/review`, select the bundle JSON or load the example,
+then choose one of the two modes:
+
+- **Source build** (default when configured) applies the supplied patch to the
+  server-configured pinned checkout, builds with Rust 1.86.0 and
+  `wasm32-unknown-unknown`, then runs the persisted recovery and acceptance.
+- **Recorded WASM replay** executes the supplied artifact without a build.
+
+The page uses the same `repair-review` CLI, keeps addressable history and offers
+distinct input, evidence and sanitized result downloads only after acceptance.
+It does not expose host paths or raw runtime files. The example is a recorded
+model candidate; the page still executes it in a fresh Sandbox.
+
+A review runs as its own process group, so stopping the server terminates the
+build, pipeline and Sandbox descendants rather than leaving them running; the
+35-minute limit does the same and records the run as interrupted. Selecting a
+bundle clears the previous candidate and disables Run until the new bytes are
+read and hashed, and a delayed startup restoration never replaces a run the
+reviewer opened explicitly.
+
 ## Commands
 
 ```sh
-npm ci
+npm run setup
 npm run test:repair-review
 
 npm run repair:review -- \
@@ -90,7 +129,7 @@ case, not production authorization.
 
 Common blockers and the honest response:
 
-- **`near-workspaces` missing** — run `npm ci` in this repository. The chain
+- **`near-workspaces` missing** — run `npm run setup` in this repository. The chain
   must not be started with a partially installed workspace.
 - **source HEAD mismatch** — check out the exact commit; do not edit the
   recorded source identity to fit a newer tree.

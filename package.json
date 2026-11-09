@@ -18,6 +18,7 @@
     "rehearse:refund": "node scripts/refund-three-way.cjs",
     "test:guards": "node scripts/test-refund-guards.cjs",
     "ui": "node ui/server.cjs",
+    "ui:review": "node ui/sputnik/server.cjs",
     "export:refund": "node scripts/export-refund-replay.cjs",
     "verify:refund": "node scripts/verify-refund-report.cjs",
     "verify:refund-export": "node scripts/verify-refund-export.cjs",
@@ -34,7 +35,8 @@
     "doctor": "node scripts/check-setup.cjs",
     "ui:repair": "node scripts/start-rehearsal.cjs --flow repair",
     "repair:review": "node scripts/repair-review.cjs",
-    "test:repair-review": "node scripts/test-repair-review.cjs"
+    "test:repair-review": "node scripts/test-repair-review.cjs",
+    "test:review": "node ui/sputnik/test-review-job.cjs && node ui/sputnik/test-review-ui.cjs && node ui/sputnik/test-review-polling.cjs && node ui/sputnik/test-review-stale.cjs && node ui/sputnik/test-review-selection.cjs && node ui/sputnik/test-review-process-tree.cjs && node ui/sputnik/test-review-start-race.cjs && node ui/sputnik/test-review-submit-lock.cjs"
   },
   "dependencies": {
     "near-workspaces": "5.0.0"

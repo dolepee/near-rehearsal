@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const {spawn, spawnSync} = require('node:child_process');
 const {createManager: createRepairManager} = require('./repair-job.cjs');
+const {createManager: createReviewManager, exampleBundleText} = require('./review-job.cjs');
 
 const ROOT = path.join(__dirname, '..', '..');
 const CASE = path.join(ROOT, 'case-triage/sputnik-public-capture');
@@ -18,6 +19,7 @@ const MAX_BODY = 8 * 1024 * 1024;
 const MAX_LOG = 180;
 const MAX_RUN_MS = 12 * 60 * 1000;
 const repairManager = createRepairManager();
+const reviewManager = createReviewManager();
 
 const runs = new Map();
 const RUNS_ROOT = path.join(ROOT, 'out/sputnik-ui/runs');
@@ -261,7 +263,49 @@ function verify(run) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${HOST}:${PORT}`);
   try {
-    if (url.pathname === '/api/health') return send(res, 200, {ok: true, running: !!activeId, repairRunning: Boolean(repairManager.active())});
+    if (url.pathname === '/api/health') return send(res, 200, {ok: true, running: !!activeId, repairRunning: Boolean(repairManager.active()), reviewRunning: Boolean(reviewManager.active())});
+    if (url.pathname === '/api/review/config' && req.method === 'GET') return send(res, 200, {
+      case: reviewManager.case,
+      ...reviewManager.config(),
+      example: {filename: 'repair-browser-export-1de7b8c5.json', label: 'Recorded model candidate, fresh Sandbox execution'},
+    });
+    if (url.pathname === '/api/review/example' && req.method === 'GET') {
+      try {
+        const example = exampleBundleText();
+        return send(res, 200, {bundle: example.bundle, sha256: example.sha256, filename: example.filename, label: 'Recorded model candidate, fresh Sandbox execution'});
+      } catch (error) {
+        return send(res, 500, {error: error.message});
+      }
+    }
+    if (url.pathname === '/api/review/runs' && req.method === 'GET') return send(res, 200, {runs: reviewManager.list(), active: reviewManager.active()});
+    if (url.pathname === '/api/review/runs' && req.method === 'POST') {
+      const payload = JSON.parse(await readBody(req) || '{}');
+      const run = reviewManager.start(payload.bundle, payload.mode);
+      return send(res, 202, {run});
+    }
+    const reviewRun = url.pathname.match(/^\/api\/review\/runs\/([0-9a-f-]+)$/);
+    if (reviewRun && req.method === 'GET') {
+      const run = reviewManager.get(reviewRun[1]);
+      if (!run) return send(res, 404, {error: 'Review run not found.'});
+      return send(res, 200, reviewManager.publicRun(run));
+    }
+    const reviewDownload = url.pathname.match(/^\/api\/review\/runs\/([0-9a-f-]+)\/download$/);
+    if (reviewDownload && req.method === 'GET') {
+      const filePath = reviewManager.download(reviewDownload[1]);
+      if (!filePath) return send(res, 404, {error: 'No accepted review result is available for this run.'});
+      const data = fs.readFileSync(filePath);
+      res.writeHead(200, {'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="review-result-${reviewDownload[1]}.json"`, 'content-length': data.length, 'cache-control': 'no-store'});
+      res.end(data); return;
+    }
+    const reviewArtifact = url.pathname.match(/^\/api\/review\/runs\/([0-9a-f-]+)\/(input|evidence)$/);
+    if (reviewArtifact && req.method === 'GET') {
+      const [kind, id] = [reviewArtifact[2], reviewArtifact[1]];
+      const filePath = kind === 'input' ? reviewManager.input(id) : reviewManager.evidence(id);
+      if (!filePath) return send(res, 404, {error: kind === 'input' ? 'No input bundle is available for this run.' : 'No accepted evidence is available for this run.'});
+      const data = fs.readFileSync(filePath);
+      res.writeHead(200, {'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="review-${kind}-${id}.json"`, 'content-length': data.length, 'cache-control': 'no-store'});
+      res.end(data); return;
+    }
     if (url.pathname === '/api/repair/case') return send(res, 200, {
       case: repairManager.case,
       configured: repairManager.config.configured,
@@ -373,7 +417,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/' || url.pathname === '/index.html') return file(res, 'index.html');
     if (url.pathname === '/repair' || url.pathname === '/repair/') return file(res, 'repair.html');
-    if (['/app.js', '/styles.css', '/repair.js', '/repair.css'].includes(url.pathname)) return file(res, url.pathname.slice(1));
+    if (url.pathname === '/review' || url.pathname === '/review/') return file(res, 'review.html');
+    if (['/app.js', '/styles.css', '/repair.js', '/repair.css', '/review.js', '/review.css'].includes(url.pathname)) return file(res, url.pathname.slice(1));
     return send(res, 404, {error: 'Not found.'});
   } catch (e) {
     return send(res, e.statusCode || 400, {error: e.message});
@@ -382,6 +427,7 @@ const server = http.createServer(async (req, res) => {
 if (require.main === module) {
   recoverRuns();
   repairManager.recover();
+  reviewManager.recover();
   server.listen(PORT, HOST, () => console.log(`Sputnik rehearsal UI: http://${HOST}:${PORT}`));
   let stopping = false;
   const stop = async () => {
@@ -389,10 +435,11 @@ if (require.main === module) {
     stopping = true;
     server.close();
     try { await repairManager.shutdown(); } catch {}
+    try { await reviewManager.shutdown(); } catch {}
     process.exit(0);
   };
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
 } else {
-  module.exports = {finalizeRun, repairManager};
+  module.exports = {finalizeRun, repairManager, reviewManager};
 }

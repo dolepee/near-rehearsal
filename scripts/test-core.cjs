@@ -24,6 +24,14 @@ const suites = [
   'scripts/verify-refund-report.cjs',
   'ui/sputnik/test-repair-history.cjs',
   'ui/sputnik/test-repair-ui.cjs',
+  'ui/sputnik/test-review-job.cjs',
+  'ui/sputnik/test-review-ui.cjs',
+  'ui/sputnik/test-review-polling.cjs',
+  'ui/sputnik/test-review-stale.cjs',
+  'ui/sputnik/test-review-selection.cjs',
+  'ui/sputnik/test-review-process-tree.cjs',
+  'ui/sputnik/test-review-start-race.cjs',
+  'ui/sputnik/test-review-submit-lock.cjs',
   'scripts/test-setup.cjs',
 ];
 for (const suite of suites) {

@@ -71,6 +71,44 @@ or authored patch. A generated patch can be downloaded after generation; the
 review bundle is available only after an accepted run. Completed results remain
 addressable after refresh or restart; interrupted jobs are marked interrupted.
 
+## Reviewer handoff
+
+`/review` is the reviewer-facing entry point for a downloaded repair bundle. It
+accepts a JSON bundle in the browser, verifies its declared hashes and
+identities, and then runs either `scripts/repair-review.cjs --mode source-build`
+with the server-configured pinned source and Rust 1.86 toolchain, or
+`--mode recorded-wasm` against the local Sandbox 2.14 directory. The page keeps
+addressable history and offers distinct input, evidence and sanitized result
+downloads only after acceptance. It does not call a model.
+
+One review runs at a time, in its own process group. Stopping the server
+terminates that group with escalating signals, so the build, pipeline and
+Sandbox descendants stop too rather than continuing in the background; a review
+still open after 35 minutes is stopped the same way and recorded as
+interrupted, never accepted. A bundle read that has been superseded, and a
+startup restoration of the previous run, are discarded rather than replacing
+the reviewer's current choice.
+
+Source-build uses the clean pinned checkout and the Sandbox directory:
+
+```sh
+REPAIR_SOURCE_DIR=/path/to/clean/sputnik-dao-contract \
+REPAIR_SANDBOX_DIR=/path/to/directory-containing-near-sandbox \
+PORT=4174 npm run ui:review
+```
+
+Recorded-only replay uses just the Sandbox directory:
+
+```sh
+REPAIR_SANDBOX_DIR=/path/to/directory-containing-near-sandbox \
+PORT=4174 npm run ui:review
+```
+
+Open `http://127.0.0.1:4174/review`. A newly chosen bundle clears the previous
+one and disables Run until its bytes are read and hashed. The example button loads the checked-in
+`test-fixtures/repair-browser-export-1de7b8c5.json`; a real replay takes several
+minutes under a local Sandbox.
+
 ## Outcomes
 
 The default run is expected to show:
