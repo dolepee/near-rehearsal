@@ -102,10 +102,10 @@
 
           <section id="review-handoff" class="details panel" aria-labelledby="handoff-title" hidden>
             <div class="section-head"><div><div class="eyebrow">Independent review</div><h3 id="handoff-title">Hand this accepted repair to a reviewer</h3></div></div>
-            <p class="small muted">Download the accepted review bundle above, then open the model-free reviewer page or run the existing CLI. The reviewer verifies the supplied bundle; it does not generate another patch.</p>
+            <p class="small muted">Download the accepted review bundle above, copy it into the repository root, then open the model-free reviewer page or run the existing CLI from that root. If the bundle is elsewhere, replace <code>--bundle</code> below with its actual downloaded path. The reviewer verifies the supplied bundle; it does not generate another patch.</p>
             <p><a class="download-button" href="/review">Open the model-free review page</a></p>
             <pre id="handoff-command" class="raw"></pre>
-            <p class="notice">Use an absent or empty output directory. The command refuses a non-empty directory and records the selected mode in <code>review-result.json</code>.</p>
+            <p class="notice">Run this from the repository root where setup exported <code>REPAIR_SANDBOX_DIR</code>. Use an absent or empty output directory. The command refuses a non-empty directory and records the selected mode in <code>review-result.json</code>.</p>
           </section>
 
           <section class="source-panel panel" aria-labelledby="source-title">

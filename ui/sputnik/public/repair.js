@@ -242,7 +242,7 @@
     const handoff = $('review-handoff');
     handoff.hidden = !accepted;
     if (accepted) {
-      $('handoff-command').textContent = `npm run repair:review -- --bundle repair-bundle-${run.id}.json --out /tmp/repair-review-${run.id} --mode recorded-wasm --sandbox-dir /path/to/near-sandbox-2.14`;
+      $('handoff-command').textContent = `npm run repair:review -- --bundle repair-bundle-${run.id}.json --out /tmp/repair-review-${run.id} --mode recorded-wasm`;
     }
     $('evidence-json').textContent = JSON.stringify(run.evidence || {message: 'No replay evidence for this run.'}, null, 2);
     $('evidence-label').textContent = accepted ? 'Accepted' : statusLabel(run.status);
