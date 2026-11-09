@@ -85,22 +85,18 @@ rustup target add wasm32-unknown-unknown --toolchain 1.86.0
 
 ### Start the reviewer page
 
-From the repository root, recorded replay is the no-Rust path:
+Stay in the repository root and the same shell where you exported
+`REPAIR_SANDBOX_DIR` above. Recorded replay is the no-Rust path:
 
 ```sh
-REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14 \
 PORT=4174 npm run ui:review
 ```
 
 Open **http://127.0.0.1:4174/review**, choose **Load example (recorded candidate)**, select **Recorded WASM replay**, and run it.
 
-For source-build, configure the clean pinned source as well:
-
-```sh
-REPAIR_SOURCE_DIR=/path/to/sputnik-dao-contract \
-REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14 \
-PORT=4174 npm run ui:review
-```
+For source-build, complete the optional pinned-source and compiler steps above
+before starting the server. If it is already running, stop it and run the same
+start command again after exporting `REPAIR_SOURCE_DIR`.
 
 The page then offers **Source build** and **Recorded WASM replay**. Source-build is the default when its prerequisites are present. Both modes verify the bundle hashes and candidate identities before reserving an output directory. Neither calls a model.
 
@@ -108,27 +104,34 @@ The checked-in example is a **recorded model candidate**, not a new model run an
 
 ### Review from the command line
 
-The browser and the command-line handoff use the same `repair-review` path. See [repair review handoff](docs/repair-review-handoff.md) for the complete failure handling.
+The browser and the command-line handoff use the same `repair-review` path.
+After setup and the runtime export above, this command runs the checked-in
+recorded candidate without Rust or a model account. See [repair review handoff](docs/repair-review-handoff.md) for the complete failure handling.
 
 ```sh
-npm run setup
-
-# Source build: apply the supplied patch to the exact clean checkout.
 npm run repair:review -- \
-  --bundle /path/to/repair-browser-export.json \
-  --out /tmp/repair-handoff \
-  --source /path/to/sputnik-dao-contract \
-  --sandbox-dir /path/to/near-sandbox-2.14
-
-# Recorded WASM replay: no Rust build and no source checkout.
-npm run repair:review -- \
-  --bundle /path/to/repair-browser-export.json \
-  --out /tmp/repair-replay \
-  --mode recorded-wasm \
-  --sandbox-dir /path/to/near-sandbox-2.14
+  --bundle test-fixtures/repair-browser-export-1de7b8c5.json \
+  --out .local/review-recorded \
+  --mode recorded-wasm
 ```
 
-`REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14` may be used instead of `--sandbox-dir` in either command. The output directory must be absent or empty. After a successful run inspect `review-result.json`; it records the mode, bundle and source hashes, new or recorded WASM identity, first recovery and retry deltas, preservation and authority checks.
+For source-build, first complete the optional source/compiler steps and export
+`REPAIR_SOURCE_DIR` above, then run:
+
+```sh
+npm run repair:review -- \
+  --bundle test-fixtures/repair-browser-export-1de7b8c5.json \
+  --out .local/review-source \
+  --source "$REPAIR_SOURCE_DIR"
+```
+
+Both commands use the exported `REPAIR_SANDBOX_DIR`; `--sandbox-dir` is available
+if you prefer passing the real binary directory explicitly. To review your own
+download, replace only the `--bundle` value. The output directory must be absent
+or empty: choose a new `--out` directory for each repeat. After a successful run
+inspect `review-result.json`; it records the mode, bundle and source hashes, new
+or recorded WASM identity, first recovery and retry deltas, preservation and
+authority checks.
 
 Source-build applies the exported patch to a clean pinned checkout and builds the WASM by executing the patch. Its digest may match or differ from the recorded artifact; either way it is a new execution, not a byte-reproducibility claim. Recorded-WASM mode executes the exact supplied bytes and does **not** claim that a source build produces them. Source-build refuses local source changes or untracked inputs; recorded-WASM does not require or inspect a source checkout. Both modes verify the bundle identity and require an absent or empty output directory, and neither merges, publishes or upgrades an external contract.
 
