@@ -6,15 +6,16 @@ The supported repair case is [Sputnik DAO #238](https://github.com/near-daos/spu
 
 ## Choose the entry point
 
-The UI serves three distinct local routes. They are not interchangeable:
+The UI serves four local interfaces. They are not interchangeable:
 
 | You want to... | Start | Runtime | What it proves |
 | --- | --- | --- | --- |
+| Choose a repair path | `/` | None | A static front door: generate a fresh repair or independently review a supplied one. It does not execute or auto-start either path. |
 | Review a supplied repair without a model account | `/review` | Sandbox **2.14.0**; Rust **1.86.0** only for source-build | A supplied bundle's hashes, candidate identity and declared recovery behavior; either build the supplied patch or replay the recorded WASM |
 | Generate a fresh model repair | `/repair` | Sandbox **2.14.0**, Rust **1.86.0**, configured local model provider | Fresh baseline → generated patch → build → fresh replay → persisted-failure recovery → acceptance → diff and review bundle |
-| Inspect the older authored comparison | `/` | Sandbox **2.6.2**, no model account or Rust build | Same frozen inherited state → baseline, supplied candidate and correction → verification/export |
+| Inspect the older authored comparison | `/compare` (legacy `/index.html`) | Sandbox **2.6.2**, no model account or Rust build | Same frozen inherited state → baseline, supplied candidate and correction → verification/export |
 
-The reviewer quickstart is for a supplied candidate and never calls a model. Fresh generation is a separate producer path. The manual comparison at `/` is an advanced authored fixture, not a generated repair.
+The reviewer quickstart is for a supplied candidate and never calls a model. Fresh generation is a separate producer path. The front door at `/` is navigation only. The authored comparison at `/compare` — with `/index.html` kept as its legacy alias — is an advanced fixture, not a generated repair.
 
 ## Reviewer quickstart: supplied candidate, no model
 
@@ -157,9 +158,9 @@ The doctor is a local configuration check, not a login/model call or an executio
 
 Repair review bundles contain the canonical patch, compiled WASM, candidate identity and the exact serialized baseline, candidate and persisted-recovery reports with matching hashes. The recovery report's exported canonical text and raw execution file have separate digests. See the [repair pipeline documentation](case-triage/rehearsal-repair/README.md) for reconstruction and acceptance, or [rerun the recorded generated artifact](case-triage/rehearsal-repair/README.md#persisted-failure-recovery) without another model call. Fresh chain replay requires Sandbox 2.14.0. Hash checks establish byte consistency, not a cryptographic execution attestation.
 
-### Manual comparison export
+### Authored comparison export
 
-The advanced manual comparison exports contain the frozen state, candidate/correction WASMs, receipts and review metadata. Use the repository helper, not command text from an untrusted file:
+The advanced authored comparison exports contain the frozen state, candidate/correction WASMs, receipts and review metadata. Use the repository helper, not command text from an untrusted file:
 
 ```sh
 node case-triage/sputnik-public-capture/export-helper.cjs verify \
@@ -169,9 +170,9 @@ node case-triage/sputnik-public-capture/export-helper.cjs replay \
   --sandbox-dir /path/to/sandbox-2.6.2-directory
 ```
 
-## Advanced: manual upgrade comparison
+## Advanced: authored upgrade comparison
 
-This is the older authored comparison. It is useful for inspecting the frozen-state behaviour and export format, but it is **not** the source-repair product and does not generate a model candidate.
+This is the older authored comparison at `/compare`. It is useful for inspecting the frozen-state behaviour and export format, but it is **not** the source-repair product and does not generate a model candidate. `/index.html` is retained as its legacy alias.
 
 The following download is the Linux x86_64 runtime tested by the manual CI job. For native macOS arm64, see [runtime setup](docs/local-repair-setup.md#sandbox-runtimes).
 
@@ -190,9 +191,9 @@ ulimit -n 65535
 PORT=4174 npm run ui:sputnik
 ```
 
-Open **http://127.0.0.1:4174/**. Choose the default bad candidate and correction, then **Run three-branch rehearsal**. The expected recipient changes are baseline **+1 NEAR**, seeded bad candidate **0**, correction **+1 NEAR**. The page shows the same starting state and receipt-derived outcomes. Select **Verify and export** to create a portable review. A contract regression is a completed measured result; infrastructure failures remain inconclusive.
+Open **http://127.0.0.1:4174/compare**. Choose the default bad candidate and correction, then **Run three-branch rehearsal**. The expected recipient changes are baseline **+1 NEAR**, seeded bad candidate **0**, correction **+1 NEAR**. The page shows the same starting state and receipt-derived outcomes. Select **Verify and export** to create a portable review. A contract regression is a completed measured result; infrastructure failures remain inconclusive.
 
-The manual comparison's seeded regression and correction are labelled authored fixtures. When serving both the manual route and repair/review routes in one process, leave `NEAR_SANDBOX_BIN_PATH` and `NEAR_SANDBOX_BINARY_PATH` pointing at 2.6.2, and set `REPAIR_SANDBOX_DIR` separately to 2.14.0. Do not replace one runtime version with the other.
+The authored comparison's seeded regression and correction are labelled fixtures. When serving `/compare` and the repair/review routes in one process, leave `NEAR_SANDBOX_BIN_PATH` and `NEAR_SANDBOX_BINARY_PATH` pointing at 2.6.2, and set `REPAIR_SANDBOX_DIR` separately to 2.14.0. Do not replace one runtime version with the other.
 
 ## Supported platforms and runtimes
 
@@ -201,7 +202,7 @@ The manual comparison's seeded regression and correction are labelled authored f
 | `/review` recorded replay | 2.14.0 | Linux x86_64 CI; native macOS arm64 chain/replay exercised | None beyond Node | None |
 | `/review` source build | 2.14.0 | Linux x86_64 CI; native macOS arm64 build/replay exercised | Rust 1.86.0 + `wasm32-unknown-unknown` | None |
 | `/repair` fresh generation | 2.14.0 | Linux x86_64 CI covers source build/replay; it does not exercise a live model provider | Rust 1.86.0 + `wasm32-unknown-unknown` | Existing Codex login, model and enforced policy; local prerequisite, not CI-proven |
-| `/` manual comparison | 2.6.2 | Linux x86_64 CI; native macOS arm64 chain/replay exercised | None beyond Node | None |
+| `/compare` authored comparison (legacy `/index.html`) | 2.6.2 | Linux x86_64 CI; native macOS arm64 chain/replay exercised | None beyond Node | None |
 
 Linux CI proves the source build/replay and manual chain paths. It does **not** prove Linux live model generation; provider availability, entitlement and output quality remain local prerequisites and separate from those CI results. Node 24 is the reference version; Node 26 is also supported for the offline suite and has been exercised natively on macOS arm64. The runtime archives for **Linux-x86_64** and **Darwin-arm64** are distinct and must not be relabelled. This repository does not claim arbitrary Linux arm64 or Docker-emulation support.
 
@@ -224,7 +225,7 @@ npm test
 - The acceptance checks unauthorized update/finalize attempts, an already-paid healthy control, and an inherited unpaid Transfer that still pays its declared beneficiary exactly once.
 - `case-triage/rehearsal-repair/` contains the source repair producer/controller/build/replay path.
 - `case-triage/sputnik-public-capture/` contains the inherited-state manual comparison and export helper.
-- `ui/sputnik/` serves the reviewer, repair and manual routes. `docs/legacy-refund-app.md` preserves the earlier refund example.
+- `ui/sputnik/` serves `/` (front door), `/review`, `/repair`, and `/compare` with `/index.html` as its legacy alias. `docs/legacy-refund-app.md` preserves the earlier refund example.
 - The server binds to localhost by default. This repository does not provide a hosted model service or universally portable Docker image.
 
 ## Provenance and attribution
@@ -237,7 +238,7 @@ npm test
 
 - `case-triage/rehearsal-repair/` — source repair producer, controller, build, recovery and acceptance path.
 - `case-triage/sputnik-public-capture/` — frozen Sputnik state, manual three-branch comparison and portable export helper.
-- `ui/sputnik/` — `/review`, `/repair` and `/` local interfaces.
+- `ui/sputnik/` — `/` front door, `/review`, `/repair`, and `/compare` with `/index.html` as its legacy alias.
 - `docs/` — setup, handoff and release-review notes.
 - `test-fixtures/` — the recorded repair bundle used by the reviewer example.
 - `provenance.json`, `substrate/provenance.json` — provenance records described above.

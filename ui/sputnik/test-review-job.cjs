@@ -6,10 +6,27 @@ const path = require('node:path');
 const {EventEmitter} = require('node:events');
 const crypto = require('node:crypto');
 const {createManager, exampleBundleText, validateBundle} = require('./review-job.cjs');
+const {summarize} = require('../../scripts/repair-review.cjs');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'near-review-job-'));
 const example = exampleBundleText();
 assert.notEqual(example.sha256, example.canonicalSha256, 'raw and canonical bundle hashes are distinct');
+const tampered = JSON.parse(JSON.stringify(example.bundle));
+tampered.case.obligation.transferNear = '1000000';
+assert.throws(() => validateBundle(tampered), /case obligation transferNear does not match/, 'a tampered case obligation is rejected before display');
+const measured = summarize({
+  firstRecovery: {grossRecoveryYocto: '1000000000000000000000000', gasBurntYocto: '1', deltas: {proposer: '999', contract: '-1000000000000000000000000', recipient: '0', locked: '-1000000000000000000000000'}},
+  secondRetry: {grossRecoveryYocto: '0', gasBurntYocto: '1', deltas: {proposer: '-1', contract: '0', recipient: '0', locked: '0'}},
+  failed: {proposal: {status: 'Failed'}, frozen: {proposal: {status: 'Failed'}}},
+  preservation: {state: true, policy: true, proposal: true},
+  authority: {unauthorizedUpdateRejected: true, unauthorizedFinalizeRejected: true},
+  healthyPreservation: {
+    checks: {settledApproved: true, settledPayout: '100000000000000000000000', pendingPayout: true, pendingNoSecondPayout: true},
+    pending: {deltas: {recipient: '100000000000000000000000'}},
+  },
+}, {mode: 'recorded-wasm', modeLabel: 'recorded WASM replay'});
+assert.equal(measured.healthy.settledTransfer, '0.1 NEAR', 'healthy amount comes from the measured settled payout');
+assert.equal(measured.healthy.pendingTransfer, '0.1 NEAR', 'healthy amount comes from the measured pending payout');
 const sandboxDir = path.join(tmp, 'sandbox');
 fs.mkdirSync(sandboxDir, {recursive: true});
 fs.writeFileSync(path.join(sandboxDir, 'near-sandbox'), '');
@@ -69,6 +86,7 @@ const acceptedResult = {
     frozenOldCodeFailure: true,
     firstRecovery: {gross: '1 NEAR', gas: '0.0007 NEAR', proposerNet: '0.9993 NEAR', contractDelta: '-1 NEAR', recipientDelta: '0 NEAR', lockedDelta: '0 NEAR'},
     retry: {gross: '0 NEAR', gas: '0.0006 NEAR', proposerNet: '-0.0006 NEAR', contractDelta: '0 NEAR', recipientDelta: '0 NEAR', lockedDelta: '0 NEAR'},
+    healthy: {settledTransfer: '0.1 NEAR', settledTransferYocto: '100000000000000000000000', pendingTransfer: '0.1 NEAR', pendingTransferYocto: '100000000000000000000000'},
     checks: {preservedState: true, preservedPolicy: true, preservedProposal: true, authorityRejected: true, healthyControl: true, pendingHealthy: true, accepted: true},
   },
   resultPath: '/tmp/private/review-result.json',
@@ -86,6 +104,10 @@ async function runAccepted() {
   await run.done;
   assert.equal(run.status, 'accepted');
   assert.equal(run.result.summary.checks.accepted, true);
+  assert.equal(manager.publicRun(run).bundle.case.obligation.bondNear, '1', 'accepted result carries the declared frozen bond');
+  assert.equal(run.result.summary.firstRecovery.gross, '1 NEAR', 'accepted result carries measured first recovery');
+  assert.equal(run.result.summary.firstRecovery.proposerNet, '0.9993 NEAR', 'accepted result carries measured proposer net');
+  assert.equal(run.result.summary.retry.gross, '0 NEAR', 'accepted result carries zero retry principal');
   assert.equal(manager.publicRun(run).downloadUrl, `/api/review/runs/${started.id}/download`);
   const downloaded = fs.readFileSync(manager.download(started.id), 'utf8');
   assert.doesNotMatch(downloaded, /\/Users\/|\/tmp\/|\/opt\//);

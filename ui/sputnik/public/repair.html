@@ -15,7 +15,9 @@
         <div><div class="eyebrow">NEAR / local repair journey</div><h1>Repair a stranded proposal bond</h1></div>
       </div>
       <div class="top-actions">
-        <a class="text-link" href="/">Release comparison</a>
+        <a class="text-link" href="/">Home</a>
+        <a class="text-link" href="/compare">Authored comparison</a>
+        <a class="text-link" href="/review">Review a bundle</a>
         <div id="status" class="status-pill idle" role="status" aria-live="polite">No repair run yet</div>
       </div>
     </header>
@@ -85,12 +87,25 @@
           <div id="consequence-grid" class="consequence-grid"></div>
           <div id="money-note" class="money-note"></div>
 
+          <details class="evidence-details panel" id="repair-identity-details">
+            <summary>Technical identity and execution mode</summary>
+            <div id="repair-identity-grid" class="kv-grid"></div>
+          </details>
+
           <section id="recovery-panel" class="details panel" hidden>
             <div class="section-head"><div><div class="eyebrow">Persisted failure</div><h3>Recovery after the real failure</h3></div><span id="recovery-badge" class="badge subtle"></span></div>
             <p id="recovery-copy" class="small muted"></p>
             <div id="recovery-grid" class="consequence-grid"></div>
             <ul id="recovery-checks" class="checks-list"></ul>
             <p class="notice">Fresh-state replay proves prevention from clean state. This second exercise starts from a proposal that actually failed on the pinned old code, freezes it, applies the same candidate without reinitialisation, and checks authorization, preservation and exactly-once accounting.</p>
+          </section>
+
+          <section id="review-handoff" class="details panel" aria-labelledby="handoff-title" hidden>
+            <div class="section-head"><div><div class="eyebrow">Independent review</div><h3 id="handoff-title">Hand this accepted repair to a reviewer</h3></div></div>
+            <p class="small muted">Download the accepted review bundle above, copy it into the repository root, then open the model-free reviewer page or run the existing CLI from that root. If the bundle is elsewhere, replace <code>--bundle</code> below with its actual downloaded path. The reviewer verifies the supplied bundle; it does not generate another patch.</p>
+            <p><a class="download-button" href="/review">Open the model-free review page</a></p>
+            <pre id="handoff-command" class="raw"></pre>
+            <p class="notice">Run this from the repository root where setup exported <code>REPAIR_SANDBOX_DIR</code>. Use an absent or empty output directory. The command refuses a non-empty directory and records the selected mode in <code>review-result.json</code>.</p>
           </section>
 
           <section class="source-panel panel" aria-labelledby="source-title">

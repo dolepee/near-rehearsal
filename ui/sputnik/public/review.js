@@ -212,21 +212,30 @@
     $('result-banner').textContent = accepted
       ? (sourceBuild ? 'Review passed — the supplied patch built and met the declared checks.' : 'Review passed — the recorded candidate met the declared checks.')
       : 'Review did not pass — no accepted result is available.';
-    $('result-copy').textContent = accepted
-      ? (sourceBuild
-        ? `Bundle file ${short(result.bundle?.sha256 || run.bundle?.sha256)} was built from its supplied patch and replayed. The result below is the measured outcome, not a cached report.`
-        : `Bundle file ${short(result.bundle?.sha256 || run.bundle?.sha256)} was replayed from its supplied artifact. The result below is the measured outcome, not a cached report.`)
-      : 'The candidate did not pass acceptance. Inspect the checks and the review output before trying another bundle.';
+    const frozenBond = s.firstRecovery?.gross || '—';
+    const verifiedHealthy = s.healthy || {};
+    const healthyTransfer = verifiedHealthy.settledTransfer || verifiedHealthy.pendingTransfer || '—';
+    const healthyCopy = verifiedHealthy.settledTransfer && verifiedHealthy.pendingTransfer
+      ? `Measured settled Transfer ${verifiedHealthy.settledTransfer}; inherited pending Transfer ${verifiedHealthy.pendingTransfer}.`
+      : 'Verified healthy obligation controls; amount unavailable.';
     const preserved = checks.preservedState === true && checks.preservedPolicy === true && checks.preservedProposal === true;
     const healthy = checks.healthyControl === true && checks.pendingHealthy === true;
+    $('result-copy').textContent = accepted
+      ? 'The accepted result is measured on this run. The original proposal remains Failed while its bond debt is recovered; this is not a re-execution of the failed payment. Gas is reported separately from returned principal.'
+      : 'The candidate did not pass acceptance. Inspect the checks and the review output before trying another bundle.';
+    $('money-grid').innerHTML = [
+      card('Frozen bond', frozenBond, 'Locked against the failed proposal. The proposal remains Failed; the debt is recovered, not the failed payment.', 'good'),
+      card('First recovery', s.firstRecovery?.gross || '—', `${s.firstRecovery?.gas || '—'} gas · proposer net ${s.firstRecovery?.proposerNet || '—'}.`, s.firstRecovery?.gross === '0 NEAR' ? 'bad' : 'good'),
+      card('Retry', s.retry?.gross === '0 NEAR' ? '0 NEAR extra principal' : (s.retry?.gross || '—'), `${s.retry?.gas || '—'} gas · no additional principal.`, s.retry?.gross === '0 NEAR' ? 'good' : 'bad'),
+      card('Healthy obligations', healthyTransfer, healthy ? healthyCopy : 'The healthy obligation controls did not all pass.', healthy ? 'good' : 'bad'),
+    ].join('');
     $('review-grid').innerHTML = [
       card('Mode', s.modeLabel || (sourceBuild ? 'Source build' : 'Recorded WASM replay'), sourceBuild ? 'Fresh build from the supplied patch, then local Sandbox replay.' : 'Supplied artifact, no source build and no model call.'),
       card(sourceBuild ? 'Built WASM' : 'Recorded artifact', short(s.candidateWasmSha256 || result.bundle?.candidate?.wasmSha256), sourceBuild ? 'Artifact produced by the build and exercised by the replay.' : 'Exact artifact exercised by the replay.', 'good'),
-      card('First recovery', s.firstRecovery?.gross || '—', `${s.firstRecovery?.gas || '—'} gas · proposer net ${s.firstRecovery?.proposerNet || '—'}`, s.firstRecovery?.gross === '0 NEAR' ? 'bad' : 'good'),
-      card('Retry', s.retry?.gross || '—', `${s.retry?.gas || '—'} gas · no additional principal`, s.retry?.gross === '0 NEAR' ? 'good' : 'bad'),
+      card('Source revision', short(run.bundle?.source?.commit || result.bundle?.source?.commit), 'Pinned source identity recorded in the supplied bundle.'),
+      card('Candidate patch', short(run.bundle?.candidate?.patchSha256 || result.bundle?.candidate?.patchSha256), 'Patch identity recorded in the supplied bundle.'),
       card('Preserved state', preserved ? 'Yes' : 'No', 'Inherited state, policy and proposal remain present.', preserved ? 'good' : 'bad'),
       card('Authority', checks.authorityRejected ? 'Rejected' : 'Not checked', 'Unauthorized update and finalize attempts stay rejected.', checks.authorityRejected ? 'good' : 'bad'),
-      card('Healthy controls', healthy ? 'Both pass' : 'Incomplete', 'Already-paid obligation and inherited pending Transfer.', healthy ? 'good' : 'bad'),
       card('Acceptance', accepted ? 'Pass' : 'Fail', 'Declared persisted-recovery acceptance receipt.', accepted ? 'good' : 'bad'),
     ].join('');
     $('meaning-note').textContent = sourceBuild

@@ -15,8 +15,9 @@
         <div><div class="eyebrow">NEAR / reviewer handoff</div><h1>Review a repair bundle</h1></div>
       </div>
       <div class="top-actions">
-        <a class="nav-link" href="/repair">Repair journey</a>
-        <a class="nav-link" href="/">Release comparison</a>
+        <a class="nav-link" href="/">Home</a>
+        <a class="nav-link" href="/repair">Generate a repair</a>
+        <a class="nav-link" href="/compare">Authored comparison</a>
         <div id="status" class="status-pill idle" role="status" aria-live="polite">No review run yet</div>
       </div>
     </header>
@@ -85,8 +86,13 @@
         <section id="result-state" hidden>
           <div id="result-banner" class="result-banner"></div>
           <p id="result-copy" class="result-copy"></p>
-          <div id="review-grid" class="review-grid"></div>
-          <div id="meaning-note" class="notice"></div>
+          <div id="money-grid" class="review-grid money-grid"></div>
+
+          <details class="evidence-details panel" id="identity-details">
+            <summary>Technical identity and mode</summary>
+            <div id="review-grid" class="review-grid"></div>
+            <div id="meaning-note" class="notice"></div>
+          </details>
 
           <section class="details panel" aria-labelledby="checks-title">
             <div class="section-head"><div><div class="eyebrow">Declared checks</div><h3 id="checks-title">What passed</h3></div><span id="checks-badge" class="badge subtle"></span></div>

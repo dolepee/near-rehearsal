@@ -1,0 +1,19 @@
+/* Maintainer front door. Reuses the Sputnik shell, palette and native controls. */
+.home-layout { grid-template-columns: minmax(0, .9fr) minmax(0, 1.35fr); }
+.home-hero { min-height: 0; }
+.home-actions { display: grid; gap: 12px; margin-top: 18px; max-width: 720px; }
+.home-action { display: block; min-height: 44px; border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: #111614; color: var(--text); text-decoration: none; }
+.home-action:hover, .home-action:focus-visible { border-color: var(--green); }
+.home-action strong { display: block; font-size: 19px; letter-spacing: -.02em; margin-bottom: 6px; }
+.home-action span, .home-action small { display: block; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.home-action small { margin-top: 8px; color: var(--amber); }
+.home-action-primary { border-color: #2d6147; }
+.home-action-primary strong { color: var(--green); }
+.home-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.home-facts > div { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: #111614; min-width: 0; }
+.home-facts b { display: block; margin-bottom: 5px; font-size: 13px; }
+.home-facts span { display: block; color: var(--muted); font-size: 12px; }
+.home-layout .obligation-box { margin-bottom: 0; }
+@media (max-width: 980px) { .home-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 620px) { .home-facts { grid-template-columns: 1fr; } .home-actions { max-width: none; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }

@@ -139,32 +139,63 @@
     $('result-banner').textContent = accepted
       ? 'Accepted reproduction: the declared repair checks passed.'
       : `${statusLabel(run.status)}: this run is not accepted evidence.`;
-    $('result-copy').textContent = accepted
-      ? 'The candidate passes both fresh-state prevention and persisted-failure recovery. The failed async proposal no longer strands the bond; the recovery returns it exactly once; the authorized retry returns no second refund; and the healthy Transfer payout is unchanged. Gas is reported separately from returned principal.'
-      : (run.error || 'The run stopped before all declared checks passed.');
     const c = run.consequence || {};
     const baseline = c.baseline || {}; const candidate = c.candidate || {};
-    const retryGas = candidate.retryGas ? near(candidate.retryGas) : '—';
-    const retryBacked = run.checks?.authorizedRetryNoSecondRefund === true;
-    const baselineCopy = baseline.bondRetained
-      ? 'Contract balance change after the failed proposal. The declared bond stayed in the contract; the recipient received nothing.'
-      : 'Contract balance change after the failed proposal. The declared bond was not retained in this capture; the recipient received nothing.';
-    const candidateCopy = candidate.bondReturned
-      ? 'Contract balance change after the same failure. The bond is no longer retained; the failed recipient still receives nothing.'
-      : 'Contract balance change after the same failure. The bond is still retained in the contract, so this candidate did not repair the failure.';
-    const healthyCopy = candidate.healthyPayoutUnchanged
-      ? 'The healthy Transfer still pays the declared recipient; this is the control obligation.'
-      : 'The healthy Transfer payout changed, so this candidate breaks the control obligation.';
-    $('consequence-grid').innerHTML = `
-      <article class="consequence-card ${baseline.bondRetained ? 'bad' : ''}"><div class="eyebrow">Baseline</div><strong>${signed(baseline.failedContract || 0)} NEAR</strong><p>${baselineCopy}</p></article>
-      <article class="consequence-card ${candidate.bondReturned ? 'good' : 'bad'}"><div class="eyebrow">Generated candidate</div><strong>${signed(candidate.failedContract || 0)} NEAR</strong><p>${candidateCopy}</p></article>
-      <article class="consequence-card ${retryBacked ? 'good' : 'bad'}"><div class="eyebrow">Authorized retry</div><strong>${retryBacked ? 'No second refund' : 'Retry not clean'}</strong><p>${retryBacked ? 'FINAL receipt; contract and recipient deltas are zero. Gas is separate.' : 'The retry check did not prove FINAL receipt-backed exactly-once execution.'}</p></article>
-      <article class="consequence-card ${candidate.healthyPayoutUnchanged ? 'good' : 'bad'}"><div class="eyebrow">Healthy payout</div><strong>${signed(candidate.healthyRecipient || 0)} NEAR</strong><p>${healthyCopy}</p></article>`;
-    $('money-note').innerHTML = `
-      <div><b>Principal:</b> 1 NEAR bond at risk; 0.1 NEAR healthy Transfer.</div>
-      <div><b>Gas on retry:</b> ${esc(retryGas)} NEAR, separate from returned principal.</div>`;
     const checks = run.checks || {};
     const recovery = run.recovery || null;
+    const recoverySummary = recovery?.summary || {};
+    const acceptedMoney = accepted && recovery?.ok === true;
+    const frozenBond = recoverySummary.frozenLockedAmount || c.bond || run.obligation?.bond || '0';
+    const firstGross = recoverySummary.firstGrossRecoveryYocto || '0';
+    const firstGas = recoverySummary.firstGasYocto || '0';
+    const firstNet = recoverySummary.firstProposerNetYocto || (BigInt(firstGross) - BigInt(firstGas)).toString();
+    const secondGross = recoverySummary.secondGrossRecoveryYocto || '0';
+    const secondGas = recoverySummary.secondGasYocto || '0';
+    const healthyTransfer = c.transfer || run.obligation?.transfer || '0';
+    const healthyPreserved = candidate.healthyPayoutUnchanged === true
+      && recoverySummary.healthyControl === true
+      && recoverySummary.pendingHealthy === true;
+    $('result-copy').textContent = accepted
+      ? 'The accepted result is measured on this run. The original proposal remains Failed while its bond debt is recovered; this is not a re-execution of the failed payment. Gas is reported separately from returned principal.'
+      : (run.error || 'The run stopped before all declared checks passed.');
+    if (acceptedMoney) {
+      $('consequence-grid').innerHTML = `
+        <article class="consequence-card good"><div class="eyebrow">Frozen bond</div><strong>${near(frozenBond)} NEAR</strong><p>Locked against the failed proposal, which remains Failed. The debt is recovered; the failed payment is not replayed.</p></article>
+        <article class="consequence-card good"><div class="eyebrow">First recovery</div><strong>${signed(firstGross)} NEAR gross</strong><p>${near(firstGas)} NEAR gas · ${signed(firstNet)} NEAR proposer net.</p></article>
+        <article class="consequence-card ${BigInt(secondGross) === 0n ? 'good' : 'bad'}"><div class="eyebrow">Retry</div><strong>${BigInt(secondGross) === 0n ? '0 NEAR extra principal' : `${signed(secondGross)} NEAR extra principal`}</strong><p>${near(secondGas)} NEAR gas · ${BigInt(secondGross) === 0n ? 'no second bond credit.' : 'a second bond credit is a failure.'}</p></article>
+        <article class="consequence-card ${healthyPreserved ? 'good' : 'bad'}"><div class="eyebrow">Healthy obligations</div><strong>${near(healthyTransfer)} NEAR</strong><p>${healthyPreserved ? 'Declared Transfer and inherited pending Transfer preserved.' : 'The healthy obligation controls did not all pass.'}</p></article>`;
+      $('money-note').innerHTML = `
+        <div><b>Accounting:</b> gross bond, transaction gas and proposer net are separate values from the accepted result.</div>
+        <div><b>Proposal state:</b> remains Failed; this recovery clears the bond debt, not the original failed payment.</div>`;
+    } else {
+      const retryGas = candidate.retryGas ? near(candidate.retryGas) : '—';
+      const retryBacked = checks.authorizedRetryNoSecondRefund === true;
+      const baselineCopy = baseline.bondRetained
+        ? 'Contract balance change after the failed proposal. The declared bond stayed in the contract; the recipient received nothing.'
+        : 'Contract balance change after the failed proposal. The declared bond was not retained in this capture; the recipient received nothing.';
+      const candidateCopy = candidate.bondReturned
+        ? 'Contract balance change after the same failure. The bond is no longer retained; the failed recipient still receives nothing.'
+        : 'Contract balance change after the same failure. The bond is still retained in the contract, so this candidate did not repair the failure.';
+      const healthyCopy = candidate.healthyPayoutUnchanged
+        ? 'The healthy Transfer still pays the declared recipient; this is the control obligation.'
+        : 'The healthy Transfer payout changed, so this candidate breaks the control obligation.';
+      $('consequence-grid').innerHTML = `
+        <article class="consequence-card ${baseline.bondRetained ? 'bad' : ''}"><div class="eyebrow">Baseline</div><strong>${signed(baseline.failedContract || 0)} NEAR</strong><p>${baselineCopy}</p></article>
+        <article class="consequence-card ${candidate.bondReturned ? 'good' : 'bad'}"><div class="eyebrow">Generated candidate</div><strong>${signed(candidate.failedContract || 0)} NEAR</strong><p>${candidateCopy}</p></article>
+        <article class="consequence-card ${retryBacked ? 'good' : 'bad'}"><div class="eyebrow">Authorized retry</div><strong>${retryBacked ? 'No second refund' : 'Retry not clean'}</strong><p>${retryBacked ? 'FINAL receipt; contract and recipient deltas are zero. Gas is separate.' : 'The retry check did not prove FINAL receipt-backed exactly-once execution.'}</p></article>
+        <article class="consequence-card ${candidate.healthyPayoutUnchanged ? 'good' : 'bad'}"><div class="eyebrow">Healthy payout</div><strong>${signed(candidate.healthyRecipient || 0)} NEAR</strong><p>${healthyCopy}</p></article>`;
+      $('money-note').innerHTML = `
+        <div><b>Principal:</b> 1 NEAR bond at risk; 0.1 NEAR healthy Transfer.</div>
+        <div><b>Gas on retry:</b> ${esc(retryGas)} NEAR, separate from returned principal.</div>`;
+    }
+    const identityRows = [
+      ['Execution', 'fresh local repair; provider generation and Sandbox replay'],
+      ['Source revision', run.source?.commit || '—'],
+      ['Source path', run.source?.path || '—'],
+      ['Generated patch', run.patch?.sha256 ? short(run.patch.sha256, 20) : '—'],
+      ['Candidate WASM', run.candidate?.wasm?.sha256 ? short(run.candidate.wasm.sha256, 20) : '—'],
+    ];
+    $('repair-identity-grid').innerHTML = identityRows.map(([label, value]) => `<div class="kv"><span>${esc(label)}</span><b class="mono">${esc(value)}</b></div>`).join('');
     const recoveryPanel = $('recovery-panel');
     recoveryPanel.hidden = !recovery;
     if (recovery) {
@@ -208,6 +239,11 @@
     if (run.bundleUrl) downloads.push(`<a class="download-button secondary-download" href="${esc(run.bundleUrl)}" download>Download review bundle</a>`);
     if (!accepted) downloads.push('<span class="muted small">Review bundle is withheld until an accepted run.</span>');
     $('downloads').innerHTML = downloads.join('');
+    const handoff = $('review-handoff');
+    handoff.hidden = !accepted;
+    if (accepted) {
+      $('handoff-command').textContent = `npm run repair:review -- --bundle repair-bundle-${run.id}.json --out /tmp/repair-review-${run.id} --mode recorded-wasm`;
+    }
     $('evidence-json').textContent = JSON.stringify(run.evidence || {message: 'No replay evidence for this run.'}, null, 2);
     $('evidence-label').textContent = accepted ? 'Accepted' : statusLabel(run.status);
     $('running-state').hidden = true;
@@ -217,6 +253,7 @@
 
   function renderError(run) {
     show('error-state');
+    $('review-handoff').hidden = true;
     $('error-title').textContent = `${statusLabel(run.status)} — no accepted result`;
     $('error-copy').textContent = run.error || 'The repair did not produce an accepted result.';
     $('error-log').textContent = (run.logs || []).slice(-40).join('\n') || 'No runner output was captured.';

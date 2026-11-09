@@ -220,6 +220,7 @@ function publicResult(result, meta) {
       caseId: meta.bundle.caseId,
       source: meta.bundle.source,
       candidate: meta.bundle.candidate,
+      case: meta.bundle.case || null,
     },
     run: {
       mode: result.run?.mode || 'recorded-wasm',
@@ -457,6 +458,7 @@ function createManager(options = {}) {
         caseId: validated.caseId,
         source: validated.source,
         candidate: validated.candidate,
+        case: validated.bundle.case || null,
         createdAt: validated.createdAt,
       },
       bundleSha256: storedBundleSha256,
