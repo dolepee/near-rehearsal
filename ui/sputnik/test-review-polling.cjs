@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const {compareMixed} = require('../../scripts/repair-review.cjs');
 
 class FakeClassList {
   constructor() { this.values = new Set(); }
@@ -103,6 +104,12 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
   assert.ok(timers.length, 'reconnection schedules polling again');
   assert.equal(postCalls, 0, 'reconnection does not submit a new review');
   await exhaustPolls();
+  const legacyOutcomes = {alicePaid: true, bobLiabilityAfterAlice: true, bobTransferPaid: true, bobPaidExactlyOnce: true};
+  accepted.result.mixed = {
+    policy: {sha256: 'd'.repeat(64)},
+    reviewer: {ok: true, outcomes: legacyOutcomes},
+    comparison: compareMixed(null, {ok: true, outcomes: legacyOutcomes}, 'c'.repeat(64), 'c'.repeat(64)),
+  };
   runResponse = accepted; // The server finished while polling was unavailable.
   get('retry-button').click();
   await tick(); await tick(); await tick();
@@ -110,6 +117,9 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
   assert.match(get('status').textContent, /accepted/, 'accepted status is rendered');
   assert.equal(postCalls, 0, 'terminal reconnection does not submit a new review');
   assert.equal(timers.length, 0, 'terminal reconnection stops polling');
+  assert.match(get('same-dao-copy').textContent, /Legacy bundle/);
+  assert.match(get('same-dao-list').innerHTML, /reviewer <b>yes/);
+  assert.doesNotMatch(get('same-dao-list').innerHTML, /not recorded/, 'fresh legacy outcomes must not disappear behind the comparison wrapper');
 
   // Restore a historical result whose evidence disappeared while the server
   // was stopped. It must release the UI rather than pretend to keep running.

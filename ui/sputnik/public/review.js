@@ -246,7 +246,7 @@
           : 'Producer and reviewer mixed evidence are both bound to this candidate and the current policy. Principal outcomes match; new receipt IDs and gas costs are allowed.';
       const outcome = (value) => value === true ? 'yes' : value === false ? 'no' : 'not recorded';
       const producer = comparison.producer || {};
-      const reviewer = comparison.reviewer || outcomes;
+      const reviewer = comparison.reviewer?.outcomes || comparison.reviewer || outcomes;
       $('same-dao-list').innerHTML = [
         ['Alice bond returned once', outcome(reviewer.alicePaid), comparison.legacy ? 'not applicable' : outcome(producer.alicePaid)],
         ['Bob liability preserved', outcome(reviewer.bobLiabilityAfterAlice), comparison.legacy ? 'not applicable' : outcome(producer.bobLiabilityAfterAlice)],
