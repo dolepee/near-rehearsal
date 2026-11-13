@@ -81,6 +81,7 @@ process.env.REPAIR_SANDBOX_DIR = sandbox;
     assert.match(meta.stdout, /"termination": "process-closed"/);
     assert.doesNotMatch(meta.stdout, /"status": "running"/);
     const readme = spawnSync('unzip', ['-p', packageFile, 'README.md'], {encoding: 'utf8', timeout: 15_000});
+    assert.match(readme.stdout, /Package format: 2/);
     assert.match(readme.stdout, /Get the checker before running/);
     assert.match(readme.stdout, /does \*\*not\*\* include the Rehearsal application checkout/);
     assert.doesNotMatch(readme.stdout, /\/workspace|\/tmp\//);

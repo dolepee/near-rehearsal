@@ -22,6 +22,7 @@ assert.doesNotMatch(js, /retry\?\.gross,\s*'0 NEAR'/);
 assert.match(js, /First recovery gas/);
 assert.match(js, /proposerNet/);
 assert.match(js, /Retry gas/);
+assert.match(js, /Retry proposer net/);
 assert.match(js, /mine !== view/);
 assert.match(js, /sessionStorage\.setItem\(runKey, runId\)/);
 assert.match(js, /All defined checks passed/);

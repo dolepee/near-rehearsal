@@ -48,6 +48,8 @@ function completed(id, status) {
     fs.writeFileSync(path.join(pipeline, 'pipeline.json'), '{}');
     fs.writeFileSync(path.join(pipeline, 'build.log'), 'exit=0\n');
     fs.writeFileSync(path.join(pipeline, 'replay.log'), 'fixture\n');
+    fs.mkdirSync(path.join(dir, 'evidence/evidence'), {recursive: true});
+    fs.writeFileSync(path.join(dir, 'evidence/evidence/pipeline.log'), 'x'.repeat(3 * 1024 * 1024));
   }
   fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify({schema: 'near-rehearsal/patch-browser-run/v1', id, status, createdAt: '2026-11-13T10:00:00.000Z', finishedAt: '2026-11-13T10:01:00.000Z', patchSha256: 'a'.repeat(64), checkerRevision: 'f'.repeat(40), exitCode: status === 'accepted' ? 0 : 1, signal: null, termination: 'process-closed'}));
 }
@@ -111,6 +113,7 @@ assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8'
     assert.match(listing.stdout, /THIRD_PARTY_NOTICES\.md/);
     assert.match(listing.stdout, /licenses\/sputnik-dao-contract-MIT\.txt/);
     assert.doesNotMatch(listing.stdout, /applied\/|target\/|Cargo\.lock/);
+    assert.doesNotMatch(listing.stdout, /pipeline\.log/);
     const packageReadme = spawnSync('unzip', ['-p', file, 'README.md'], {encoding: 'utf8', timeout: 15_000});
     assert.match(packageReadme.stdout, /No Cargo build tree/);
     assert.match(packageReadme.stdout, /artifact\/sputnikdao2\.wasm/);

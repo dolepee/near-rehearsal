@@ -41,6 +41,7 @@
         ['Proposer net', value(s.firstRecovery?.proposerNet), 'Gross bond less measured gas'],
         ['Retry principal', value(s.retry?.gross), 'Second finalize; no extra principal when measured at zero'],
         ['Retry gas', value(s.retry?.gas), 'Gas moved separately from retry principal'],
+        ['Retry proposer net', value(s.retry?.proposerNet), 'Net after retry gas'],
         ['Healthy settled', value(s.healthy?.settledTransfer), 'Already-paid Transfer'],
         ['Healthy pending', value(s.healthy?.pendingTransfer), 'Inherited pending Transfer'],
       ];

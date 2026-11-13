@@ -22,6 +22,7 @@ function checkerRevision() {
 const names = {status:'review-status.json',report:'review-report.md',patch:'submitted.patch'};
 const max = 65536;
 const MAX_PACKAGE_BYTES = 32 * 1024 * 1024;
+const MAX_EVIDENCE_FILE_BYTES = 2 * 1024 * 1024;
 const PACKAGE_FORMAT = 2;
 const memory = new Map();
 let active = null;
@@ -212,15 +213,16 @@ function ensurePackage(dir, job) {
     if (report && exists(report)) fs.copyFileSync(report, path.join(stage, 'evidence', names.report));
     if (exists(metaPath(dir))) fs.copyFileSync(metaPath(dir), path.join(stage, 'run.json'));
     const output = path.join(dir, 'evidence');
-    const add = (from, relative) => {
+    const add = (from, relative, limit = MAX_EVIDENCE_FILE_BYTES) => {
       if (!exists(from)) return false;
+      if (fs.statSync(from).size > limit) return false;
       const target = path.join(stage, relative);
       fs.mkdirSync(path.dirname(target), {recursive: true});
       fs.copyFileSync(from, target);
       return true;
     };
-    add(status, 'review-status.json');
-    add(report, 'review-report.md');
+    add(status, 'review-status.json', MAX_PACKAGE_BYTES);
+    add(report, 'review-report.md', MAX_PACKAGE_BYTES);
     for (const name of ['recovery-packet.json', 'rejected-evidence.json', 'review-evidence.json']) add(path.join(output, name), name);
     for (const name of ['evidence', 'persisted']) {
       const from = path.join(output, name);
@@ -232,7 +234,7 @@ function ensurePackage(dir, job) {
     for (const name of ['pipeline.json', 'candidate-identity.json', 'build.log', 'replay.log']) {
       add(path.join(pipeline, name), path.join('evidence', 'pipeline', name));
     }
-    add(path.join(pipeline, 'applied', 'target', 'wasm32-unknown-unknown', 'release', 'sputnikdao2.wasm'), 'artifact/sputnikdao2.wasm');
+    add(path.join(pipeline, 'applied', 'target', 'wasm32-unknown-unknown', 'release', 'sputnikdao2.wasm'), 'artifact/sputnikdao2.wasm', MAX_PACKAGE_BYTES);
     add(path.join(pipeline, 'applied', SOURCE_PATH), 'source/proposals.rs');
     add(path.join(root, 'LICENSE'), 'LICENSE');
     add(path.join(root, 'THIRD_PARTY_NOTICES.md'), 'THIRD_PARTY_NOTICES.md');
