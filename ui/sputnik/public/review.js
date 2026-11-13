@@ -241,7 +241,9 @@
       $('same-dao-badge').textContent = verified ? 'Policy pass' : 'Policy fail';
       $('same-dao-copy').textContent = comparison.legacy
         ? 'Legacy bundle: the producer did not include mixed-obligation evidence. This review ran the current same-DAO policy fresh. Principal outcomes do not claim producer/reviewer equivalence.'
-        : 'Producer and reviewer mixed evidence are both bound to this candidate and the current policy. Principal outcomes match; new receipt IDs and gas costs are allowed.';
+        : comparison.candidateMatches === false
+          ? 'Producer and reviewer mixed evidence use different candidate bytes. Principal outcomes still match, but candidate equivalence is not claimed.'
+          : 'Producer and reviewer mixed evidence are both bound to this candidate and the current policy. Principal outcomes match; new receipt IDs and gas costs are allowed.';
       const outcome = (value) => value === true ? 'yes' : value === false ? 'no' : 'not recorded';
       const producer = comparison.producer || {};
       const reviewer = comparison.reviewer || outcomes;

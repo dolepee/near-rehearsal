@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
-const { checkBundle, formatYocto, yoctoNear, preflight } = require('./repair-review.cjs');
+const { checkBundle, compareMixed, formatYocto, yoctoNear, preflight } = require('./repair-review.cjs');
 const { buildReviewBundle } = require('../case-triage/rehearsal-repair/review-bundle.cjs');
 
 const fixture = path.join(__dirname, '..', 'test-fixtures', 'repair-browser-export-1de7b8c5.json');
@@ -40,6 +40,15 @@ for (const [label, mutate] of [
   mutate(b);
   assert.throws(() => checkBundle(b), undefined, label);
 }
+
+const outcomes = {alicePaid: true, bobLiabilityAfterAlice: true, bobTransferPaid: true, bobPaidExactlyOnce: true, aliceLockedDelta: '-1000000000000000000000000', bobLockedDelta: '-1000000000000000000000000', bobRecipientDelta: '100000000000000000000000', bobProposerDelta: '1000000000000000000000000'};
+const sameBytes = compareMixed({outcomes, candidate: {wasmSha256: 'a'.repeat(64)}}, {outcomes}, 'a'.repeat(64), 'a'.repeat(64));
+assert.equal(sameBytes.candidateMatches, true);
+const rebuiltDifferent = compareMixed({outcomes, candidate: {wasmSha256: 'a'.repeat(64)}}, {outcomes}, 'b'.repeat(64), 'b'.repeat(64));
+assert.equal(rebuiltDifferent.candidateMatches, false, 'rebuilt artifact bytes must not be called equivalent to the producer');
+assert.equal(rebuiltDifferent.artifactMismatch, false);
+const reviewerArtifactMismatch = compareMixed({outcomes, candidate: {wasmSha256: 'a'.repeat(64)}}, {outcomes}, 'a'.repeat(64), 'c'.repeat(64));
+assert.equal(reviewerArtifactMismatch.artifactMismatch, true);
 const accepted = checkBundle(copy());
 assert.equal(accepted.sourceIdentity.path, 'sputnikdao2/src/proposals.rs');
 assert.equal(accepted.sourceIdentity.sha256, original.candidate.identity.source.sha256);

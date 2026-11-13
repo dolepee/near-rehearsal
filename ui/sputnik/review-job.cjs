@@ -224,6 +224,10 @@ function publicMixed(mixed) {
     comparison: {
       legacy: mixed.comparison?.legacy === true,
       candidateMatches: mixed.comparison?.candidateMatches === true,
+      producerWasmSha256: mixed.comparison?.producerWasmSha256 || null,
+      reviewerWasmSha256: mixed.comparison?.reviewerWasmSha256 || null,
+      artifactWasmSha256: mixed.comparison?.artifactWasmSha256 || null,
+      artifactMismatch: mixed.comparison?.artifactMismatch === true,
       policyMatches: mixed.comparison?.policyMatches === true,
       differences: Array.isArray(mixed.comparison?.differences) ? mixed.comparison.differences.map(cleanError) : [],
       producer: mixed.comparison?.producer || null,

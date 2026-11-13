@@ -449,21 +449,28 @@ const runMixedGate = (candidateWasm, outDir, sandboxDir) => {
   return {mixedDir, reportPath, report, checked, policy: mixedPolicyIdentity(ROOT), stdout: result.stdout};
 };
 
-const compareMixed = (producer, reviewer, candidateWasmSha256) => {
+const compareMixed = (producer, reviewer, reviewerWasmSha256, artifactWasmSha256) => {
   const producerOutcomes = producer?.outcomes || (producer ? verifyMixedReport(producer, {requireBlockPinned: true}).outcomes : null);
   const keys = ['alicePaid', 'bobLiabilityAfterAlice', 'bobTransferPaid', 'bobPaidExactlyOnce', 'aliceLockedDelta', 'bobLockedDelta', 'bobRecipientDelta', 'bobProposerDelta'];
   if (!producerOutcomes) return {
     legacy: true,
-    candidateMatches: producer === null,
+    candidateMatches: null,
+    reviewerWasmSha256,
+    artifactWasmSha256,
     note: 'Legacy bundle had no producer mixed evidence; the reviewer ran the current same-DAO policy fresh.',
     reviewer,
   };
   const differences = keys.filter((key) => String(producerOutcomes?.[key]) !== String(reviewer.outcomes?.[key]));
-  if (producer.candidate?.wasmSha256 !== candidateWasmSha256) fail('producer mixed evidence is for a different candidate');
+  const producerWasmSha256 = producer.candidate?.wasmSha256 || null;
+  const candidateMatches = producerWasmSha256 === reviewerWasmSha256;
   if (differences.length) fail(`producer/reviewer mixed outcomes differ: ${differences.join(', ')}`);
   return {
     legacy: false,
-    candidateMatches: producer.candidate?.wasmSha256 === candidateWasmSha256,
+    candidateMatches,
+    reviewerWasmSha256,
+    artifactWasmSha256,
+    producerWasmSha256,
+    artifactMismatch: reviewerWasmSha256 !== artifactWasmSha256,
     policyMatches: true,
     differences,
     producer: producerOutcomes,
@@ -601,7 +608,10 @@ const main = () => {
   const summary = summarize(report, run);
   if (!summary.checks.accepted) fail('persisted recovery report did not pass acceptance');
   const mixedRun = runMixedGate(run.builtWasm || run.wasmPath, outDir, plan.sandboxDir);
-  const mixedComparison = compareMixed(checkBundle(bundle).producerMixed, mixedRun.checked, bundle.candidate.wasm.sha256);
+  const reviewerArtifactWasmSha256 = run.mode === 'source-build' ? run.builtWasmSha256 : run.wasmSha256;
+  const mixedReportWasmSha256 = mixedRun.report?.candidate?.wasmSha256;
+  if (!mixedReportWasmSha256 || mixedReportWasmSha256 !== reviewerArtifactWasmSha256) fail('reviewer mixed gate did not execute the built/recorded candidate artifact');
+  const mixedComparison = compareMixed(checkBundle(bundle).producerMixed, mixedRun.checked, mixedReportWasmSha256, reviewerArtifactWasmSha256);
   const resultPath = path.join(outDir, 'review-result.json');
   const result = {
     schema: 'near-rehearsal/repair-review-handoff/v1',
@@ -643,4 +653,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { checkBundle, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment };
+module.exports = { checkBundle, compareMixed, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment };
