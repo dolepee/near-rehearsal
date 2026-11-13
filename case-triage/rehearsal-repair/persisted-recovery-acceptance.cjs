@@ -325,6 +325,24 @@ function verify(report, options = {}) {
       if (pendingDeltas.recipient !== TRANSFER) fail('pending Transfer did not pay the declared recipient exactly once');
       if (pendingDeltas.proposer + pendingGas !== BOND) fail('pending Transfer proposer credit is not bond minus receipt-derived gas');
       if (pendingDeltas.contract + pendingDeltas.proposer + pendingDeltas.recipient !== -pendingGas) fail('pending Transfer account deltas do not conserve transaction gas');
+      const pendingRetry = pending.retry;
+      if (!pendingRetry?.ok || pendingRetry?.value?.finalExecutionStatus !== 'FINAL') {
+        fail('second action against the newly paid pending Transfer was not an executed FINAL transaction');
+      } else if (pendingRetry.value.receiptFailure !== true || !hasFailure(pendingRetry.value, report?.accounts?.contract, 'ERR_PROPOSAL_NOT_IN_PROGRESS')) {
+        fail('second action against the newly paid pending Transfer did not fail with the expected terminal-state error');
+      }
+      const retryAfter = pending.retryAfter;
+      const retryDeltas = {
+        contract: BigInt(retryAfter?.contractBalance ?? 0) - BigInt(pendingAfter?.contractBalance ?? 0),
+        proposer: BigInt(retryAfter?.proposerBalance ?? 0) - BigInt(pendingAfter?.proposerBalance ?? 0),
+        recipient: BigInt(retryAfter?.recipientBalance ?? 0) - BigInt(pendingAfter?.recipientBalance ?? 0),
+        locked: BigInt(retryAfter?.lockedAmount ?? 0) - BigInt(pendingAfter?.lockedAmount ?? 0),
+      };
+      const retryGas = summaryGas(pendingRetry?.value);
+      if (retryDeltas.contract !== 0n || retryDeltas.recipient !== 0n || retryDeltas.locked !== 0n) fail('second action against the newly paid pending Transfer moved principal again');
+      if (retryDeltas.proposer + retryGas !== 0n) fail('second action against the newly paid pending Transfer did not reconcile to gas only');
+      if (retryDeltas.contract + retryDeltas.proposer + retryDeltas.recipient !== -retryGas) fail('pending retry account deltas do not conserve transaction gas');
+      if (retryAfter?.proposal?.status !== 'Approved') fail('newly paid pending Transfer did not remain Approved after the retry');
     }
   }
   return errors;

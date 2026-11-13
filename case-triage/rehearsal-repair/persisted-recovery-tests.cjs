@@ -104,6 +104,10 @@ reject('pending Transfer bond not returned', (r) => {
   r.healthyPreservation.pending.after.proposerBalance = (BigInt(r.healthyPreservation.pending.after.proposerBalance) - 1n).toString();
 });
 reject('pending Transfer final not FINAL', (r) => { r.healthyPreservation.pending.final.finalExecutionStatus = 'None'; });
+reject('pending Transfer retry not executed', (r) => { r.healthyPreservation.pending.retry = {label: 'retry paid pending proposal', ok: false, executed: false, error: 'timeout'}; });
+reject('pending Transfer retry paid again', (r) => { r.healthyPreservation.pending.retryAfter.recipientBalance = (BigInt(r.healthyPreservation.pending.retryAfter.recipientBalance) + 1n).toString(); });
+reject('pending Transfer retry changed locked entitlement', (r) => { r.healthyPreservation.pending.retryAfter.lockedAmount = (BigInt(r.healthyPreservation.pending.retryAfter.lockedAmount) + 1n).toString(); });
+reject('pending Transfer retry lost terminal-state failure', (r) => { r.healthyPreservation.pending.retry.value.receipts = []; });
 reject('pending Transfer receipt failed', (r) => { r.healthyPreservation.pending.final.receiptFailure = true; });
 reject('pending Transfer signer wrong', (r) => { r.healthyPreservation.pending.final.transaction.signerId = r.accounts.recipient; });
 reject('upgrade deploy not FINAL', (r) => { r.upgrade.final.finalExecutionStatus = 'None'; });

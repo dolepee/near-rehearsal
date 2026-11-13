@@ -39,6 +39,7 @@
     "repair:review": "node scripts/repair-review.cjs",
     "review:patch": "node scripts/review-patch.cjs",
     "test:review-patch": "node scripts/test-review-patch.cjs",
+    "test:mixed": "node case-triage/rehearsal-repair/mixed-obligation-tests.cjs",
     "test:repair-review": "node scripts/test-repair-review.cjs",
     "test:patch-route": "node ui/sputnik/test-patch-lifecycle.cjs && node ui/sputnik/test-patch-persistence.cjs && node ui/sputnik/test-patch-ui.cjs && node ui/sputnik/test-patch-package.cjs",
     "test:review": "node ui/sputnik/test-review-job.cjs && node ui/sputnik/test-review-ui.cjs && node ui/sputnik/test-review-polling.cjs && node ui/sputnik/test-review-stale.cjs && node ui/sputnik/test-review-selection.cjs && node ui/sputnik/test-review-process-tree.cjs && node ui/sputnik/test-review-start-race.cjs && node ui/sputnik/test-review-submit-lock.cjs && node ui/sputnik/test-patch-lifecycle.cjs && node ui/sputnik/test-patch-persistence.cjs && node ui/sputnik/test-patch-ui.cjs && node ui/sputnik/test-patch-package.cjs"
