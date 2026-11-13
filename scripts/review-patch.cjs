@@ -29,6 +29,7 @@ const ACCEPTANCE = path.join(REPAIR, 'acceptance.cjs');
 const MIXED = path.join(REPAIR, 'mixed-obligation.cjs');
 const MIXED_POLICY = path.join(REPAIR, 'mixed-policy.cjs');
 const {verifyMixedReport} = require(MIXED_POLICY);
+const {POLICY_VERSION, evaluateCandidate, stageFromChecks} = require(path.join(REPAIR, 'acceptance-orchestrator.cjs'));
 const BASE_REPORT = path.join(REPAIR, 'out', 'issue238-local.json');
 const BASE_WASM = path.join(REPAIR, 'bundle', 'artifacts', 'base.wasm');
 const SCHEMA = 'near-rehearsal/review-patch/v1';
@@ -428,6 +429,7 @@ function runReview(opts) {
   let acceptance = null;
   let mixed = null;
   let mixedCheck = null;
+  let acceptanceVerdict = null;
   let summary = null;
   let checks = [];
 
@@ -580,23 +582,18 @@ function runReview(opts) {
                 ];
               } else {
                 checks = checksFrom(pipeline, report, acceptance, mixedCheck);
-                const pipelineFailed = pipeline.ok !== true || (pipeline.acceptanceErrors || []).length > 0;
-                const failedChecks = checks.filter((check) => check.status !== 'pass');
-                if (pipelineFailed) {
+                const verdict = evaluateCandidate({
+                  fresh: stageFromChecks(pipeline.ok === true && (pipeline.acceptanceErrors || []).length === 0, pipeline.acceptanceErrors || []),
+                  recovery: stageFromChecks(acceptance.ok === true, acceptance.errors || []),
+                  mixed: stageFromChecks(mixedCheck?.ok === true, mixedCheck?.errors || [], {policyVersion: POLICY_VERSION}),
+                });
+                acceptanceVerdict = verdict;
+                if (!verdict.ok) {
                   status = 'REJECTED';
-                  reason = `fresh-state acceptance failed: ${(pipeline.acceptanceErrors || []).join('; ') || 'pipeline did not pass'}`;
-                } else if (acceptance.ok !== true) {
-                  status = 'REJECTED';
-                  reason = `persisted recovery acceptance failed: ${(acceptance.errors || []).join('; ') || 'acceptance did not pass'}`;
-                } else if (mixedCheck && !mixedCheck.ok) {
-                  status = 'REJECTED';
-                  reason = `same-DAO mixed-obligation policy failed: ${mixedCheck.errors.join('; ')}`;
-                } else if (failedChecks.length) {
-                  status = 'REJECTED';
-                  reason = `defined checks failed: ${failedChecks.map((check) => check.id).join(', ')}`;
+                  reason = `versioned acceptance policy ${verdict.policyVersion} failed: ${verdict.errors.join('; ')}`;
                 } else {
                   status = 'ACCEPTED';
-                  reason = 'All defined source, build, replay, recovery, same-DAO and preservation checks passed.';
+                  reason = `All policy ${verdict.policyVersion} source, build, replay, recovery, same-DAO and preservation checks passed.`;
                 }
               }
             }
@@ -622,6 +619,7 @@ function runReview(opts) {
       appliedSourceSha256: verified.appliedSourceSha256,
     },
     policy,
+    acceptancePolicy: acceptanceVerdict,
     checks,
     summary,
     mixed: mixedCheck ? {ok: mixedCheck.ok, errors: mixedCheck.errors, outcomes: mixedCheck.outcomes} : null,

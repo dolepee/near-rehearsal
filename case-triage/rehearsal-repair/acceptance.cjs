@@ -43,6 +43,48 @@ function verifyCandidateFiles(identity, files) {
 
 function verify(base, repaired, options = {}) {
   const failureText = (status) => JSON.stringify(status || {});
+  const canonicalPolicy = (policy) => {
+    if (!policy || !Array.isArray(policy.roles)) return policy;
+    return {
+      ...policy,
+      roles: policy.roles.map((role) => ({
+        ...role,
+        permissions: Array.isArray(role.permissions) ? role.permissions.slice().sort() : role.permissions,
+      })).sort((left, right) => String(left.name).localeCompare(String(right.name))),
+    };
+  };
+  const proposalIdentity = (proposal) => ({
+    id: proposal?.id,
+    proposer: proposal?.proposer,
+    description: proposal?.description,
+    kind: proposal?.kind,
+  });
+  const checkTransaction = (summary, label, expectedSigner, expectedReceiver) => {
+    if (!summary || summary.error) {
+      fail(`${label} has no executed transaction summary`);
+      return;
+    }
+    const value = summary;
+    if (value.finalExecutionStatus && value.finalExecutionStatus !== 'FINAL') fail(`${label} is not FINAL`);
+    const transaction = value.transaction;
+    if (!transaction) {
+      fail(`${label} has no transaction identity`);
+      return;
+    }
+    if (transaction.signerId !== expectedSigner) fail(`${label} signer is not the expected proposer`);
+    if (transaction.receiverId !== expectedReceiver) fail(`${label} receiver is not the DAO`);
+    const actions = Array.isArray(transaction.actions) ? transaction.actions : [];
+    if (!actions.some((action) => action?.FunctionCall?.method_name === 'act_proposal')) fail(`${label} has no act_proposal action`);
+    const receipts = Array.isArray(value.receipts) ? value.receipts : [];
+    const roots = value.transactionOutcome?.receiptIds
+      || value.transactionOutcome?.rootReceiptIds
+      || (receipts[0]?.id ? [receipts[0].id] : []);
+    if (!Array.isArray(roots) || roots.length === 0) fail(`${label} has no transaction receipt root`);
+    else {
+      const ids = new Set(receipts.map((receipt) => receipt?.id));
+      for (const root of roots) if (!ids.has(root)) fail(`${label} receipt root is not reachable`);
+    }
+  };
   const errors = [];
   const fail = (m) => errors.push(m);
   for (const [name, report] of [['base', base], ['repaired', repaired]]) {
@@ -60,6 +102,17 @@ function verify(base, repaired, options = {}) {
   }
   for (const [name, report] of [['base', base], ['repaired', repaired]]) {
     if (JSON.stringify(report?.healthy?.before) !== JSON.stringify(report?.failed?.before)) fail(`${name} branches did not start from identical state`);
+  }
+  for (const [name, report] of [['base', base], ['repaired', repaired]]) {
+    for (const branch of ['healthy', 'failed']) {
+      const before = report?.[branch]?.before;
+      const after = report?.[branch]?.after;
+      if (!before?.policy || !after?.policy) fail(`${name} ${branch} has no before/after policy`);
+      else if (JSON.stringify(canonicalPolicy(before.policy)) !== JSON.stringify(canonicalPolicy(after.policy))) fail(`${name} ${branch} changed governance policy`);
+      const expected = report?.[branch]?.afterAdd?.proposal;
+      if (!expected || !after?.proposal) fail(`${name} ${branch} has no proposal identity evidence`);
+      else if (JSON.stringify(proposalIdentity(expected)) !== JSON.stringify(proposalIdentity(after.proposal))) fail(`${name} ${branch} changed non-target proposal identity`);
+    }
   }
   for (const [name, report] of [['base', base], ['repaired', repaired]]) {
     const callback = report?.healthy?.unauthorizedCallback;
@@ -113,6 +166,9 @@ function verify(base, repaired, options = {}) {
     if (retry.final !== 'FINAL') fail(`${name} retry was not a FINAL receipt-backed execution`);
     if (!retry.summary || retry.summary.error) fail(`${name} retry has no executed transaction summary`);
     if (!retry.summary?.transactionHash) fail(`${name} retry summary has no transaction hash`);
+    if (retry.after?.policy && JSON.stringify(canonicalPolicy(retry.after.policy)) !== JSON.stringify(canonicalPolicy(report?.failed?.before?.policy))) fail(`${name} retry changed governance policy`);
+    if (retry.after?.proposal && report?.failed?.afterAdd?.proposal && JSON.stringify(proposalIdentity(retry.after.proposal)) !== JSON.stringify(proposalIdentity(report.failed.afterAdd.proposal))) fail(`${name} retry changed proposal identity`);
+    checkTransaction(retry.summary, `${name} retry`, report?.failed?.proposerId || report?.failed?.before?.proposer, report?.contractId || report?.failed?.contractId);
     const downstreamFailure = Array.isArray(retry.summary?.receipts) && retry.summary.receipts.some((receipt) =>
       receipt?.status?.Failure && (receipt.executorId === 'missing-target.test.near' || receipt.executorId === 'dao.test.near'));
     if (!downstreamFailure) fail(`${name} retry has no downstream failure receipt`);

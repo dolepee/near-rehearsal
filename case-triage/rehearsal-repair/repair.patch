@@ -1,16 +1,65 @@
 diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs
-index 3c41adf..04faf0d 100644
+index 3c41adf..7af4247 100644
 --- a/sputnikdao2/src/proposals.rs
 +++ b/sputnikdao2/src/proposals.rs
-@@ -336,7 +336,38 @@ impl Contract {
+@@ -336,7 +336,104 @@ impl Contract {
          }
      }
  
 -    fn internal_return_bonds(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
++    const REFUND_OPEN: u8 = 0;
++    const REFUND_IN_FLIGHT: u8 = 1;
++    const REFUND_SETTLED: u8 = 2;
++    const REFUND_FAILED: u8 = 3;
++    const GAS_FOR_REFUND_CALLBACK: Gas = Gas::from_tgas(20);
++
 +    fn proposal_bond_key(proposal_id: u64) -> Vec<u8> {
 +        let mut key = b"proposal_bond:".to_vec();
 +        key.extend_from_slice(&proposal_id.to_le_bytes());
 +        key
++    }
++
++    fn refund_state_key(proposal_id: u64) -> Vec<u8> {
++        let mut key = b"proposal_refund:".to_vec();
++        key.extend_from_slice(&proposal_id.to_le_bytes());
++        key
++    }
++
++    fn read_refund_state(proposal_id: u64) -> Option<(u8, u64, u128)> {
++        let value = env::storage_read(&Self::refund_state_key(proposal_id))?;
++        if value.len() != 25 {
++            env::panic_str("ERR_INVALID_REFUND_STATE");
++        }
++        let mut attempt = [0u8; 8];
++        attempt.copy_from_slice(&value[1..9]);
++        let mut bond = [0u8; 16];
++        bond.copy_from_slice(&value[9..]);
++        Some((
++            value[0],
++            u64::from_le_bytes(attempt),
++            u128::from_le_bytes(bond),
++        ))
++    }
++
++    fn write_refund_state(proposal_id: u64, status: u8, attempt: u64, bond: u128) {
++        let mut value = Vec::with_capacity(25);
++        value.push(status);
++        value.extend_from_slice(&attempt.to_le_bytes());
++        value.extend_from_slice(&bond.to_le_bytes());
++        env::storage_write(&Self::refund_state_key(proposal_id), &value);
++    }
++
++    fn proposal_bond_amount(proposal_id: u64, policy: &Policy) -> NearToken {
++        let value = env::storage_read(&Self::proposal_bond_key(proposal_id))
++            // Legacy proposals predate per-proposal amounts. The current
++            // policy amount is only a bounded fallback; a changed policy makes
++            // the historical principal ambiguous and must be resolved by the
++            // caller's trusted migration input before recovery is claimed.
++            .unwrap_or_else(|| policy.proposal_bond.as_yoctonear().to_le_bytes().to_vec());
++        if value.len() != 16 {
++            env::panic_str("ERR_INVALID_PROPOSAL_BOND");
++        }
++        NearToken::from_yoctonear(u128::from_le_bytes(value.try_into().unwrap()))
 +    }
 +
 +    fn internal_return_proposal_bond(
@@ -19,30 +68,47 @@ index 3c41adf..04faf0d 100644
 +        policy: &Policy,
 +        proposal: &Proposal,
 +    ) -> PromiseOrValue<()> {
-+        let key = Self::proposal_bond_key(proposal_id);
-+        let bond = match env::storage_read(&key) {
-+            Some(value) if value.len() == 16 => {
-+                let amount = u128::from_le_bytes(value.try_into().unwrap());
-+                if amount == 0 {
-+                    return PromiseOrValue::Value(());
-+                }
-+                NearToken::from_yoctonear(amount)
-+            }
-+            // Legacy proposals lack a recorded amount; consume one policy bond
-+            // and leave the zero sentinel so a second callback cannot refund it.
-+            None => policy.proposal_bond,
-+            Some(_) => return PromiseOrValue::Value(()),
++        let policy_bond = Self::proposal_bond_amount(proposal_id, policy);
++        let (status, attempt, recorded_bond) = Self::read_refund_state(proposal_id).unwrap_or((
++            Self::REFUND_OPEN,
++            0,
++            policy_bond.as_yoctonear(),
++        ));
++        let bond = if recorded_bond == 0 {
++            policy_bond.as_yoctonear()
++        } else {
++            recorded_bond
 +        };
-+        env::storage_write(&key, &0u128.to_le_bytes());
-+        self.locked_amount = self.locked_amount.saturating_sub(bond);
-+        Promise::new(proposal.proposer.clone()).transfer(bond).into()
++        if bond == 0 {
++            return PromiseOrValue::Value(());
++        }
++        match status {
++            Self::REFUND_SETTLED | Self::REFUND_IN_FLIGHT => return PromiseOrValue::Value(()),
++            Self::REFUND_OPEN | Self::REFUND_FAILED => {}
++            _ => env::panic_str("ERR_INVALID_REFUND_STATE"),
++        }
++        let next_attempt = attempt.checked_add(1).expect("ERR_REFUND_ATTEMPT_OVERFLOW");
++        Self::write_refund_state(proposal_id, Self::REFUND_IN_FLIGHT, next_attempt, bond);
++        Promise::new(proposal.proposer.clone())
++            .transfer(NearToken::from_yoctonear(bond))
++            .then(
++                Self::ext(env::current_account_id())
++                    .with_static_gas(Self::GAS_FOR_REFUND_CALLBACK)
++                    .on_refund_callback(proposal_id, next_attempt),
++            )
++            .into()
 +    }
 +
-+    fn internal_return_bonds(&mut self, proposal_id: u64, policy: &Policy, proposal: &Proposal) -> PromiseOrValue<()> {
++    fn internal_return_bonds(
++        &mut self,
++        proposal_id: u64,
++        policy: &Policy,
++        proposal: &Proposal,
++    ) -> PromiseOrValue<()> {
          if let ProposalKind::BountyDone { .. } = &proposal.kind {
              self.locked_amount = self.locked_amount.saturating_sub(policy.bounty_bond);
              Promise::new(proposal.proposer.clone())
-@@ -344,8 +375,7 @@ impl Contract {
+@@ -344,8 +441,7 @@ impl Contract {
                  .detach();
          }
  
@@ -52,7 +118,7 @@ index 3c41adf..04faf0d 100644
      }
  
      /// Executes given proposal and updates the contract's state.
-@@ -466,12 +496,13 @@ impl Contract {
+@@ -466,12 +562,13 @@ impl Contract {
                          .on_proposal_callback(proposal_id),
                  )
                  .into(),
@@ -67,7 +133,7 @@ index 3c41adf..04faf0d 100644
          proposal: &mut Proposal,
      ) -> PromiseOrValue<()> {
          let policy = self.policy.get().unwrap().to_policy();
-@@ -486,27 +517,30 @@ impl Contract {
+@@ -486,27 +583,31 @@ impl Contract {
              }
          }
          proposal.status = ProposalStatus::Approved;
@@ -83,7 +149,7 @@ index 3c41adf..04faf0d 100644
          proposal.status = ProposalStatus::Failed;
 -        PromiseOrValue::Value(())
 +        let policy = self.policy.get().unwrap().to_policy();
-+        self.internal_return_proposal_bond(proposal_id, &policy, proposal)
++        self.internal_return_bonds(proposal_id, &policy, proposal)
      }
  
      /// Process rejecting proposal.
@@ -95,13 +161,15 @@ index 3c41adf..04faf0d 100644
          return_bonds: bool,
      ) -> PromiseOrValue<()> {
          if return_bonds {
-             // Return bond to the proposer.
+-            // Return bond to the proposer.
 -            self.internal_return_bonds(policy, proposal).detach();
-+            self.internal_return_bonds(proposal_id, policy, proposal).detach();
++            // Return bond to the proposer through the receipt-settled path.
++            self.internal_return_bonds(proposal_id, policy, proposal)
++                .detach();
          }
  
          let proposal_data = proposal;
-@@ -583,6 +617,10 @@ impl Contract {
+@@ -583,6 +684,16 @@ impl Contract {
  
          self.proposals
              .insert(&id, &VersionedProposal::Latest(proposal));
@@ -109,10 +177,16 @@ index 3c41adf..04faf0d 100644
 +            &Self::proposal_bond_key(id),
 +            &env::attached_deposit().as_yoctonear().to_le_bytes(),
 +        );
++        env::storage_write(&Self::refund_state_key(id), &{
++            let mut value = vec![Self::REFUND_OPEN];
++            value.extend_from_slice(&0u64.to_le_bytes());
++            value.extend_from_slice(&env::attached_deposit().as_yoctonear().to_le_bytes());
++            value
++        });
          self.last_proposal_id += 1;
          self.locked_amount = self.locked_amount.saturating_add(env::attached_deposit());
          id
-@@ -642,12 +680,12 @@ impl Contract {
+@@ -642,12 +753,12 @@ impl Contract {
                          .detach();
                      true
                  } else if proposal.status == ProposalStatus::Removed {
@@ -127,7 +201,7 @@ index 3c41adf..04faf0d 100644
                          .detach();
                      true
                  } else {
-@@ -674,7 +712,7 @@ impl Contract {
+@@ -674,7 +785,7 @@ impl Contract {
                              .detach();
                      }
                      ProposalStatus::Expired => {
@@ -136,7 +210,7 @@ index 3c41adf..04faf0d 100644
                              .detach();
                      }
                      _ => {
-@@ -712,9 +750,9 @@ impl Contract {
+@@ -712,12 +823,42 @@ impl Contract {
              "ERR_UNEXPECTED_CALLBACK_PROMISES"
          );
          let result = if utils::is_promise_success() {
@@ -148,3 +222,36 @@ index 3c41adf..04faf0d 100644
          };
          self.proposals
              .insert(&proposal_id, &VersionedProposal::Latest(proposal));
+         result
+     }
++
++    /// Settles a proposal-bond refund only after the transfer receipt succeeds.
++    /// A failed transfer restores the debt; a stale or duplicate callback is ignored.
++    #[private]
++    pub fn on_refund_callback(&mut self, proposal_id: u64, attempt: u64) -> PromiseOrValue<()> {
++        assert_eq!(
++            env::promise_results_count(),
++            1,
++            "ERR_UNEXPECTED_REFUND_CALLBACK_PROMISES"
++        );
++        let (status, current_attempt, bond) = Self::read_refund_state(proposal_id)
++            .unwrap_or_else(|| env::panic_str("ERR_INVALID_REFUND_STATE"));
++        if status != Self::REFUND_IN_FLIGHT || current_attempt != attempt {
++            log!(
++                "Ignoring stale refund callback for proposal {} attempt {}",
++                proposal_id,
++                attempt
++            );
++            return PromiseOrValue::Value(());
++        }
++        if utils::is_promise_success() {
++            self.locked_amount = self
++                .locked_amount
++                .saturating_sub(NearToken::from_yoctonear(bond));
++            Self::write_refund_state(proposal_id, Self::REFUND_SETTLED, attempt, bond);
++        } else {
++            Self::write_refund_state(proposal_id, Self::REFUND_FAILED, attempt, bond);
++        }
++        PromiseOrValue::Value(())
++    }
+ }

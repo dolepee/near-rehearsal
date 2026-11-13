@@ -21,6 +21,9 @@ const PRODUCER = path.join(REPAIR, 'codex-producer.cjs');
 const PIPELINE = path.join(REPAIR, 'repair-pipeline.cjs');
 const PERSISTED_RECOVERY = path.join(REPAIR, 'persisted-recovery.cjs');
 const PERSISTED_ACCEPTANCE = path.join(REPAIR, 'persisted-recovery-acceptance.cjs');
+const MIXED = path.join(REPAIR, 'mixed-obligation.cjs');
+const {verifyMixedReport} = require(path.join(REPAIR, 'mixed-policy.cjs'));
+const {POLICY_VERSION, evaluateCandidate, stageFromChecks} = require(path.join(REPAIR, 'acceptance-orchestrator.cjs'));
 const CONTROLLER_MANIFEST = path.join(REPAIR, 'controller-manifest.json');
 const BUILD_MANIFEST = path.join(REPAIR, 'build-manifest.json');
 const DEFAULT_BASE_WASM = path.join(REPAIR, 'bundle/artifacts/base.wasm');
@@ -56,6 +59,7 @@ const CASE = {
     generationMs: 20 * 60 * 1000,
     pipelineMs: 25 * 60 * 1000,
     recoveryMs: 10 * 60 * 1000,
+    mixedMs: 15 * 60 * 1000,
     jobMs: 60 * 60 * 1000,
   },
 };
@@ -652,17 +656,53 @@ function createManager(options = {}) {
       }
       const recoveryAccepted = run.recovery?.ok === true;
       run.checks.recoveryAccepted = recoveryAccepted;
-      const accepted = freshAccepted && recoveryAccepted;
+
+      const mixedDir = path.join(runDir(run.id), 'mixed');
+      setPhase(run, 'mixed');
+      const mixedArgs = [
+        MIXED,
+        '--candidate-wasm', wasmPath,
+        '--out', mixedDir,
+      ];
+      if (config.sandboxDir) mixedArgs.push('--sandbox-dir', config.sandboxDir);
+      let mixedExitError = null;
+      try {
+        await spawnStep(run, 'Same-DAO mixed obligation', process.execPath, mixedArgs, {timeoutMs: config.timeouts.mixedMs});
+      } catch (error) {
+        mixedExitError = error;
+      }
+      const mixedReportPath = path.join(mixedDir, 'mixed-obligation.json');
+      const mixedReport = readJson(mixedReportPath);
+      const mixedCheck = mixedReport ? verifyMixedReport(mixedReport, {requireBlockPinned: true}) : {ok: false, errors: ['same-DAO mixed-obligation gate produced no verified report'], outcomes: null};
+      run.mixed = {
+        ok: mixedCheck.ok === true,
+        reportPath: 'mixed/mixed-obligation.json',
+        reportSha256: fs.existsSync(mixedReportPath) ? sha256File(mixedReportPath) : null,
+        report: mixedReport ? sanitizeValue(mixedReport) : null,
+        acceptance: sanitizeValue(mixedCheck),
+        error: mixedExitError?.message || null,
+      };
+      run.evidence.mixed = {
+        report: run.mixed.report,
+        acceptance: run.mixed.acceptance,
+        reportSha256: run.mixed.reportSha256,
+      };
+      run.checks.mixedAccepted = mixedCheck.ok === true;
+
+      const acceptanceVerdict = evaluateCandidate({
+        fresh: stageFromChecks(freshAccepted, freshAccepted ? [] : (pipeline.acceptanceErrors || ['fresh-state checks failed'])),
+        recovery: stageFromChecks(recoveryAccepted, recoveryAccepted ? [] : (run.recovery?.acceptanceErrors || [run.recovery?.error || 'persisted recovery did not pass acceptance'])),
+        mixed: stageFromChecks(mixedCheck.ok === true, mixedCheck.errors || [], {policyVersion: POLICY_VERSION}),
+      });
+      run.acceptancePolicy = acceptanceVerdict;
+      const accepted = acceptanceVerdict.ok;
       if (accepted) {
         run.status = 'accepted'; setPhase(run, 'accepted');
       } else {
-        run.status = freshAccepted && run.recovery?.status === 'inconclusive' ? 'inconclusive' : 'rejected';
+        run.status = freshAccepted && recoveryAccepted && mixedCheck.ok === false && mixedExitError ? 'inconclusive' : 'rejected';
         setPhase(run, run.status);
-        const reasons = [];
-        if (!freshAccepted) reasons.push(`fresh-state checks failed${pipeline.acceptanceErrors?.length ? `: ${pipeline.acceptanceErrors.join('; ')}` : '.'}`);
-        if (!recoveryAccepted) reasons.push(`persisted recovery ${run.recovery?.status || 'failed'}${run.recovery?.acceptanceErrors?.length ? `: ${run.recovery.acceptanceErrors.join('; ')}` : run.recovery?.error ? `: ${run.recovery.error}` : '.'}`);
-        if (pipelineExitError) reasons.push(`Pipeline exited: ${pipelineExitError.message}`);
-        run.error = `The repair ran but was not accepted. ${reasons.join(' ')}`;
+        run.error = `The repair ran but was not accepted by ${acceptanceVerdict.policyVersion}: ${acceptanceVerdict.errors.join('; ')}`;
+        if (pipelineExitError) run.error += ` Pipeline exited: ${pipelineExitError.message}`;
       }
     } catch (error) {
       if (watcher) clearInterval(watcher);
@@ -731,6 +771,8 @@ function createManager(options = {}) {
         logs: [], phaseLog: meta.phaseLog || [], baseline: meta.baseline || null,
         candidate: meta.candidate || null, consequence: meta.consequence || null, checks: meta.checks || null,
         recovery: meta.recovery || null,
+        mixed: meta.mixed || null,
+        acceptancePolicy: meta.acceptancePolicy || null,
         patch: result?.patch || null, evidence: result?.evidence || null,
       };
       runs.set(id, run);
@@ -804,6 +846,12 @@ function createManager(options = {}) {
         };
       })(),
       consequence: run.consequence, checks: run.checks,
+      mixed: run.mixed ? {
+        report: run.mixed.report,
+        reportSha256: run.mixed.reportSha256,
+        acceptance: run.mixed.acceptance,
+      } : null,
+      acceptancePolicy: run.acceptancePolicy || null,
       recovery: {
         report: recoveryReport,
         reportText: recoveryReportText,

@@ -22,6 +22,7 @@ const BASE_WASM = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'bundle', '
 const MIXED = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'mixed-obligation.cjs');
 const {verifyMixedReport} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'mixed-policy.cjs'));
 const {mixedPolicyIdentity} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'mixed-policy-identity.cjs'));
+const {POLICY_VERSION, evaluateCandidate, stageFromChecks} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'acceptance-orchestrator.cjs'));
 const BASE_WASM_SHA = '5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578';
 const SANDBOX_COMMIT = 'bc4e9e8cfb03d9e82f027883055624e18576993e';
 const SANDBOX_VERSION = '2.14.0';
@@ -612,6 +613,12 @@ const main = () => {
   const mixedReportWasmSha256 = mixedRun.report?.candidate?.wasmSha256;
   if (!mixedReportWasmSha256 || mixedReportWasmSha256 !== reviewerArtifactWasmSha256) fail('reviewer mixed gate did not execute the built/recorded candidate artifact');
   const mixedComparison = compareMixed(checkBundle(bundle).producerMixed, mixedRun.checked, mixedReportWasmSha256, reviewerArtifactWasmSha256);
+  const acceptancePolicy = evaluateCandidate({
+    fresh: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted/fresh acceptance did not pass']),
+    recovery: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted recovery report did not pass acceptance']),
+    mixed: stageFromChecks(mixedRun.checked.ok === true, mixedRun.checked.errors || [], {policyVersion: POLICY_VERSION}),
+  });
+  if (!acceptancePolicy.ok) fail(`versioned acceptance policy ${acceptancePolicy.policyVersion} failed: ${acceptancePolicy.errors.join('; ')}`);
   const resultPath = path.join(outDir, 'review-result.json');
   const result = {
     schema: 'near-rehearsal/repair-review-handoff/v1',
@@ -630,6 +637,7 @@ const main = () => {
     },
     run,
     summary,
+    acceptancePolicy,
     mixed: {
       mode: 'fresh-replay',
       policy: mixedRun.policy,
