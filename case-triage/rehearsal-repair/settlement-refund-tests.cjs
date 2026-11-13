@@ -84,12 +84,22 @@ async function finalStatus(worker, tx, sender) {
   throw new Error(`tx ${hash} did not reach FINAL: ${JSON.stringify(last)}`);
 }
 
-async function withHeight(worker, summary) {
-  if (!summary?.blockHash) return summary;
+async function withHeight(worker, summary, label) {
+  if (!summary?.blockHash) throw new Error(`required chronology capture for ${label} has no block hash`);
+  let block;
   try {
-    const block = await worker.provider.sendJsonRpc('block', {block_id: summary.blockHash});
-    summary.blockHeight = block?.header?.height ?? summary.blockHeight;
-  } catch {}
+    block = await worker.provider.sendJsonRpc('block', {block_id: summary.blockHash});
+  } catch (error) {
+    throw new Error(`required chronology capture for ${label} failed: ${error.message}`);
+  }
+  const returnedHash = block?.header?.hash ?? block?.hash;
+  if (!returnedHash || returnedHash !== summary.blockHash) {
+    throw new Error(`required chronology capture for ${label} returned a different block hash`);
+  }
+  if (!Number.isInteger(block?.header?.height)) {
+    throw new Error(`required chronology capture for ${label} has no block height`);
+  }
+  summary.blockHeight = block.header.height;
   return summary;
 }
 
@@ -219,7 +229,7 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   const kind = {FunctionCall: {receiver_id: 'missing-target.test.near', actions: [{method_name: 'ping', args: '', deposit: '0', gas: ACTION_GAS.toString()}]}};
   stage(`${tag} add`);
   const add = await proposer.callRaw(dao, 'add_proposal', {proposal: {description: 'deleted proposer refund', kind}}, {gas: GAS, attachedDeposit: BOND.toString()});
-  const addFinal = await withHeight(worker, summarize(await finalStatus(worker, add, proposer.accountId)));
+  const addFinal = await withHeight(worker, summarize(await finalStatus(worker, add, proposer.accountId)), 'add proposal');
   const id = add.parseResult();
   let upgrade = null;
   let deleteFinal = null;
@@ -234,18 +244,18 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   const vote = await voter.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
   const voteFinal = summarize(await finalStatus(worker, vote, voter.accountId));
   const vote2 = await voter2.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
-  const vote2Final = await withHeight(worker, summarize(await finalStatus(worker, vote2, voter2.accountId)));
+  const vote2Final = await withHeight(worker, summarize(await finalStatus(worker, vote2, voter2.accountId)), 'second approval');
   const failedProposal = await waitProposal(worker, dao, id, 'Failed');
 
   if (baseWasm) {
     stage(`${tag} upgrade to the candidate`);
     const codeHash = hashContract(wasm);
     const upgradeDeploy = await dao.deploy(wasm);
-    const upgradeDeployFinal = await withHeight(worker, summarize(await finalStatus(worker, upgradeDeploy, root.accountId)));
+    const upgradeDeployFinal = await withHeight(worker, summarize(await finalStatus(worker, upgradeDeploy, root.accountId)), 'candidate upgrade');
     upgradeDeployFinal.wasmSha256 = sha256(wasm);
     upgradeDeployFinal.codeHash = codeHash;
     const migrate = await dao.callRaw(dao, 'migrate', {}, {gas: GAS});
-    const migrateFinal = await withHeight(worker, summarize(await finalStatus(worker, migrate, root.accountId)));
+    const migrateFinal = await withHeight(worker, summarize(await finalStatus(worker, migrate, root.accountId)), 'migrate');
     let installed = false;
     for (let i = 0; i < 40; i += 1) {
       const code = await dao.viewCode();
@@ -259,7 +269,7 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
     deleteFinal = {transactionHash: deleted?.transactionReceipt?.hash || null, transactionOutcome: {status: 'DeleteAccount submitted'}};
     stage(`${tag} legacy finalize while the proposer is deleted`);
     const legacyFinalize = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
-    const legacyFinalizeFinal = await withHeight(worker, summarize(await finalStatus(worker, legacyFinalize, voter.accountId)));
+    const legacyFinalizeFinal = await withHeight(worker, summarize(await finalStatus(worker, legacyFinalize, voter.accountId)), 'legacy finalize');
     await waitProposal(worker, dao, id, 'Failed');
     upgrade.legacyFinalize = legacyFinalizeFinal;
   }
