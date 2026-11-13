@@ -5,6 +5,7 @@ out/run.log
 out/*.log
 .npm/
 .local/
+.wrangler/
 
 # Private strategy and recording notes stay outside the repository.
 /substrate/BUILD_BRIEF.txt

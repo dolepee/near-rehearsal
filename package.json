@@ -33,6 +33,8 @@
     "test:operation-classification": "node scripts/test-operation-classification.cjs",
     "test:release-review": "node scripts/test-release-review-guards.cjs",
     "build:consequences": "node scripts/build-consequence-workbench.cjs",
+    "build:public": "node scripts/build-public-site.cjs",
+    "test:public": "node scripts/test-public-site.cjs",
     "test:consequences": "node scripts/test-consequence-workbench.cjs",
     "test": "node scripts/test-core.cjs",
     "doctor": "node scripts/check-setup.cjs",
