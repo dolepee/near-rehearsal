@@ -23,23 +23,53 @@ function base58Encode(bytes) {
   return out || '1';
 }
 
-function successfulChildReceipt(deploy, label, fail) {
-  const id = deploy?.transactionOutcome?.status?.SuccessReceiptId;
-  if (!id) { fail(`${label} has no SuccessReceiptId`); return false; }
-  const receipt = (deploy.receipts || []).find((entry) => entry?.id === id);
-  if (!receipt) { fail(`${label} SuccessReceiptId is not present in its receipts`); return false; }
-  if (receipt.executorId !== deploy.transaction?.receiverId) { fail(`${label} child receipt executed by the wrong receiver`); return false; }
-  const status = receipt.status || {};
-  if (status.Failure) { fail(`${label} child receipt is a failure`); return false; }
-  const hasSuccessValue = Object.prototype.hasOwnProperty.call(status, 'SuccessValue');
-  const hasSuccessReceipt = typeof status.SuccessReceiptId === 'string' && status.SuccessReceiptId.length > 0;
-  if (!hasSuccessValue && !hasSuccessReceipt) { fail(`${label} child receipt is not successful`); return false; }
-  return true;
+function successfulReceiptChain(transaction, label, fail) {
+  const start = transaction?.transactionOutcome?.status?.SuccessReceiptId;
+  if (!start) { fail(`${label} has no SuccessReceiptId`); return false; }
+  if (!Array.isArray(transaction.transactionOutcome.receiptIds) || !transaction.transactionOutcome.receiptIds.includes(start)) {
+    fail(`${label} initial transaction does not link its SuccessReceiptId`);
+    return false;
+  }
+  const receipts = Array.isArray(transaction.receipts) ? transaction.receipts : [];
+  const byId = new Map();
+  for (const receipt of receipts) {
+    if (!receipt?.id) continue;
+    if (byId.has(receipt.id)) { fail(`${label} has a duplicate receipt id`); return false; }
+    byId.set(receipt.id, receipt);
+  }
+  const seen = new Set();
+  let id = start;
+  let first = true;
+  while (id) {
+    if (seen.has(id)) { fail(`${label} receipt chain contains a cycle`); return false; }
+    seen.add(id);
+    const receipt = byId.get(id);
+    if (!receipt) { fail(`${label} receipt chain has a missing child`); return false; }
+    if (first) {
+      if (receipt.executorId !== transaction.transaction?.receiverId) {
+        fail(`${label} first child receipt executed by the wrong receiver`);
+        return false;
+      }
+      first = false;
+    }
+    const status = receipt.status || {};
+    if (status.Failure) { fail(`${label} receipt chain contains a failure`); return false; }
+    if (Object.prototype.hasOwnProperty.call(status, 'SuccessValue')) return true;
+    const next = typeof status.SuccessReceiptId === 'string' ? status.SuccessReceiptId : null;
+    if (!next) { fail(`${label} receipt chain has no terminal SuccessValue`); return false; }
+    if (!Array.isArray(receipt.receiptIds) || !receipt.receiptIds.includes(next)) {
+      fail(`${label} receipt chain child is not linked by the preceding receipt`);
+      return false;
+    }
+    id = next;
+  }
+  fail(`${label} receipt chain has no terminal SuccessValue`);
+  return false;
 }
 
 function deploymentCommitment(deploy, label, fail) {
   if (!deploy || deploy.finalExecutionStatus !== 'FINAL') { fail(`${label} deployment was not FINAL`); return null; }
-  if (!successfulChildReceipt(deploy, label, fail)) return null;
+  if (!successfulReceiptChain(deploy, label, fail)) return null;
   const action = (deploy.transaction?.actions || []).find((entry) => entry && entry.DeployContract);
   if (!action) { fail(`${label} deployment has no DeployContract action`); return null; }
   let code;
@@ -85,7 +115,7 @@ function verifyScenario(scenario, mode, context) {
       if (upgradedCode !== candidateWasmSha256) failFor(false, 'inherited upgrade does not commit to the candidate WASM');
       if (upgrade.codeHash !== base58Encode(Buffer.from(candidateWasmSha256, 'hex'))) failFor(false, 'inherited installed code hash is not the candidate');
       if (upgrade.migrate?.finalExecutionStatus !== 'FINAL') failFor(false, 'inherited migrate was not successful');
-      if (upgrade.migrate && !successfulChildReceipt(upgrade.migrate, 'inherited migrate', (message) => failFor(false, message))) {
+      if (upgrade.migrate && !successfulReceiptChain(upgrade.migrate, 'inherited migrate', (message) => failFor(false, message))) {
         failFor(false, 'inherited migrate child receipt failed');
       }
     }

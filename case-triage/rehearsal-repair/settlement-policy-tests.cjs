@@ -36,6 +36,73 @@ const labelSwapCheck = verifySettlementReport(labelSwap, {candidateWasmSha256: f
 assert.equal(labelSwapCheck.ok, false, 'copied identity labels must not replace DeployContract evidence');
 assert.ok(labelSwapCheck.errors.some((error) => /DeployContract|deployment label|commitment|installed code hash/.test(error)));
 
+function makeMultiHop(report, select) {
+  const tx = select(report);
+  const id = tx.transactionOutcome.status.SuccessReceiptId;
+  const first = tx.receipts.find((receipt) => receipt.id === id);
+  first.status = {SuccessReceiptId: 'hop-2'};
+  first.receiptIds = [...(first.receiptIds || []), 'hop-2'];
+  tx.receipts.push({id: 'hop-2', receiptIds: [], executorId: first.executorId, status: {SuccessValue: ''}});
+  return tx;
+}
+
+const multiHop = JSON.parse(JSON.stringify(correctedReport));
+makeMultiHop(multiHop, (report) => report.fresh.deploy);
+assert.equal(verifySettlementReport(multiHop, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, true,
+  'a linked multi-hop success must pass');
+
+const multiHopMigrate = JSON.parse(JSON.stringify(correctedReport));
+makeMultiHop(multiHopMigrate, (report) => report.inherited.transactions.upgrade.migrate);
+assert.equal(verifySettlementReport(multiHopMigrate, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, true,
+  'the shared traversal must also follow a multi-hop migrate chain');
+
+const terminalFailure = JSON.parse(JSON.stringify(multiHop));
+terminalFailure.fresh.deploy.receipts.find((receipt) => receipt.id === 'hop-2').status = {Failure: {ActionError: {kind: 'synthetic terminal failure'}}};
+assert.equal(verifySettlementReport(terminalFailure, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a terminal failure at the end of the receipt chain must fail');
+
+const missingGrandchild = JSON.parse(JSON.stringify(correctedReport));
+{
+  const deploy = missingGrandchild.fresh.deploy;
+  const id = deploy.transactionOutcome.status.SuccessReceiptId;
+  const first = deploy.receipts.find((receipt) => receipt.id === id);
+  first.status = {SuccessReceiptId: 'missing-hop'};
+  first.receiptIds = [...(first.receiptIds || []), 'missing-hop'];
+}
+assert.equal(verifySettlementReport(missingGrandchild, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a missing child in the receipt chain must fail');
+
+const cycle = JSON.parse(JSON.stringify(correctedReport));
+{
+  const deploy = cycle.fresh.deploy;
+  const id = deploy.transactionOutcome.status.SuccessReceiptId;
+  const first = deploy.receipts.find((receipt) => receipt.id === id);
+  first.status = {SuccessReceiptId: id};
+  first.receiptIds = [...(first.receiptIds || []), id];
+}
+assert.equal(verifySettlementReport(cycle, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a receipt cycle must fail');
+
+const disconnectedChild = JSON.parse(JSON.stringify(correctedReport));
+{
+  const deploy = disconnectedChild.fresh.deploy;
+  const id = deploy.transactionOutcome.status.SuccessReceiptId;
+  const first = deploy.receipts.find((receipt) => receipt.id === id);
+  first.status = {SuccessReceiptId: 'disconnected-hop'};
+}
+assert.equal(verifySettlementReport(disconnectedChild, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a child not linked by receiptIds must fail');
+
+const duplicateReceipt = JSON.parse(JSON.stringify(correctedReport));
+duplicateReceipt.fresh.deploy.receipts.push({...duplicateReceipt.fresh.deploy.receipts[0]});
+assert.equal(verifySettlementReport(duplicateReceipt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'duplicate receipt IDs must fail');
+
+const unlinkedStart = JSON.parse(JSON.stringify(correctedReport));
+unlinkedStart.fresh.deploy.transactionOutcome.receiptIds = [];
+assert.equal(verifySettlementReport(unlinkedStart, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the initial transaction receiptIds must link the SuccessReceiptId');
+
 const failedDeploymentReceipt = JSON.parse(JSON.stringify(correctedReport));
 {
   const deploy = failedDeploymentReceipt.fresh.deploy;
@@ -150,6 +217,14 @@ console.log(JSON.stringify({
     'identity-label-swap-fails',
     'installed-code-hash-fails',
     'failed-deployment-receipt-fails',
+    'multi-hop-success-passes',
+    'multi-hop-migrate-passes',
+    'terminal-failure-fails',
+    'missing-grandchild-fails',
+    'receipt-cycle-fails',
+    'disconnected-child-fails',
+    'duplicate-receipt-fails',
+    'unlinked-initial-receipt-fails',
     'missing-deployment-receipts-fail',
     'failed-upgrade-receipt-fails',
     'failed-migrate-receipt-fails',
