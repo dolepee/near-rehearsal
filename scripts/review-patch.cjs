@@ -1,0 +1,575 @@
+'use strict';
+/*
+ * Model-free review of a maintainer-supplied source patch.
+ *
+ * This command accepts a diff, not a pre-approved Rehearsal bundle. It applies
+ * the diff to a clean checkout of the supported Sputnik revision, builds it,
+ * runs the existing fresh-state replay and persisted-recovery acceptance, and
+ * writes a review report with a deliberately narrow status vocabulary.
+ *
+ * The acceptance policy is loaded from the repository, not from the patch or
+ * any caller-supplied report. The caller's repository/base/head strings are
+ * recorded as supplied metadata; the checked source commit, patch bytes,
+ * applied source and built WASM are hashed independently.
+ */
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const {spawnSync} = require('node:child_process');
+const {formatYocto, summarize} = require('./repair-review.cjs');
+
+const ROOT = path.resolve(__dirname, '..');
+const REPAIR = path.join(ROOT, 'case-triage', 'rehearsal-repair');
+const PIPELINE = path.join(REPAIR, 'repair-pipeline.cjs');
+const PERSISTED = path.join(REPAIR, 'persisted-recovery.cjs');
+const PERSISTED_ACCEPTANCE = path.join(REPAIR, 'persisted-recovery-acceptance.cjs');
+const CONTROLLER_MANIFEST = path.join(REPAIR, 'controller-manifest.json');
+const BUILD_MANIFEST = path.join(REPAIR, 'build-manifest.json');
+const ACCEPTANCE = path.join(REPAIR, 'acceptance.cjs');
+const BASE_REPORT = path.join(REPAIR, 'out', 'issue238-local.json');
+const BASE_WASM = path.join(REPAIR, 'bundle', 'artifacts', 'base.wasm');
+const SCHEMA = 'near-rehearsal/review-patch/v1';
+const CASE_ID = 'sputnik-238-async-bond';
+const SOURCE_PATH = 'sputnikdao2/src/proposals.rs';
+const SANDBOX_ENV_KEYS = ['REPAIR_SANDBOX_DIR', 'NEAR_SANDBOX_BIN_PATH', 'NEAR_SANDBOX_BINARY_PATH'];
+const MAX_PATCH_BYTES = 1024 * 1024;
+const PIPELINE_TIMEOUT_MS = 30 * 60 * 1000;
+const PERSISTED_TIMEOUT_MS = 15 * 60 * 1000;
+const ACCEPTANCE_TIMEOUT_MS = 60 * 1000;
+
+const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
+const sha256File = (file) => sha256(fs.readFileSync(file));
+const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
+const readJson = (file) => {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
+};
+const exists = (file) => Boolean(file) && fs.existsSync(file);
+const isFile = (file) => exists(file) && fs.statSync(file).isFile();
+const isDir = (file) => exists(file) && fs.statSync(file).isDirectory();
+
+function usage() {
+  return [
+    'Usage:',
+    '  npm run review:patch -- --patch <maintainer.diff> --source <clean-pinned-checkout> --out <new-dir> [options]',
+    '',
+    'Required:',
+    '  --patch <file>       Unified diff against the pinned Sputnik revision',
+    '  --source <dir>       Clean checkout at 5434a59dec23ee0c49df8c8c4350c208a7e75b0b',
+    '  --out <dir>          New or empty output directory for evidence',
+    '',
+    'Optional:',
+    '  --repo <label>       Caller-supplied repository label; recorded, not verified',
+    '  --base <label>       Caller-supplied base label; recorded, not verified',
+    '  --head <label>       Caller-supplied head label; recorded, not verified',
+    '  --base-report <file> Pinned authored base report (default: issue238-local.json)',
+    '  --sandbox-dir <dir>  Directory containing the pinned near-sandbox binary',
+    '  --help               Show this help',
+    '',
+    'Statuses:',
+    '  ACCEPTED       The defined source, build, replay, recovery and preservation checks passed.',
+    '  REJECTED       A valid executable candidate failed a defined recovery or preservation check.',
+    '  INPUT_ERROR    The patch, source checkout or caller input could not form a valid candidate.',
+    '  BUILD_ERROR    The candidate was accepted as input but did not compile.',
+    '  INCONCLUSIVE   A missing runtime or interrupted execution prevented a judgment.',
+    '',
+    'ACCEPTED does not mean universally safe or live-DAO recovered. It means these',
+    'defined checks passed for this pinned case. The output is local evidence, not',
+    'a signed report or a GitHub merge restriction.',
+  ].join('\n');
+}
+
+function parseArgs(argv) {
+  const opts = {
+    patch: null,
+    source: null,
+    out: null,
+    repo: null,
+    base: null,
+    head: null,
+    baseReport: BASE_REPORT,
+    sandboxDir: null,
+  };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--patch') opts.patch = argv[++i];
+    else if (arg === '--source') opts.source = argv[++i];
+    else if (arg === '--out') opts.out = argv[++i];
+    else if (arg === '--repo') opts.repo = argv[++i];
+    else if (arg === '--base') opts.base = argv[++i];
+    else if (arg === '--head') opts.head = argv[++i];
+    else if (arg === '--base-report') opts.baseReport = argv[++i];
+    else if (arg === '--sandbox-dir') opts.sandboxDir = argv[++i];
+    else if (arg === '--help' || arg === '-h') opts.help = true;
+    else throw new Error(`unknown argument: ${arg}`);
+  }
+  if (opts.help) return opts;
+  if (!opts.patch) throw new Error('--patch is required');
+  if (!opts.source) throw new Error('--source is required');
+  if (!opts.out) throw new Error('--out is required');
+  return opts;
+}
+
+function sandboxFromEnvironment(env = process.env) {
+  for (const key of SANDBOX_ENV_KEYS) {
+    if (env[key]) return path.resolve(env[key]);
+  }
+  return null;
+}
+
+function checkOutput(outDir) {
+  if (!exists(outDir)) return;
+  if (!isDir(outDir)) throw new Error(`--out is not a directory: ${outDir}`);
+  if (fs.readdirSync(outDir).length) throw new Error(`--out must be new or empty: ${outDir}`);
+}
+
+function checkSource(sourceDir, pinnedCommit) {
+  if (!isDir(sourceDir)) throw new Error(`source checkout not found: ${sourceDir}`);
+  if (!exists(path.join(sourceDir, '.git'))) throw new Error('source checkout is not a Git worktree');
+  const headRun = spawnSync('git', ['-C', sourceDir, 'rev-parse', 'HEAD'], {encoding: 'utf8', timeout: 30_000});
+  const head = headRun.status === 0 ? headRun.stdout.trim() : null;
+  if (!head) throw new Error('could not read source checkout HEAD');
+  if (head !== pinnedCommit) throw new Error(`source checkout HEAD ${head} does not match pinned ${pinnedCommit}`);
+  const statusRun = spawnSync('git', ['-C', sourceDir, 'status', '--porcelain', '--untracked-files=all'], {
+    encoding: 'utf8', timeout: 30_000, maxBuffer: 16 * 1024 * 1024,
+  });
+  if (statusRun.status !== 0) throw new Error('could not inspect source checkout status');
+  if (statusRun.stdout.trim()) throw new Error('source checkout is dirty; use a clean checkout');
+  return head;
+}
+
+function policyIdentity(baseReport) {
+  const controller = JSON.parse(fs.readFileSync(CONTROLLER_MANIFEST, 'utf8'));
+  const build = JSON.parse(fs.readFileSync(BUILD_MANIFEST, 'utf8'));
+  const files = {
+    controllerManifest: sha256File(CONTROLLER_MANIFEST),
+    buildManifest: sha256File(BUILD_MANIFEST),
+    acceptance: sha256File(ACCEPTANCE),
+    persistedAcceptance: sha256File(PERSISTED_ACCEPTANCE),
+    baseReport: sha256File(baseReport),
+    baseWasm: sha256File(BASE_WASM),
+  };
+  const identity = {
+    caseId: CASE_ID,
+    sourceRepository: controller.source.repository,
+    sourceCommit: controller.source.commit,
+    allowedPaths: controller.allowedPaths,
+    build: build.build,
+    runtime: build.localRuntime,
+    files,
+  };
+  identity.policySha256 = sha256(Buffer.from(JSON.stringify(identity), 'utf8'));
+  return identity;
+}
+
+function runNode(args, options = {}) {
+  return spawnSync(process.execPath, args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: options.timeout || PIPELINE_TIMEOUT_MS,
+    maxBuffer: 64 * 1024 * 1024,
+    env: {...process.env, ...(options.env || {})},
+  });
+}
+
+function rel(root, file) {
+  return path.relative(root, file).split(path.sep).join('/');
+}
+
+function writeLog(file, result) {
+  fs.writeFileSync(file, [
+    `exit=${result.status}`,
+    `signal=${result.signal || ''}`,
+    '--- stdout',
+    result.stdout || '',
+    '--- stderr',
+    result.stderr || '',
+  ].join('\n'));
+}
+
+function classify(stage, details = {}) {
+  if (details.inputError) return {status: 'INPUT_ERROR', reason: details.inputError};
+  if (details.buildError) return {status: 'BUILD_ERROR', reason: details.buildError};
+  if (details.inconclusive) return {status: 'INCONCLUSIVE', reason: details.inconclusive};
+  if (details.rejected) return {status: 'REJECTED', reason: details.rejected};
+  if (details.accepted) return {status: 'ACCEPTED', reason: 'All defined checks passed.'};
+  return {status: 'INCONCLUSIVE', reason: `No terminal result was produced at ${stage}.`};
+}
+
+function extractPipelineFailure(pipelineDir) {
+  const buildLog = path.join(pipelineDir, 'build.log');
+  const replayLog = path.join(pipelineDir, 'replay.log');
+  if (isFile(buildLog)) {
+    const text = fs.readFileSync(buildLog, 'utf8');
+    if (/exit=[1-9]/.test(text)) return {buildError: 'Candidate source did not compile.'};
+  }
+  if (isFile(replayLog)) return {rejected: 'Candidate executable failed the fresh-state replay check.'};
+  return null;
+}
+
+function reportSummary(report, acceptance, run) {
+  if (!report) return null;
+  const summary = summarize(report, {
+    mode: 'source-build',
+    modeLabel: 'source build (fresh compile and replay)',
+    acceptance: {ok: acceptance?.ok === true},
+  });
+  return {
+    ...summary,
+    accepted: acceptance?.ok === true,
+    sourceCommit: report.source?.commit || null,
+    candidateWasmSha256: report.candidate?.wasmSha256 || null,
+  };
+}
+
+function checksFrom(pipeline, report, acceptance) {
+  const checks = [];
+  const add = (id, ok, detail, status = null) => checks.push({
+    id,
+    status: status || (ok === true ? 'pass' : ok === false ? 'fail' : 'not-run'),
+    detail,
+  });
+  add('patch.allowlist', pipeline?.changedPaths?.length === 1 && pipeline.changedPaths[0] === SOURCE_PATH,
+    pipeline ? `changed paths: ${(pipeline.changedPaths || []).join(', ') || 'none'}` : 'pipeline did not run');
+  add('build', Boolean(pipeline?.hashes?.wasm), pipeline?.hashes?.wasm ? `built ${pipeline.hashes.wasm}` : 'no built WASM');
+  add('fresh-replay', pipeline?.ok === true && (pipeline?.acceptanceErrors || []).length === 0,
+    pipeline ? (pipeline.acceptanceErrors || []).join('; ') || 'fresh replay accepted' : 'pipeline did not run');
+  add('persisted-recovery', Boolean(report), report ? `report ${report.schema || 'present'}` : 'no persisted report');
+  add('persisted-acceptance', acceptance?.ok === true, acceptance?.errors?.join('; ') || (acceptance ? 'accepted' : 'acceptance did not run'));
+  if (report) {
+    add('failed-status', report.failed?.proposal?.status === 'Failed', `failed proposal status: ${report.failed?.proposal?.status || 'missing'}`);
+    add('bond-recovered-once', BigInt(report.firstRecovery?.grossRecoveryYocto || 0) === 10n ** 24n,
+      `gross recovery: ${formatYocto(report.firstRecovery?.grossRecoveryYocto)}`);
+    add('retry-no-principal', BigInt(report.secondRetry?.grossRecoveryYocto || 0) === 0n,
+      `retry gross: ${formatYocto(report.secondRetry?.grossRecoveryYocto)}`);
+    add('healthy-obligations', report.healthyPreservation?.checks?.settledApproved === true
+      && report.healthyPreservation?.checks?.pendingPayout === true
+      && report.healthyPreservation?.checks?.pendingNoSecondPayout === true,
+    'settled Transfer paid once; inherited pending Transfer preserved');
+    add('state-policy-proposal', report.preservation?.state === true
+      && report.preservation?.policy === true
+      && report.preservation?.proposal === true,
+    'state, policy and proposal preserved');
+    add('authority', report.authority?.unauthorizedUpdateRejected === true
+      && report.authority?.unauthorizedFinalizeRejected === true,
+    'unauthorized update and finalize rejected');
+  }
+  return checks;
+}
+
+function renderReport(review) {
+  const lines = [
+    `# Rehearsal patch review — ${review.status}`,
+    '',
+    review.status === 'ACCEPTED'
+      ? '**ACCEPTED means the defined checks below passed for this pinned case. It does not mean the patch is universally safe, deployed, or live-DAO recovered.**'
+      : review.status === 'REJECTED'
+        ? '**REJECTED means a valid executable candidate failed a defined recovery or preservation check. It is not a judgment that the patch is malicious or that every possible case fails.**'
+        : review.status === 'BUILD_ERROR'
+          ? '**BUILD_ERROR means the candidate was accepted as input but did not compile. No economic recovery result was produced.**'
+          : review.status === 'INPUT_ERROR'
+            ? '**INPUT_ERROR means the patch, source checkout or caller input could not form a valid candidate. No economic recovery result was produced.**'
+            : '**INCONCLUSIVE means a missing runtime or interrupted execution prevented a judgment. No success is implied.**',
+    '',
+    '## What was supplied',
+    '',
+    `- Repository label: ${review.supplied.repo || '(not supplied)'}`,
+    `- Base label: ${review.supplied.base || '(not supplied)'}`,
+    `- Head label: ${review.supplied.head || '(not supplied)'}`,
+    `- Patch filename: ${review.supplied.patchFilename}`,
+    '',
+    'These labels are caller metadata. They are not verified provenance.',
+    '',
+    '## What was actually checked',
+    '',
+    `- Source commit read from the checkout: ${review.verified.sourceCommit || 'not checked'}`,
+    `- Patch SHA-256: ${review.verified.patchSha256 || 'not checked'}`,
+    `- Applied source SHA-256: ${review.verified.appliedSourceSha256 || 'not built'}`,
+    `- Built WASM SHA-256: ${review.verified.builtWasmSha256 || 'not built'}`,
+    `- Checker policy SHA-256: ${review.policy.policySha256}`,
+    '',
+    '## Money outcome',
+    '',
+    ...(review.summary ? [
+      `- First recovery: ${review.summary.firstRecovery.gross} gross; ${review.summary.firstRecovery.gas} gas; proposer net ${review.summary.firstRecovery.proposerNet}; failed status preserved: ${review.summary.firstRecovery.endedFailed}`,
+      `- Retry: ${review.summary.retry.gross} gross; ${review.summary.retry.gas} gas; proposer net ${review.summary.retry.proposerNet}; no extra principal: ${review.summary.retry.grossYocto === '0'}`,
+      `- Healthy controls: settled Transfer ${review.summary.healthy.settledTransfer || 'not measured'}; inherited pending Transfer ${review.summary.healthy.pendingTransfer || 'not measured'}`,
+    ] : ['- No accepted money result was produced. See the checks and evidence below.']),
+    '',
+    '## Checks',
+    '',
+    ...review.checks.map((check) => `- **${check.status}** ${check.id}: ${check.detail}`),
+    '',
+    '## Evidence',
+    '',
+    `- Status: ${review.evidence.status}`,
+    `- Report: ${review.evidence.report}`,
+    `- Log and artifact directory: ${review.evidence.dir}`,
+    '',
+    '## Limitations',
+    '',
+    ...review.limitations.map((line) => `- ${line}`),
+    '',
+  ];
+  return lines.join('\n');
+}
+
+function safeCopy(from, to) {
+  if (!isFile(from)) return false;
+  fs.mkdirSync(path.dirname(to), {recursive: true});
+  fs.copyFileSync(from, to);
+  return true;
+}
+
+function writeSums(dir) {
+  const files = [];
+  const walk = (current) => {
+    for (const entry of fs.readdirSync(current, {withFileTypes: true})) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.isFile()) files.push(full);
+    }
+  };
+  walk(dir);
+  const lines = files.sort().map((file) => `${sha256File(file)}  ${rel(dir, file)}`);
+  fs.writeFileSync(path.join(dir, 'SHA256SUMS'), `${lines.join('\n')}\n`);
+}
+
+function runReview(opts) {
+  const patchPath = path.resolve(opts.patch);
+  const sourceDir = path.resolve(opts.source);
+  const outDir = path.resolve(opts.out);
+  const baseReport = path.resolve(opts.baseReport || BASE_REPORT);
+  const controller = JSON.parse(fs.readFileSync(CONTROLLER_MANIFEST, 'utf8'));
+  const pinnedCommit = controller.source.commit;
+  const supplied = {
+    repo: opts.repo || null,
+    base: opts.base || null,
+    head: opts.head || null,
+    patchFilename: path.basename(patchPath),
+  };
+  if (!isFile(patchPath)) throw new Error(`patch not found: ${patchPath}`);
+  if (fs.statSync(patchPath).size > MAX_PATCH_BYTES) throw new Error(`patch exceeds ${MAX_PATCH_BYTES} bytes`);
+  if (!isFile(baseReport)) throw new Error(`base report not found: ${baseReport}`);
+  checkOutput(outDir);
+  fs.mkdirSync(outDir, {recursive: true});
+  const evidenceDir = path.join(outDir, 'evidence');
+  fs.mkdirSync(evidenceDir, {recursive: true});
+  fs.writeFileSync(path.join(outDir, 'supplied.json'), json(supplied));
+  fs.copyFileSync(patchPath, path.join(evidenceDir, 'candidate.patch'));
+
+  const policy = policyIdentity(baseReport);
+  const verified = {
+    sourceCommit: null,
+    appliedSourceSha256: null,
+    patchSha256: sha256File(patchPath),
+    builtWasmSha256: null,
+    sourceClean: null,
+  };
+  const evidence = {status: 'review-status.json', report: 'review-report.md', dir: 'evidence/'};
+  const limitations = [
+    'Local NEAR Sandbox 2.14 only; no public write, deployment, production upgrade or live-DAO recovery.',
+    'The supported case is pinned to one Sputnik revision and one failed async FunctionCall obligation.',
+    'Caller-supplied repository/base/head labels are recorded, not verified.',
+    'The report is evidence, not a signature and not a GitHub-enforced merge restriction.',
+    'A rejected or incomplete run is preserved but is not an accepted replay bundle.',
+  ];
+
+  let status = 'INCONCLUSIVE';
+  let reason = 'No terminal result was produced.';
+  let pipeline = null;
+  let report = null;
+  let acceptance = null;
+  let summary = null;
+  let checks = [];
+
+  try {
+    verified.sourceCommit = checkSource(sourceDir, pinnedCommit);
+    verified.sourceClean = true;
+  } catch (error) {
+    const result = classify('input', {inputError: error.message});
+    status = result.status;
+    reason = result.reason;
+    checks = [{id: 'source-checkout', status: 'fail', detail: error.message}];
+  }
+
+  if (status === 'INCONCLUSIVE') {
+    const sandboxDir = path.resolve(opts.sandboxDir || sandboxFromEnvironment() || '');
+    if (!sandboxDir || !isFile(path.join(sandboxDir, 'near-sandbox'))) {
+      const result = classify('runtime', {inconclusive: 'pinned near-sandbox binary was not found'});
+      status = result.status;
+      reason = result.reason;
+      checks = [{id: 'sandbox-runtime', status: 'error', detail: result.reason}];
+    } else {
+      const pipelineDir = path.join(outDir, 'pipeline');
+      const pipelineResult = runNode([
+        PIPELINE,
+        '--patch', patchPath,
+        '--source', sourceDir,
+        '--out', pipelineDir,
+        '--base-report', baseReport,
+        '--sandbox-dir', sandboxDir,
+      ], {timeout: PIPELINE_TIMEOUT_MS});
+      writeLog(path.join(evidenceDir, 'pipeline.log'), pipelineResult);
+      safeCopy(path.join(pipelineDir, 'build.log'), path.join(evidenceDir, 'build.log'));
+      safeCopy(path.join(pipelineDir, 'replay.log'), path.join(evidenceDir, 'replay.log'));
+      safeCopy(path.join(pipelineDir, 'pipeline.json'), path.join(evidenceDir, 'pipeline.json'));
+      safeCopy(path.join(pipelineDir, 'candidate-identity.json'), path.join(evidenceDir, 'candidate-identity.json'));
+      pipeline = readJson(path.join(pipelineDir, 'pipeline.json'));
+
+      if (!pipeline) {
+        const errText = `${pipelineResult.stderr || ''}\n${pipelineResult.stdout || ''}`;
+        if (/patch guard rejected|unknown argument|patch .*not found|no hunks|not a valid/i.test(errText)) {
+          const result = classify('input', {inputError: 'patch did not form a valid allowlisted candidate'});
+          status = result.status;
+          reason = result.reason;
+          checks = [{id: 'patch-input', status: 'fail', detail: result.reason}];
+        } else {
+          const extracted = extractPipelineFailure(pipelineDir);
+          if (extracted?.buildError) {
+            const result = classify('build', extracted);
+            status = result.status;
+            reason = result.reason;
+            checks = [{id: 'build', status: 'fail', detail: result.reason}];
+          } else if (extracted?.rejected) {
+            const result = classify('replay', extracted);
+            status = result.status;
+            reason = result.reason;
+            checks = [{id: 'fresh-replay', status: 'fail', detail: result.reason}];
+          } else {
+            const result = classify('pipeline', {inconclusive: `pipeline produced no report: ${errText.trim().slice(0, 500) || 'no output'}`});
+            status = result.status;
+            reason = result.reason;
+            checks = [{id: 'pipeline', status: 'error', detail: result.reason}];
+          }
+        }
+      } else {
+        verified.builtWasmSha256 = pipeline.hashes?.wasm || null;
+        verified.appliedSourceSha256 = pipeline.hashes?.appliedSource || null;
+        const wasmPath = path.join(pipelineDir, 'applied', 'target', 'wasm32-unknown-unknown', 'release', 'sputnikdao2.wasm');
+        const appliedSource = path.join(pipelineDir, 'applied', SOURCE_PATH);
+        const identityPath = path.join(pipelineDir, 'candidate-identity.json');
+        if (!isFile(wasmPath) || !isFile(appliedSource) || !isFile(identityPath)) {
+          const result = classify('build', {buildError: 'build produced no complete candidate artifact set'});
+          status = result.status;
+          reason = result.reason;
+          checks = [{id: 'build-artifacts', status: 'fail', detail: result.reason}];
+        } else {
+          const persistedDir = path.join(outDir, 'persisted');
+          const persistedResult = runNode([
+            PERSISTED,
+            '--candidate-wasm', wasmPath,
+            '--candidate-patch', patchPath,
+            '--candidate-identity', identityPath,
+            '--candidate-source', appliedSource,
+            '--out', persistedDir,
+            '--sandbox-dir', sandboxDir,
+            '--expected-wasm-sha256', verified.builtWasmSha256,
+          ], {timeout: PERSISTED_TIMEOUT_MS});
+          writeLog(path.join(evidenceDir, 'persisted.log'), persistedResult);
+          safeCopy(path.join(persistedDir, 'persisted-recovery.json'), path.join(evidenceDir, 'persisted-recovery.json'));
+          report = readJson(path.join(persistedDir, 'persisted-recovery.json'));
+          if (!report) {
+            const result = classify('persisted', {inconclusive: `persisted recovery produced no report: ${(persistedResult.stderr || '').trim().slice(0, 500) || 'no output'}`});
+            status = result.status;
+            reason = result.reason;
+            checks = [{id: 'persisted-recovery', status: 'error', detail: result.reason}];
+          } else {
+            const acceptanceResult = runNode([
+              PERSISTED_ACCEPTANCE,
+              '--report', path.join(persistedDir, 'persisted-recovery.json'),
+              '--wasm', wasmPath,
+              '--base-wasm', BASE_WASM,
+              '--patch', patchPath,
+              '--source', appliedSource,
+              '--expected-wasm-sha256', verified.builtWasmSha256,
+              '--expected-patch-sha256', verified.patchSha256,
+              '--expected-source-sha256', verified.appliedSourceSha256 || pipeline.identity?.source?.sha256 || '',
+            ], {timeout: ACCEPTANCE_TIMEOUT_MS});
+            writeLog(path.join(evidenceDir, 'acceptance.log'), acceptanceResult);
+            try { acceptance = JSON.parse(acceptanceResult.stdout); } catch { acceptance = null; }
+            if (acceptance) fs.writeFileSync(path.join(persistedDir, 'persisted-recovery-acceptance.json'), json(acceptance));
+            if (!acceptance) {
+              const result = classify('acceptance', {inconclusive: 'persisted acceptance produced no readable JSON'});
+              status = result.status;
+              reason = result.reason;
+              checks = [{id: 'persisted-acceptance', status: 'error', detail: result.reason}];
+            } else {
+              safeCopy(path.join(persistedDir, 'persisted-recovery-acceptance.json'), path.join(evidenceDir, 'persisted-recovery-acceptance.json'));
+              summary = reportSummary(report, acceptance, {mode: 'source-build'});
+              checks = checksFrom(pipeline, report, acceptance);
+              const pipelineFailed = pipeline.ok !== true || (pipeline.acceptanceErrors || []).length > 0;
+              const failedChecks = checks.filter((check) => check.status !== 'pass');
+              if (pipelineFailed) {
+                status = 'REJECTED';
+                reason = `fresh-state acceptance failed: ${(pipeline.acceptanceErrors || []).join('; ') || 'pipeline did not pass'}`;
+              } else if (acceptance.ok !== true) {
+                status = 'REJECTED';
+                reason = `persisted recovery acceptance failed: ${(acceptance.errors || []).join('; ') || 'acceptance did not pass'}`;
+              } else if (failedChecks.length) {
+                status = 'REJECTED';
+                reason = `defined checks failed: ${failedChecks.map((check) => check.id).join(', ')}`;
+              } else {
+                status = 'ACCEPTED';
+                reason = 'All defined source, build, replay, recovery and preservation checks passed.';
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const review = {
+    schema: SCHEMA,
+    createdAt: new Date().toISOString(),
+    status,
+    reason,
+    supplied,
+    verified: {
+      ...verified,
+      sourceRepository: controller.source.repository,
+      sourceCommitPinned: pinnedCommit,
+      sourcePath: SOURCE_PATH,
+      patchSha256: verified.patchSha256,
+      builtWasmSha256: verified.builtWasmSha256,
+      appliedSourceSha256: verified.appliedSourceSha256,
+    },
+    policy,
+    checks,
+    summary,
+    evidence,
+    limitations,
+    boundary: 'Local Sandbox evidence for the pinned Sputnik #238 case. No live DAO recovery, deployment, audit, universal safety claim, signature or merge enforcement.',
+  };
+  const statusPath = path.join(outDir, 'review-status.json');
+  fs.writeFileSync(statusPath, json(review));
+  if (status === 'REJECTED' || status === 'INPUT_ERROR' || status === 'BUILD_ERROR') {
+    fs.writeFileSync(path.join(outDir, 'rejected-evidence.json'), json({schema: `${SCHEMA}/rejected`, status, reason, evidence: review.evidence}));
+  }
+  if (status !== 'ACCEPTED') {
+    fs.writeFileSync(path.join(outDir, 'review-evidence.json'), json({schema: `${SCHEMA}/evidence`, status, reason, evidence: review.evidence}));
+  } else {
+    fs.writeFileSync(path.join(outDir, 'recovery-packet.json'), json({schema: `${SCHEMA}/accepted`, status, review}));
+  }
+  const reportPath = path.join(outDir, 'review-report.md');
+  fs.writeFileSync(reportPath, renderReport(review));
+  // Recompute after all evidence files are present.
+  writeSums(outDir);
+  console.log(renderReport(review));
+  console.log(`Status: ${status}`);
+  console.log(`Report: ${reportPath}`);
+  return review;
+}
+
+if (require.main === module) {
+  try {
+    const opts = parseArgs(process.argv.slice(2));
+    if (opts.help) console.log(usage());
+    else runReview(opts);
+  } catch (error) {
+    console.error(`review-patch: ${error.message}`);
+    process.exitCode = 1;
+  }
+}
+
+module.exports = {parseArgs, classify, policyIdentity, runReview, renderReport, checkSource, sandboxFromEnvironment};
