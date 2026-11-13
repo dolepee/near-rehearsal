@@ -29,6 +29,8 @@ assert.match(js, /extra principal/);
 assert.match(js, /Source revision/);
 assert.match(js, /Candidate patch/);
 assert.match(js, /schedulePoll/);
+assert.match(js, /Fresh replay completed/);
+assert.match(js, /Recorded evidence opened/);
 assert.match(server, /\/api\/review\/example/);
 assert.match(server, /\/api\/review\/runs/);
 assert.match(server, /\/download/);

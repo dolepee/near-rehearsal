@@ -1,0 +1,6 @@
+{
+  "schema": "near-rehearsal/persisted-bond-recovery-acceptance/v1",
+  "ok": true,
+  "candidateWasmSha256": "49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923",
+  "errors": []
+}

@@ -31,6 +31,7 @@ const suites = [
   'scripts/test-review-patch-exit.cjs',
   'ui/sputnik/test-local-api-guard.cjs',
   'case-triage/rehearsal-repair/mixed-obligation-tests.cjs',
+  'case-triage/rehearsal-repair/review-bundle-tests.cjs',
   'ui/sputnik/test-repair-history.cjs',
   'ui/sputnik/test-repair-ui.cjs',
   'ui/sputnik/test-review-job.cjs',

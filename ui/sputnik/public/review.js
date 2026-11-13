@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = {config: null, selected: null, selectionEpoch: 0, selectionPending: null, mode: null, run: null, runId: null, openEpoch: 0, poll: null, failures: 0, historySignature: null, submitting: false, submitMode: null, connectionLost: false};
+  const state = {config: null, selected: null, selectionEpoch: 0, selectionPending: null, mode: null, run: null, runId: null, fresh: false, openEpoch: 0, poll: null, failures: 0, historySignature: null, submitting: false, submitMode: null, connectionLost: false};
   const terminal = new Set(['accepted', 'rejected', 'interrupted']);
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
   const short = (value, n = 14) => value ? `${String(value).slice(0, n)}…${String(value).slice(-6)}` : '—';
@@ -201,7 +201,7 @@
     return `<article class="review-card ${kind}"><div class="eyebrow">${esc(label)}</div><strong>${esc(value)}</strong><p>${esc(copy)}</p></article>`;
   }
 
-  function renderResult(run) {
+  function renderResult(run, fresh = false) {
     show('result-state');
     const result = run.result;
     const s = result?.summary || {};
@@ -209,9 +209,10 @@
     const accepted = checks.accepted === true && run.status === 'accepted';
     const sourceBuild = (result?.run?.mode || s.mode || run.mode) === 'source-build';
     $('result-banner').className = `result-banner${accepted ? '' : ' bad'}`;
+    const sessionLabel = fresh ? 'Fresh replay completed.' : 'Recorded evidence opened.';
     $('result-banner').textContent = accepted
-      ? (sourceBuild ? 'Review passed — the supplied patch built and met the declared checks.' : 'Review passed — the recorded candidate met the declared checks.')
-      : 'Review did not pass — no accepted result is available.';
+      ? `${sessionLabel} ${sourceBuild ? 'The supplied patch built and met the declared checks.' : 'The recorded candidate met the declared checks.'}`
+      : `${sessionLabel} No accepted result is available.`;
     const frozenBond = s.firstRecovery?.gross || '—';
     const verifiedHealthy = s.healthy || {};
     const healthyTransfer = verifiedHealthy.settledTransfer || verifiedHealthy.pendingTransfer || '—';
@@ -280,7 +281,7 @@
     state.connectionLost = false;
     state.run = run;
     state.runId = run.id;
-    if (run.status === 'accepted') renderResult(run);
+    if (run.status === 'accepted') renderResult(run, state.fresh === true);
     else if (terminal.has(run.status)) renderError(run);
     else renderRunning(run);
     $('elapsed').textContent = duration(run.elapsedMs);
@@ -342,6 +343,7 @@
       const data = await response.json();
       if (epoch !== state.openEpoch) return;
       if (!response.ok) throw new Error(data.error || 'Could not start the review.');
+      state.fresh = true;
       state.failures = 0;
       renderRun(data.run);
       schedulePoll();
@@ -390,6 +392,7 @@
 
   async function openRun(id) {
     const epoch = ++state.openEpoch;
+    state.fresh = false;
     try {
       const response = await fetch(`/api/review/runs/${id}`, {headers: {'accept': 'application/json'}});
       if (epoch !== state.openEpoch) return;

@@ -13,17 +13,18 @@ const root = path.resolve(__dirname, '../..');
 const cli = path.join(root, 'scripts/review-patch.cjs');
 const output = path.join(root, '.local/browser-patch-runs');
 const manifest = require('../../case-triage/rehearsal-repair/controller-manifest.json');
+const {buildReviewBundle} = require('../../case-triage/rehearsal-repair/review-bundle.cjs');
 const SOURCE_PATH = 'sputnikdao2/src/proposals.rs';
 
 function checkerRevision() {
   const run = spawnSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8', timeout: 10_000});
   return run.status === 0 ? run.stdout.trim() : null;
 }
-const names = {status:'review-status.json',report:'review-report.md',patch:'submitted.patch'};
+const names = {status:'review-status.json',report:'review-report.md',patch:'submitted.patch',bundle:'review-bundle.json'};
 const max = 65536;
 const MAX_PACKAGE_BYTES = 32 * 1024 * 1024;
 const MAX_EVIDENCE_FILE_BYTES = 2 * 1024 * 1024;
-const PACKAGE_FORMAT = 2;
+const PACKAGE_FORMAT = 3;
 const memory = new Map();
 let active = null;
 let currentChild = null;
@@ -51,6 +52,7 @@ function dirExists(dir) { try { return fs.statSync(dir).isDirectory(); } catch {
 
 function artifactPath(dir, key) {
   if (key === 'patch') return path.join(dir, names.patch);
+  if (key === 'bundle') return path.join(dir, names.bundle);
   if (key === 'package') {
     for (const name of ['review-package.zip', 'review-package.tar.gz']) {
       const file = path.join(dir, name);
@@ -89,6 +91,40 @@ function patchBytes(dir) {
   try { return fs.readFileSync(path.join(dir, names.patch)); } catch { return null; }
 }
 
+function writeReviewBundle(dir, job) {
+  if (job.status !== 'accepted') return null;
+  const out = path.join(dir, 'evidence');
+  const pipeline = path.join(out, 'pipeline');
+  const pipelineJson = readJson(path.join(pipeline, 'pipeline.json'), {});
+  const candidateReport = path.join(pipeline, 'replay', 'issue238-local.json');
+  const baseReport = pipelineJson?.baseReport || path.join(root, 'case-triage/rehearsal-repair/out/issue238-local.json');
+  const recovery = path.join(out, 'evidence', 'persisted-recovery.json');
+  const acceptance = path.join(out, 'evidence', 'persisted-recovery-acceptance.json');
+  const identity = path.join(pipeline, 'candidate-identity.json');
+  const wasm = path.join(pipeline, 'applied', 'target', 'wasm32-unknown-unknown', 'release', 'sputnikdao2.wasm');
+  const patch = path.join(dir, names.patch);
+  for (const file of [baseReport, candidateReport, recovery, acceptance, identity, wasm, patch]) if (!exists(file)) return null;
+  try {
+    const bundle = buildReviewBundle({
+      runId: job.id,
+      createdAt: job.createdAt,
+      patchPath: patch,
+      wasmPath: wasm,
+      candidateIdentityPath: identity,
+      baseReportPath: baseReport,
+      candidateReportPath: candidateReport,
+      recoveryPath: recovery,
+      acceptancePath: acceptance,
+      producer: {runId: job.id, status: job.status, createdAt: job.createdAt},
+      policy: statusDocument(dir)?.policy || null,
+    });
+    fs.writeFileSync(path.join(dir, names.bundle), json(bundle), {mode: 0o600});
+    return path.join(dir, names.bundle);
+  } catch {
+    return null;
+  }
+}
+
 function packageReadme(dir, job) {
   const status = statusDocument(dir) || {};
   const verified = status.verified || {};
@@ -122,6 +158,7 @@ function packageReadme(dir, job) {
     '',
     `- Built artifact: ${wasm === 'not produced' ? 'not produced for this run' : 'artifact/sputnikdao2.wasm'}`,
     '- Submitted source diff: submitted.patch',
+    '- Reviewer-compatible bundle (when accepted): review-bundle.json; open it in /review for recorded-WASM or source-build verification.',
     '- Root project license: LICENSE',
     '- Third-party and upstream notices: THIRD_PARTY_NOTICES.md and LICENSES/',
     '- No Cargo build tree is included. Only the selected evidence, built artifact and notices are packaged.',
@@ -189,6 +226,7 @@ function packageCurrent(file, job) {
 
 function ensurePackage(dir, job) {
   if (!dirExists(dir) || !job || job.status === 'running') return null;
+  writeReviewBundle(dir, job);
   let existing = null;
   for (const name of ['review-package.zip', 'review-package.tar.gz']) {
     const file = path.join(dir, name);
@@ -205,6 +243,7 @@ function ensurePackage(dir, job) {
   const report = artifactPath(dir, 'report');
   const patch = artifactPath(dir, 'patch');
   if (!patch) return null;
+  const bundle = writeReviewBundle(dir, job);
   const stage = path.join(dir, `.package-${crypto.randomUUID()}`);
   try {
     fs.mkdirSync(path.join(stage, 'evidence'), {recursive: true});
@@ -236,6 +275,7 @@ function ensurePackage(dir, job) {
     }
     add(path.join(pipeline, 'applied', 'target', 'wasm32-unknown-unknown', 'release', 'sputnikdao2.wasm'), 'artifact/sputnikdao2.wasm', MAX_PACKAGE_BYTES);
     add(path.join(pipeline, 'applied', SOURCE_PATH), 'source/proposals.rs');
+    if (bundle) add(bundle, 'review-bundle.json', MAX_PACKAGE_BYTES);
     add(path.join(root, 'LICENSE'), 'LICENSE');
     add(path.join(root, 'THIRD_PARTY_NOTICES.md'), 'THIRD_PARTY_NOTICES.md');
     const licenses = path.join(root, 'LICENSES');
@@ -269,8 +309,8 @@ function ensurePackage(dir, job) {
 
 function downloads(dir, job) {
   const keys = [];
-  for (const key of ['status', 'report', 'patch']) if (artifactInfo(dir, key)) keys.push(key);
   if (ensurePackage(dir, job)) keys.push('package');
+  for (const key of ['status', 'report', 'patch', 'bundle']) if (artifactInfo(dir, key)) keys.push(key);
   return keys;
 }
 
@@ -466,7 +506,7 @@ async function handle({req, res, url, send}) {
     });
     return send(res, 202, publicJob(job, true));
   }
-  const m = url.pathname.match(/^\/api\/patch\/runs\/([a-f0-9-]{36})(?:\/(status|report|patch|package))?$/);
+  const m = url.pathname.match(/^\/api\/patch\/runs\/([a-f0-9-]{36})(?:\/(status|report|patch|package|bundle))?$/);
   if (req.method === 'GET' && m) {
     const job = load(m[1]);
     if (!job) return send(res, 404, {error: 'Unknown patch review.'});
@@ -475,7 +515,7 @@ async function handle({req, res, url, send}) {
     if (!file || !exists(file)) return send(res, 404, {error: 'Evidence is unavailable.'});
     const data = fs.readFileSync(file);
     const name = m[2] === 'package' ? (job.packageName || path.basename(file)) : names[m[2]];
-    const type = m[2] === 'patch' ? 'text/x-diff; charset=utf-8' : m[2] === 'package' ? (name.endsWith('.zip') ? 'application/zip' : 'application/gzip') : 'application/octet-stream';
+    const type = m[2] === 'patch' ? 'text/x-diff; charset=utf-8' : m[2] === 'package' ? (name.endsWith('.zip') ? 'application/zip' : 'application/gzip') : m[2] === 'bundle' ? 'application/json; charset=utf-8' : 'application/octet-stream';
     res.writeHead(200, {'content-type': type, 'cache-control': 'no-store', 'content-length': data.length, 'content-disposition': `attachment; filename="${name}"`});
     return res.end(data);
   }

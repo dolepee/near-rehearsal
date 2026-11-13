@@ -40,6 +40,7 @@ fs.mkdirSync(path.join(root, 'case-triage/rehearsal-repair'), {recursive: true})
 fs.mkdirSync(source, {recursive: true});
 fs.mkdirSync(sandbox, {recursive: true});
 fs.copyFileSync(path.join(__dirname, 'patch-route.cjs'), routeFile);
+fs.copyFileSync(path.join(__dirname, '../../case-triage/rehearsal-repair/review-bundle.cjs'), path.join(root, 'case-triage/rehearsal-repair/review-bundle.cjs'));
 fs.writeFileSync(path.join(root, 'case-triage/rehearsal-repair/controller-manifest.json'), JSON.stringify({source: {commit: 'fixture-commit'}}));
 fs.writeFileSync(cli, fakeChecker());
 for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md']) fs.copyFileSync(path.join(__dirname, '../../', name), path.join(root, name));
@@ -81,7 +82,7 @@ process.env.REPAIR_SANDBOX_DIR = sandbox;
     assert.match(meta.stdout, /"termination": "process-closed"/);
     assert.doesNotMatch(meta.stdout, /"status": "running"/);
     const readme = spawnSync('unzip', ['-p', packageFile, 'README.md'], {encoding: 'utf8', timeout: 15_000});
-    assert.match(readme.stdout, /Package format: 2/);
+    assert.match(readme.stdout, /Package format: 3/);
     assert.match(readme.stdout, /Get the checker before running/);
     assert.match(readme.stdout, /does \*\*not\*\* include the Rehearsal application checkout/);
     assert.doesNotMatch(readme.stdout, /\/workspace|\/tmp\//);

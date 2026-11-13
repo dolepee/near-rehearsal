@@ -27,6 +27,7 @@ assert.match(js, /function approximate/);
 assert.match(js, /toPrecision\(6\)/);
 assert.match(js, /title="\$\{escapeHtml\(exact\)\}"/);
 assert.match(js, /aria-label=/);
+assert.match(js, /Open reviewer bundle/);
 assert.match(js, /const submitView = view/);
 assert.match(js, /submitView !== view/);
 assert.match(js, /mine !== view/);
