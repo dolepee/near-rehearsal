@@ -40,9 +40,14 @@
           <div class="empty-mark" aria-hidden="true">↺</div>
           <div class="eyebrow">One supported case</div>
           <h2>Choose how you enter the repair.</h2>
-          <p>Both paths use the existing local rehearsal engines. Neither publishes a transaction or upgrades a public contract.</p>
+          <p>These paths use the existing local rehearsal engines. None publishes a transaction or upgrades a public contract.</p>
           <div class="home-actions">
-            <a class="home-action home-action-primary" href="/repair">
+            <a class="home-action home-action-primary" href="/repair?mode=patch">
+              <strong>Check your source patch</strong>
+              <span>Build your proposed change and check whether it returns the stranded bond exactly once.</span>
+              <small>No model account required</small>
+            </a>
+            <a class="home-action" href="/repair">
               <strong>Generate a fresh repair</strong>
               <span>Uses the configured local model provider, pinned source and Sandbox to produce and test a source patch.</span>
               <small>Provider and build setup required</small>

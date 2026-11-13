@@ -66,3 +66,8 @@
 @media (max-width: 980px) { .repair-layout { grid-template-columns: minmax(0, 1fr); } .phase-list { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .top-actions { justify-content: start; } .consequence-grid, .money-note { grid-template-columns: 1fr; } .downloads { flex-direction: column; } .download-button { justify-content: center; } }
 @media (prefers-reduced-motion: reduce) { .phase-list li.active .phase-dot { animation: none; } *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+#patch-text { width: 100%; resize: vertical; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--text); font: 13px/1.5 ui-monospace, monospace; }
+#patch-text:focus-visible, #patch-file:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+#patch-status { margin-top: 1em; }
+#patch-result { border-top: 1px solid var(--line); padding-top: 16px; }
+#patch-report { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 34em; overflow: auto; }
