@@ -30,6 +30,20 @@
     if (!r.ok) throw new Error(d.error || 'The local reviewer is unavailable.'); return d;
   }
   function value(value, fallback = 'Not measured') { return value === null || value === undefined || value === '' ? fallback : value; }
+  function approximate(value) {
+    if (value === null || value === undefined || value === '') return 'Not measured';
+    const text = String(value).trim();
+    const match = text.match(/^(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*(.*)$/i);
+    if (!match) return text;
+    const number = Number(match[1]);
+    if (!Number.isFinite(number)) return text;
+    // Six significant figures keep the display compact. A nonzero measurement
+    // that would round to zero switches to exponent notation, never to an
+    // unmarked zero.
+    let short = String(Number(number.toPrecision(6)));
+    if (number !== 0 && Number(short) === 0) short = number.toExponential(5);
+    return `≈${short}${match[2] ? ' ' + match[2] : ''}`;
+  }
   function outcomes(run) {
     const box = el('patch-outcomes'), failed = el('patch-failed');
     box.replaceChildren(); failed.replaceChildren();
@@ -37,18 +51,18 @@
       const s = run.summary;
       const cards = [
         ['Bond returned', value(s.firstRecovery?.gross), s.firstRecovery?.endedFailed ? 'Failed status preserved' : 'No failed status recorded'],
-        ['First recovery gas', value(s.firstRecovery?.gas), 'Reported separately from the gross bond'],
-        ['Proposer net', value(s.firstRecovery?.proposerNet), 'Gross bond less measured gas'],
+        ['First recovery gas', approximate(s.firstRecovery?.gas), 'Reported separately from the gross bond', value(s.firstRecovery?.gas)],
+        ['Proposer net', approximate(s.firstRecovery?.proposerNet), 'Gross bond less measured gas', value(s.firstRecovery?.proposerNet)],
         ['Retry principal', value(s.retry?.gross), 'Second finalize; no extra principal when measured at zero'],
-        ['Retry gas', value(s.retry?.gas), 'Gas moved separately from retry principal'],
-        ['Retry proposer net', value(s.retry?.proposerNet), 'Net after retry gas'],
+        ['Retry gas', approximate(s.retry?.gas), 'Gas moved separately from retry principal', value(s.retry?.gas)],
+        ['Retry proposer net', approximate(s.retry?.proposerNet), 'Net after retry gas', value(s.retry?.proposerNet)],
         ['Healthy settled', value(s.healthy?.settledTransfer), 'Already-paid Transfer'],
         ['Healthy pending', value(s.healthy?.pendingTransfer), 'Inherited pending Transfer'],
       ];
-      for (const [label, amount, note] of cards) {
+      for (const [label, amount, note, exact = amount] of cards) {
         const card = document.createElement('div');
         card.className = 'consequence-card';
-        card.innerHTML = `<div class="eyebrow">${label}</div><strong>${escapeHtml(amount)}</strong><p>${escapeHtml(note)}</p>`;
+        card.innerHTML = `<div class="eyebrow">${escapeHtml(label)}</div><strong title="${escapeHtml(exact)}" aria-label="${escapeHtml(exact)}">${escapeHtml(amount)}</strong><p>${escapeHtml(note)}</p>`;
         box.append(card);
       }
       box.hidden = false;
