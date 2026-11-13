@@ -16,6 +16,7 @@ fs.writeFileSync(path.join(root, 'case-triage/rehearsal-repair/controller-manife
 fs.writeFileSync(path.join(root, 'scripts/review-patch.cjs'), 'throw new Error("A restart or result read must not start the checker");');
 fs.copyFileSync(path.join(__dirname, 'patch-route.cjs'), path.join(routeDir, 'patch-route.cjs'));
 fs.copyFileSync(path.join(__dirname, '../../case-triage/rehearsal-repair/review-bundle.cjs'), path.join(root, 'case-triage/rehearsal-repair/review-bundle.cjs'));
+ fs.copyFileSync(path.join(__dirname,'../../case-triage/rehearsal-repair/mixed-policy-identity.cjs'),path.join(root,'case-triage/rehearsal-repair/mixed-policy-identity.cjs'));
 for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md']) fs.copyFileSync(path.join(__dirname, '../../', name), path.join(root, name));
 fs.mkdirSync(path.join(root, 'LICENSES'), {recursive: true});
 fs.copyFileSync(path.join(__dirname, '../../LICENSES/sputnik-dao-contract-MIT.txt'), path.join(root, 'LICENSES/sputnik-dao-contract-MIT.txt'));

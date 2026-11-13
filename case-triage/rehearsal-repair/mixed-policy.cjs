@@ -1,8 +1,8 @@
 'use strict';
 /*
- * Recompute the same-DAO policy from the recorded snapshots. The runner's
- * checks field is evidence, not authority: this function must fail a candidate
- * whose aggregate locked amount is zeroed while Bob's obligation remains.
+ * Recompute the same-DAO policy from recorded snapshots. The runner's checks
+ * and deltas are evidence, not authority: every actor credit, action-payer
+ * charge and receipt-derived gas amount is recomputed here with BigInt.
  */
 const BOND = 10n ** 24n;
 const TRANSFER = 10n ** 23n;
@@ -13,6 +13,12 @@ const big = (value) => {
 };
 const delta = (after, before, key) => big(after?.[key]) - big(before?.[key]);
 const balanceDelta = (after, before, name) => big(after?.balances?.[name]) - big(before?.balances?.[name]);
+const gasFromAttempt = (attempt) => {
+  const value = attempt?.value;
+  if (!value || !value.transactionOutcome) return null;
+  return big(value.transactionOutcome.tokensBurntYocto)
+    + (value.receipts || []).reduce((sum, receipt) => sum + big(receipt?.tokensBurntYocto), 0n);
+};
 
 function verifyMixedReport(report, opts = {}) {
   const errors = [];
@@ -40,45 +46,82 @@ function verifyMixedReport(report, opts = {}) {
     if (JSON.stringify(afterUpgrade?.proposals?.[name]) !== JSON.stringify(before?.proposals?.[name])) fail(`${name} proposal changed across upgrade`);
   }
 
+  const gas = {
+    aliceRecovery: gasFromAttempt(report?.aliceRecovery?.attempt),
+    aliceRetry: gasFromAttempt(report?.aliceRetry?.attempt),
+    bobPayout: gasFromAttempt(report?.bobPayout?.attempt),
+    bobRetry: gasFromAttempt(report?.bobRetry?.attempt),
+    carolRetry: gasFromAttempt(report?.carolRetry?.attempt),
+  };
+  for (const [name, value] of Object.entries(gas)) if (value === null) fail(`${name} has no receipt-derived gas`);
+
+  const unchanged = (after, beforeSnapshot, names, label) => {
+    for (const name of names) if (balanceDelta(after, beforeSnapshot, name) !== 0n) fail(`${label} changed ${name} balance`);
+  };
+  const payer = (after, beforeSnapshot, gasValue, label) => {
+    const observed = balanceDelta(after, beforeSnapshot, 'alice');
+    if (gasValue === null) return observed;
+    if (observed !== -gasValue) fail(`${label} did not charge Alice exactly the receipt-derived gas`);
+    return observed;
+  };
+
   const ar = report?.aliceRecovery?.after;
   const alice = report?.aliceRecovery;
   const aliceContract = delta(ar, afterUpgrade, 'contractBalance');
   const aliceLocked = delta(ar, afterUpgrade, 'lockedAmount');
   const aliceRecipient = balanceDelta(ar, afterUpgrade, 'aliceRecipient');
-  const alicePaid = alice?.attempt?.ok === true && alice?.attempt?.value?.receiptFailure === true
-    && ar?.proposals?.alice?.status === 'Failed' && aliceContract === -BOND && aliceRecipient === 0n;
   const aliceProposer = balanceDelta(ar, afterUpgrade, 'alice');
+  const alicePaid = alice?.attempt?.ok === true && alice?.attempt?.value?.receiptFailure === true
+    && alice?.attempt?.value?.finalExecutionStatus === 'FINAL'
+    && ar?.proposals?.alice?.status === 'Failed' && aliceContract === -BOND && aliceRecipient === 0n;
   if (!alicePaid) fail('Alice recovery did not return exactly one bond while preserving Failed status');
-  if (aliceProposer < 0n) fail('Alice proposer delta is invalid');
+  if (gas.aliceRecovery !== null && aliceProposer !== BOND - gas.aliceRecovery) fail('Alice proposer delta is not bond minus receipt-derived gas');
+  if (alice?.gasBurntYocto && big(alice.gasBurntYocto) !== gas.aliceRecovery) fail('Alice recovery gas field does not match receipts');
   if (alice?.deltas?.proposer && big(alice.deltas.proposer) !== aliceProposer) fail('Alice proposer delta does not match snapshot balances');
+  if (aliceLocked !== -BOND) fail('Alice recovery did not release exactly one locked bond');
   if (big(ar?.lockedAmount) < BOND) fail('Bob liability disappeared after Alice recovery');
+  unchanged(ar, afterUpgrade, ['bob', 'carol', 'aliceRecipient', 'bobRecipient', 'carolRecipient'], 'Alice recovery');
 
-  const retryAfter = report?.aliceRetry?.after;
-  if (!alice?.attempt?.ok || alice.attempt.value?.finalExecutionStatus !== 'FINAL') fail('Alice recovery was not an executed FINAL transaction');
-  if (!report?.aliceRetry?.attempt?.ok || report.aliceRetry.attempt.value?.receiptFailure !== true) fail('Alice retry did not produce the expected failed execution');
-  if (delta(retryAfter, ar, 'contractBalance') !== 0n || delta(retryAfter, ar, 'lockedAmount') !== 0n || balanceDelta(retryAfter, ar, 'aliceRecipient') !== 0n) fail('Alice retry moved principal');
+  const aliceRetryAfter = report?.aliceRetry?.after;
+  const aliceRetry = report?.aliceRetry;
+  const aliceRetryPayer = payer(aliceRetryAfter, ar, gas.aliceRetry, 'Alice retry');
+  if (!aliceRetry?.attempt?.ok || aliceRetry.attempt.value?.receiptFailure !== true || aliceRetry.attempt.value?.finalExecutionStatus !== 'FINAL') fail('Alice retry did not produce the expected failed FINAL execution');
+  if (delta(aliceRetryAfter, ar, 'contractBalance') !== 0n || delta(aliceRetryAfter, ar, 'lockedAmount') !== 0n || balanceDelta(aliceRetryAfter, ar, 'aliceRecipient') !== 0n) fail('Alice retry moved principal');
+  if (aliceRetry?.deltas?.proposer && big(aliceRetry.deltas.proposer) !== aliceRetryPayer) fail('Alice retry proposer delta does not match snapshot balances');
+  unchanged(aliceRetryAfter, ar, ['bob', 'carol', 'aliceRecipient', 'bobRecipient', 'carolRecipient'], 'Alice retry');
 
   const bobAfter = report?.bobPayout?.after;
   const bob = report?.bobPayout;
-  const bobContract = delta(bobAfter, retryAfter, 'contractBalance');
-  const bobLocked = delta(bobAfter, retryAfter, 'lockedAmount');
-  const bobRecipient = balanceDelta(bobAfter, retryAfter, 'bobRecipient');
+  const bobContract = delta(bobAfter, aliceRetryAfter, 'contractBalance');
+  const bobLocked = delta(bobAfter, aliceRetryAfter, 'lockedAmount');
+  const bobRecipient = balanceDelta(bobAfter, aliceRetryAfter, 'bobRecipient');
+  const bobProposer = balanceDelta(bobAfter, aliceRetryAfter, 'bob');
+  const bobPayer = payer(bobAfter, aliceRetryAfter, gas.bobPayout, 'Bob payout');
   const bobTransferPaid = bob?.attempt?.ok === true && bob.attempt.value?.receiptFailure === false
     && bobAfter?.proposals?.bob?.status === 'Approved' && bobRecipient === TRANSFER;
   const bobPaidExactlyOnce = bobTransferPaid && bobContract === -(BOND + TRANSFER) && bobLocked === -BOND;
-  const bobProposer = balanceDelta(bobAfter, retryAfter, 'bob');
+  if (!bobTransferPaid) fail('Bob transfer was not paid');
   if (!bobPaidExactlyOnce) fail('Bob did not receive exactly one transfer and one bond return');
   if (bobProposer !== BOND) fail('Bob proposer bond return is not exactly one bond');
   if (bob?.deltas?.proposer && big(bob.deltas.proposer) !== bobProposer) fail('Bob proposer delta does not match snapshot balances');
-  if (!bobTransferPaid) fail('Bob transfer was not paid');
+  if (bobPayer >= 0n) fail('Bob payout did not charge Alice as the action payer');
+  unchanged(bobAfter, aliceRetryAfter, ['carol', 'aliceRecipient', 'carolRecipient'], 'Bob payout');
 
   const bobRetryAfter = report?.bobRetry?.after;
-  if (!report?.bobRetry?.attempt?.ok || report.bobRetry.attempt.value?.receiptFailure !== true) fail('Bob retry did not fail in a terminal state');
+  const bobRetry = report?.bobRetry;
+  const bobRetryPayer = payer(bobRetryAfter, bobAfter, gas.bobRetry, 'Bob retry');
+  if (!bobRetry?.attempt?.ok || bobRetry.attempt.value?.receiptFailure !== true || bobRetry.attempt.value?.finalExecutionStatus !== 'FINAL') fail('Bob retry did not fail in a terminal state');
   if (delta(bobRetryAfter, bobAfter, 'contractBalance') !== 0n || delta(bobRetryAfter, bobAfter, 'lockedAmount') !== 0n || balanceDelta(bobRetryAfter, bobAfter, 'bobRecipient') !== 0n) fail('Bob retry moved principal');
+  if (bobRetry?.deltas?.proposer && big(bobRetry.deltas.proposer) !== bobRetryPayer) fail('Bob retry proposer delta does not match snapshot balances');
+  unchanged(bobRetryAfter, bobAfter, ['bob', 'carol', 'aliceRecipient', 'bobRecipient', 'carolRecipient'], 'Bob retry');
 
   const carolAfter = report?.carolRetry?.after;
-  if (!report?.carolRetry?.attempt?.ok || report.carolRetry.attempt.value?.receiptFailure !== true) fail('Carol retry did not fail in a terminal state');
+  const carolRetry = report?.carolRetry;
+  const carolRetryPayer = payer(carolAfter, bobRetryAfter, gas.carolRetry, 'Carol retry');
+  if (!carolRetry?.attempt?.ok || carolRetry.attempt.value?.receiptFailure !== true || carolRetry.attempt.value?.finalExecutionStatus !== 'FINAL') fail('Carol retry did not fail in a terminal state');
   if (delta(carolAfter, bobRetryAfter, 'contractBalance') !== 0n || delta(carolAfter, bobRetryAfter, 'lockedAmount') !== 0n || balanceDelta(carolAfter, bobRetryAfter, 'carolRecipient') !== 0n) fail('Carol retry moved principal');
+  if (carolRetry?.deltas?.proposer && big(carolRetry.deltas.proposer) !== carolRetryPayer) fail('Carol retry proposer delta does not match snapshot balances');
+  unchanged(carolAfter, bobRetryAfter, ['bob', 'carol', 'aliceRecipient', 'bobRecipient', 'carolRecipient'], 'Carol retry');
 
   return {
     ok: errors.length === 0,
@@ -86,13 +129,18 @@ function verifyMixedReport(report, opts = {}) {
     outcomes: {
       alicePaid,
       aliceProposerDelta: aliceProposer.toString(),
+      aliceRetryPayerDelta: aliceRetryPayer.toString(),
       aliceLockedDelta: aliceLocked.toString(),
       bobLiabilityAfterAlice: big(ar?.lockedAmount) >= BOND,
       bobTransferPaid,
       bobPaidExactlyOnce,
       bobProposerDelta: bobProposer.toString(),
+      bobPayerDelta: bobPayer.toString(),
+      bobRetryPayerDelta: bobRetryPayer.toString(),
+      carolRetryPayerDelta: carolRetryPayer.toString(),
       bobLockedDelta: bobLocked.toString(),
       bobRecipientDelta: bobRecipient.toString(),
+      gas: Object.fromEntries(Object.entries(gas).map(([name, value]) => [name, value?.toString() ?? null])),
     },
   };
 }

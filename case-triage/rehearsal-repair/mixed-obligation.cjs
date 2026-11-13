@@ -408,7 +408,7 @@ async function runMixed(worker, candidateWasm) {
   aliceRecoveryDeltas.locked = (BigInt(aliceAfter.lockedAmount) - BigInt(ar.lockedAmount)).toString();
   const aliceRetryDeltas = {
     contract: delta(aliceRetryAfter, aliceAfter, 'contractBalance'),
-    proposer: delta(aliceRetryAfter.balances.alice, aliceAfter.balances.alice, 'balance'),
+    proposer: (BigInt(aliceRetryAfter.balances.alice) - BigInt(aliceAfter.balances.alice)).toString(),
     recipient: (BigInt(aliceRetryAfter.balances.aliceRecipient) - BigInt(aliceAfter.balances.aliceRecipient)).toString(),
     locked: (BigInt(aliceRetryAfter.lockedAmount) - BigInt(aliceAfter.lockedAmount)).toString(),
   };
@@ -420,13 +420,13 @@ async function runMixed(worker, candidateWasm) {
   };
   const bobRetryDeltas = {
     contract: delta(bobRetryAfter, bobAfter, 'contractBalance'),
-    proposer: delta(bobRetryAfter.balances.bob, bobAfter.balances.bob, 'balance'),
+    proposer: (BigInt(bobRetryAfter.balances.alice) - BigInt(bobAfter.balances.alice)).toString(),
     recipient: (BigInt(bobRetryAfter.balances.bobRecipient) - BigInt(bobAfter.balances.bobRecipient)).toString(),
     locked: (BigInt(bobRetryAfter.lockedAmount) - BigInt(bobAfter.lockedAmount)).toString(),
   };
   const carolRetryDeltas = {
     contract: delta(carolRetryAfter, bobRetryAfter, 'contractBalance'),
-    proposer: delta(carolRetryAfter.balances.carol, bobRetryAfter.balances.carol, 'balance'),
+    proposer: (BigInt(carolRetryAfter.balances.alice) - BigInt(bobRetryAfter.balances.alice)).toString(),
     recipient: (BigInt(carolRetryAfter.balances.carolRecipient) - BigInt(bobRetryAfter.balances.carolRecipient)).toString(),
     locked: (BigInt(carolRetryAfter.lockedAmount) - BigInt(bobRetryAfter.lockedAmount)).toString(),
   };
@@ -470,10 +470,10 @@ async function runMixed(worker, candidateWasm) {
       gasBurntYocto: aliceRecoveryGas.toString(),
       before: beforeAlice,
     },
-    aliceRetry: {attempt: aliceRetry, after: aliceRetryAfter, deltas: aliceRetryDeltas},
+    aliceRetry: {attempt: aliceRetry, after: aliceRetryAfter, deltas: aliceRetryDeltas, gasBurntYocto: (aliceRetry.ok ? summaryGas(aliceRetry.value) : 0n).toString()},
     bobPayout: {attempt: bobPayout, after: bobAfter, deltas: bobPayoutDeltas, gasBurntYocto: bobPayoutGas.toString()},
-    bobRetry: {attempt: bobRetry, after: bobRetryAfter, deltas: bobRetryDeltas},
-    carolRetry: {attempt: carolRetry, after: carolRetryAfter, deltas: carolRetryDeltas},
+    bobRetry: {attempt: bobRetry, after: bobRetryAfter, deltas: bobRetryDeltas, gasBurntYocto: (bobRetry.ok ? summaryGas(bobRetry.value) : 0n).toString()},
+    carolRetry: {attempt: carolRetry, after: carolRetryAfter, deltas: carolRetryDeltas, gasBurntYocto: (carolRetry.ok ? summaryGas(carolRetry.value) : 0n).toString()},
     checks: {
       beforeLockedTwoBonds: BigInt(before.lockedAmount) === BOND * 2n,
       aliceFailedBeforeUpgrade: before.proposals.alice.status === 'Failed',

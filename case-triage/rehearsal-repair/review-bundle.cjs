@@ -11,6 +11,7 @@ const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 const read = (file) => fs.readFileSync(file);
 const text = (file) => fs.readFileSync(file, 'utf8');
 const parse = (file) => JSON.parse(text(file));
+const {mixedPolicyIdentity} = require('./mixed-policy-identity.cjs');
 
 function buildReviewBundle(opts = {}) {
   const patchText = text(opts.patchPath);
@@ -28,6 +29,7 @@ function buildReviewBundle(opts = {}) {
   if (identity.patch?.sha256 !== sha256(Buffer.from(patchText, 'utf8'))) throw new Error('candidate identity patch hash does not match the submitted patch');
   if (!identity.source?.path || !identity.source?.sha256 || !identity.source?.commit) throw new Error('candidate identity source is incomplete');
   const source = identity.source;
+  const mixedPolicy = mixedText ? mixedPolicyIdentity() : null;
   const candidate = {
     patch: {text: patchText, sha256: sha256(Buffer.from(patchText, 'utf8')), bytes: Buffer.byteLength(patchText)},
     wasm: {base64: wasm.toString('base64'), sha256: sha256(wasm), bytes: wasm.length},
@@ -67,7 +69,13 @@ function buildReviewBundle(opts = {}) {
     baseline: {reportText: baseReportText, reportSha256: sha256(Buffer.from(baseReportText, 'utf8'))},
     candidate,
     recovery,
-    mixed: mixedText ? {reportText: mixedText, reportSha256: sha256(Buffer.from(mixedText, 'utf8'))} : null,
+    mixed: mixedText ? {
+      reportText: mixedText,
+      reportSha256: sha256(Buffer.from(mixedText, 'utf8')),
+      candidateWasmSha256: identity.wasm.sha256,
+      policySha256: mixedPolicy.sha256,
+      policyFiles: mixedPolicy.files,
+    } : null,
     producer: opts.producer || null,
     policy: opts.policy || null,
   };

@@ -8,6 +8,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const { checkBundle, formatYocto, yoctoNear, preflight } = require('./repair-review.cjs');
+const { buildReviewBundle } = require('../case-triage/rehearsal-repair/review-bundle.cjs');
 
 const fixture = path.join(__dirname, '..', 'test-fixtures', 'repair-browser-export-1de7b8c5.json');
 const original = JSON.parse(fs.readFileSync(fixture, 'utf8'));
@@ -18,6 +19,27 @@ const rejects = (label, mutate) => {
   assert.throws(() => checkBundle(bundle), undefined, label);
 };
 
+const mixedOriginal = buildReviewBundle({
+  runId: 'mixed-policy-guard',
+  patchPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'generated/e8262f5a/repair.patch'),
+  wasmPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'generated/e8262f5a/candidate.wasm'),
+  candidateIdentityPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'generated/e8262f5a/candidate-identity.json'),
+  baseReportPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/issue238-local.json'),
+  candidateReportPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/issue238-repaired.json'),
+  recoveryPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/persisted-recovery.json'),
+  acceptancePath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/persisted-recovery-acceptance.json'),
+  mixedPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/mixed-obligation-intended.json'),
+});
+assert.doesNotThrow(() => checkBundle(mixedOriginal));
+for (const [label, mutate] of [
+  ['fake mixed report', (b) => { b.mixed.reportText = 'not a real mixed report'; b.mixed.reportSha256 = '0'.repeat(64); }],
+  ['zero mixed policy', (b) => { b.mixed.policySha256 = '0'.repeat(64); }],
+  ['mixed different candidate', (b) => { b.mixed.candidateWasmSha256 = '0'.repeat(64); }],
+]) {
+  const b = JSON.parse(JSON.stringify(mixedOriginal));
+  mutate(b);
+  assert.throws(() => checkBundle(b), undefined, label);
+}
 const accepted = checkBundle(copy());
 assert.equal(accepted.sourceIdentity.path, 'sputnikdao2/src/proposals.rs');
 assert.equal(accepted.sourceIdentity.sha256, original.candidate.identity.source.sha256);

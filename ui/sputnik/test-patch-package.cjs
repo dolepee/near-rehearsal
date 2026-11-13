@@ -41,6 +41,7 @@ fs.mkdirSync(source, {recursive: true});
 fs.mkdirSync(sandbox, {recursive: true});
 fs.copyFileSync(path.join(__dirname, 'patch-route.cjs'), routeFile);
 fs.copyFileSync(path.join(__dirname, '../../case-triage/rehearsal-repair/review-bundle.cjs'), path.join(root, 'case-triage/rehearsal-repair/review-bundle.cjs'));
+ fs.copyFileSync(path.join(__dirname,'../../case-triage/rehearsal-repair/mixed-policy-identity.cjs'),path.join(root,'case-triage/rehearsal-repair/mixed-policy-identity.cjs'));
 fs.writeFileSync(path.join(root, 'case-triage/rehearsal-repair/controller-manifest.json'), JSON.stringify({source: {commit: 'fixture-commit'}}));
 fs.writeFileSync(cli, fakeChecker());
 for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md']) fs.copyFileSync(path.join(__dirname, '../../', name), path.join(root, name));
