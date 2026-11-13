@@ -1,0 +1,10 @@
+diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs
+index 3c41adf..0f6c5e1 100644
+--- a/sputnikdao2/src/proposals.rs
++++ b/sputnikdao2/src/proposals.rs
+@@ -721,3 +721,5 @@ impl Contract {
+         result
+     }
+ }
++
++// no behavioral change: candidate compiles without repairing the persisted bond
