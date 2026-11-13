@@ -248,6 +248,7 @@ function verifyScenario(scenario, mode, context) {
     if (failed.proposal.status !== 'Failed') failFor(false, 'post-upgrade proposal is not Failed');
     if (JSON.stringify(recordedProposal?.kind) !== JSON.stringify(failed.proposal.kind)) failFor(false, 'proposal kind changed across the upgrade');
     if (recordedProposal?.description !== failed.proposal.description) failFor(false, 'proposal description changed across the upgrade');
+    if (recordedProposal?.proposer !== failed.proposal.proposer) failFor(false, 'proposal beneficiary changed across the upgrade');
   } else failFor(false, 'post-upgrade proposal identity is missing');
   if (!failed) failFor(false, 'failed-refund snapshot missing');
   else {

@@ -116,6 +116,11 @@ const genuineTrace = JSON.parse(JSON.stringify(correctedReport));
 assert.equal(verifySettlementReport(genuineTrace, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, true,
   'the genuine ordered inherited trace must pass');
 
+const wrongBeneficiary = JSON.parse(JSON.stringify(correctedReport));
+wrongBeneficiary.inherited.failedRefund.proposal.proposer = 'unrelated.test.near';
+assert.equal(verifySettlementReport(wrongBeneficiary, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the post-upgrade failed proposal must retain the recorded refund beneficiary');
+
 const wrongFailedProposalId = JSON.parse(JSON.stringify(correctedReport));
 wrongFailedProposalId.inherited.transactions.failedProposal.id = 999;
 assert.equal(verifySettlementReport(wrongFailedProposalId, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
@@ -363,6 +368,7 @@ console.log(JSON.stringify({
     'failed-deployment-receipt-fails',
     'approval-receipts-required',
     'genuine-ordered-trace-passes',
+    'wrong-beneficiary-fails',
     'failed-proposal-id-fails',
     'failed-proposal-status-fails',
     'zero-failure-height-fails',
