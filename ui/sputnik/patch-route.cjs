@@ -12,6 +12,8 @@ const names = {status:'review-status.json',report:'review-report.md',patch:'subm
 const max = 65536;
 const memory = new Map();
 let active = null;
+let currentChild = null;
+let stopping = false;
 function artifact(dir,key) {
   const f = key === 'patch' ? path.join(dir,names.patch) : path.join(dir,'evidence',names[key]);
   try {
@@ -43,6 +45,7 @@ async function handle({req,res,url,send}) {
   if (url.pathname==='/api/patch/runs' && req.method==='POST') {
     if(req.headers['content-type']?.split(';')[0]!=='application/json')return send(res,415,{error:'Expected a JSON patch request.'});
     const patch=await body(req);
+    if(stopping)return send(res,503,{error:'Server is stopping.'});
     if(active)return send(res,409,{error:'A patch check is already running. Wait for it to finish.'});
     if(!fs.existsSync(cli))return send(res,503,{error:'The patch checker is not installed in this build. Your diff has not been run.'});
     if(!process.env.REPAIR_SOURCE_DIR || !process.env.REPAIR_SANDBOX_DIR)return send(res,503,{error:'Configure the pinned source and local Sandbox before running a patch.'});
@@ -54,8 +57,9 @@ async function handle({req,res,url,send}) {
     let child;
     try {child=spawn(process.execPath,args,{cwd:root,env,stdio:'ignore',detached:true});}
     catch(e){active=null; job.status='inconclusive'; return send(res,503,{error:'The local checker could not start.'});}
+    currentChild = child;
     const timer=setTimeout(()=>{if(child.pid){try{process.kill(-child.pid,'SIGKILL');}catch{}}},20*60*1000); timer.unref();
-    child.on('error',()=>{}); child.once('close',(code,signal)=>{clearTimeout(timer);try{finish(job,dir,code,signal);}finally{active=null;}});
+    child.on('error',()=>{}); child.once('close',(code,signal)=>{clearTimeout(timer);try{finish(job,dir,code,signal);}finally{active=null; currentChild=null;}});
     return send(res,202,job);
   }
   const m=url.pathname.match(/^\/api\/patch\/runs\/([a-f0-9-]{36})(?:\/(status|report|patch))?$/);
@@ -67,4 +71,15 @@ async function handle({req,res,url,send}) {
   }
   return send(res,404,{error:'Unknown patch review.'});
 }
-module.exports={handle};
+async function shutdown() {
+  stopping = true;
+  const child = currentChild;
+  if (!child?.pid) return;
+  try { process.kill(-child.pid, 'SIGKILL'); } catch {}
+  await new Promise(resolve => {
+    if (child.exitCode !== null || child.signalCode !== null) return resolve();
+    child.once('close', resolve);
+    const timeout = setTimeout(resolve, 3000); timeout.unref();
+  });
+}
+module.exports={handle, shutdown};

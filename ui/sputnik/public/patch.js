@@ -32,6 +32,27 @@
     }
     el('patch-result').hidden = false; el('result-title').focus();
   }
+  const runKey = 'rehearsal-patch-run';
+  async function follow(runId, initial = null) {
+    active = true; controls();
+    const until = Date.now() + 21 * 60 * 1000;
+    try {
+      let run = initial || await json('/api/patch/runs/'+encodeURIComponent(runId));
+      while (run.status === 'running') {
+        status.textContent = 'Building and checking your patch in the local Sandbox…';
+        if (Date.now() > until) throw new Error('Timed out waiting for the checker.');
+        await new Promise(resolve => setTimeout(resolve,1500));
+        run = await json('/api/patch/runs/'+encodeURIComponent(runId));
+      }
+      status.textContent = ''; result(run);
+    } catch(e) {
+      status.textContent = e.message + ' You can resume this check without submitting the patch again.';
+      const resume = document.createElement('button');
+      resume.type = 'button'; resume.className = 'secondary'; resume.textContent = 'Resume check';
+      resume.addEventListener('click', () => { resume.remove(); follow(runId); });
+      status.append(document.createTextNode(' '), resume);
+    } finally { active = false; controls(); }
+  }
   el('patch-form').addEventListener('submit', async ev => {
     ev.preventDefault(); if (active || pendingFile) return;
     const patch = loadedText ?? input.value; editing();
@@ -39,17 +60,13 @@
       status.textContent = 'Enter a source diff of up to 64 KiB.'; input.focus(); return;
     }
     active = true; controls(); status.textContent = 'Starting the local source check…';
-    let runId = null;
     try {
-      let run = await json('/api/patch/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch})});
-      runId = run.id; const until = Date.now() + 21 * 60 * 1000;
-      while (run.status === 'running') {
-        status.textContent = 'Building and checking your patch in the local Sandbox…';
-        if (Date.now() > until) throw new Error('Timed out waiting for the checker.');
-        await new Promise(resolve => setTimeout(resolve,1500)); run = await json('/api/patch/runs/'+encodeURIComponent(runId));
-      }
-      status.textContent = ''; result(run);
-    } catch (e) { status.textContent = e.message + (runId ? ' This page could not confirm the outcome of the run.' : ''); }
+      const run = await json('/api/patch/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch})});
+      sessionStorage.setItem(runKey, run.id);
+      await follow(run.id, run);
+    } catch(e) { status.textContent = e.message; }
     finally { active = false; controls(); }
   });
+  const saved = sessionStorage.getItem(runKey);
+  if (saved && /^[a-f0-9-]{36}$/.test(saved)) follow(saved);
 })();

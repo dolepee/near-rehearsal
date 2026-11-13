@@ -439,6 +439,7 @@ if (require.main === module) {
     if (stopping) return;
     stopping = true;
     server.close();
+    try { await require('./patch-route.cjs').shutdown(); } catch {}
     try { await repairManager.shutdown(); } catch {}
     try { await reviewManager.shutdown(); } catch {}
     process.exit(0);
