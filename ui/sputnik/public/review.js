@@ -1,8 +1,8 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const state = {config: null, selected: null, selectionEpoch: 0, selectionPending: null, mode: null, run: null, runId: null, openEpoch: 0, poll: null, failures: 0, historySignature: null, submitting: false, submitMode: null, connectionLost: false};
-  const terminal = new Set(['accepted', 'rejected', 'interrupted']);
+  const state = {config: null, selected: null, selectionEpoch: 0, selectionPending: null, mode: null, run: null, runId: null, fresh: false, openEpoch: 0, poll: null, failures: 0, historySignature: null, submitting: false, submitMode: null, connectionLost: false};
+  const terminal = new Set(['accepted', 'rejected', 'interrupted', 'unavailable']);
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
   const short = (value, n = 14) => value ? `${String(value).slice(0, n)}…${String(value).slice(-6)}` : '—';
   const date = (value) => {
@@ -201,7 +201,7 @@
     return `<article class="review-card ${kind}"><div class="eyebrow">${esc(label)}</div><strong>${esc(value)}</strong><p>${esc(copy)}</p></article>`;
   }
 
-  function renderResult(run) {
+  function renderResult(run, fresh = false) {
     show('result-state');
     const result = run.result;
     const s = result?.summary || {};
@@ -209,9 +209,10 @@
     const accepted = checks.accepted === true && run.status === 'accepted';
     const sourceBuild = (result?.run?.mode || s.mode || run.mode) === 'source-build';
     $('result-banner').className = `result-banner${accepted ? '' : ' bad'}`;
+    const sessionLabel = fresh ? 'Fresh replay completed.' : 'Recorded evidence opened.';
     $('result-banner').textContent = accepted
-      ? (sourceBuild ? 'Review passed — the supplied patch built and met the declared checks.' : 'Review passed — the recorded candidate met the declared checks.')
-      : 'Review did not pass — no accepted result is available.';
+      ? `${sessionLabel} ${sourceBuild ? 'The supplied patch built and met the declared checks.' : 'The recorded candidate met the declared checks.'}`
+      : `${sessionLabel} No accepted result is available.`;
     const frozenBond = s.firstRecovery?.gross || '—';
     const verifiedHealthy = s.healthy || {};
     const healthyTransfer = verifiedHealthy.settledTransfer || verifiedHealthy.pendingTransfer || '—';
@@ -229,6 +230,34 @@
       card('Retry', s.retry?.gross === '0 NEAR' ? '0 NEAR extra principal' : (s.retry?.gross || '—'), `${s.retry?.gas || '—'} gas · no additional principal.`, s.retry?.gross === '0 NEAR' ? 'good' : 'bad'),
       card('Healthy obligations', healthyTransfer, healthy ? healthyCopy : 'The healthy obligation controls did not all pass.', healthy ? 'good' : 'bad'),
     ].join('');
+    const mixed = result.mixed;
+    const mixedPanel = $('same-dao-panel');
+    if (mixed) {
+      const comparison = mixed.comparison || {};
+      const outcomes = mixed.reviewer?.outcomes || {};
+      const verified = mixed.reviewer?.ok === true;
+      mixedPanel.hidden = false;
+      $('same-dao-badge').className = `badge ${verified ? 'good' : 'bad'}`;
+      $('same-dao-badge').textContent = verified ? 'Policy pass' : 'Policy fail';
+      $('same-dao-copy').textContent = comparison.legacy
+        ? 'Legacy bundle: the producer did not include mixed-obligation evidence. This review ran the current same-DAO policy fresh. Principal outcomes do not claim producer/reviewer equivalence.'
+        : comparison.candidateMatches === false
+          ? 'Producer and reviewer mixed evidence use different candidate bytes. Principal outcomes still match, but candidate equivalence is not claimed.'
+          : 'Producer and reviewer mixed evidence are both bound to this candidate and the current policy. Principal outcomes match; new receipt IDs and gas costs are allowed.';
+      const outcome = (value) => value === true ? 'yes' : value === false ? 'no' : 'not recorded';
+      const producer = comparison.producer || {};
+      const reviewer = comparison.reviewer?.outcomes || comparison.reviewer || outcomes;
+      $('same-dao-list').innerHTML = [
+        ['Alice bond returned once', outcome(reviewer.alicePaid), comparison.legacy ? 'not applicable' : outcome(producer.alicePaid)],
+        ['Bob liability preserved', outcome(reviewer.bobLiabilityAfterAlice), comparison.legacy ? 'not applicable' : outcome(producer.bobLiabilityAfterAlice)],
+        ['Bob transfer paid', outcome(reviewer.bobTransferPaid), comparison.legacy ? 'not applicable' : outcome(producer.bobTransferPaid)],
+        ['Bob payout and liability release valid', outcome(reviewer.bobPaidExactlyOnce), comparison.legacy ? 'not applicable' : outcome(producer.bobPaidExactlyOnce)],
+      ].map(([label, reviewerValue, producerValue]) => `<li><span class="check-mark${reviewerValue === 'yes' ? '' : ' bad'}" aria-hidden="true">${reviewerValue === 'yes' ? '✓' : '×'}</span><span>${esc(label)} — reviewer <b>${esc(reviewerValue)}</b>${comparison.legacy ? '' : `; producer <b>${esc(producerValue)}</b>`}</span></li>`).join('');
+      $('same-dao-copy').textContent += ` Policy ${short(mixed.policy?.sha256)}.`;
+      if (comparison.differences?.length) $('same-dao-copy').textContent += ` Differences: ${comparison.differences.join(', ')}.`;
+    } else {
+      mixedPanel.hidden = true;
+    }
     $('review-grid').innerHTML = [
       card('Mode', s.modeLabel || (sourceBuild ? 'Source build' : 'Recorded WASM replay'), sourceBuild ? 'Fresh build from the supplied patch, then local Sandbox replay.' : 'Supplied artifact, no source build and no model call.'),
       card(sourceBuild ? 'Built WASM' : 'Recorded artifact', short(s.candidateWasmSha256 || result.bundle?.candidate?.wasmSha256), sourceBuild ? 'Artifact produced by the build and exercised by the replay.' : 'Exact artifact exercised by the replay.', 'good'),
@@ -266,13 +295,14 @@
   function renderError(run) {
     show('error-state');
     const disconnected = run.connectionLost === true;
-    $('error-title').textContent = disconnected ? 'Connection to the review was lost.' : run.status === 'interrupted' ? 'The review was interrupted.' : 'The review did not pass.';
+    const unavailable = run.status === 'unavailable';
+    $('error-title').textContent = disconnected ? 'Connection to the review was lost.' : unavailable ? 'Review evidence is unavailable.' : run.status === 'interrupted' ? 'The review was interrupted.' : 'The review did not pass.';
     $('error-copy').textContent = disconnected
       ? `The outcome is unknown; the server may still be working. Reconnect to check the same run without starting another. ${run.error || ''}`
       : run.error || 'No accepted result was produced.';
     $('error-log').textContent = (run.logs || []).slice(-40).join('\n') || 'No runner output was captured.';
     $('retry-button').textContent = disconnected ? 'Reconnect to review' : 'Try another bundle';
-    setStatus(disconnected ? 'Connection lost — status unknown' : run.status === 'interrupted' ? 'Review interrupted' : 'Review not accepted', disconnected || run.status === 'interrupted' ? 'interrupted' : 'rejected');
+    setStatus(disconnected ? 'Connection lost — status unknown' : unavailable ? 'Evidence unavailable' : run.status === 'interrupted' ? 'Review interrupted' : 'Review not accepted', disconnected || run.status === 'interrupted' ? 'interrupted' : 'rejected');
     paintRunButton();
   }
 
@@ -280,7 +310,7 @@
     state.connectionLost = false;
     state.run = run;
     state.runId = run.id;
-    if (run.status === 'accepted') renderResult(run);
+    if (run.status === 'accepted') renderResult(run, state.fresh === true);
     else if (terminal.has(run.status)) renderError(run);
     else renderRunning(run);
     $('elapsed').textContent = duration(run.elapsedMs);
@@ -342,6 +372,7 @@
       const data = await response.json();
       if (epoch !== state.openEpoch) return;
       if (!response.ok) throw new Error(data.error || 'Could not start the review.');
+      state.fresh = true;
       state.failures = 0;
       renderRun(data.run);
       schedulePoll();
@@ -390,6 +421,7 @@
 
   async function openRun(id) {
     const epoch = ++state.openEpoch;
+    state.fresh = false;
     try {
       const response = await fetch(`/api/review/runs/${id}`, {headers: {'accept': 'application/json'}});
       if (epoch !== state.openEpoch) return;

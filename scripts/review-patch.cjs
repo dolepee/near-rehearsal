@@ -26,6 +26,9 @@ const PERSISTED_ACCEPTANCE = path.join(REPAIR, 'persisted-recovery-acceptance.cj
 const CONTROLLER_MANIFEST = path.join(REPAIR, 'controller-manifest.json');
 const BUILD_MANIFEST = path.join(REPAIR, 'build-manifest.json');
 const ACCEPTANCE = path.join(REPAIR, 'acceptance.cjs');
+const MIXED = path.join(REPAIR, 'mixed-obligation.cjs');
+const MIXED_POLICY = path.join(REPAIR, 'mixed-policy.cjs');
+const {verifyMixedReport} = require(MIXED_POLICY);
 const BASE_REPORT = path.join(REPAIR, 'out', 'issue238-local.json');
 const BASE_WASM = path.join(REPAIR, 'bundle', 'artifacts', 'base.wasm');
 const SCHEMA = 'near-rehearsal/review-patch/v1';
@@ -36,6 +39,7 @@ const MAX_PATCH_BYTES = 1024 * 1024;
 const PIPELINE_TIMEOUT_MS = 30 * 60 * 1000;
 const PERSISTED_TIMEOUT_MS = 15 * 60 * 1000;
 const ACCEPTANCE_TIMEOUT_MS = 60 * 1000;
+const MIXED_TIMEOUT_MS = 30 * 60 * 1000;
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const sha256File = (file) => sha256(fs.readFileSync(file));
@@ -147,6 +151,8 @@ function policyIdentity(baseReport) {
     persistedRecovery: sha256File(PERSISTED),
     acceptance: sha256File(ACCEPTANCE),
     persistedAcceptance: sha256File(PERSISTED_ACCEPTANCE),
+    mixedObligation: sha256File(MIXED),
+    mixedPolicy: sha256File(MIXED_POLICY),
     baseReport: sha256File(baseReport),
     baseWasm: sha256File(BASE_WASM),
   };
@@ -239,7 +245,7 @@ function asBigInt(value) {
   try { return BigInt(value); } catch { return null; }
 }
 
-function checksFrom(pipeline, report, acceptance) {
+function checksFrom(pipeline, report, acceptance, mixedCheck = null) {
   const checks = [];
   const add = (id, ok, detail, status = null) => checks.push({
     id,
@@ -253,6 +259,8 @@ function checksFrom(pipeline, report, acceptance) {
     pipeline ? (pipeline.acceptanceErrors || []).join('; ') || 'fresh replay accepted' : 'pipeline did not run');
   add('persisted-recovery', Boolean(report), report ? `report ${report.schema || 'present'}` : 'no persisted report');
   add('persisted-acceptance', acceptance?.ok === true, acceptance?.errors?.join('; ') || (acceptance ? 'accepted' : 'acceptance did not run'));
+  add('same-dao-mixed', mixedCheck ? mixedCheck.ok : null,
+    mixedCheck ? (mixedCheck.ok ? 'Alice bond returned once; Bob liability, transfer and retries preserved' : mixedCheck.errors.join('; ')) : 'same-DAO gate did not run');
   if (report) {
     add('failed-status', report.failed?.proposal?.status === 'Failed', `failed proposal status: ${report.failed?.proposal?.status || 'missing'}`);
     add('bond-recovered-once', asBigInt(report.firstRecovery?.grossRecoveryYocto) === 10n ** 24n,
@@ -312,6 +320,17 @@ function renderReport(review) {
       `- Retry: ${review.summary.retry.gross} gross; ${review.summary.retry.gas} gas; proposer net ${review.summary.retry.proposerNet}; no extra principal: ${review.summary.retry.grossYocto === '0'}`,
       `- Healthy controls: settled Transfer ${review.summary.healthy.settledTransfer || 'not measured'}; inherited pending Transfer ${review.summary.healthy.pendingTransfer || 'not measured'}`,
     ] : ['- No accepted money result was produced. See the checks and evidence below.']),
+    '',
+    '## Same-DAO mixed obligation',
+    '',
+    ...(review.mixed ? [
+      `- Policy result: **${review.mixed.ok ? 'pass' : 'fail'}**`,
+      `- Alice paid exactly once: ${review.mixed.outcomes.alicePaid === true}`,
+      `- Bob liability after Alice recovery: ${review.mixed.outcomes.bobLiabilityAfterAlice === true}`,
+      `- Bob transfer paid: ${review.mixed.outcomes.bobTransferPaid === true}`,
+      `- Bob settlement preserves payout and liability accounting: ${review.mixed.outcomes.bobPaidExactlyOnce === true}`,
+      ...(review.mixed.errors || []).map((error) => `- Failure: ${error}`),
+    ] : ['- Same-DAO mixed-obligation policy did not produce a verified report.']),
     '',
     '## Checks',
     '',
@@ -398,6 +417,8 @@ function runReview(opts) {
     'Caller-supplied repository/base/head labels are recorded, not verified.',
     'The report is evidence, not a signature and not a GitHub-enforced merge restriction.',
     'A rejected or incomplete run is preserved but is not an accepted replay bundle.',
+    'The same-DAO mixed-obligation gate is a local Sandbox scenario; it is not a live DAO migration or proof that other obligations are safe.',
+    'Source builds run as trusted local host execution: build scripts can read host files and credentials. This is not compiler isolation or an untrusted-code sandbox.',
   ];
 
   let status = 'INCONCLUSIVE';
@@ -405,6 +426,8 @@ function runReview(opts) {
   let pipeline = null;
   let report = null;
   let acceptance = null;
+  let mixed = null;
+  let mixedCheck = null;
   let summary = null;
   let checks = [];
 
@@ -535,21 +558,46 @@ function runReview(opts) {
             } else {
               safeCopy(path.join(persistedDir, 'persisted-recovery-acceptance.json'), path.join(evidenceDir, 'persisted-recovery-acceptance.json'));
               summary = reportSummary(report, acceptance, {mode: 'source-build'});
-              checks = checksFrom(pipeline, report, acceptance);
-              const pipelineFailed = pipeline.ok !== true || (pipeline.acceptanceErrors || []).length > 0;
-              const failedChecks = checks.filter((check) => check.status !== 'pass');
-              if (pipelineFailed) {
-                status = 'REJECTED';
-                reason = `fresh-state acceptance failed: ${(pipeline.acceptanceErrors || []).join('; ') || 'pipeline did not pass'}`;
-              } else if (acceptance.ok !== true) {
-                status = 'REJECTED';
-                reason = `persisted recovery acceptance failed: ${(acceptance.errors || []).join('; ') || 'acceptance did not pass'}`;
-              } else if (failedChecks.length) {
-                status = 'REJECTED';
-                reason = `defined checks failed: ${failedChecks.map((check) => check.id).join(', ')}`;
+              if (acceptance.ok === true) {
+                const mixedDir = path.join(outDir, 'mixed');
+                const mixedResult = runNode([
+                  MIXED,
+                  '--candidate-wasm', wasmPath,
+                  '--out', mixedDir,
+                  '--sandbox-dir', sandboxDir,
+                ], {timeout: MIXED_TIMEOUT_MS});
+                writeLog(path.join(evidenceDir, 'mixed.log'), mixedResult);
+                safeCopy(path.join(mixedDir, 'mixed-obligation.json'), path.join(evidenceDir, 'mixed-obligation.json'));
+                mixed = readJson(path.join(mixedDir, 'mixed-obligation.json'));
+                if (mixed) mixedCheck = verifyMixedReport(mixed, {requireBlockPinned: true});
+              }
+              if (acceptance.ok === true && !mixedCheck) {
+                status = 'INCONCLUSIVE';
+                reason = 'same-DAO mixed-obligation gate produced no verified report';
+                checks = [
+                  {id: 'persisted-acceptance', status: 'pass', detail: 'persisted acceptance passed'},
+                  {id: 'same-dao-mixed', status: 'error', detail: reason},
+                ];
               } else {
-                status = 'ACCEPTED';
-                reason = 'All defined source, build, replay, recovery and preservation checks passed.';
+                checks = checksFrom(pipeline, report, acceptance, mixedCheck);
+                const pipelineFailed = pipeline.ok !== true || (pipeline.acceptanceErrors || []).length > 0;
+                const failedChecks = checks.filter((check) => check.status !== 'pass');
+                if (pipelineFailed) {
+                  status = 'REJECTED';
+                  reason = `fresh-state acceptance failed: ${(pipeline.acceptanceErrors || []).join('; ') || 'pipeline did not pass'}`;
+                } else if (acceptance.ok !== true) {
+                  status = 'REJECTED';
+                  reason = `persisted recovery acceptance failed: ${(acceptance.errors || []).join('; ') || 'acceptance did not pass'}`;
+                } else if (mixedCheck && !mixedCheck.ok) {
+                  status = 'REJECTED';
+                  reason = `same-DAO mixed-obligation policy failed: ${mixedCheck.errors.join('; ')}`;
+                } else if (failedChecks.length) {
+                  status = 'REJECTED';
+                  reason = `defined checks failed: ${failedChecks.map((check) => check.id).join(', ')}`;
+                } else {
+                  status = 'ACCEPTED';
+                  reason = 'All defined source, build, replay, recovery, same-DAO and preservation checks passed.';
+                }
               }
             }
           }
@@ -576,6 +624,7 @@ function runReview(opts) {
     policy,
     checks,
     summary,
+    mixed: mixedCheck ? {ok: mixedCheck.ok, errors: mixedCheck.errors, outcomes: mixedCheck.outcomes} : null,
     evidence,
     limitations,
     boundary: 'Local Sandbox evidence for the pinned Sputnik #238 case. No live DAO recovery, deployment, audit, universal safety claim, signature or merge enforcement.',

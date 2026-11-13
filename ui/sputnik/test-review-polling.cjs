@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const {compareMixed} = require('../../scripts/repair-review.cjs');
 
 class FakeClassList {
   constructor() { this.values = new Set(); }
@@ -103,6 +104,12 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
   assert.ok(timers.length, 'reconnection schedules polling again');
   assert.equal(postCalls, 0, 'reconnection does not submit a new review');
   await exhaustPolls();
+  const legacyOutcomes = {alicePaid: true, bobLiabilityAfterAlice: true, bobTransferPaid: true, bobPaidExactlyOnce: true};
+  accepted.result.mixed = {
+    policy: {sha256: 'd'.repeat(64)},
+    reviewer: {ok: true, outcomes: legacyOutcomes},
+    comparison: compareMixed(null, {ok: true, outcomes: legacyOutcomes}, 'c'.repeat(64), 'c'.repeat(64)),
+  };
   runResponse = accepted; // The server finished while polling was unavailable.
   get('retry-button').click();
   await tick(); await tick(); await tick();
@@ -110,5 +117,26 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
   assert.match(get('status').textContent, /accepted/, 'accepted status is rendered');
   assert.equal(postCalls, 0, 'terminal reconnection does not submit a new review');
   assert.equal(timers.length, 0, 'terminal reconnection stops polling');
+  assert.match(get('same-dao-copy').textContent, /Legacy bundle/);
+  assert.match(get('same-dao-list').innerHTML, /reviewer <b>yes/);
+  assert.doesNotMatch(get('same-dao-list').innerHTML, /not recorded/, 'fresh legacy outcomes must not disappear behind the comparison wrapper');
+
+  // Restore a historical result whose evidence disappeared while the server
+  // was stopped. It must release the UI rather than pretend to keep running.
+  elements.clear();
+  timers.length = 0;
+  runResponse = {...accepted, status: 'unavailable', phase: 'unavailable', result: null,
+    error: 'The supporting evidence files are unavailable.', downloadUrl: null, evidenceUrl: null};
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'public/review.js'), 'utf8'), context, {filename: 'review.js'});
+  await tick(); await tick(); await tick(); await tick();
+  assert.equal(get('error-state').hidden, false, 'missing historical evidence renders an error');
+  assert.match(get('error-copy').textContent, /supporting evidence files are unavailable/);
+  assert.equal(timers.length, 0, 'an unavailable historical result does not poll forever');
+  assert.equal(postCalls, 0, 'opening unavailable history does not launch a replacement job');
+  const replacement = {name: 'replacement.json', size: 2, text: async () => JSON.stringify({runId: 'replacement'})};
+  for (const listener of get('bundle-file').listeners.change || []) listener({target: {files: [replacement]}});
+  await tick(); await tick(); await tick();
+  assert.equal(get('run-button').disabled, false, 'a newly selected bundle can run after unavailable history');
+  assert.equal(get('run-button').textContent, 'Run recorded review');
   console.log('review-polling: refresh and bounded-failure reconnect preserve the run and recover its terminal result');
 })().catch((error) => { console.error(error.stack || error); process.exitCode = 1; });

@@ -257,3 +257,106 @@ jobs:
           name: persisted-bond-recovery
           path: ${{ runner.temp }}/persisted-recovery/persisted-recovery.json
           if-no-files-found: error
+
+  primary-gate:
+    name: Primary good/bad and reviewer replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Install Rust 1.86.0 and wasm32
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal --default-toolchain 1.86.0
+          . "$HOME/.cargo/env"
+          rustup target add wasm32-unknown-unknown --toolchain 1.86.0
+          rustup default 1.86.0
+          rustc --version
+      - name: Check out exact upstream source
+        run: |
+          set -euo pipefail
+          source_dir="$RUNNER_TEMP/sputnik-dao-contract"
+          git clone --quiet https://github.com/near-daos/sputnik-dao-contract.git "$source_dir"
+          git -C "$source_dir" checkout --quiet 5434a59dec23ee0c49df8c8c4350c208a7e75b0b
+          test -z "$(git -C "$source_dir" status --porcelain --untracked-files=all)"
+          echo "REPAIR_REVIEW_SOURCE=$source_dir" >> "$GITHUB_ENV"
+      - name: Acquire pinned NEAR Sandbox 2.14.0
+        run: |
+          set -euo pipefail
+          sandbox_dir="$RUNNER_TEMP/near-sandbox-2.14.0"
+          mkdir -p "$sandbox_dir"
+          curl -fsSL \
+            https://s3-us-west-1.amazonaws.com/build.nearprotocol.com/nearcore/Linux-x86_64/2.14.0/near-sandbox.tar.gz \
+            -o "$sandbox_dir/near-sandbox.tar.gz"
+          echo "a0ba004218b218bd74351795e7ce2eda4a2b6af5cd3e252bd5e8bfe3c8f2e691  $sandbox_dir/near-sandbox.tar.gz" \
+            | sha256sum -c -
+          tar --no-same-owner -xzf "$sandbox_dir/near-sandbox.tar.gz" -C "$sandbox_dir"
+          chmod +x "$sandbox_dir/Linux-x86_64/near-sandbox"
+          echo "REPAIR_SANDBOX_DIR=$sandbox_dir/Linux-x86_64" >> "$GITHUB_ENV"
+      - name: Primary intended candidate must be accepted
+        run: |
+          set -euo pipefail
+          ulimit -n 65535
+          out="$RUNNER_TEMP/primary-good"
+          node scripts/review-patch.cjs \
+            --patch case-triage/rehearsal-repair/mixed-candidates/intended.patch \
+            --source "$REPAIR_REVIEW_SOURCE" --out "$out" --sandbox-dir "$REPAIR_SANDBOX_DIR"
+          node - "$out" <<'NODE'
+          const fs=require('fs');const root=process.argv[2];const r=JSON.parse(fs.readFileSync(root+'/review-status.json','utf8'));
+          if(r.status!=='ACCEPTED') throw new Error('primary intended not accepted: '+r.status);
+          const mixed=r.checks.find(c=>c.id==='same-dao-mixed'); if(!mixed||mixed.status!=='pass') throw new Error('same-DAO gate missing');
+          NODE
+      - name: Primary clear-all candidate must be rejected
+        run: |
+          set -euo pipefail
+          ulimit -n 65535
+          out="$RUNNER_TEMP/primary-bad"
+          set +e
+          node scripts/review-patch.cjs \
+            --patch case-triage/rehearsal-repair/mixed-candidates/clear-all.patch \
+            --source "$REPAIR_REVIEW_SOURCE" --out "$out" --sandbox-dir "$REPAIR_SANDBOX_DIR"
+          code=$?
+          set -e
+          test "$code" = 2
+          node - "$out" <<'NODE'
+          const fs=require('fs');const root=process.argv[2];const r=JSON.parse(fs.readFileSync(root+'/review-status.json','utf8'));
+          if(r.status!=='REJECTED') throw new Error('clear-all not rejected: '+r.status);
+          const mixed=r.checks.find(c=>c.id==='same-dao-mixed'); if(!mixed||mixed.status!=='fail') throw new Error('same-DAO rejection missing');
+          NODE
+      - name: Export accepted primary evidence and replay it in the reviewer
+        run: |
+          set -euo pipefail
+          ulimit -n 65535
+          out="$RUNNER_TEMP/primary-good"
+          bundle="$RUNNER_TEMP/primary-review-bundle.json"
+          node case-triage/rehearsal-repair/export-primary-bundle.cjs --review-dir "$out" \
+            --patch case-triage/rehearsal-repair/mixed-candidates/intended.patch --out "$bundle" --run-id ci-primary
+          replay="$RUNNER_TEMP/primary-replay"
+          node scripts/repair-review.cjs --bundle "$bundle" --out "$replay" --mode recorded-wasm --sandbox-dir "$REPAIR_SANDBOX_DIR"
+          node - "$replay" <<'NODE'
+          const fs=require('fs');const root=process.argv[2];const r=JSON.parse(fs.readFileSync(root+'/review-result.json','utf8'));
+          if(!r.mixed||!r.mixed.reviewer||r.mixed.reviewer.ok!==true) throw new Error('reviewer mixed gate missing');
+          if(r.mixed.comparison.legacy) throw new Error('primary export was treated as legacy');
+          if(r.mixed.comparison.differences.length) throw new Error('producer/reviewer outcomes differ');
+          NODE
+      - name: Upload primary gate evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: primary-gate
+          path: |
+            ${{ runner.temp }}/primary-good/review-status.json
+            ${{ runner.temp }}/primary-good/review-report.md
+            ${{ runner.temp }}/primary-good/evidence/mixed-obligation.json
+            ${{ runner.temp }}/primary-bad/review-status.json
+            ${{ runner.temp }}/primary-bad/review-report.md
+            ${{ runner.temp }}/primary-bad/evidence/mixed-obligation.json
+            ${{ runner.temp }}/primary-review-bundle.json
+            ${{ runner.temp }}/primary-replay/review-result.json
+          if-no-files-found: error

@@ -45,6 +45,8 @@ assert.equal(policy.sourceCommit, '5434a59dec23ee0c49df8c8c4350c208a7e75b0b');
 assert.equal(policy.allowedPaths.length, 1);
 assert.match(policy.files.acceptance, /^[0-9a-f]{64}$/);
 assert.match(policy.files.persistedAcceptance, /^[0-9a-f]{64}$/);
+assert.match(policy.files.mixedObligation, /^[0-9a-f]{64}$/);
+assert.match(policy.files.mixedPolicy, /^[0-9a-f]{64}$/);
 console.log('accepted: checker policy identities are pinned outside the candidate');
 
 const review = {

@@ -1,0 +1,49 @@
+{
+  "schema": "near-rehearsal/mixed-obligation-candidates/v1",
+  "source": {
+    "repository": "https://github.com/near-daos/sputnik-dao-contract",
+    "commit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b",
+    "path": "sputnikdao2/src/proposals.rs"
+  },
+  "build": {
+    "rust": "1.86.0",
+    "target": "wasm32-unknown-unknown",
+    "command": "cargo build --target wasm32-unknown-unknown --release --locked -p sputnikdao2"
+  },
+  "candidates": {
+    "old": {
+      "wasm": "mixed-candidates/old.wasm",
+      "wasmSha256": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578",
+      "wasmBytes": 528645,
+      "patch": null,
+      "patchSha256": null
+    },
+    "intended": {
+      "wasm": "mixed-candidates/intended.wasm",
+      "wasmSha256": "49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923",
+      "wasmBytes": 527405,
+      "patch": "mixed-candidates/intended.patch",
+      "patchSha256": "edf16b966f0f49f26d73b2ac0fde980b3f8c4f638fcbbcc7c6a6bcb4fd25cf21"
+    },
+    "future-only": {
+      "wasm": "mixed-candidates/future-only.wasm",
+      "wasmSha256": "b20a553b148be7525543069a23beada9a3f257b9093170df8a15afa196bffa3d",
+      "wasmBytes": 527895,
+      "patch": "mixed-candidates/future-only.patch",
+      "patchSha256": "03da5a7b06a7a4d5599a51aa4ba8749024671211483bd030c3719cad43ad4c8c"
+    },
+    "clear-all": {
+      "wasm": "mixed-candidates/clear-all.wasm",
+      "wasmSha256": "684eabc429fc691f68aef8baf7f2e226f42ae481e3da4a1f41a54598e302d9b6",
+      "wasmBytes": 527889,
+      "patch": "mixed-candidates/clear-all.patch",
+      "patchSha256": "2f905c3f0849b24f362e75a4771a597715a779cc6a78c15aef2ae1a077a8cd11"
+    }
+  },
+  "meaning": {
+    "old": "Pinned old code; no repair.",
+    "future-only": "Records new bonds but does not recover a pre-upgrade proposal with no recorded bond.",
+    "clear-all": "Returns Alice but sets aggregate locked accounting to zero after recovery.",
+    "intended": "Per-proposal bond accounting; recover one obligation without clearing another."
+  }
+}

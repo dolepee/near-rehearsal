@@ -19,6 +19,9 @@ const PIPELINE = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'repair-pipe
 const RECOVERY = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'persisted-recovery.cjs');
 const ACCEPTANCE = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'persisted-recovery-acceptance.cjs');
 const BASE_WASM = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'bundle', 'artifacts', 'base.wasm');
+const MIXED = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'mixed-obligation.cjs');
+const {verifyMixedReport} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'mixed-policy.cjs'));
+const {mixedPolicyIdentity} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'mixed-policy-identity.cjs'));
 const BASE_WASM_SHA = '5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578';
 const SANDBOX_COMMIT = 'bc4e9e8cfb03d9e82f027883055624e18576993e';
 const SANDBOX_VERSION = '2.14.0';
@@ -172,7 +175,21 @@ const checkBundle = (bundle) => {
     fail('bundle recovery source artifact disagrees with the verified identity');
   }
   const sourceIdentity = candidateIdentity.source;
-  return { patchText, wasm, sourceIdentity };
+  let producerMixed = null;
+  let legacy = true;
+  if (bundle.mixed != null) {
+    legacy = false;
+    if (typeof bundle.mixed.reportText !== 'string' || !bundle.mixed.reportText.trim()) fail('bundle mixed report text is missing');
+    if (!hex(bundle.mixed.reportSha256) || sha256(Buffer.from(bundle.mixed.reportText, 'utf8')) !== bundle.mixed.reportSha256) fail('bundle mixed report hash does not match its text');
+    if (bundle.mixed.candidateWasmSha256 !== bundle.candidate.wasm.sha256) fail('bundle mixed evidence is for a different candidate WASM');
+    if (!hex(bundle.mixed.policySha256)) fail('bundle mixed policy hash is missing or invalid');
+    const currentPolicy = mixedPolicyIdentity(ROOT);
+    if (bundle.mixed.policySha256 !== currentPolicy.sha256) fail('bundle mixed policy hash does not match this reviewer policy');
+    try { producerMixed = JSON.parse(bundle.mixed.reportText); } catch (error) { fail(`bundle mixed report is not valid JSON: ${error.message}`); }
+    const checkedMixed = verifyMixedReport(producerMixed, {requireBlockPinned: true});
+    if (!checkedMixed.ok) fail(`bundle mixed producer evidence does not pass the current policy: ${checkedMixed.errors.join('; ')}`);
+  }
+  return { patchText, wasm, sourceIdentity, producerMixed, legacy, mixedPolicy: mixedPolicyIdentity(ROOT) };
 };
 
 const bundledIdentityMatches = (bundle) => {
@@ -417,6 +434,50 @@ const runRecorded = (bundle, prepared, outDir, opts) => {
   };
 };
 
+const runMixedGate = (candidateWasm, outDir, sandboxDir) => {
+  const mixedDir = path.join(outDir, 'mixed');
+  const result = requireCommand([
+    MIXED,
+    '--candidate-wasm', candidateWasm,
+    '--out', mixedDir,
+    '--sandbox-dir', sandboxDir,
+  ], 'same-DAO mixed-obligation gate');
+  const reportPath = path.join(mixedDir, 'mixed-obligation.json');
+  const report = readJson(reportPath, 'same-DAO mixed-obligation report');
+  const checked = verifyMixedReport(report, {requireBlockPinned: true});
+  if (!checked.ok) fail(`same-DAO mixed-obligation gate failed: ${checked.errors.join('; ')}`);
+  return {mixedDir, reportPath, report, checked, policy: mixedPolicyIdentity(ROOT), stdout: result.stdout};
+};
+
+const compareMixed = (producer, reviewer, reviewerWasmSha256, artifactWasmSha256) => {
+  const producerOutcomes = producer?.outcomes || (producer ? verifyMixedReport(producer, {requireBlockPinned: true}).outcomes : null);
+  const keys = ['alicePaid', 'bobLiabilityAfterAlice', 'bobTransferPaid', 'bobPaidExactlyOnce', 'aliceLockedDelta', 'bobLockedDelta', 'bobRecipientDelta', 'bobProposerDelta'];
+  if (!producerOutcomes) return {
+    legacy: true,
+    candidateMatches: null,
+    reviewerWasmSha256,
+    artifactWasmSha256,
+    note: 'Legacy bundle had no producer mixed evidence; the reviewer ran the current same-DAO policy fresh.',
+    reviewer,
+  };
+  const differences = keys.filter((key) => String(producerOutcomes?.[key]) !== String(reviewer.outcomes?.[key]));
+  const producerWasmSha256 = producer.candidate?.wasmSha256 || null;
+  const candidateMatches = producerWasmSha256 === reviewerWasmSha256;
+  if (differences.length) fail(`producer/reviewer mixed outcomes differ: ${differences.join(', ')}`);
+  return {
+    legacy: false,
+    candidateMatches,
+    reviewerWasmSha256,
+    artifactWasmSha256,
+    producerWasmSha256,
+    artifactMismatch: reviewerWasmSha256 !== artifactWasmSha256,
+    policyMatches: true,
+    differences,
+    producer: producerOutcomes,
+    reviewer: reviewer.outcomes,
+  };
+};
+
 const formatYocto = (value) => {
   let n;
   try {
@@ -514,6 +575,10 @@ const render = (result) => {
     `Unauthorized update/finalize rejected: ${s.checks.authorityRejected ? 'yes' : 'NO'}`,
     `Healthy controls (already-paid + pending Transfer): ${s.checks.healthyControl}/${s.checks.pendingHealthy}`,
     '',
+    `Same-DAO policy: ${result.mixed.reviewer.ok ? 'pass' : 'FAIL'} (${result.mixed.comparison.legacy ? 'legacy producer evidence absent; fresh reviewer gate' : 'producer evidence compared'})`,
+    `Producer/reviewer principal outcomes: ${result.mixed.comparison.legacy ? 'not comparable (legacy bundle)' : 'match'}`,
+    `Reviewer mixed policy: ${result.mixed.policy.sha256}`,
+    '',
     `Acceptance: ${s.checks.accepted ? 'pass' : 'FAIL'}`,
     `Result: ${result.resultPath}`,
     `Report: ${result.run.reportPath}`,
@@ -542,6 +607,11 @@ const main = () => {
   const report = readJson(run.reportPath, 'persisted recovery report');
   const summary = summarize(report, run);
   if (!summary.checks.accepted) fail('persisted recovery report did not pass acceptance');
+  const mixedRun = runMixedGate(run.builtWasm || run.wasmPath, outDir, plan.sandboxDir);
+  const reviewerArtifactWasmSha256 = run.mode === 'source-build' ? run.builtWasmSha256 : run.wasmSha256;
+  const mixedReportWasmSha256 = mixedRun.report?.candidate?.wasmSha256;
+  if (!mixedReportWasmSha256 || mixedReportWasmSha256 !== reviewerArtifactWasmSha256) fail('reviewer mixed gate did not execute the built/recorded candidate artifact');
+  const mixedComparison = compareMixed(checkBundle(bundle).producerMixed, mixedRun.checked, mixedReportWasmSha256, reviewerArtifactWasmSha256);
   const resultPath = path.join(outDir, 'review-result.json');
   const result = {
     schema: 'near-rehearsal/repair-review-handoff/v1',
@@ -560,6 +630,13 @@ const main = () => {
     },
     run,
     summary,
+    mixed: {
+      mode: 'fresh-replay',
+      policy: mixedRun.policy,
+      reviewer: mixedRun.checked,
+      reportPath: mixedRun.reportPath,
+      comparison: mixedComparison,
+    },
     resultPath,
     boundary: 'Local NEAR Sandbox 2.14 only. No public write, deployment, production upgrade, or claim about other cases.',
   };
@@ -576,4 +653,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { checkBundle, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment };
+module.exports = { checkBundle, compareMixed, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment };

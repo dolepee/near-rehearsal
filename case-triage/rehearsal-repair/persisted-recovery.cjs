@@ -96,6 +96,12 @@ async function finalStatus(worker, tx, sender) {
   throw new Error(`tx ${hash} did not reach FINAL: ${JSON.stringify(last)}`);
 }
 
+function summaryGas(summary) {
+  const tx = BigInt(summary?.transactionOutcome?.tokensBurntYocto ?? 0);
+  const receipts = (summary?.receipts || []).reduce((sum, receipt) => sum + BigInt(receipt?.tokensBurntYocto ?? 0), 0n);
+  return tx + receipts;
+}
+
 function summarize(final) {
   const txo = final?.status?.transaction_outcome;
   const receipts = (final?.status?.receipts_outcome || []).map((r) => ({
@@ -551,6 +557,22 @@ async function runHealthyPreservation(worker, candidateWasm) {
     recipient: (BigInt(pendingAfter.recipientBalance) - BigInt(pendingBeforePayout.recipientBalance)).toString(),
     locked: (BigInt(pendingAfter.lockedAmount) - BigInt(pendingBeforePayout.lockedAmount)).toString(),
   };
+  // Paying the inherited pending proposal once is not proof against a second
+  // payout. Retry the now-Approved proposal and recompute its deltas after the
+  // first payment has settled.
+  const pendingRetry = await attempt('retry paid pending proposal', async () => {
+    const tx = await base.proposer.callRaw(base.dao, 'act_proposal', {id: pendingId, action: 'Finalize', proposal: kind}, {gas: GAS});
+    return summarize(await finalStatus(worker, tx, base.proposer.accountId));
+  });
+  await settle(worker, base.dao, base.proposer, base.recipient);
+  const pendingRetryAfter = await snapshot(worker, base.dao, base.proposer, base.recipient, pendingId);
+  const pendingRetryGas = pendingRetry.ok ? summaryGas(pendingRetry.value) : 0n;
+  const pendingRetryDeltas = {
+    contract: (BigInt(pendingRetryAfter.contractBalance) - BigInt(pendingAfter.contractBalance)).toString(),
+    proposer: (BigInt(pendingRetryAfter.proposerBalance) - BigInt(pendingAfter.proposerBalance)).toString(),
+    recipient: (BigInt(pendingRetryAfter.recipientBalance) - BigInt(pendingAfter.recipientBalance)).toString(),
+    locked: (BigInt(pendingRetryAfter.lockedAmount) - BigInt(pendingAfter.lockedAmount)).toString(),
+  };
   return {
     proposalId,
     before,
@@ -567,6 +589,10 @@ async function runHealthyPreservation(worker, candidateWasm) {
       after: pendingAfter,
       deltas: pendingDeltas,
       gasBurntYocto: pendingGas,
+      retry: pendingRetry,
+      retryAfter: pendingRetryAfter,
+      retryDeltas: pendingRetryDeltas,
+      retryGasBurntYocto: pendingRetryGas.toString(),
     },
     upgrade: upgradeFinal.deploy,
     migrate: upgradeFinal.migrate,
@@ -587,7 +613,7 @@ async function runHealthyPreservation(worker, candidateWasm) {
         && pendingAfterUpgrade.codeHash === candidateHash,
       pendingPayout: pendingDeltas.recipient === TRANSFER.toString(),
       pendingBondReturned: BigInt(pendingDeltas.proposer) + BigInt(pendingGas) === BOND,
-      pendingNoSecondPayout: pendingDeltas.recipient === TRANSFER.toString() && pendingProposal.status === 'Approved',
+      pendingNoSecondPayout: pendingRetry.ok && pendingRetryDeltas.recipient === '0' && pendingRetryDeltas.contract === '0' && pendingRetryDeltas.locked === '0' && pendingRetryAfter.proposal?.status === 'Approved',
     },
   };
 }

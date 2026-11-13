@@ -8,7 +8,7 @@ const html = fs.readFileSync(path.join(root, 'public', 'review.html'), 'utf8');
 const js = fs.readFileSync(path.join(root, 'public', 'review.js'), 'utf8');
 const server = fs.readFileSync(path.join(root, 'server.cjs'), 'utf8');
 
-for (const id of ['bundle-file', 'example-button', 'run-button', 'history-list', 'result-state', 'downloads', 'status', 'mode-source', 'mode-recorded', 'mode-source-status', 'mode-recorded-status']) {
+for (const id of ['bundle-file', 'example-button', 'run-button', 'history-list', 'result-state', 'downloads', 'status', 'mode-source', 'mode-recorded', 'mode-source-status', 'mode-recorded-status', 'same-dao-panel', 'same-dao-badge', 'same-dao-copy', 'same-dao-list']) {
   assert.match(html, new RegExp(`id="${id}"`), `missing #${id}`);
 }
 assert.match(html, /Source build/);
@@ -29,6 +29,11 @@ assert.match(js, /extra principal/);
 assert.match(js, /Source revision/);
 assert.match(js, /Candidate patch/);
 assert.match(js, /schedulePoll/);
+assert.match(js, /Fresh replay completed/);
+assert.match(js, /Recorded evidence opened/);
+assert.match(js, /same-dao/);
+assert.match(js, /producer/);
+assert.match(html, /Trusted-local source build/);
 assert.match(server, /\/api\/review\/example/);
 assert.match(server, /\/api\/review\/runs/);
 assert.match(server, /\/download/);

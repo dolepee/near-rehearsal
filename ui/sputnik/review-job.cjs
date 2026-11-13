@@ -207,6 +207,35 @@ function buildEvidence(run) {
   });
 }
 
+function publicMixed(mixed) {
+  if (!mixed) return null;
+  const outcomes = mixed.reviewer?.outcomes || null;
+  return {
+    mode: mixed.mode || null,
+    policy: {
+      sha256: mixed.policy?.sha256 || null,
+      files: mixed.policy?.files || null,
+    },
+    reviewer: {
+      ok: mixed.reviewer?.ok === true,
+      errors: Array.isArray(mixed.reviewer?.errors) ? mixed.reviewer.errors.map(cleanError) : [],
+      outcomes,
+    },
+    comparison: {
+      legacy: mixed.comparison?.legacy === true,
+      candidateMatches: mixed.comparison?.candidateMatches === true,
+      producerWasmSha256: mixed.comparison?.producerWasmSha256 || null,
+      reviewerWasmSha256: mixed.comparison?.reviewerWasmSha256 || null,
+      artifactWasmSha256: mixed.comparison?.artifactWasmSha256 || null,
+      artifactMismatch: mixed.comparison?.artifactMismatch === true,
+      policyMatches: mixed.comparison?.policyMatches === true,
+      differences: Array.isArray(mixed.comparison?.differences) ? mixed.comparison.differences.map(cleanError) : [],
+      producer: mixed.comparison?.producer || null,
+      reviewer: mixed.comparison?.reviewer || null,
+    },
+  };
+}
+
 function publicResult(result, meta) {
   if (!result) return null;
   return {
@@ -234,11 +263,13 @@ function publicResult(result, meta) {
       } : null,
     },
     summary: result.summary || null,
+    mixed: publicMixed(result.mixed),
     boundary: result.boundary || 'Local NEAR Sandbox 2.14 only. No public write, deployment, production upgrade, or claim about other cases.',
   };
 }
 
 function publicRun(run) {
+  const dir = run.outDir ? path.dirname(run.outDir) : null;
   return {
     id: run.id,
     status: run.status,
@@ -251,13 +282,14 @@ function publicRun(run) {
     bundle: run.bundle,
     mode: run.mode || 'recorded-wasm',
     result: run.result || null,
-    downloadUrl: run.status === 'accepted' ? `/api/review/runs/${run.id}/download` : null,
-    inputUrl: `/api/review/runs/${run.id}/input`,
-    evidenceUrl: run.status === 'accepted' ? `/api/review/runs/${run.id}/evidence` : null,
+    downloadUrl: run.status === 'accepted' && dir && fs.existsSync(path.join(dir, 'download.json')) ? `/api/review/runs/${run.id}/download` : null,
+    inputUrl: dir && fs.existsSync(path.join(dir, 'bundle.json')) ? `/api/review/runs/${run.id}/input` : null,
+    evidenceUrl: run.status === 'accepted' && dir && fs.existsSync(path.join(dir, 'evidence.json')) ? `/api/review/runs/${run.id}/evidence` : null,
   };
 }
 
 function summary(run) {
+  const dir = run.outDir ? path.dirname(run.outDir) : null;
   return {
     id: run.id,
     status: run.status,
@@ -267,11 +299,11 @@ function summary(run) {
     elapsedMs: Math.max(0, Date.parse(run.finishedAt || nowIso()) - Date.parse(run.startedAt)),
     error: run.error ? cleanError(run.error) : null,
     bundle: run.bundle,
-    accepted: run.result?.summary?.checks?.accepted === true,
+    accepted: run.status === 'accepted' && run.result?.summary?.checks?.accepted === true,
     mode: run.mode || 'recorded-wasm',
-    downloadUrl: run.status === 'accepted' ? `/api/review/runs/${run.id}/download` : null,
-    inputUrl: `/api/review/runs/${run.id}/input`,
-    evidenceUrl: run.status === 'accepted' ? `/api/review/runs/${run.id}/evidence` : null,
+    downloadUrl: run.status === 'accepted' && dir && fs.existsSync(path.join(dir, 'download.json')) ? `/api/review/runs/${run.id}/download` : null,
+    inputUrl: dir && fs.existsSync(path.join(dir, 'bundle.json')) ? `/api/review/runs/${run.id}/input` : null,
+    evidenceUrl: run.status === 'accepted' && dir && fs.existsSync(path.join(dir, 'evidence.json')) ? `/api/review/runs/${run.id}/evidence` : null,
   };
 }
 
@@ -507,6 +539,22 @@ function createManager(options = {}) {
           error: run.error,
           finishedAt: run.finishedAt,
         }));
+      } else if (meta.status === 'accepted' && !['result.json', 'download.json', 'evidence.json'].every((name) => fs.existsSync(path.join(dir, name)))) {
+        // A historical pointer is not a complete accepted packet. Preserve the
+        // fact that it previously passed, but never advertise live artifacts.
+        run.status = 'unavailable';
+        run.phase = 'unavailable';
+        run.historicalStatus = 'accepted';
+        run.result = null;
+        run.error = 'This run previously passed, but its supporting result or evidence files are unavailable.';
+        run.finishedAt = meta.finishedAt || nowIso();
+        fs.writeFileSync(path.join(dir, 'run.json'), json({
+          ...meta,
+          status: run.status,
+          phase: run.phase,
+          error: run.error,
+          finishedAt: run.finishedAt,
+        }));
       } else if (!run.result && result?.result) {
         run.result = result.result;
       }
@@ -537,9 +585,6 @@ function createManager(options = {}) {
     const run = runs.get(id);
     if (!run || run.status !== 'accepted') return null;
     const file = path.join(runDir(id), 'evidence.json');
-    if (!fs.existsSync(file)) {
-      try { fs.writeFileSync(file, json(buildEvidence(run))); } catch { return null; }
-    }
     return fs.existsSync(file) ? file : null;
   }
   async function shutdown() {

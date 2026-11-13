@@ -42,6 +42,7 @@ function verifyCandidateFiles(identity, files) {
 }
 
 function verify(base, repaired, options = {}) {
+  const failureText = (status) => JSON.stringify(status || {});
   const errors = [];
   const fail = (m) => errors.push(m);
   for (const [name, report] of [['base', base], ['repaired', repaired]]) {
@@ -62,7 +63,13 @@ function verify(base, repaired, options = {}) {
   }
   for (const [name, report] of [['base', base], ['repaired', repaired]]) {
     const callback = report?.healthy?.unauthorizedCallback;
-    if (!callback?.receipts?.some((receipt) => receipt.status?.Failure)) fail(`${name} unauthorized callback was not rejected on its receipt`);
+    const expectedExecutor = report?.contractId || report?.accounts?.contract || report?.healthy?.unauthorizedCallback?.transaction?.receiverId;
+    const rejected = (callback?.receipts || []).find((receipt) =>
+      receipt?.executorId === expectedExecutor &&
+      receipt?.status?.Failure &&
+      failureText(receipt.status).includes('Method on_proposal_callback is private')
+    );
+    if (!rejected) fail(`${name} unauthorized callback did not fail at the expected contract executor with the private-method access-control error`);
     if (report?.healthy?.kind?.Transfer?.receiver_id !== 'recipient.test.near') fail(`${name} healthy beneficiary changed`);
     if (BigInt(report?.healthy?.kind?.Transfer?.amount ?? '0') !== TRANSFER) fail(`${name} healthy transfer amount changed`);
   }

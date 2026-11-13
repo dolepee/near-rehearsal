@@ -15,6 +15,8 @@ fs.mkdirSync(path.join(root, 'case-triage/rehearsal-repair'), {recursive: true})
 fs.writeFileSync(path.join(root, 'case-triage/rehearsal-repair/controller-manifest.json'), JSON.stringify({source: {commit: '5434a59dec23ee0c49df8c8c4350c208a7e75b0b'}}));
 fs.writeFileSync(path.join(root, 'scripts/review-patch.cjs'), 'throw new Error("A restart or result read must not start the checker");');
 fs.copyFileSync(path.join(__dirname, 'patch-route.cjs'), path.join(routeDir, 'patch-route.cjs'));
+fs.copyFileSync(path.join(__dirname, '../../case-triage/rehearsal-repair/review-bundle.cjs'), path.join(root, 'case-triage/rehearsal-repair/review-bundle.cjs'));
+ fs.copyFileSync(path.join(__dirname,'../../case-triage/rehearsal-repair/mixed-policy-identity.cjs'),path.join(root,'case-triage/rehearsal-repair/mixed-policy-identity.cjs'));
 for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md']) fs.copyFileSync(path.join(__dirname, '../../', name), path.join(root, name));
 fs.mkdirSync(path.join(root, 'LICENSES'), {recursive: true});
 fs.copyFileSync(path.join(__dirname, '../../LICENSES/sputnik-dao-contract-MIT.txt'), path.join(root, 'LICENSES/sputnik-dao-contract-MIT.txt'));
@@ -104,7 +106,7 @@ assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8'
     assert.match(listing.stdout, /README\.md/);
     assert.match(listing.stdout, /SHA256SUMS/);
     const packageMarker = spawnSync('unzip', ['-p', file, 'README.md'], {encoding: 'utf8', timeout: 15_000});
-    assert.match(packageMarker.stdout, /Package format: 2/);
+    assert.match(packageMarker.stdout, /Package format: 3/);
     assert.doesNotMatch(packageMarker.stdout, /^# old package/m);
     assert.match(listing.stdout, /REPRODUCE|review-report\.md/);
     assert.match(listing.stdout, /artifact\/sputnikdao2\.wasm/);
