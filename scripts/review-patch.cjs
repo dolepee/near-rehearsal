@@ -502,9 +502,14 @@ function runReview(opts) {
           report = readJson(path.join(persistedDir, 'persisted-recovery.json'));
           if (!report) {
             const result = classify('persisted', {inconclusive: `persisted recovery produced no report: ${(persistedResult.stderr || '').trim().slice(0, 500) || 'no output'}`});
-            status = result.status;
-            reason = result.reason;
-            checks = [{id: 'persisted-recovery', status: 'error', detail: result.reason}];
+            status = pipeline.ok === false ? 'REJECTED' : result.status;
+            reason = pipeline.ok === false
+              ? `fresh-state acceptance failed: ${(pipeline.acceptanceErrors || []).join('; ') || 'pipeline did not pass'}`
+              : result.reason;
+            checks = [
+              ...(pipeline.ok === false ? [{id: 'fresh-replay', status: 'fail', detail: reason}] : []),
+              {id: 'persisted-recovery', status: 'error', detail: result.reason},
+            ];
           } else {
             const acceptanceArgs = [
               PERSISTED_ACCEPTANCE,
