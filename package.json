@@ -53,5 +53,10 @@
   },
   "devDependencies": {
     "wabt": "1.0.36"
+  },
+  "overrides": {
+    "near-sandbox": {
+      "tar": "7.5.23"
+    }
   }
 }
