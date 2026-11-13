@@ -121,6 +121,19 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
   assert.match(get('same-dao-list').innerHTML, /reviewer <b>yes/);
   assert.doesNotMatch(get('same-dao-list').innerHTML, /not recorded/, 'fresh legacy outcomes must not disappear behind the comparison wrapper');
 
+  // Saved results created before normalization still carry the old wrapper.
+  const flatComparison = accepted.result.mixed.comparison;
+  accepted.result.mixed.comparison = {...flatComparison, reviewer: {ok: true, outcomes: legacyOutcomes}};
+  elements.clear();
+  timers.length = 0;
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'public/review.js'), 'utf8'), context, {filename: 'review.js'});
+  await tick(); await tick(); await tick(); await tick();
+  assert.equal(get('result-state').hidden, false, 'older saved results still open');
+  assert.match(get('same-dao-list').innerHTML, /reviewer <b>yes/);
+  assert.doesNotMatch(get('same-dao-list').innerHTML, /not recorded/, 'older nested outcomes remain readable');
+  assert.equal(timers.length, 0, 'opening saved results does not restart polling');
+  accepted.result.mixed.comparison = flatComparison;
+
   // Restore a historical result whose evidence disappeared while the server
   // was stopped. It must release the UI rather than pretend to keep running.
   elements.clear();

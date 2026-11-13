@@ -458,7 +458,7 @@ const compareMixed = (producer, reviewer, reviewerWasmSha256, artifactWasmSha256
     reviewerWasmSha256,
     artifactWasmSha256,
     note: 'Legacy bundle had no producer mixed evidence; the reviewer ran the current same-DAO policy fresh.',
-    reviewer,
+    reviewer: reviewer.outcomes,
   };
   const differences = keys.filter((key) => String(producerOutcomes?.[key]) !== String(reviewer.outcomes?.[key]));
   const producerWasmSha256 = producer.candidate?.wasmSha256 || null;
