@@ -9,6 +9,7 @@
   const tabs = [...document.querySelectorAll('[role="tab"]')];
   let data = null;
   let selected = 'clear-all';
+  const model = globalThis.ConsequenceModel;
 
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
   const attr = (value) => esc(value);
@@ -26,7 +27,7 @@
   const proposalStatus = (stage, name) => stage.proposals?.[name]?.status || 'not re-read';
   const resultClass = (result, expected) => result === 'success' ? 'success' : expected ? 'expected' : 'failure';
 
-  function nearText(yocto) {
+  function nearText(yocto, maxDigits = 4) {
     let value;
     try { value = BigInt(String(yocto)); } catch { return 'unavailable'; }
     const negative = value < 0n;
@@ -34,15 +35,15 @@
     const whole = value / 1000000000000000000000000n;
     const fraction = value % 1000000000000000000000000n;
     let digits = fraction.toString().padStart(24, '0').replace(/0+$/, '');
-    if (digits.length > 4) digits = digits.slice(0, 4);
+    if (digits.length > maxDigits) digits = digits.slice(0, maxDigits);
     const text = digits ? `${whole}.${digits}` : String(whole);
     return `${negative ? '−' : ''}${text}`;
   }
 
-  function nearDelta(yocto) {
+  function nearDelta(yocto, maxDigits = 4) {
     let value;
     try { value = BigInt(String(yocto)); } catch { return 'unavailable'; }
-    return `${value > 0n ? '+' : value < 0n ? '−' : ''}${nearText(value < 0n ? -value : value)} NEAR`;
+    return `${value > 0n ? '+' : value < 0n ? '−' : ''}${nearText(value < 0n ? -value : value, maxDigits)} NEAR`;
   }
 
   function titleCase(value) {
@@ -53,6 +54,14 @@
     return `<div class="error-card"><strong>${esc(label)} unavailable</strong><p>This recorded artifact is missing or malformed, so no result is being shown. Check the evidence download and the source pins before relying on it.</p></div>`;
   }
 
+  function invalidEvidence(label, reason) {
+    return `<div class="error-card"><strong>${esc(label)} invalid</strong><p>The recorded decision metadata is inconsistent: ${esc(reason)}. The page will not label this evidence as accepted.</p></div>`;
+  }
+
+  function negateYocto(value) {
+    try { return String(-BigInt(String(value))); } catch { return '0'; }
+  }
+
   function loadFailure(message) {
     const text = `The recorded consequence data could not be loaded. ${message}`;
     content238.innerHTML = `<div class="error-card" role="alert"><strong>Evidence unavailable</strong><p>${esc(text)}</p><p>This page does not substitute a green result when its data is missing. The local evidence directory and checksums are the source of truth.</p></div>`;
@@ -61,13 +70,18 @@
 
   function render238() {
     const record = data?.cases?.['238'];
+    if (!model || typeof model.validateRepairCandidate !== 'function') {
+      content238.innerHTML = unavailable('#238 evidence model');
+      return;
+    }
     if (!record || !Array.isArray(record.candidates) || record.candidates.length < 1 || !record.baseline) {
       content238.innerHTML = unavailable('#238 evidence');
       return;
     }
     const candidate = record.candidates.find((item) => item.id === selected) || record.candidates[0];
-    if (!candidate || !Array.isArray(candidate.stages) || !candidate.outcomes) {
-      content238.innerHTML = unavailable('#238 candidate');
+    const verdict = model.validateRepairCandidate(candidate);
+    if (!verdict.ok) {
+      content238.innerHTML = invalidEvidence('#238 candidate', verdict.reason);
       return;
     }
     const locked = candidate.stages.map((stage) => nearText(stage.locked));
@@ -135,12 +149,14 @@
         <aside class="cash-card" aria-labelledby="cash-title">
           <h3 id="cash-title">Cash movements that still pass</h3>
           <div class="cash-list">
-            <div class="cash-row"><span>Alice bond credit</span><b>${nearDelta(candidate.cash.aliceBondReturned)}</b></div>
+            <div class="cash-row"><span>Alice bond returned (gross)</span><b>${nearDelta(candidate.cash.aliceBondGross)}</b></div>
+            <div class="cash-row"><span>Gas charged to Alice</span><b>${nearDelta(negateYocto(candidate.cash.aliceGas), 8)}</b></div>
+            <div class="cash-row"><span>Alice net after gas</span><b>${nearDelta(candidate.cash.aliceBondNet)}</b></div>
             <div class="cash-row"><span>Bob funded transfer</span><b>${nearDelta(candidate.cash.bobTransfer)}</b></div>
             <div class="cash-row"><span>Bob bond return</span><b>${nearDelta(candidate.cash.bobBondReturned)}</b></div>
             <div class="cash-row"><span>Bob contract debit</span><b>${nearDelta(candidate.cash.bobContractDelta)}</b></div>
           </div>
-          <p class="cash-note">Bob did not lose his money. The bad candidate still pays the funded operation; it fails the locked-liability release condition. Exact yocto values are in the recorded report.</p>
+          <p class="cash-note">${bad ? 'Bob did not lose his money. This bad candidate still pays the funded operation; it fails the locked-liability release condition. The +0.9993 figure is Alice’s net proposer change after measured gas, not the gross 1 NEAR bond. Displayed amounts are rounded; exact yocto values are in the recorded report.' : 'This repair pays the same funded operation while preserving Bob’s liability until it is released. The +0.9993 figure is Alice’s net proposer change after measured gas, not the gross 1 NEAR bond. Displayed amounts are rounded; exact yocto values are in the recorded report.'}</p>
         </aside>
       </div>
 
@@ -180,13 +196,22 @@
         </section>
       </div>
 
-      <div class="warning"><strong>Scope.</strong> The #238 failure is an accounting failure in the repair: cash movements look plausible, but the aggregate locked liability drops from 2 NEAR to 0 before Bob’s operation. The recorded state is local Sandbox state, not a live DAO or a mainnet capture.</div>`;
+      <div class="warning"><strong>Scope.</strong> ${bad ? 'The #238 failure is an accounting failure in the repair: cash movements look plausible, but the aggregate locked liability drops from 2 NEAR to 0 before Bob’s operation.' : 'This accepted record releases Alice’s bond while preserving Bob’s inherited liability until his funded operation.'} The recorded state is local Sandbox state, not a live DAO or a mainnet capture.</div>`;
   }
 
   function render226() {
+    if (!model || typeof model.validateUpgrade !== 'function') {
+      content226.innerHTML = unavailable('#226 evidence model');
+      return;
+    }
     const record = data?.cases?.['226'];
-    if (!record || !Array.isArray(record.stages) || !record.result) {
+    if (!record) {
       content226.innerHTML = unavailable('#226 evidence');
+      return;
+    }
+    const verdict = model.validateUpgrade(record);
+    if (!verdict.ok) {
+      content226.innerHTML = invalidEvidence('#226 evidence', verdict.reason);
       return;
     }
     const timeline = record.stages.map((stage, index) => {
@@ -278,11 +303,12 @@
   }
 
   function bind238() {
-    content238.querySelectorAll('[data-candidate]').forEach((button) => {
-      button.addEventListener('click', () => {
-        selected = button.dataset.candidate;
-        render238();
-      });
+    if (!model?.bindCandidateSwitch) return;
+    model.bindCandidateSwitch(content238, (candidateId) => {
+      selected = candidateId;
+      render238();
+      const replacement = content238.querySelector(`[data-candidate="${candidateId}"]`);
+      if (replacement) replacement.focus({preventScroll: true});
     });
   }
 
@@ -331,6 +357,7 @@
       }
       data = json;
       render();
+      bind238();
       if (location.hash === '#case-226') selectTab('226');
     })
     .catch((error) => loadFailure(error.message));

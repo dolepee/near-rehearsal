@@ -210,8 +210,8 @@
       "downloads": {
         "evidence": {
           "path": "downloads/226-evidence.zip",
-          "sha256": "e0a254832e0e593557f0df0e622806b03b11662d85d2f750ae92ab0aa3b6b01b",
-          "bytes": 830245
+          "sha256": "2ab5934527c34d882a1da92023165486a0ad7a37c84a0e4eaabefd2823c78164",
+          "bytes": 829049
         },
         "directory": "downloads/226/",
         "packet": "downloads/226/index.html"
@@ -1225,7 +1225,9 @@
             }
           ],
           "cash": {
-            "aliceBondReturned": "999308265580192200000000",
+            "aliceBondGross": "1000000000000000000000000",
+            "aliceBondNet": "999308265580192200000000",
+            "aliceGas": "691734419807800000000",
             "aliceContractDelta": "-1000000000000000000000000",
             "bobTransfer": "100000000000000000000000",
             "bobBondReturned": "1000000000000000000000000",
@@ -2012,7 +2014,9 @@
             }
           ],
           "cash": {
-            "aliceBondReturned": "999307697170046200000000",
+            "aliceBondGross": "1000000000000000000000000",
+            "aliceBondNet": "999307697170046200000000",
+            "aliceGas": "692302829953800000000",
             "aliceContractDelta": "-1000000000000000000000000",
             "bobTransfer": "100000000000000000000000",
             "bobBondReturned": "1000000000000000000000000",
@@ -2058,8 +2062,8 @@
       "downloads": {
         "evidence": {
           "path": "downloads/238-evidence.zip",
-          "sha256": "55186a2325dc75dbe54843d0da0932b538d109b07c30462db727dbc2043b51e7",
-          "bytes": 537173
+          "sha256": "37d79888d3577ac44fad8c201526bb99d4e41a87f3851c8858a930a4869d75a5",
+          "bytes": 536549
         },
         "directory": "downloads/238/"
       }

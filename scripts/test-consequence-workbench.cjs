@@ -12,6 +12,7 @@ const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const {assertCaseFiles, OUT, shaFile} = require('./build-consequence-workbench.cjs');
 const {verifyPacket} = require('../case-triage/sputnik-226/review-packet/packet-model.cjs');
+const {validateRepairCandidate, validateUpgrade, bindCandidateSwitch} = require('../ui/sputnik/public/consequences/model.js');
 
 const SHA = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const data = JSON.parse(fs.readFileSync(path.join(OUT, 'cases.json'), 'utf8'));
@@ -54,6 +55,42 @@ for (const candidate of repair.candidates) {
 assert.equal(repair.candidates[0].cash.aliceContractDelta, repair.candidates[1].cash.aliceContractDelta);
 assert.equal(repair.candidates[0].outcomes.bobPaidExactlyOnce, false);
 assert.equal(repair.candidates[1].outcomes.bobPaidExactlyOnce, true);
+for (const candidate of repair.candidates) assert.equal(validateRepairCandidate(candidate).ok, true, `${candidate.id} integrity`);
+const unknownStatus = JSON.parse(JSON.stringify(repair.candidates[0]));
+unknownStatus.status = 'INCONCLUSIVE';
+assert.equal(validateRepairCandidate(unknownStatus).ok, false, 'unknown status must fail closed');
+const missingStatus = JSON.parse(JSON.stringify(repair.candidates[0]));
+delete missingStatus.status;
+assert.equal(validateRepairCandidate(missingStatus).ok, false, 'missing status must fail closed');
+const contradictoryAccepted = JSON.parse(JSON.stringify(repair.candidates[1]));
+contradictoryAccepted.errors.push('tampered');
+assert.equal(validateRepairCandidate(contradictoryAccepted).ok, false, 'accepted status with errors must fail closed');
+const badLedger = JSON.parse(JSON.stringify(repair.candidates[1]));
+badLedger.stages[2].locked = '0';
+assert.equal(validateRepairCandidate(badLedger).ok, false, 'accepted status with a rejected ledger must fail closed');
+assert.equal(validateUpgrade(upgrade).ok, true, '#226 integrity');
+const badUpgrade = JSON.parse(JSON.stringify(upgrade));
+badUpgrade.status = 'INCONCLUSIVE';
+assert.equal(validateUpgrade(badUpgrade).ok, false, 'unknown #226 status must fail closed');
+const missingUpgradeStage = JSON.parse(JSON.stringify(upgrade));
+missingUpgradeStage.stages.pop();
+assert.equal(validateUpgrade(missingUpgradeStage).ok, false, 'missing #226 stage must fail closed');
+
+const fakeRoot = {
+  handlers: [],
+  addEventListener(type, handler) { this.handlers.push({type, handler}); },
+  contains() { return true; },
+};
+let toggled;
+assert.equal(bindCandidateSwitch(fakeRoot, (id) => { toggled = id; }), true);
+assert.equal(bindCandidateSwitch(fakeRoot, () => { throw new Error('duplicate binding'); }), true);
+assert.equal(fakeRoot.handlers.length, 1, 'candidate switch binds once');
+const intendedButton = {dataset: {candidate: 'intended'}};
+const clearButton = {dataset: {candidate: 'clear-all'}};
+fakeRoot.handlers[0].handler({target: {closest: () => intendedButton}});
+assert.equal(toggled, 'intended');
+fakeRoot.handlers[0].handler({target: {closest: () => clearButton}});
+assert.equal(toggled, 'clear-all', 'repeated candidate selection after a re-render');
 
 assert.equal(upgrade.runtime.version, '2.6.2');
 assert.equal(upgrade.source.pr, 226);
@@ -69,6 +106,9 @@ assert.equal(upgrade.stages.length, 7);
 
 for (const candidate of repair.candidates) {
   assert.equal(shaFile(path.resolve(OUT, candidate.candidate.wasm.path)), candidate.candidate.wasm.sha256);
+  assert.equal(candidate.cash.aliceBondGross, '1000000000000000000000000');
+  assert.ok(candidate.cash.aliceGas !== '0', `${candidate.id} gas is measured`);
+  assert.equal(BigInt(candidate.cash.aliceBondGross) - BigInt(candidate.cash.aliceGas), BigInt(candidate.cash.aliceBondNet));
   if (candidate.candidate.patch) assert.equal(shaFile(path.resolve(OUT, candidate.candidate.patch.path)), candidate.candidate.patch.sha256);
 }
 assert.doesNotMatch(JSON.stringify(data), /\/workspace\/|\/Users\/|C:\\/);

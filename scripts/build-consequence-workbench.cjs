@@ -55,7 +55,11 @@ function copyTree(from, to) {
 function zipDirectory(relativeDir, zipName) {
   const target = path.join(DOWNLOADS, zipName);
   try { fs.rmSync(target, {force: true}); } catch {}
-  const result = spawnSync('zip', ['-q', '-r', zipName, relativeDir], {cwd: DOWNLOADS, encoding: 'utf8'});
+  const result = spawnSync('zip', ['-q', '-X', '-r', zipName, relativeDir], {
+    cwd: DOWNLOADS,
+    encoding: 'utf8',
+    env: {...process.env, TZ: 'UTC', SOURCE_DATE_EPOCH: '0'},
+  });
   if (result.error || result.status !== 0) throw new Error(`could not create ${zipName}: ${result.error?.message || result.stderr}`);
   requireFile(target, zipName);
   return {path: `downloads/${zipName}`, sha256: shaFile(target), bytes: fs.statSync(target).size};
@@ -118,7 +122,9 @@ function candidateData(id, label, manifest, reportPath, copiedPatch, copiedWasm,
     outcomes: verified.outcomes,
     stages,
     cash: {
-      aliceBondReturned: String(aliceRecovery.proposer ?? ''),
+      aliceBondGross: String(-BigInt(aliceRecovery.contract ?? '0')),
+      aliceBondNet: String(aliceRecovery.proposer ?? ''),
+      aliceGas: String(verified.outcomes?.gas?.aliceRecovery ?? ''),
       aliceContractDelta: String(aliceRecovery.contract ?? ''),
       bobTransfer: String(bobPayout.recipient ?? ''),
       bobBondReturned: String(bobPayout.proposer ?? ''),
