@@ -22,7 +22,10 @@ const PIPELINE = path.join(REPAIR, 'repair-pipeline.cjs');
 const PERSISTED_RECOVERY = path.join(REPAIR, 'persisted-recovery.cjs');
 const PERSISTED_ACCEPTANCE = path.join(REPAIR, 'persisted-recovery-acceptance.cjs');
 const MIXED = path.join(REPAIR, 'mixed-obligation.cjs');
+const SETTLEMENT = path.join(REPAIR, 'settlement-refund-tests.cjs');
 const {verifyMixedReport} = require(path.join(REPAIR, 'mixed-policy.cjs'));
+const {verifySettlementReport} = require(path.join(REPAIR, 'settlement-policy.cjs'));
+const {mixedPolicyIdentity} = require(path.join(REPAIR, 'mixed-policy-identity.cjs'));
 const {POLICY_VERSION, evaluateCandidate, stageFromChecks} = require(path.join(REPAIR, 'acceptance-orchestrator.cjs'));
 const CONTROLLER_MANIFEST = path.join(REPAIR, 'controller-manifest.json');
 const BUILD_MANIFEST = path.join(REPAIR, 'build-manifest.json');
@@ -60,11 +63,13 @@ const CASE = {
     pipelineMs: 25 * 60 * 1000,
     recoveryMs: 10 * 60 * 1000,
     mixedMs: 15 * 60 * 1000,
+    settlementMs: 15 * 60 * 1000,
     jobMs: 60 * 60 * 1000,
   },
 };
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
+const settlementPolicySha256 = sha256(fs.readFileSync(path.join(REPAIR, 'settlement-policy.cjs')));
 const sha256File = (file) => sha256(fs.readFileSync(file));
 const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
 const nowIso = () => new Date().toISOString();
@@ -281,6 +286,9 @@ function normalizedRun(run) {
     consequence: run.consequence || null,
     checks: run.checks || null,
     recovery: run.recovery || null,
+    mixed: run.mixed || null,
+    settlement: run.settlement || null,
+    acceptancePolicy: run.acceptancePolicy || null,
     patch: run.patch ? {filename: 'repair.patch', text: run.patch.text, sha256: run.patch.sha256, bytes: run.patch.bytes} : null,
     patchUrl: run.patch ? `/api/repair/runs/${run.id}/patch` : null,
     bundleUrl: run.status === 'accepted' ? `/api/repair/runs/${run.id}/bundle` : null,
@@ -344,6 +352,7 @@ function createManager(options = {}) {
       error: run.error || null, phaseLog: run.phaseLog || [], source: CASE.source,
       obligation: CASE.obligation, baseline: run.baseline || null, candidate: run.candidate || null,
       consequence: run.consequence || null, checks: run.checks || null, recovery: run.recovery || null,
+      mixed: run.mixed || null, settlement: run.settlement || null, acceptancePolicy: run.acceptancePolicy || null,
       childPid: run.childPid || null, childStart: run.childStart || null,
       runtimePath: run.runtimePath || null, runtimeProbe: run.runtimeProbe || null,
     };
@@ -689,17 +698,54 @@ function createManager(options = {}) {
       };
       run.checks.mixedAccepted = mixedCheck.ok === true;
 
+      const settlementDir = path.join(runDir(run.id), 'settlement');
+      setPhase(run, 'settling');
+      const settlementArgs = [
+        SETTLEMENT,
+        '--candidate-wasm', wasmPath,
+        '--out', settlementDir,
+      ];
+      if (config.sandboxDir) settlementArgs.push('--sandbox-dir', config.sandboxDir);
+      let settlementExitError = null;
+      try {
+        await spawnStep(run, 'Failed-refund settlement', process.execPath, settlementArgs, {timeoutMs: config.timeouts.settlementMs});
+      } catch (error) {
+        settlementExitError = error;
+      }
+      const settlementReportPath = path.join(settlementDir, 'settlement-refund.json');
+      const settlementReport = readJson(settlementReportPath);
+      const settlementCheck = settlementReport
+        ? verifySettlementReport(settlementReport, {candidateWasmSha256: sha256File(wasmPath)})
+        : {ok: false, errors: ['failed-refund settlement gate produced no report'], outcomes: null};
+      run.settlement = {
+        ok: settlementCheck.ok === true,
+        reportPath: 'settlement/settlement-refund.json',
+        reportSha256: fs.existsSync(settlementReportPath) ? sha256File(settlementReportPath) : null,
+        report: settlementReport ? sanitizeValue(settlementReport) : null,
+        acceptance: sanitizeValue(settlementCheck),
+        error: settlementExitError?.message || null,
+      };
+      run.evidence.settlement = {
+        report: run.settlement.report,
+        acceptance: run.settlement.acceptance,
+        reportSha256: run.settlement.reportSha256,
+      };
+      run.checks.settlementAccepted = settlementCheck.ok === true;
+
       const acceptanceVerdict = evaluateCandidate({
         fresh: stageFromChecks(freshAccepted, freshAccepted ? [] : (pipeline.acceptanceErrors || ['fresh-state checks failed'])),
         recovery: stageFromChecks(recoveryAccepted, recoveryAccepted ? [] : (run.recovery?.acceptanceErrors || [run.recovery?.error || 'persisted recovery did not pass acceptance'])),
         mixed: stageFromChecks(mixedCheck.ok === true, mixedCheck.errors || [], {policyVersion: POLICY_VERSION}),
+        settlement: stageFromChecks(settlementCheck.ok === true, settlementCheck.errors || []),
       });
       run.acceptancePolicy = acceptanceVerdict;
       const accepted = acceptanceVerdict.ok;
       if (accepted) {
         run.status = 'accepted'; setPhase(run, 'accepted');
       } else {
-        run.status = freshAccepted && recoveryAccepted && mixedCheck.ok === false && mixedExitError ? 'inconclusive' : 'rejected';
+        const mixedTerminal = mixedReport?.schema === 'near-rehearsal/mixed-obligation/v1' && Boolean(mixedReport?.candidate?.wasmSha256);
+        const settlementTerminal = settlementReport?.schema === 'near-rehearsal/settlement-refund/v1' && Boolean(settlementReport?.candidate?.wasmSha256);
+        run.status = freshAccepted && recoveryAccepted && (mixedTerminal || settlementTerminal) ? 'rejected' : 'inconclusive';
         setPhase(run, run.status);
         run.error = `The repair ran but was not accepted by ${acceptanceVerdict.policyVersion}: ${acceptanceVerdict.errors.join('; ')}`;
         if (pipelineExitError) run.error += ` Pipeline exited: ${pipelineExitError.message}`;
@@ -772,6 +818,7 @@ function createManager(options = {}) {
         candidate: meta.candidate || null, consequence: meta.consequence || null, checks: meta.checks || null,
         recovery: meta.recovery || null,
         mixed: meta.mixed || null,
+        settlement: meta.settlement || null,
         acceptancePolicy: meta.acceptancePolicy || null,
         patch: result?.patch || null, evidence: result?.evidence || null,
       };
@@ -819,6 +866,11 @@ function createManager(options = {}) {
     const recoveryReportText = JSON.stringify(recoveryReport);
     const recoveryReportSha256 = sha256(recoveryReportText);
     const rawRecoveryReportSha256 = sha256File(recoveryReportPath);
+    const mixedPath = run.mixed?.reportPath ? path.join(dir, run.mixed.reportPath) : null;
+    const mixedText = mixedPath && fs.existsSync(mixedPath) ? fs.readFileSync(mixedPath, 'utf8') : null;
+    const mixedPolicy = mixedText ? mixedPolicyIdentity(ROOT) : null;
+    const settlementPath = run.settlement?.reportPath ? path.join(dir, run.settlement.reportPath) : null;
+    const settlementText = settlementPath && fs.existsSync(settlementPath) ? fs.readFileSync(settlementPath, 'utf8') : null;
     return {
       schema: 'near-rehearsal/repair-review-bundle/v1',
       createdAt: nowIso(), runId: id, caseId: CASE_ID,
@@ -846,9 +898,23 @@ function createManager(options = {}) {
         };
       })(),
       consequence: run.consequence, checks: run.checks,
-      mixed: run.mixed ? {
+      settlement: run.settlement && settlementText ? {
+        report: run.settlement.report,
+        reportText: settlementText,
+        reportSha256: sha256(settlementText),
+        rawReportSha256: run.settlement.reportSha256,
+        candidateWasmSha256: sha256(wasm),
+        policySha256: settlementPolicySha256,
+        acceptance: run.settlement.acceptance,
+      } : null,
+      mixed: run.mixed && mixedText ? {
         report: run.mixed.report,
-        reportSha256: run.mixed.reportSha256,
+        reportText: mixedText,
+        reportSha256: sha256(mixedText),
+        rawReportSha256: run.mixed.reportSha256,
+        candidateWasmSha256: sha256(wasm),
+        policySha256: mixedPolicy.sha256,
+        policyFiles: mixedPolicy.files,
         acceptance: run.mixed.acceptance,
       } : null,
       acceptancePolicy: run.acceptancePolicy || null,

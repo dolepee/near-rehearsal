@@ -21,14 +21,15 @@ const rejects = (label, mutate) => {
 
 const mixedOriginal = buildReviewBundle({
   runId: 'mixed-policy-guard',
-  patchPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'generated/e8262f5a/repair.patch'),
-  wasmPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'generated/e8262f5a/candidate.wasm'),
-  candidateIdentityPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'generated/e8262f5a/candidate-identity.json'),
+  patchPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'mixed-candidates/intended.patch'),
+  wasmPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'mixed-candidates/intended.wasm'),
+  candidateIdentityPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'mixed-candidates/intended-identity.json'),
   baseReportPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/issue238-local.json'),
-  candidateReportPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/issue238-repaired.json'),
-  recoveryPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/persisted-recovery.json'),
-  acceptancePath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/persisted-recovery-acceptance.json'),
+  candidateReportPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/audit-intended/fresh/issue238-local.json'),
+  recoveryPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/audit-intended/persisted/persisted-recovery.json'),
+  acceptancePath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/audit-intended/persisted/persisted-recovery-acceptance.json'),
   mixedPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/mixed-obligation-intended.json'),
+  settlementPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/audit-intended/settlement/settlement-refund.json'),
 });
 assert.doesNotThrow(() => checkBundle(mixedOriginal));
 for (const [label, mutate] of [

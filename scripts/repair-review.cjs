@@ -20,7 +20,9 @@ const RECOVERY = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'persisted-r
 const ACCEPTANCE = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'persisted-recovery-acceptance.cjs');
 const BASE_WASM = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'bundle', 'artifacts', 'base.wasm');
 const MIXED = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'mixed-obligation.cjs');
+const SETTLEMENT = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'settlement-refund-tests.cjs');
 const {verifyMixedReport} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'mixed-policy.cjs'));
+const {verifySettlementReport} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'settlement-policy.cjs'));
 const {mixedPolicyIdentity} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'mixed-policy-identity.cjs'));
 const {POLICY_VERSION, evaluateCandidate, stageFromChecks} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'acceptance-orchestrator.cjs'));
 const BASE_WASM_SHA = '5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578';
@@ -29,6 +31,7 @@ const SANDBOX_VERSION = '2.14.0';
 const SCHEMA = 'near-rehearsal/repair-review-bundle/v1';
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
+const SETTLEMENT_POLICY_SHA = sha256(fs.readFileSync(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'settlement-policy.cjs')));
 const hex = (value) => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
 const fail = (message) => { throw new Error(message); };
 const readJson = (file, label) => {
@@ -189,6 +192,15 @@ const checkBundle = (bundle) => {
     try { producerMixed = JSON.parse(bundle.mixed.reportText); } catch (error) { fail(`bundle mixed report is not valid JSON: ${error.message}`); }
     const checkedMixed = verifyMixedReport(producerMixed, {requireBlockPinned: true});
     if (!checkedMixed.ok) fail(`bundle mixed producer evidence does not pass the current policy: ${checkedMixed.errors.join('; ')}`);
+    if (bundle.settlement == null) fail('bundle failed-refund settlement report is missing');
+    if (typeof bundle.settlement.reportText !== 'string' || !bundle.settlement.reportText.trim()) fail('bundle settlement report text is missing');
+    if (!hex(bundle.settlement.reportSha256) || sha256(Buffer.from(bundle.settlement.reportText, 'utf8')) !== bundle.settlement.reportSha256) fail('bundle settlement report hash does not match its text');
+    if (bundle.settlement.candidateWasmSha256 !== bundle.candidate.wasm.sha256) fail('bundle settlement evidence is for a different candidate WASM');
+    if (bundle.settlement.policySha256 !== SETTLEMENT_POLICY_SHA) fail('bundle settlement policy hash does not match this reviewer policy');
+    let producerSettlement;
+    try { producerSettlement = JSON.parse(bundle.settlement.reportText); } catch (error) { fail(`bundle settlement report is not valid JSON: ${error.message}`); }
+    const checkedSettlement = verifySettlementReport(producerSettlement, {candidateWasmSha256: bundle.candidate.wasm.sha256});
+    if (!checkedSettlement.ok) fail(`bundle settlement producer evidence does not pass the current policy: ${checkedSettlement.errors.join('; ')}`);
   }
   return { patchText, wasm, sourceIdentity, producerMixed, legacy, mixedPolicy: mixedPolicyIdentity(ROOT) };
 };
@@ -450,6 +462,21 @@ const runMixedGate = (candidateWasm, outDir, sandboxDir) => {
   return {mixedDir, reportPath, report, checked, policy: mixedPolicyIdentity(ROOT), stdout: result.stdout};
 };
 
+const runSettlementGate = (candidateWasm, outDir, sandboxDir) => {
+  const settlementDir = path.join(outDir, 'settlement');
+  const result = requireCommand([
+    SETTLEMENT,
+    '--candidate-wasm', candidateWasm,
+    '--out', settlementDir,
+    '--sandbox-dir', sandboxDir,
+  ], 'failed-refund settlement gate');
+  const reportPath = path.join(settlementDir, 'settlement-refund.json');
+  const report = readJson(reportPath, 'failed-refund settlement report');
+  const checked = verifySettlementReport(report, {candidateWasmSha256: sha256(fs.readFileSync(candidateWasm))});
+  if (!checked.ok) fail(`failed-refund settlement gate failed: ${checked.errors.join('; ')}`);
+  return {settlementDir, reportPath, report, checked, stdout: result.stdout};
+};
+
 const compareMixed = (producer, reviewer, reviewerWasmSha256, artifactWasmSha256) => {
   const producerOutcomes = producer?.outcomes || (producer ? verifyMixedReport(producer, {requireBlockPinned: true}).outcomes : null);
   const keys = ['alicePaid', 'bobLiabilityAfterAlice', 'bobTransferPaid', 'bobPaidExactlyOnce', 'aliceLockedDelta', 'bobLockedDelta', 'bobRecipientDelta', 'bobProposerDelta'];
@@ -613,10 +640,13 @@ const main = () => {
   const mixedReportWasmSha256 = mixedRun.report?.candidate?.wasmSha256;
   if (!mixedReportWasmSha256 || mixedReportWasmSha256 !== reviewerArtifactWasmSha256) fail('reviewer mixed gate did not execute the built/recorded candidate artifact');
   const mixedComparison = compareMixed(checkBundle(bundle).producerMixed, mixedRun.checked, mixedReportWasmSha256, reviewerArtifactWasmSha256);
+  const settlementRun = runSettlementGate(run.builtWasm || run.wasmPath, outDir, plan.sandboxDir);
+  if (settlementRun.report.candidate.wasmSha256 !== reviewerArtifactWasmSha256) fail('settlement gate did not execute the built/recorded candidate artifact');
   const acceptancePolicy = evaluateCandidate({
     fresh: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted/fresh acceptance did not pass']),
     recovery: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted recovery report did not pass acceptance']),
     mixed: stageFromChecks(mixedRun.checked.ok === true, mixedRun.checked.errors || [], {policyVersion: POLICY_VERSION}),
+    settlement: stageFromChecks(settlementRun.checked.ok === true, settlementRun.checked.errors || []),
   });
   if (!acceptancePolicy.ok) fail(`versioned acceptance policy ${acceptancePolicy.policyVersion} failed: ${acceptancePolicy.errors.join('; ')}`);
   const resultPath = path.join(outDir, 'review-result.json');
@@ -644,6 +674,12 @@ const main = () => {
       reviewer: mixedRun.checked,
       reportPath: mixedRun.reportPath,
       comparison: mixedComparison,
+    },
+    settlement: {
+      mode: 'fresh-replay',
+      reportPath: settlementRun.reportPath,
+      reportSha256: sha256(fs.readFileSync(settlementRun.reportPath)),
+      checked: settlementRun.checked,
     },
     resultPath,
     boundary: 'Local NEAR Sandbox 2.14 only. No public write, deployment, production upgrade, or claim about other cases.',

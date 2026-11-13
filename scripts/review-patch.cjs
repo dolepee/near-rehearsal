@@ -27,8 +27,10 @@ const CONTROLLER_MANIFEST = path.join(REPAIR, 'controller-manifest.json');
 const BUILD_MANIFEST = path.join(REPAIR, 'build-manifest.json');
 const ACCEPTANCE = path.join(REPAIR, 'acceptance.cjs');
 const MIXED = path.join(REPAIR, 'mixed-obligation.cjs');
+const SETTLEMENT = path.join(REPAIR, 'settlement-refund-tests.cjs');
 const MIXED_POLICY = path.join(REPAIR, 'mixed-policy.cjs');
 const {verifyMixedReport} = require(MIXED_POLICY);
+const {verifySettlementReport} = require(path.join(REPAIR, 'settlement-policy.cjs'));
 const {POLICY_VERSION, evaluateCandidate, stageFromChecks} = require(path.join(REPAIR, 'acceptance-orchestrator.cjs'));
 const BASE_REPORT = path.join(REPAIR, 'out', 'issue238-local.json');
 const BASE_WASM = path.join(REPAIR, 'bundle', 'artifacts', 'base.wasm');
@@ -41,6 +43,7 @@ const PIPELINE_TIMEOUT_MS = 30 * 60 * 1000;
 const PERSISTED_TIMEOUT_MS = 15 * 60 * 1000;
 const ACCEPTANCE_TIMEOUT_MS = 60 * 1000;
 const MIXED_TIMEOUT_MS = 30 * 60 * 1000;
+const SETTLEMENT_TIMEOUT_MS = 15 * 60 * 1000;
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const sha256File = (file) => sha256(fs.readFileSync(file));
@@ -246,7 +249,7 @@ function asBigInt(value) {
   try { return BigInt(value); } catch { return null; }
 }
 
-function checksFrom(pipeline, report, acceptance, mixedCheck = null) {
+function checksFrom(pipeline, report, acceptance, mixedCheck = null, settlementCheck = null) {
   const checks = [];
   const add = (id, ok, detail, status = null) => checks.push({
     id,
@@ -262,6 +265,8 @@ function checksFrom(pipeline, report, acceptance, mixedCheck = null) {
   add('persisted-acceptance', acceptance?.ok === true, acceptance?.errors?.join('; ') || (acceptance ? 'accepted' : 'acceptance did not run'));
   add('same-dao-mixed', mixedCheck ? mixedCheck.ok : null,
     mixedCheck ? (mixedCheck.ok ? 'Alice bond returned once; Bob liability, transfer and retries preserved' : mixedCheck.errors.join('; ')) : 'same-DAO gate did not run');
+  add('failed-refund-settlement', settlementCheck ? settlementCheck.ok : null,
+    settlementCheck ? (settlementCheck.ok ? 'failed refund retained debt; recreation retry paid once' : settlementCheck.errors.join('; ')) : 'settlement gate did not run');
   if (report) {
     add('failed-status', report.failed?.proposal?.status === 'Failed', `failed proposal status: ${report.failed?.proposal?.status || 'missing'}`);
     add('bond-recovered-once', asBigInt(report.firstRecovery?.grossRecoveryYocto) === 10n ** 24n,
@@ -429,6 +434,7 @@ function runReview(opts) {
   let acceptance = null;
   let mixed = null;
   let mixedCheck = null;
+  let settlementCheck = null;
   let acceptanceVerdict = null;
   let summary = null;
   let checks = [];
@@ -572,20 +578,34 @@ function runReview(opts) {
                 safeCopy(path.join(mixedDir, 'mixed-obligation.json'), path.join(evidenceDir, 'mixed-obligation.json'));
                 mixed = readJson(path.join(mixedDir, 'mixed-obligation.json'));
                 if (mixed) mixedCheck = verifyMixedReport(mixed, {requireBlockPinned: true});
+                if (mixedCheck?.ok) {
+                  const settlementDir = path.join(outDir, 'settlement');
+                  const settlementResult = runNode([
+                    SETTLEMENT,
+                    '--candidate-wasm', wasmPath,
+                    '--out', settlementDir,
+                  ], {timeout: SETTLEMENT_TIMEOUT_MS, env: sandboxDir ? {NEAR_SANDBOX_BIN_PATH: sandboxDir, NEAR_SANDBOX_BINARY_PATH: sandboxDir} : {}});
+                  writeLog(path.join(evidenceDir, 'settlement.log'), settlementResult);
+                  safeCopy(path.join(settlementDir, 'settlement-refund.json'), path.join(evidenceDir, 'settlement-refund.json'));
+                  const settlement = readJson(path.join(settlementDir, 'settlement-refund.json'));
+                  if (settlement) settlementCheck = verifySettlementReport(settlement, {candidateWasmSha256: verified.builtWasmSha256});
+                }
               }
-              if (acceptance.ok === true && !mixedCheck) {
+              if (acceptance.ok === true && (!mixedCheck || !settlementCheck)) {
                 status = 'INCONCLUSIVE';
-                reason = 'same-DAO mixed-obligation gate produced no verified report';
+                reason = 'same-DAO mixed-obligation or failed-refund settlement gate produced no verified report';
                 checks = [
                   {id: 'persisted-acceptance', status: 'pass', detail: 'persisted acceptance passed'},
-                  {id: 'same-dao-mixed', status: 'error', detail: reason},
+                  {id: 'same-dao-mixed', status: mixedCheck ? 'pass' : 'error', detail: mixedCheck ? 'mixed gate passed' : 'mixed gate missing'},
+                  {id: 'failed-refund-settlement', status: settlementCheck ? 'pass' : 'error', detail: settlementCheck ? 'settlement gate passed' : 'settlement gate missing'},
                 ];
               } else {
-                checks = checksFrom(pipeline, report, acceptance, mixedCheck);
+                checks = checksFrom(pipeline, report, acceptance, mixedCheck, settlementCheck);
                 const verdict = evaluateCandidate({
                   fresh: stageFromChecks(pipeline.ok === true && (pipeline.acceptanceErrors || []).length === 0, pipeline.acceptanceErrors || []),
                   recovery: stageFromChecks(acceptance.ok === true, acceptance.errors || []),
                   mixed: stageFromChecks(mixedCheck?.ok === true, mixedCheck?.errors || [], {policyVersion: POLICY_VERSION}),
+                  settlement: stageFromChecks(settlementCheck?.ok === true, settlementCheck?.errors || []),
                 });
                 acceptanceVerdict = verdict;
                 if (!verdict.ok) {
@@ -623,6 +643,7 @@ function runReview(opts) {
     checks,
     summary,
     mixed: mixedCheck ? {ok: mixedCheck.ok, errors: mixedCheck.errors, outcomes: mixedCheck.outcomes} : null,
+    settlement: settlementCheck ? {ok: settlementCheck.ok, errors: settlementCheck.errors, outcomes: settlementCheck.outcomes} : null,
     evidence,
     limitations,
     boundary: 'Local Sandbox evidence for the pinned Sputnik #238 case. No live DAO recovery, deployment, audit, universal safety claim, signature or merge enforcement.',

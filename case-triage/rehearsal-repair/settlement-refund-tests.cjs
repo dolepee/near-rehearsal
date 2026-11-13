@@ -29,12 +29,17 @@ const stage = (name) => process.stderr.write(`[settlement] ${name}\n`);
 function parseArgs(argv) {
   const opts = {};
   for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] === '--wasm') opts.wasm = path.resolve(argv[++i]);
+    if (argv[i] === '--wasm' || argv[i] === '--candidate-wasm') opts.wasm = path.resolve(argv[++i]);
     else if (argv[i] === '--base-wasm') opts.baseWasm = path.resolve(argv[++i]);
     else if (argv[i] === '--out') opts.out = path.resolve(argv[++i]);
+    else if (argv[i] === '--sandbox-dir') opts.sandboxDir = path.resolve(argv[++i]);
     else throw new Error(`unknown argument ${argv[i]}`);
   }
   if (!opts.wasm || !opts.out) throw new Error('--wasm and --out are required');
+  if (opts.sandboxDir) {
+    process.env.NEAR_SANDBOX_BIN_PATH = opts.sandboxDir;
+    process.env.NEAR_SANDBOX_BINARY_PATH = opts.sandboxDir;
+  }
   return opts;
 }
 
@@ -246,22 +251,34 @@ async function settle(worker, dao, proposerId, voter) {
     const recreatedBalance = await viewAmount(worker, proposer.accountId);
     stage(`recreated balance ${recreatedBalance}`);
     const beforeRetry = await snapshot(worker, dao, proposer.accountId, voter.accountId);
-    stage('retry');
-    const retry = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
-    const retryFinal = summarize(await finalStatus(worker, retry, voter.accountId));
+    stage('overlapping retry');
+    const overlapAttempts = await Promise.allSettled([
+      voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS}),
+      voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS}),
+    ]);
+    const retryFinals = [];
+    for (const entry of overlapAttempts) {
+      if (entry.status !== 'fulfilled') { retryFinals.push({error: String(entry.reason?.message || entry.reason).slice(0, 500)}); continue; }
+      try { retryFinals.push(summarize(await finalStatus(worker, entry.value, entry.value?.transaction?.signerId || voter.accountId))); }
+      catch (error) { retryFinals.push({error: String(error.message || error).slice(0, 500)}); }
+    }
     await waitProposal(worker, dao, id, 'Failed');
+    await settle(worker, dao, proposer.accountId, voter.accountId);
+    const retryFinal = retryFinals.find((value) => value && value.finalExecutionStatus === 'FINAL') || retryFinals[0];
     const afterRetry = await settle(worker, dao, proposer.accountId, voter.accountId);
     const retryDelta = BigInt(afterRetry.proposer ?? 0) - BigInt(beforeRetry.proposer ?? 0);
     require(retryDelta === BOND, `retry proposer delta is ${retryDelta}, expected ${BOND}`);
     require(afterRetry.lockedAmount === '0', `locked liability after successful retry is ${afterRetry.lockedAmount}`);
 
     stage('unauthorized callback');
-    const unauthorized = await voter.callRaw(dao, 'on_refund_callback', {proposal_id: id, attempt: '999'}, {gas: GAS}).then(
-      (tx) => finalStatus(worker, tx, voter.accountId).then(summarize),
-      (error) => ({error: String(error.message || error).slice(0, 500)}),
+    const unauthorizedArgs = {proposal_id: id, attempt: 999};
+    const unauthorized = await voter.callRaw(dao, 'on_refund_callback', unauthorizedArgs, {gas: GAS}).then(
+      (tx) => finalStatus(worker, tx, voter.accountId).then((final) => ({ok: false, value: summarize(final)})),
+      (error) => ({ok: false, error: String(error.message || error).slice(0, 500)}),
     );
     const afterUnauthorized = await settle(worker, dao, proposer.accountId, voter.accountId);
     require(afterUnauthorized.proposer === afterRetry.proposer, 'unauthorized callback changed proposer balance');
+    require(afterUnauthorized.lockedAmount === '0', 'unauthorized callback changed locked debt');
 
     stage('duplicate retry');
     const duplicate = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
@@ -278,7 +295,15 @@ async function settle(worker, dao, proposerId, voter) {
       candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length},
       runtime: rt,
       proposalId: id,
-      transactions: {deploy: deployFinal, init: initFinal, add: addFinal, upgrade, delete: deleteFinal, vote: voteFinal, retry: retryFinal, unauthorized, duplicate: duplicateFinal},
+      transactions: {deploy: deployFinal, init: initFinal, add: addFinal, upgrade, delete: deleteFinal, vote: voteFinal, retries: retryFinals, retry: retryFinal, unauthorized, duplicate: duplicateFinal},
+      unauthorized,
+      unauthorizedArgs,
+      overlap: {
+        ok: retryFinals.some((value) => value.finalExecutionStatus === 'FINAL') && retryDelta === BOND && afterRetry.lockedAmount === '0',
+        attempts: retryFinals.map((value) => ({finalExecutionStatus: value.finalExecutionStatus || null, error: value.error || null, transactionHash: value.transactionHash || null})),
+        delta: retryDelta.toString(),
+        lockedAfter: afterRetry.lockedAmount,
+      },
       failedRefund,
       beforeRetry,
       afterRetry,

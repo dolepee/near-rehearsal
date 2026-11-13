@@ -5,10 +5,10 @@
  * Routes may gather different evidence (fresh replay, persisted recovery,
  * source patch or recorded-WASM replay), but they must not invent their own
  * terminal predicate. The version below is exported with every verdict, and
- * the same-DAO mixed-obligation gate is mandatory for all of them.
+ * the same-DAO mixed-obligation and failed-refund settlement gates are mandatory for all of them.
  */
-const POLICY_VERSION = 'near-rehearsal/acceptance-policy/v2';
-const REQUIRED_STAGES = Object.freeze(['fresh', 'recovery', 'mixed']);
+const POLICY_VERSION = 'near-rehearsal/acceptance-policy/v3';
+const REQUIRED_STAGES = Object.freeze(['fresh', 'recovery', 'mixed', 'settlement']);
 
 function normalizeStage(stage) {
   if (!stage) return {ok: false, errors: ['stage evidence is missing']};

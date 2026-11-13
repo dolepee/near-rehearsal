@@ -23,6 +23,7 @@ function buildReviewBundle(opts = {}) {
   const recoveryReportText = text(opts.recoveryPath);
   const acceptance = parse(opts.acceptancePath);
   const mixedText = opts.mixedPath && fs.existsSync(opts.mixedPath) ? text(opts.mixedPath) : null;
+  const settlementText = opts.settlementPath && fs.existsSync(opts.settlementPath) ? text(opts.settlementPath) : null;
   if (acceptance?.ok !== true) throw new Error('refusing to export a reviewer bundle without passing persisted acceptance');
   if (identity?.schema !== 'near-rehearsal/repair-candidate-identity/v1') throw new Error('candidate identity schema is invalid');
   if (identity.wasm?.sha256 !== sha256(wasm)) throw new Error('candidate identity WASM hash does not match the built artifact');
@@ -30,6 +31,7 @@ function buildReviewBundle(opts = {}) {
   if (!identity.source?.path || !identity.source?.sha256 || !identity.source?.commit) throw new Error('candidate identity source is incomplete');
   const source = identity.source;
   const mixedPolicy = mixedText ? mixedPolicyIdentity() : null;
+  const settlementPolicySha256 = settlementText ? sha256(read(require.resolve('./settlement-policy.cjs'))) : null;
   const candidate = {
     patch: {text: patchText, sha256: sha256(Buffer.from(patchText, 'utf8')), bytes: Buffer.byteLength(patchText)},
     wasm: {base64: wasm.toString('base64'), sha256: sha256(wasm), bytes: wasm.length},
@@ -75,6 +77,12 @@ function buildReviewBundle(opts = {}) {
       candidateWasmSha256: identity.wasm.sha256,
       policySha256: mixedPolicy.sha256,
       policyFiles: mixedPolicy.files,
+    } : null,
+    settlement: settlementText ? {
+      reportText: settlementText,
+      reportSha256: sha256(Buffer.from(settlementText, 'utf8')),
+      candidateWasmSha256: identity.wasm.sha256,
+      policySha256: settlementPolicySha256,
     } : null,
     producer: opts.producer || null,
     policy: opts.policy || null,

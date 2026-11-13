@@ -14,23 +14,25 @@ const path = require('node:path');
 const {EventEmitter} = require('node:events');
 const crypto = require('node:crypto');
 const {createManager} = require('./repair-job.cjs');
+const {checkBundle} = require('../../scripts/repair-review.cjs');
 
 const root = path.resolve(__dirname, '..', '..');
 const repair = path.join(root, 'case-triage/rehearsal-repair');
 const baselineReport = path.join(repair, 'out/issue238-local.json');
-const candidateReport = path.join(repair, 'out/issue238-repaired.json');
-const candidateWasm = path.join(repair, 'generated/e8262f5a/candidate.wasm');
-const candidatePatch = path.join(repair, 'generated/e8262f5a/repair.patch');
-const candidateIdentity = path.join(repair, 'generated/e8262f5a/candidate-identity.json');
-const persistedReport = path.join(repair, 'out/persisted-recovery.json');
+const candidateReport = path.join(repair, 'out/audit-intended/fresh/issue238-local.json');
+const candidateWasm = path.join(repair, 'mixed-candidates/intended.wasm');
+const candidatePatch = path.join(repair, 'mixed-candidates/intended.patch');
+const candidateIdentity = path.join(repair, 'mixed-candidates/intended-identity.json');
+const persistedReport = path.join(repair, 'out/audit-intended/persisted/persisted-recovery.json');
 const mixedReport = path.join(repair, 'out/mixed-obligation-intended.json');
+const settlementReport = path.join(repair, 'out/audit-intended/settlement/settlement-refund.json');
 
 function arg(args, name) {
   const index = args.indexOf(name);
   return index >= 0 ? args[index + 1] : null;
 }
 
-function fakeSpawn() {
+function fakeSpawn({mixedPath = mixedReport} = {}) {
   return (command, args, options) => {
     const child = new EventEmitter();
     child.pid = 900000 + Math.floor(Math.random() * 1000);
@@ -72,11 +74,15 @@ function fakeSpawn() {
         } else if (command === process.execPath && args[0]?.endsWith('mixed-obligation.cjs')) {
           const out = arg(args, '--out');
           fs.mkdirSync(out, {recursive: true});
-          fs.copyFileSync(mixedReport, path.join(out, 'mixed-obligation.json'));
+          fs.copyFileSync(mixedPath, path.join(out, 'mixed-obligation.json'));
         } else if (command === process.execPath && args[0]?.endsWith('persisted-recovery.cjs')) {
           const out = arg(args, '--out');
           fs.mkdirSync(out, {recursive: true});
           fs.copyFileSync(persistedReport, path.join(out, 'persisted-recovery.json'));
+        } else if (command === process.execPath && args[0]?.endsWith('settlement-refund-tests.cjs')) {
+          const out = arg(args, '--out');
+          fs.mkdirSync(out, {recursive: true});
+          fs.copyFileSync(settlementReport, path.join(out, 'settlement-refund.json'));
         } else {
           throw new Error(`unexpected fake command: ${command} ${args.join(' ')}`);
         }
@@ -102,7 +108,7 @@ function fakeSpawn() {
       sandboxDir: '/fake-sandbox',
       baseWasm: path.join(repair, 'bundle/artifacts/base.wasm'),
       privateRuntime: path.join(tmp, 'provider-runtime'),
-      timeouts: {baselineMs: 30000, generationMs: 30000, pipelineMs: 30000, recoveryMs: 30000, jobMs: 120000},
+      timeouts: {baselineMs: 30000, generationMs: 30000, pipelineMs: 30000, recoveryMs: 30000, mixedMs: 30000, settlementMs: 30000, jobMs: 120000},
     },
   });
   const started = manager.start('sputnik-238-async-bond');
@@ -113,7 +119,7 @@ function fakeSpawn() {
   assert.equal(run.checks?.recoveryAccepted, true);
   assert.equal(run.recovery.summary.firstGrossRecoveryYocto, '1000000000000000000000000');
   assert.equal(run.recovery.summary.secondGrossRecoveryYocto, '0');
-  const bundle = manager.bundle(started.id);
+    const bundle = manager.bundle(started.id);
   assert.equal(bundle.recovery.report.schema, 'near-rehearsal/persisted-bond-recovery/v1');
   const sha = (value) => crypto.createHash('sha256').update(value).digest('hex');
   assert.equal(bundle.recovery.reportSha256, sha(bundle.recovery.reportText));
@@ -125,6 +131,52 @@ function fakeSpawn() {
   assert.equal(bundle.recovery.appliedSource.sha256, JSON.parse(fs.readFileSync(candidateIdentity, 'utf8')).source.sha256);
   assert.equal(bundle.recovery.report.identity.source.sha256, bundle.recovery.appliedSource.sha256);
   assert.equal(bundle.checks.recoveryAccepted, true);
+  assert.ok(bundle.mixed && bundle.mixed.reportSha256, 'accepted bundle must carry mixed evidence');
+  assert.ok(bundle.acceptancePolicy && bundle.acceptancePolicy.policyVersion, 'accepted bundle must carry acceptance policy');
+
+  const restarted = createManager({
+    runsRoot: tmp,
+    spawn: fakeSpawn(),
+    config: {
+      configured: true,
+      providerConfigured: true,
+      missing: [],
+      sandboxDir: '/fake-sandbox',
+      baseWasm: path.join(repair, 'bundle/artifacts/base.wasm'),
+      privateRuntime: path.join(tmp, 'provider-runtime'),
+      timeouts: {baselineMs: 30000, generationMs: 30000, pipelineMs: 30000, recoveryMs: 30000, mixedMs: 30000, settlementMs: 30000, jobMs: 120000},
+    },
+  });
+  restarted.recover();
+  const restored = restarted.get(started.id);
+  assert.ok(restored && restored.mixed, 'mixed evidence must survive manager restart');
+  assert.ok(restored.acceptancePolicy, 'acceptance policy must survive manager restart');
+  const restartedBundle = restarted.bundle(started.id);
+  assert.ok(restartedBundle.mixed && restartedBundle.mixed.reportSha256, 'restarted bundle must retain mixed evidence');
+  const reviewerSourceCheck = checkBundle(bundle);
+  const reviewerReplayCheck = checkBundle(restartedBundle);
+  assert.equal(reviewerSourceCheck.mixedPolicy.sha256, bundle.mixed.policySha256);
+  assert.equal(reviewerReplayCheck.mixedPolicy.sha256, restartedBundle.mixed.policySha256);
+  assert.ok(reviewerSourceCheck.producerMixed && reviewerReplayCheck.producerMixed, 'both reviewer modes must accept the exported mixed evidence');
+  assert.equal(restartedBundle.mixed.reportSha256, bundle.mixed.reportSha256);
+  assert.equal(restartedBundle.acceptancePolicy.policyVersion, bundle.acceptancePolicy.policyVersion);
+
+  const clearAllRoot = path.join(tmp, 'clear-all-run');
+  const clearManager = createManager({
+    runsRoot: clearAllRoot,
+    spawn: fakeSpawn({mixedPath: path.join(repair, 'out/mixed-obligation-clear-all.json')}),
+    config: {
+      configured: true, providerConfigured: true, missing: [], sandboxDir: '/fake-sandbox',
+      baseWasm: path.join(repair, 'bundle/artifacts/base.wasm'), privateRuntime: path.join(tmp, 'clear-provider-runtime'),
+      timeouts: {baselineMs: 30000, generationMs: 30000, pipelineMs: 30000, recoveryMs: 30000, mixedMs: 30000, settlementMs: 30000, jobMs: 120000},
+    },
+  });
+  const clearStarted = clearManager.start('sputnik-238-async-bond');
+  await clearManager.get(clearStarted.id).done;
+  const clearRun = clearManager.get(clearStarted.id);
+  assert.equal(clearRun.status, 'rejected', 'a valid clear-all policy failure must be rejected, not inconclusive');
+  assert.match(clearRun.error, /mixed|liability|unrelated obligation/i);
+  assert.equal(clearRun.mixed.ok, false);
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-recovery-integration-tests/v1',
     passed: true,
