@@ -44,6 +44,10 @@ for (const [label, mutate] of [
 const outcomes = {alicePaid: true, bobLiabilityAfterAlice: true, bobTransferPaid: true, bobPaidExactlyOnce: true, aliceLockedDelta: '-1000000000000000000000000', bobLockedDelta: '-1000000000000000000000000', bobRecipientDelta: '100000000000000000000000', bobProposerDelta: '1000000000000000000000000'};
 const sameBytes = compareMixed({outcomes, candidate: {wasmSha256: 'a'.repeat(64)}}, {outcomes}, 'a'.repeat(64), 'a'.repeat(64));
 assert.equal(sameBytes.candidateMatches, true);
+const legacy = compareMixed(null, {ok: true, outcomes}, 'a'.repeat(64), 'a'.repeat(64));
+assert.equal(legacy.legacy, true);
+assert.equal(legacy.candidateMatches, null);
+assert.deepEqual(legacy.reviewer, sameBytes.reviewer, 'both comparison branches expose reviewer outcomes directly');
 const rebuiltDifferent = compareMixed({outcomes, candidate: {wasmSha256: 'a'.repeat(64)}}, {outcomes}, 'b'.repeat(64), 'b'.repeat(64));
 assert.equal(rebuiltDifferent.candidateMatches, false, 'rebuilt artifact bytes must not be called equivalent to the producer');
 assert.equal(rebuiltDifferent.artifactMismatch, false);
