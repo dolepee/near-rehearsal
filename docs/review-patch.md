@@ -139,3 +139,7 @@ A reviewer can rerun the same command against the same patch and source
 checkout. The report records the exact patch and built-artifact hashes so a
 different result is visible rather than silently accepted. The reviewer should
 compare the source commit, patch hash and built WASM hash, not the caller labels.
+
+## CLI exit status
+
+Exit zero means `ACCEPTED`. Other completed outcomes retain their reports and use nonzero codes: `REJECTED` 2, `INPUT_ERROR` 3, `BUILD_ERROR` 4, `INCONCLUSIVE` 5. Argument errors and unexpected failures use 1; `--help` uses 0. Read the structured status for the reason; a nonzero status does not imply a malicious patch. The browser continues to read the structured result.

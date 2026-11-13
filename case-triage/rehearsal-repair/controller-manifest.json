@@ -25,11 +25,17 @@
       "node case-triage/rehearsal-repair/acceptance-tests.cjs"
     ]
   },
-  "model": {
+  "claimBoundary": "The patch guard, build and acceptance policy are controller-owned. Earlier blocked-generation observations are historical; per-run provenance identifies whether a candidate was supplied or model-generated.",
+  "historicalModelObservation": {
+    "asOf": "2026-11-06",
+    "superseded": true,
     "status": "blocked",
     "reason": "coding CLI authentication failed before any model call completed",
     "usage": "zero",
     "modelGeneratedPatch": false
   },
-  "claimBoundary": "No model patch exists yet. The authored repair patch and controller-side acceptance are separate evidence."
+  "recordedModelCandidate": {
+    "bundle": "test-fixtures/repair-browser-export-1de7b8c5.json",
+    "note": "A later recorded model-generated candidate is retained in this bundle. This manifest does not claim a fresh generation for any current review."
+  }
 }

@@ -600,15 +600,18 @@ function runReview(opts) {
   return review;
 }
 
+const REVIEW_EXIT_CODES = Object.freeze({ACCEPTED: 0, REJECTED: 2, INPUT_ERROR: 3, BUILD_ERROR: 4, INCONCLUSIVE: 5});
+function exitCodeForStatus(status) { return REVIEW_EXIT_CODES[status] ?? 1; }
+
 if (require.main === module) {
   try {
     const opts = parseArgs(process.argv.slice(2));
     if (opts.help) console.log(usage());
-    else runReview(opts);
+    else process.exitCode = exitCodeForStatus(runReview(opts).status);
   } catch (error) {
     console.error(`review-patch: ${error.message}`);
     process.exitCode = 1;
   }
 }
 
-module.exports = {parseArgs, classify, classifyPipelineResult, policyIdentity, runReview, renderReport, checkSource, checksFrom, sandboxFromEnvironment};
+module.exports = {exitCodeForStatus, REVIEW_EXIT_CODES, parseArgs, classify, classifyPipelineResult, policyIdentity, runReview, renderReport, checkSource, checksFrom, sandboxFromEnvironment};

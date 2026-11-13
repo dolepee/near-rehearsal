@@ -238,7 +238,7 @@
   async function exportRun() {
     if (!state.run?.id) return;
     try {
-      const r = await fetch(`/api/runs/${state.run.id}/export`, {method: 'POST'});
+      const r = await fetch(`/api/runs/${state.run.id}/export`, {method: 'POST', headers: {'content-type': 'application/json'}, body: '{}'});
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Export failed.');
       state.export = data.export; state.tab = 'export'; renderDetails();
