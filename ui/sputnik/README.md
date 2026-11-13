@@ -10,7 +10,7 @@ runner; it does not load a committed report as a fresh result.
 PORT=4174 npm run ui:sputnik
 ```
 
-Open `http://127.0.0.1:4174`. The root `/` is the maintainer front door: the supported stranded-bond problem and two actions, **Generate a fresh repair** (`/repair`) and **Independently review a repair** (`/review`). The older authored three-branch comparison is at `/compare`; `/index.html` remains a legacy alias of that comparison.
+Open `http://127.0.0.1:4174`. The root `/` is the maintainer front door: the supported stranded-bond problem and three actions, **Check your source patch** (`/repair?mode=patch`), **Generate a fresh repair** (`/repair`) and **Independently review a repair** (`/review`). The older authored three-branch comparison is at `/compare`; `/index.html` remains a legacy alias of that comparison.
 
 Required local environment:
 
@@ -71,6 +71,29 @@ or authored patch. A generated patch can be downloaded after generation; the
 review bundle is available only after an accepted run. Completed results remain
 addressable after refresh or restart; interrupted jobs are marked interrupted.
 
+## Source-patch route
+
+`/repair?mode=patch` is the model-free path for a maintainer diff. Start it with:
+
+```sh
+npm run doctor -- --flow repair --mode patch
+PORT=4174 npm run ui:patch
+```
+
+The launcher checks the pinned source, Rust 1.86 and Sandbox 2.14, but never
+provider credentials. The browser accepts a diff, runs the versioned
+`scripts/review-patch.cjs` checker, and shows the measured money outcome and
+failed/not-run checks before the raw report. Completed runs, rejected runs and
+incomplete runs are stored under `.local/browser-patch-runs/<id>/` with their
+submitted patch, status, report, evidence and `review-package` archive. A server
+restart reloads terminal results and marks an interrupted process inconclusive;
+opening a saved result does not start a new build. The recent-runs list links to
+those saved results.
+
+The package is the source-patch package, not the older `repair:review` bundle.
+It includes relative paths, checksums and the exact rerun command. The recorded
+WASM reviewer at `/review` remains a separate route.
+
 ## Reviewer handoff
 
 `/review` is the reviewer-facing entry point for a downloaded repair bundle. It
@@ -111,7 +134,9 @@ minutes under a local Sandbox.
 
 ## Results and handoff
 
-Accepted `/repair` results lead with the measured money consequence: the
+Accepted patch-route results lead with the measured money consequence; rejected
+and incomplete runs show the failed or unavailable checks without inventing a
+success. Accepted `/repair` results lead with the measured money consequence: the
 frozen bond, first gross recovery with gas and proposer net, the retry's zero
 extra principal and gas, and the preserved healthy obligations. The original
 proposal remains `Failed`; recovery clears the bond debt without re-executing

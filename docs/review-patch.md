@@ -93,6 +93,21 @@ transaction remains inconclusive.
 - `review-evidence.json` — for a non-accepted result.
 - `SHA256SUMS` — hashes of the report and evidence files.
 
+## Browser route
+
+The model-free browser entry point is `/repair?mode=patch`, launched with
+`npm run ui:patch` after `npm run doctor -- --flow repair --mode patch`. It
+stores each run under `.local/browser-patch-runs/`, reloads terminal results
+after a server restart, marks an interrupted process inconclusive, and exposes
+a recent-runs list. Opening a saved result never starts a new build.
+
+Every terminal run, including a rejected or incomplete run, offers a
+`review-package.zip` (or `.tar.gz` when zip is unavailable). The package holds
+the submitted patch, status, report and evidence with relative paths, a
+`SHA256SUMS` file, and the exact supported CLI rerun command. It is not the
+older `repair:review` bundle format. The separate `/review` page remains the
+route for an existing recorded-WASM or repair-review bundle.
+
 ## Trust boundaries
 
 - **Source build** means the submitted patch was applied and compiled by this

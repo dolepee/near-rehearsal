@@ -1,10 +1,16 @@
 'use strict';
 (() => {
-  const el = id => document.getElementById(id);
+  const el = (id) => document.getElementById(id);
   const input = el('patch-text'), file = el('patch-file'), button = el('check'), status = el('patch-status');
   const max = 64 * 1024;
   let selection = 0, active = false, pendingFile = false, loadedText = null;
-  function resetResult() { el('patch-result').hidden = true; el('patch-report').textContent = ''; el('evidence-links').replaceChildren(); }
+  function resetResult() {
+    el('patch-result').hidden = true;
+    el('patch-outcomes').hidden = true;
+    el('patch-failed').hidden = true;
+    el('patch-report').textContent = '';
+    el('evidence-links').replaceChildren();
+  }
   function controls() { button.disabled = active || pendingFile; input.disabled = file.disabled = active; }
   function editing() { resetResult(); status.textContent = ''; }
   file.addEventListener('change', async () => {
@@ -18,19 +24,79 @@
   });
   input.addEventListener('input', () => { ++selection; pendingFile = false; loadedText = null; file.value = ''; controls(); editing(); });
   const titles = {accepted:'Passed the recovery checks',rejected:'Failed a recovery check',input_error:'Patch could not be applied',build_error:'Patch could not be built',inconclusive:'No verified result'};
+  const statusLabels = {accepted:'Accepted',rejected:'Rejected',input_error:'Input error',build_error:'Build error',inconclusive:'Inconclusive',running:'Running'};
   async function json(url, opts) {
     const r = await fetch(url, {...opts, cache:'no-store', signal:AbortSignal.timeout(15000)}); const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'The local reviewer is unavailable.'); return d;
   }
+  function value(value, fallback = 'Not measured') { return value === null || value === undefined || value === '' ? fallback : value; }
+  function outcomes(run) {
+    const box = el('patch-outcomes'), failed = el('patch-failed');
+    box.replaceChildren(); failed.replaceChildren();
+    if (run.summary) {
+      const s = run.summary;
+      const cards = [
+        ['Bond returned', value(s.firstRecovery?.gross), s.firstRecovery?.endedFailed ? 'Failed status preserved' : 'No failed status recorded'],
+        ['Retry principal', value(s.retry?.gross, '0 NEAR'), 'Second finalize; no extra principal when 0'],
+        ['Healthy settled', value(s.healthy?.settledTransfer), 'Already-paid Transfer'],
+        ['Healthy pending', value(s.healthy?.pendingTransfer), 'Inherited pending Transfer'],
+      ];
+      for (const [label, amount, note] of cards) {
+        const card = document.createElement('div');
+        card.className = 'consequence-card';
+        card.innerHTML = `<div class="eyebrow">${label}</div><strong>${escapeHtml(amount)}</strong><p>${escapeHtml(note)}</p>`;
+        box.append(card);
+      }
+      box.hidden = false;
+    } else {
+      const card = document.createElement('div');
+      card.className = 'consequence-card';
+      card.innerHTML = '<div class="eyebrow">Money outcome</div><strong>Not available</strong><p>No accepted measured result was produced for this run.</p>';
+      box.append(card); box.hidden = false;
+    }
+    const notPassed = Array.isArray(run.checks) ? run.checks.filter((check) => check.status !== 'pass') : [];
+    if (notPassed.length) {
+      for (const check of notPassed) {
+        const li = document.createElement('li');
+        const mark = document.createElement('span'); mark.className = 'check-mark bad'; mark.textContent = '✕';
+        li.append(mark, document.createTextNode(`${check.id}: ${check.detail || check.status}`));
+        failed.append(li);
+      }
+      failed.hidden = false;
+    } else if (run.status === 'accepted') {
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="check-mark">✓</span><span>All defined checks passed for this pinned case.</span>';
+      failed.append(li); failed.hidden = false;
+    }
+  }
+  function escapeHtml(text) {
+    return String(text).replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
   function result(run) {
     resetResult(); el('result-title').textContent = titles[run.status] || titles.inconclusive;
     el('result-note').textContent = run.note || 'See the checker evidence for this run.';
+    outcomes(run);
     if (run.report) { el('patch-report').textContent = run.report; el('patch-report').hidden = false; } else el('patch-report').hidden = true;
-    for (const [key,label] of [['status','Download status'],['report','Download report'],['patch','Download submitted diff']]) {
+    for (const [key,label] of [['package','Download evidence package'],['status','Download status'],['report','Download report'],['patch','Download submitted diff']]) {
       if (!run.downloads?.includes(key)) continue;
       const a = document.createElement('a'); a.className = 'download-button'; a.download = ''; a.href = '/api/patch/runs/'+encodeURIComponent(run.id)+'/'+key; a.textContent = label; el('evidence-links').append(a);
     }
     el('patch-result').hidden = false; el('result-title').focus();
+  }
+  function renderRecent(runs) {
+    const list = el('recent-list'), section = el('recent-runs');
+    list.replaceChildren();
+    if (!Array.isArray(runs) || !runs.length) { section.hidden = true; return; }
+    for (const run of runs) {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'history-item';
+      button.innerHTML = `<b>${escapeHtml(statusLabels[run.status] || 'Unknown')} · ${escapeHtml(run.id.slice(0, 8))}</b><small>${escapeHtml(run.finishedAt || run.createdAt || '')}</small>`;
+      button.addEventListener('click', () => follow(run.id));
+      list.append(button);
+    }
+    section.hidden = false;
+  }
+  async function loadRecent() {
+    try { const data = await json('/api/patch/runs'); renderRecent(data.runs); } catch { renderRecent([]); }
   }
   const runKey = 'rehearsal-patch-run';
   async function follow(runId, initial = null) {
@@ -44,7 +110,7 @@
         await new Promise(resolve => setTimeout(resolve,1500));
         run = await json('/api/patch/runs/'+encodeURIComponent(runId));
       }
-      status.textContent = ''; result(run);
+      status.textContent = ''; result(run); await loadRecent();
     } catch(e) {
       status.textContent = e.message + ' You can resume this check without submitting the patch again.';
       const resume = document.createElement('button');
@@ -67,6 +133,7 @@
     } catch(e) { status.textContent = e.message; }
     finally { active = false; controls(); }
   });
+  loadRecent();
   const saved = sessionStorage.getItem(runKey);
   if (saved && /^[a-f0-9-]{36}$/.test(saved)) follow(saved);
 })();
