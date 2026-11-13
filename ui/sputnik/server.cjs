@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const {spawn, spawnSync} = require('node:child_process');
 const {createManager: createRepairManager} = require('./repair-job.cjs');
 const {createManager: createReviewManager, exampleBundleText} = require('./review-job.cjs');
+const patchRoute = require('./patch-route.cjs');
 
 const ROOT = path.join(__dirname, '..', '..');
 const CASE = path.join(ROOT, 'case-triage/sputnik-public-capture');
@@ -264,7 +265,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${HOST}:${PORT}`);
   try {
     if (url.pathname === '/api/patch' || url.pathname.startsWith('/api/patch/')) {
-      return await require('./patch-route.cjs').handle({req, res, url, send});
+      return await patchRoute.handle({req, res, url, send});
     }
     if (url.pathname === '/api/health') return send(res, 200, {ok: true, running: !!activeId, repairRunning: Boolean(repairManager.active()), reviewRunning: Boolean(reviewManager.active())});
     if (url.pathname === '/api/review/config' && req.method === 'GET') return send(res, 200, {
@@ -431,6 +432,7 @@ const server = http.createServer(async (req, res) => {
 });
 if (require.main === module) {
   recoverRuns();
+  patchRoute.recover();
   repairManager.recover();
   reviewManager.recover();
   server.listen(PORT, HOST, () => console.log(`Sputnik rehearsal UI: http://${HOST}:${PORT}`));
@@ -439,7 +441,7 @@ if (require.main === module) {
     if (stopping) return;
     stopping = true;
     server.close();
-    try { await require('./patch-route.cjs').shutdown(); } catch {}
+    try { await patchRoute.shutdown(); } catch {}
     try { await repairManager.shutdown(); } catch {}
     try { await reviewManager.shutdown(); } catch {}
     process.exit(0);

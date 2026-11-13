@@ -12,6 +12,7 @@ The UI serves four local interfaces. They are not interchangeable:
 | --- | --- | --- | --- |
 | Choose a repair path | `/` | None | A static front door: generate a fresh repair or independently review a supplied one. It does not execute or auto-start either path. |
 | Review a supplied repair without a model account | `/review` | Sandbox **2.14.0**; Rust **1.86.0** only for source-build | A supplied bundle's hashes, candidate identity and declared recovery behavior; either build the supplied patch or replay the recorded WASM |
+| Check a maintainer source patch | `/repair?mode=patch` or `npm run ui:patch` | Sandbox **2.14.0**, Rust **1.86.0**, clean pinned source; **no model account** | The submitted diff, actual built WASM and persisted recovery/preservation checks with a downloadable evidence package |
 | Generate a fresh model repair | `/repair` | Sandbox **2.14.0**, Rust **1.86.0**, configured local model provider | Fresh baseline → generated patch → build → fresh replay → persisted-failure recovery → acceptance → diff and review bundle |
 | Inspect the older authored comparison | `/compare` (legacy `/index.html`) | Sandbox **2.6.2**, no model account or Rust build | Same frozen inherited state → baseline, supplied candidate and correction → verification/export |
 
@@ -168,7 +169,16 @@ ulimit -n 65535
 PORT=4174 npm run ui:repair
 ```
 
-Open **http://127.0.0.1:4174/repair** and choose **Run fresh repair**. The checked launcher reports missing configuration before starting the app. If you start the server directly without a provider, its repair job completes the baseline and reports **Inconclusive**; it never substitutes the authored `repair.patch` as model output. A generated candidate that fails acceptance remains rejected. Only accepted repair results offer a review bundle; available generated patches remain inspectable on failed attempts.
+Open **http://127.0.0.1:4174/repair** and choose **Run fresh repair**. The checked launcher reports missing configuration before starting the app.
+
+For the model-free source-patch route, use the separate launcher:
+
+```sh
+npm run doctor -- --flow repair --mode patch
+PORT=4174 npm run ui:patch
+```
+
+This checks the pinned source, Rust/Sandbox and the local checker, but never provider credentials. Open **http://127.0.0.1:4174/repair?mode=patch**. The existing `ui:repair` generator command remains unchanged. If you start the server directly without a provider, its repair job completes the baseline and reports **Inconclusive**; it never substitutes the authored `repair.patch` as model output. A generated candidate that fails acceptance remains rejected. Only accepted repair results offer a review bundle; available generated patches remain inspectable on failed attempts.
 
 The doctor is a local configuration check, not a login/model call or an execution attestation. Actual generation still verifies the provider boundary and can fail honestly. Running a recorded export or the authored control is not fresh model generation.
 

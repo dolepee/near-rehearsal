@@ -92,11 +92,23 @@ PORT=4174 npm run ui:repair
 
 The doctor performs no login, provider call or chain execution and does not read auth contents. The real producer checks confinement before generation, removes its temporary auth reference afterward, and can still report an account/model or output failure. No credential fallback, paid API purchase, or authored-patch substitution is performed.
 
+### Model-free source-patch route
+
+A maintainer diff does not need a model account or provider configuration. The patch route uses the same pinned source, Rust and Sandbox checks, but not the provider check:
+
+```sh
+npm run doctor -- --flow repair --mode patch
+PORT=4174 npm run ui:patch
+```
+
+Open `http://127.0.0.1:4174/repair?mode=patch`. The separate `npm run ui:repair` generator command still requires the provider setup above.
+
 ## Test categories
 
 - `npm test`: offline core behavior, verifier/report controls, browser history and setup diagnostics; no network/model/Sandbox execution.
 - CI `Pinned Sandbox three-branch flow`: actual manual baseline/candidate/correction transactions on 2.6.2 and separate verification.
 - CI `Repair suites`: producer/controller/build/acceptance guards and browser-job tests; some use fake CLI/process controls. These are not genuine provider runs.
 - `npm run ui:repair`: after successful preflight, the browser can start a fresh real baseline/model/build/replay attempt. An available provider account and Rust/Sandbox setup are required.
+- `npm run ui:patch`: the model-free source-patch route. It checks pinned source, Rust and Sandbox, but no provider credentials. `npm run doctor -- --flow repair --mode patch` is the matching preflight.
 
 Expected output matters: `Accepted` is a completed supported repair experiment; `Rejected` is a measured failure; `Inconclusive`/`Interrupted` is not accepted evidence. An exported report can be verified offline for consistency; reproducing execution requires the matching runtime.
