@@ -23,9 +23,23 @@ function base58Encode(bytes) {
   return out || '1';
 }
 
+function successfulChildReceipt(deploy, label, fail) {
+  const id = deploy?.transactionOutcome?.status?.SuccessReceiptId;
+  if (!id) { fail(`${label} has no SuccessReceiptId`); return false; }
+  const receipt = (deploy.receipts || []).find((entry) => entry?.id === id);
+  if (!receipt) { fail(`${label} SuccessReceiptId is not present in its receipts`); return false; }
+  if (receipt.executorId !== deploy.transaction?.receiverId) { fail(`${label} child receipt executed by the wrong receiver`); return false; }
+  const status = receipt.status || {};
+  if (status.Failure) { fail(`${label} child receipt is a failure`); return false; }
+  const hasSuccessValue = Object.prototype.hasOwnProperty.call(status, 'SuccessValue');
+  const hasSuccessReceipt = typeof status.SuccessReceiptId === 'string' && status.SuccessReceiptId.length > 0;
+  if (!hasSuccessValue && !hasSuccessReceipt) { fail(`${label} child receipt is not successful`); return false; }
+  return true;
+}
+
 function deploymentCommitment(deploy, label, fail) {
   if (!deploy || deploy.finalExecutionStatus !== 'FINAL') { fail(`${label} deployment was not FINAL`); return null; }
-  if (!deploy.transactionOutcome?.status?.SuccessReceiptId) { fail(`${label} deployment has no successful receipt`); }
+  if (!successfulChildReceipt(deploy, label, fail)) return null;
   const action = (deploy.transaction?.actions || []).find((entry) => entry && entry.DeployContract);
   if (!action) { fail(`${label} deployment has no DeployContract action`); return null; }
   let code;
@@ -70,7 +84,10 @@ function verifyScenario(scenario, mode, context) {
       const upgradedCode = deploymentCommitment(upgrade.deploy, 'inherited upgrade', (message) => failFor(false, message));
       if (upgradedCode !== candidateWasmSha256) failFor(false, 'inherited upgrade does not commit to the candidate WASM');
       if (upgrade.codeHash !== base58Encode(Buffer.from(candidateWasmSha256, 'hex'))) failFor(false, 'inherited installed code hash is not the candidate');
-      if (upgrade.migrate?.finalExecutionStatus !== 'FINAL' || !upgrade.migrate?.transactionOutcome?.status?.SuccessReceiptId) failFor(false, 'inherited migrate was not successful');
+      if (upgrade.migrate?.finalExecutionStatus !== 'FINAL') failFor(false, 'inherited migrate was not successful');
+      if (upgrade.migrate && !successfulChildReceipt(upgrade.migrate, 'inherited migrate', (message) => failFor(false, message))) {
+        failFor(false, 'inherited migrate child receipt failed');
+      }
     }
     const baseCommitted = deploymentCommitment(scenario.deploy, 'inherited base', (message) => failFor(false, message));
     if (baseCommitted !== baseWasmSha256) failFor(false, 'inherited scenario does not commit to the pinned base WASM');

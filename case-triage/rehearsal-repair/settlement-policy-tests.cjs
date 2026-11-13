@@ -36,6 +36,43 @@ const labelSwapCheck = verifySettlementReport(labelSwap, {candidateWasmSha256: f
 assert.equal(labelSwapCheck.ok, false, 'copied identity labels must not replace DeployContract evidence');
 assert.ok(labelSwapCheck.errors.some((error) => /DeployContract|deployment label|commitment|installed code hash/.test(error)));
 
+const failedDeploymentReceipt = JSON.parse(JSON.stringify(correctedReport));
+{
+  const deploy = failedDeploymentReceipt.fresh.deploy;
+  const id = deploy.transactionOutcome.status.SuccessReceiptId;
+  deploy.receipts.find((receipt) => receipt.id === id).status = {Failure: {ActionError: {kind: 'synthetic failed deployment'}}};
+}
+assert.equal(verifySettlementReport(failedDeploymentReceipt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a dispatched deployment whose child receipt failed must fail');
+
+const missingDeploymentReceipts = JSON.parse(JSON.stringify(correctedReport));
+missingDeploymentReceipts.fresh.deploy.receipts = [];
+assert.equal(verifySettlementReport(missingDeploymentReceipts, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a deployment without its reachable child receipt must fail');
+
+const failedUpgradeReceipt = JSON.parse(JSON.stringify(correctedReport));
+{
+  const deploy = failedUpgradeReceipt.inherited.transactions.upgrade.deploy;
+  const id = deploy.transactionOutcome.status.SuccessReceiptId;
+  deploy.receipts.find((receipt) => receipt.id === id).status = {Failure: {ActionError: {kind: 'synthetic failed upgrade'}}};
+}
+assert.equal(verifySettlementReport(failedUpgradeReceipt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a failed inherited upgrade receipt must fail');
+
+const failedMigrateReceipt = JSON.parse(JSON.stringify(correctedReport));
+{
+  const migrate = failedMigrateReceipt.inherited.transactions.upgrade.migrate;
+  const id = migrate.transactionOutcome.status.SuccessReceiptId;
+  migrate.receipts.find((receipt) => receipt.id === id).status = {Failure: {ActionError: {kind: 'synthetic failed migrate'}}};
+}
+assert.equal(verifySettlementReport(failedMigrateReceipt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a failed inherited migrate receipt must fail');
+
+const disconnectedReceipt = JSON.parse(JSON.stringify(correctedReport));
+disconnectedReceipt.fresh.deploy.transactionOutcome.status.SuccessReceiptId = 'missing-receipt';
+assert.equal(verifySettlementReport(disconnectedReceipt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a SuccessReceiptId that is not present in the report must fail');
+
 const badInstalledHash = JSON.parse(JSON.stringify(correctedReport));
 badInstalledHash.fresh.deploy.codeHash = '1111111111111111111111111111111111';
 assert.equal(verifySettlementReport(badInstalledHash, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
@@ -112,6 +149,11 @@ console.log(JSON.stringify({
     'candidate-binding-fails',
     'identity-label-swap-fails',
     'installed-code-hash-fails',
+    'failed-deployment-receipt-fails',
+    'missing-deployment-receipts-fail',
+    'failed-upgrade-receipt-fails',
+    'failed-migrate-receipt-fails',
+    'disconnected-receipt-fails',
     'non-final-deployment-fails',
     'failed-deployment-fails',
     'missing-deploy-action-fails',
