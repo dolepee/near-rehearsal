@@ -197,15 +197,27 @@ function classify(stage, details = {}) {
   return {status: 'INCONCLUSIVE', reason: `No terminal result was produced at ${stage}.`};
 }
 
-function extractPipelineFailure(pipelineDir) {
-  const buildLog = path.join(pipelineDir, 'build.log');
-  const replayLog = path.join(pipelineDir, 'replay.log');
-  if (isFile(buildLog)) {
-    const text = fs.readFileSync(buildLog, 'utf8');
-    if (/exit=[1-9]/.test(text)) return {buildError: 'Candidate source did not compile.'};
+/*
+ * A log file existing is not a verdict. Only a completed pipeline.json can
+ * classify a candidate as rejected; a compiler failure is a build error. A
+ * missing pipeline verdict, including a Sandbox/RPC/dependency interruption,
+ * stays inconclusive even when replay.log exists.
+ */
+function classifyPipelineResult({pipeline, buildLogText, replayReportExists}) {
+  if (pipeline) {
+    if (pipeline.ok === true) return {kind: 'accepted'};
+    return {
+      kind: 'rejected',
+      reason: `fresh-state acceptance failed: ${(pipeline.acceptanceErrors || []).join('; ') || 'pipeline did not pass'}`,
+    };
   }
-  if (isFile(replayLog)) return {rejected: 'Candidate executable failed the fresh-state replay check.'};
-  return null;
+  if (typeof buildLogText === 'string' && /(?:^|\n)exit=[1-9]/.test(buildLogText)) {
+    return {kind: 'buildError', reason: 'Candidate source did not compile.'};
+  }
+  if (replayReportExists) {
+    return {kind: 'inconclusive', reason: 'replay produced a report but no completed pipeline verdict' };
+  }
+  return {kind: 'inconclusive', reason: 'pipeline produced no completed verdict; runtime or dependency interruption' };
 }
 
 function reportSummary(report, acceptance, run) {
@@ -438,19 +450,25 @@ function runReview(opts) {
           reason = result.reason;
           checks = [{id: 'patch-input', status: 'fail', detail: result.reason}];
         } else {
-          const extracted = extractPipelineFailure(pipelineDir);
-          if (extracted?.buildError) {
-            const result = classify('build', extracted);
+          const buildLogPath = path.join(pipelineDir, 'build.log');
+          const replayReportPath = path.join(pipelineDir, 'replay', 'issue238-local.json');
+          const verdict = classifyPipelineResult({
+            pipeline: null,
+            buildLogText: isFile(buildLogPath) ? fs.readFileSync(buildLogPath, 'utf8') : '',
+            replayReportExists: isFile(replayReportPath),
+          });
+          if (verdict.kind === 'buildError') {
+            const result = classify('build', {buildError: verdict.reason});
             status = result.status;
             reason = result.reason;
             checks = [{id: 'build', status: 'fail', detail: result.reason}];
-          } else if (extracted?.rejected) {
-            const result = classify('replay', extracted);
+          } else if (verdict.kind === 'rejected') {
+            const result = classify('replay', {rejected: verdict.reason});
             status = result.status;
             reason = result.reason;
             checks = [{id: 'fresh-replay', status: 'fail', detail: result.reason}];
           } else {
-            const result = classify('pipeline', {inconclusive: `pipeline produced no report: ${errText.trim().slice(0, 500) || 'no output'}`});
+            const result = classify('pipeline', {inconclusive: verdict.reason});
             status = result.status;
             reason = result.reason;
             checks = [{id: 'pipeline', status: 'error', detail: result.reason}];
@@ -588,4 +606,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = {parseArgs, classify, policyIdentity, runReview, renderReport, checkSource, checksFrom, sandboxFromEnvironment};
+module.exports = {parseArgs, classify, classifyPipelineResult, policyIdentity, runReview, renderReport, checkSource, checksFrom, sandboxFromEnvironment};

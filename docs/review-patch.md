@@ -74,6 +74,13 @@ The report separately records what was actually checked:
 The report is evidence, not a signature and not a GitHub-enforced merge
 restriction.
 
+A candidate is rejected only from a completed pipeline verdict with a defined
+acceptance error. A `replay.log` file by itself is not a rejection: Sandbox
+startup, RPC and dependency interruptions also leave that log, and those remain
+inconclusive. An executed authority probe that did not fail is preserved as
+structured evidence and rejected; a transport failure with no executed
+transaction remains inconclusive.
+
 ## Outputs
 
 - `review-status.json` — machine-readable status, supplied labels, verified

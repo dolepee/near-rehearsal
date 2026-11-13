@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  parseArgs, classify, policyIdentity, renderReport, checkSource, checksFrom,
+  parseArgs, classify, classifyPipelineResult, policyIdentity, renderReport, checkSource, checksFrom,
 } = require('./review-patch.cjs');
 
 const here = __dirname;
@@ -30,6 +30,13 @@ assert.equal(classify('persisted', {rejected: 'bond remained'}).status, 'REJECTE
 assert.equal(classify('all', {accepted: true}).status, 'ACCEPTED');
 assert.equal(classify('nothing', {}).status, 'INCONCLUSIVE');
 console.log('accepted: status classification separates input, build, rejection and infrastructure');
+
+assert.equal(classifyPipelineResult({pipeline: {ok: true}}).kind, 'accepted');
+assert.equal(classifyPipelineResult({pipeline: {ok: false, acceptanceErrors: ['economic check failed']}}).kind, 'rejected');
+assert.equal(classifyPipelineResult({buildLogText: 'exit=101\n', replayReportExists: false}).kind, 'buildError');
+assert.equal(classifyPipelineResult({replayReportExists: false}).kind, 'inconclusive');
+assert.equal(classifyPipelineResult({replayReportExists: true}).kind, 'inconclusive');
+console.log('accepted: only a completed pipeline verdict rejects a candidate; replay.log alone stays inconclusive');
 
 const policy = policyIdentity(path.join(root, 'case-triage', 'rehearsal-repair', 'out', 'issue238-local.json'));
 assert.match(policy.policySha256, /^[0-9a-f]{64}$/);
@@ -96,7 +103,7 @@ console.log(JSON.stringify({
     'argument parsing', 'required input failures', 'input error', 'build error',
     'inconclusive', 'rejected', 'accepted', 'policy identity', 'bounded report language',
     'rejected language', 'no checked-in absolute paths', 'source checkout failure',
-    'malformed recovery fields',
+    'malformed recovery fields', 'pipeline verdict classification',
   ],
   passed: true,
 }, null, 2));
