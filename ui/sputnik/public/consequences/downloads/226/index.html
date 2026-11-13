@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Recorded case review for a local Sputnik #226 upgrade rehearsal. Not a mainnet or production claim.">
+  <title>Sputnik #226 — verified local upgrade packet</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">R</span>
+        <div>
+          <div class="eyebrow">NEAR / Sputnik #226 / recorded local case</div>
+          <h1>Upgrade review packet</h1>
+        </div>
+      </div>
+      <div id="run-status" class="status-pill">Loading recorded evidence…</div>
+    </header>
+    <nav class="quick-nav" aria-label="Packet sections">
+      <a href="#evidence">Evidence</a>
+      <a href="#rerun">Rerun</a>
+    </nav>
+
+    <main id="app" class="app" aria-live="polite">
+      <div class="loading panel">
+        <div class="eyebrow">Recorded case review</div>
+        <h2>Loading recorded evidence…</h2>
+        <p class="muted">The page reads the generated packet JSON from the verified case.</p>
+      </div>
+      <noscript>
+        <div class="panel error-state">
+          <h2>JavaScript is required to render this packet.</h2>
+          <p>The raw evidence is still available in <a href="evidence/node-evidence.json">node-evidence.json</a>.</p>
+        </div>
+      </noscript>
+    </main>
+
+    <footer class="footer">
+      <span>Recorded case review. No publication, deployment, funds, or mainnet claim.</span>
+      <a class="inline-action" href="evidence/SHA256SUMS">SHA256SUMS</a>
+    </footer>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,6 +1,8 @@
 # Pilot: Sputnik #226 old-proposal upgrade
 
-Status: **source-built WASM prepared and native harness compiled; execution is being re-run after the configured-factory fixture correction**. This is a local pilot, not a product adapter, not governance `UpgradeSelf`, and not a mainnet claim.
+Status: **recorded local case verified; fresh CLI preflight added**. The recorded packet in `review-packet/` has a native Sandbox 2.6.2 pass and a Node pass: the old proposal survives, exactly one local NEAR is paid, and both retry routes are rejected without a second payment. This is a local pilot, not a product adapter, not governance `UpgradeSelf`, and not a mainnet claim.
+
+The recorded result is the public evidence. A fresh `run-case.cjs` execution is a separate local action and requires a shell that permits local TCP listeners.
 
 ## Why #226
 
@@ -104,6 +106,8 @@ cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ig
 ```
 
 The harness uses `near_workspaces::sandbox()` and no mainnet endpoint.
+
+**Local listener prerequisite:** `near-workspaces` 5 starts a local sandbox RPC listener. `run-case.cjs` checks that the shell can bind both `127.0.0.1` and `0.0.0.0` before reserving an output directory. If it reports `Local Sandbox networking unavailable` or `EPERM`, run it in a shell that permits local TCP listeners. Increasing Node's heap will not fix that restriction. The check is a preflight, not a promise that a later port remains free.
 
 **Sandbox path distinction:** Rust `near-sandbox-utils 0.13` expects `NEAR_SANDBOX_BIN_PATH` to be the sandbox executable **file**. The patched Node binding expects the **directory** containing it. Do not export one value and reuse it across both.
 

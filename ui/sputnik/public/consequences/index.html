@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="/consequences/">
+  <meta name="description" content="Recorded consequence workbench for Sputnik #238 repair decisions and Sputnik #226 upgrade compatibility. Not a fresh execution.">
+  <title>NEAR Rehearsal — consequence workbench</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#workbench">Skip to consequence workbench</a>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">R</span>
+        <div>
+          <div class="eyebrow">NEAR / recorded consequence workbench</div>
+          <h1>Rehearsal evidence</h1>
+        </div>
+      </div>
+      <div class="top-actions">
+        <a class="nav-link" href="https://github.com/dolepee/near-rehearsal/blob/main/ui/sputnik/README.md">Run locally / setup</a>
+        <span class="recorded-pill"><span aria-hidden="true">●</span> Recorded execution</span>
+      </div>
+    </header>
+
+    <main id="workbench">
+      <section class="hero" aria-labelledby="hero-title">
+        <div>
+          <div class="eyebrow">Sputnik repair decision / public evidence</div>
+          <h2 id="hero-title">A repair can pass its tests and still erase a liability.</h2>
+          <p class="lede">Compare the recorded #238 repair that looks plausible with the intended repair, then inspect why one is rejected and the other is accepted. Every number links back to the reviewed artifact.</p>
+        </div>
+        <aside class="scope-card" aria-label="Scope">
+          <strong>What this page is</strong>
+          <p>A static view of recorded local executions. It does not compile code, run a fresh Sandbox or query a public chain.</p>
+          <a href="downloads/238/README.md">Read the evidence notes</a>
+        </aside>
+      </section>
+
+      <div class="case-tabs" role="tablist" aria-label="Recorded cases">
+        <button class="case-tab" type="button" role="tab" aria-selected="true" aria-controls="case-238" id="tab-238" data-case="238">
+          <span class="case-number">01</span>
+          <span><strong>#238 repair decision</strong><small>Bad vs intended, same inherited state</small></span>
+        </button>
+        <button class="case-tab" type="button" role="tab" aria-selected="false" aria-controls="case-226" id="tab-226" data-case="226" tabindex="-1">
+          <span class="case-number">02</span>
+          <span><strong>#226 upgrade compatibility</strong><small>Recorded old proposal survival</small></span>
+        </button>
+      </div>
+
+      <section id="case-238" class="case-panel" role="tabpanel" aria-labelledby="tab-238">
+        <div id="case-238-content" aria-live="polite">
+          <div class="loading-card">Loading recorded #238 evidence…</div>
+        </div>
+      </section>
+
+      <section id="case-226" class="case-panel" role="tabpanel" aria-labelledby="tab-226" hidden>
+        <div id="case-226-content" aria-live="polite">
+          <div class="loading-card">Loading recorded #226 evidence…</div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Recorded local evidence. No deployment, public-chain transaction, audit or universal-recovery claim.</span>
+      <span class="footer-links"><a href="downloads/238/README.md">#238 notes</a><a href="downloads/226/index.html">Full #226 packet</a></span>
+    </footer>
+  </div>
+  <script src="model.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

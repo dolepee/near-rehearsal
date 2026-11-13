@@ -12,6 +12,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const {spawnSync} = require('node:child_process');
 const {verifyPacket} = require('./review-packet/packet-model.cjs');
+const {checkLocalNetwork} = require('./local-network.cjs');
 
 const here = __dirname;
 const packetDir = path.join(here, 'review-packet');
@@ -111,7 +112,7 @@ function writeRun(outDir, value) {
   fs.writeFileSync(path.join(outDir, 'run.json'), JSON.stringify(value, null, 2) + '\n');
 }
 
-function main() {
+async function main() {
   if (args.includes('--help') || args.includes('-h')) {
     help();
     return;
@@ -129,6 +130,7 @@ function main() {
   requireValue(!fs.existsSync(outDir), `output already exists; refusing to overwrite: ${outDir}`);
   const runtime = findRuntime(sandboxArg);
   const version = runtimeVersion(runtime);
+  await checkLocalNetwork();
 
   fs.mkdirSync(path.dirname(outDir), {recursive: true});
   fs.mkdirSync(outDir, {recursive: false});
@@ -195,9 +197,7 @@ function main() {
   console.log('The recorded reviewer packet was not modified or presented as this run.');
 }
 
-try {
-  main();
-} catch (error) {
+main().catch((error) => {
   console.error(`FAIL ${error.message}`);
   process.exitCode = 1;
-}
+});
