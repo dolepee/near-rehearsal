@@ -1,5 +1,6 @@
 'use strict';
 const http = require('node:http');
+const {apiRequestError} = require('./local-api-guard.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -204,6 +205,10 @@ function publicRun(run) {
 
 const server = http.createServer(async (req, res) => {
   const requestUrl = new URL(req.url || '/', `http://${HOST}:${PORT}`);
+  if (requestUrl.pathname.startsWith('/api/')) {
+    const denied = apiRequestError(req);
+    if (denied) return sendJson(res, denied.status, {error: denied.error});
+  }
   if (requestUrl.pathname === '/api/health') {
     sendJson(res, 200, {ok: true, running: !!activeRunId});
     return;

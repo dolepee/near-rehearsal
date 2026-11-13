@@ -1,5 +1,6 @@
 'use strict';
 const http = require('node:http');
+const {apiRequestError} = require('../local-api-guard.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -264,6 +265,10 @@ function verify(run) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${HOST}:${PORT}`);
   try {
+    if (url.pathname.startsWith('/api/')) {
+      const denied = apiRequestError(req);
+      if (denied) return send(res, denied.status, {error: denied.error});
+    }
     if (url.pathname === '/api/patch' || url.pathname.startsWith('/api/patch/')) {
       return await patchRoute.handle({req, res, url, send});
     }
@@ -449,5 +454,5 @@ if (require.main === module) {
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
 } else {
-  module.exports = {finalizeRun, repairManager, reviewManager};
+  module.exports = {server, finalizeRun, repairManager, reviewManager};
 }
