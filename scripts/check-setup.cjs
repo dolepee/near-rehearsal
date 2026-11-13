@@ -14,14 +14,18 @@ const RUNTIMES = {
 };
 
 function parseArgs(argv) {
-  const options = {flow: 'repair', generate: false};
+  const options = {flow: 'repair', generate: false, mode: null};
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--flow') options.flow = argv[++i];
     else if (argv[i] === '--generate') options.generate = true;
+    else if (argv[i] === '--mode') options.mode = argv[++i];
     else if (argv[i] === '--help') options.help = true;
     else throw new Error(`Unknown option: ${argv[i]}`);
   }
   if (!RUNTIMES[options.flow]) throw new Error('--flow must be manual or repair');
+  if (options.mode && options.mode !== 'patch') throw new Error('--mode must be patch');
+  if (options.mode === 'patch' && options.flow !== 'repair') throw new Error('--mode patch requires --flow repair');
+  if (options.generate && options.mode === 'patch') throw new Error('--generate and --mode patch are mutually exclusive');
   if (options.generate && options.flow !== 'repair') throw new Error('--generate requires --flow repair');
   return options;
 }
@@ -65,7 +69,8 @@ function checkSetup(options, env = process.env, nodeVersion = process.versions.n
     }
     return `${pin.version}; commit and protocol match (configuration check, not replay)`;
   });
-  if (options.generate) {
+  const patch = options.mode === 'patch';
+  if (options.generate || patch) {
     const config = resolveConfig(env);
     check('Pinned source', () => {
       if (!config.sourceDir) throw new Error('Set REPAIR_SOURCE_DIR to the pinned Sputnik Git checkout.');
@@ -80,7 +85,7 @@ function checkSetup(options, env = process.env, nodeVersion = process.versions.n
       if (run.status !== 0 || !fs.existsSync(run.stdout.trim())) throw new Error('Install the wasm32-unknown-unknown target for Rust 1.86.0.');
       return 'cargo/rustc 1.86.0 and wasm32 target available';
     });
-    check('Provider configuration', () => {
+    if (options.generate) check('Provider configuration', () => {
       const missing = config.missing.filter((name) => name.startsWith('CODEX_') || name === 'MODEL_PRODUCER_SANDBOX_CMD' || name === 'REPAIR_BASE_WASM');
       if (missing.length) throw new Error(`Missing: ${missing.join(', ')}. See docs/local-repair-setup.md.`);
       const prefix = providerPrefix(env.MODEL_PRODUCER_SANDBOX_CMD, env.CODEX_PERMISSION_PROFILE);
@@ -100,7 +105,7 @@ function checkSetup(options, env = process.env, nodeVersion = process.versions.n
 if (require.main === module) {
   try {
     const options = parseArgs(process.argv.slice(2));
-    if (options.help) console.log('npm run doctor -- --flow manual|repair [--generate]\nLocal checks only; no model call or Sandbox chain is started.');
+    if (options.help) console.log('npm run doctor -- --flow manual|repair [--generate | --mode patch]\nLocal checks only; no model call or Sandbox chain is started.');
     else { const report = checkSetup(options); console.log(JSON.stringify(report, null, 2)); process.exitCode = report.ready ? 0 : 1; }
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
