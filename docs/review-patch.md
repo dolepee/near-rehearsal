@@ -103,8 +103,11 @@ a recent-runs list. Opening a saved result never starts a new build.
 
 Every terminal run, including a rejected or incomplete run, offers a
 `review-package.zip` (or `.tar.gz` when zip is unavailable). The package holds
-the submitted patch, status, report and evidence with relative paths, a
-`SHA256SUMS` file, and the exact supported CLI rerun command. It is not the
+the submitted patch, status, report and selected evidence with relative paths,
+the built `artifact/sputnikdao2.wasm` when one was produced, the root `LICENSE`,
+`THIRD_PARTY_NOTICES.md` and applicable upstream notices under `licenses/`, a
+`SHA256SUMS` file, and the exact supported CLI rerun command. It deliberately
+excludes the Cargo build tree. It is not the
 older `repair:review` bundle format. The separate `/review` page remains the
 route for an existing recorded-WASM or repair-review bundle.
 

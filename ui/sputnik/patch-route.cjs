@@ -13,6 +13,7 @@ const root = path.resolve(__dirname, '../..');
 const cli = path.join(root, 'scripts/review-patch.cjs');
 const output = path.join(root, '.local/browser-patch-runs');
 const manifest = require('../../case-triage/rehearsal-repair/controller-manifest.json');
+const SOURCE_PATH = 'sputnikdao2/src/proposals.rs';
 const names = {status:'review-status.json',report:'review-report.md',patch:'submitted.patch'};
 const max = 65536;
 const MAX_PACKAGE_BYTES = 32 * 1024 * 1024;
@@ -106,6 +107,14 @@ function packageReadme(dir, job) {
     `- Built WASM SHA-256: ${wasm}`,
     `- Checker policy SHA-256: ${policy.policySha256 || 'not available in this incomplete run'}`,
     '',
+    '## Artifact and notices',
+    '',
+    `- Built artifact: ${wasm === 'not produced' ? 'not produced for this run' : 'artifact/sputnikdao2.wasm'}`,
+    '- Submitted source diff: submitted.patch',
+    '- Root project license: LICENSE',
+    '- Third-party and upstream notices: THIRD_PARTY_NOTICES.md and LICENSES/',
+    '- No Cargo build tree is included. Only the selected evidence, built artifact and notices are packaged.',
+    '',
     '## Reproduce with the supported CLI',
     '',
     '```sh',
@@ -159,12 +168,34 @@ function ensurePackage(dir, job) {
     if (status && exists(status)) fs.copyFileSync(status, path.join(stage, 'evidence', names.status));
     if (report && exists(report)) fs.copyFileSync(report, path.join(stage, 'evidence', names.report));
     if (exists(metaPath(dir))) fs.copyFileSync(metaPath(dir), path.join(stage, 'run.json'));
-    const sourceEvidence = path.join(dir, 'evidence');
-    if (dirExists(sourceEvidence)) for (const file of collectFiles(sourceEvidence, sourceEvidence)) {
-      if (file === names.status || file === names.report) continue;
-      const target = path.join(stage, 'evidence', file);
+    const output = path.join(dir, 'evidence');
+    const add = (from, relative) => {
+      if (!exists(from)) return false;
+      const target = path.join(stage, relative);
       fs.mkdirSync(path.dirname(target), {recursive: true});
-      fs.copyFileSync(path.join(sourceEvidence, file), target);
+      fs.copyFileSync(from, target);
+      return true;
+    };
+    add(status, 'review-status.json');
+    add(report, 'review-report.md');
+    for (const name of ['recovery-packet.json', 'rejected-evidence.json', 'review-evidence.json']) add(path.join(output, name), name);
+    for (const name of ['evidence', 'persisted']) {
+      const from = path.join(output, name);
+      if (dirExists(from)) for (const file of collectFiles(from, from)) {
+        add(path.join(from, file), path.join('evidence', name, file));
+      }
+    }
+    const pipeline = path.join(output, 'pipeline');
+    for (const name of ['pipeline.json', 'candidate-identity.json', 'build.log', 'replay.log']) {
+      add(path.join(pipeline, name), path.join('evidence', 'pipeline', name));
+    }
+    add(path.join(pipeline, 'applied', 'target', 'wasm32-unknown-unknown', 'release', 'sputnikdao2.wasm'), 'artifact/sputnikdao2.wasm');
+    add(path.join(pipeline, 'applied', SOURCE_PATH), 'source/proposals.rs');
+    add(path.join(root, 'LICENSE'), 'LICENSE');
+    add(path.join(root, 'THIRD_PARTY_NOTICES.md'), 'THIRD_PARTY_NOTICES.md');
+    const licenses = path.join(root, 'LICENSES');
+    if (dirExists(licenses)) for (const file of collectFiles(licenses, licenses)) {
+      add(path.join(licenses, file), path.join('licenses', file));
     }
     fs.writeFileSync(path.join(stage, 'README.md'), packageReadme(dir, job));
     writeSums(stage);

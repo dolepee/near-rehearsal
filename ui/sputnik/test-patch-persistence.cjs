@@ -15,6 +15,9 @@ fs.mkdirSync(path.join(root, 'case-triage/rehearsal-repair'), {recursive: true})
 fs.writeFileSync(path.join(root, 'case-triage/rehearsal-repair/controller-manifest.json'), JSON.stringify({source: {commit: '5434a59dec23ee0c49df8c8c4350c208a7e75b0b'}}));
 fs.writeFileSync(path.join(root, 'scripts/review-patch.cjs'), 'throw new Error("A restart or result read must not start the checker");');
 fs.copyFileSync(path.join(__dirname, 'patch-route.cjs'), path.join(routeDir, 'patch-route.cjs'));
+for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md']) fs.copyFileSync(path.join(__dirname, '../../', name), path.join(root, name));
+fs.mkdirSync(path.join(root, 'LICENSES'), {recursive: true});
+fs.copyFileSync(path.join(__dirname, '../../LICENSES/sputnik-dao-contract-MIT.txt'), path.join(root, 'LICENSES/sputnik-dao-contract-MIT.txt'));
 
 const acceptedId = '11111111-1111-4111-8111-111111111111';
 const interruptedId = '22222222-2222-4222-8222-222222222222';
@@ -30,6 +33,17 @@ function completed(id, status) {
     policy: {policySha256: 'c'.repeat(64)},
   }));
   fs.writeFileSync(path.join(dir, 'evidence/review-report.md'), `# fixture ${status}\n`);
+  if (status === 'accepted') {
+    const pipeline = path.join(dir, 'evidence/pipeline');
+    fs.mkdirSync(path.join(pipeline, 'applied/target/wasm32-unknown-unknown/release'), {recursive: true});
+    fs.mkdirSync(path.join(pipeline, 'applied/sputnikdao2/src'), {recursive: true});
+    fs.writeFileSync(path.join(pipeline, 'applied/target/wasm32-unknown-unknown/release/sputnikdao2.wasm'), Buffer.from([0, 97, 115, 109]));
+    fs.writeFileSync(path.join(pipeline, 'applied/sputnikdao2/src/proposals.rs'), 'fixture source\n');
+    fs.writeFileSync(path.join(pipeline, 'candidate-identity.json'), '{}');
+    fs.writeFileSync(path.join(pipeline, 'pipeline.json'), '{}');
+    fs.writeFileSync(path.join(pipeline, 'build.log'), 'exit=0\n');
+    fs.writeFileSync(path.join(pipeline, 'replay.log'), 'fixture\n');
+  }
   fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify({schema: 'near-rehearsal/patch-browser-run/v1', id, status, createdAt: '2026-11-13T10:00:00.000Z', finishedAt: '2026-11-13T10:01:00.000Z', patchSha256: 'a'.repeat(64)}));
 }
 completed(acceptedId, 'accepted');
@@ -42,7 +56,6 @@ const runs = route.list();
 assert.equal(runs.find((run) => run.id === acceptedId).status, 'accepted');
 assert.equal(runs.find((run) => run.id === interruptedId).status, 'inconclusive');
 assert.match(runs.find((run) => run.id === interruptedId).note, /restarted|not accepted/);
-assert.ok(!fs.existsSync(path.join(runsRoot, acceptedId, 'evidence/pipeline.json')), 'fixture has no build output');
 assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8').includes('"accepted"'), true);
 
 (async () => {
@@ -69,6 +82,15 @@ assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8'
     assert.match(listing.stdout, /README\.md/);
     assert.match(listing.stdout, /SHA256SUMS/);
     assert.match(listing.stdout, /REPRODUCE|review-report\.md/);
+    assert.match(listing.stdout, /artifact\/sputnikdao2\.wasm/);
+    assert.match(listing.stdout, /source\/proposals\.rs/);
+    assert.match(listing.stdout, /LICENSE/);
+    assert.match(listing.stdout, /THIRD_PARTY_NOTICES\.md/);
+    assert.match(listing.stdout, /licenses\/sputnik-dao-contract-MIT\.txt/);
+    assert.doesNotMatch(listing.stdout, /applied\/|target\/|Cargo\.lock/);
+    const packageReadme = spawnSync('unzip', ['-p', file, 'README.md'], {encoding: 'utf8', timeout: 15_000});
+    assert.match(packageReadme.stdout, /No Cargo build tree/);
+    assert.match(packageReadme.stdout, /artifact\/sputnikdao2\.wasm/);
     const incomplete = await fetch(`${origin}/api/patch/runs/${interruptedId}/package`);
     assert.equal(incomplete.status, 200);
     const incompleteFile = path.join(runsRoot, interruptedId, 'review-package.zip');
