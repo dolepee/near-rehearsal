@@ -20,10 +20,10 @@
     },
     "intended": {
       "wasm": "mixed-candidates/intended.wasm",
-      "wasmSha256": "49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923",
-      "wasmBytes": 527405,
+      "wasmSha256": "fe4401bcc33aedb7992ffa5163570355fc1757e123bd588aa4f9a84302967a0c",
+      "wasmBytes": 533106,
       "patch": "mixed-candidates/intended.patch",
-      "patchSha256": "edf16b966f0f49f26d73b2ac0fde980b3f8c4f638fcbbcc7c6a6bcb4fd25cf21"
+      "patchSha256": "7192990b09683d7d9cbeb8a8840484d2a0af31a830926e57958dc4fd52d2cf0e"
     },
     "future-only": {
       "wasm": "mixed-candidates/future-only.wasm",

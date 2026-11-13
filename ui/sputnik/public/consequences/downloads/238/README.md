@@ -5,10 +5,10 @@ Recorded local review material. These files are not a live run and not a mainnet
 - Source: https://github.com/near-daos/sputnik-dao-contract
 - Pinned commit: 5434a59dec23ee0c49df8c8c4350c208a7e75b0b
 - Runtime: Sandbox 2.14.0, protocol 88
-- Policy SHA-256: 003766299d6f793f6a6b724296f23a3bd78c7b968323c8d20dc2d1ad40f4c2c6
+- Policy SHA-256: 0ba1409ced552aa04d46f40267197fc57226ca9fcbd55e317404e2709784f826
 - Baseline WASM: 5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578
 - Clear-all candidate: 684eabc429fc691f68aef8baf7f2e226f42ae481e3da4a1f41a54598e302d9b6
-- Intended candidate: 49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923
+- Intended candidate: fe4401bcc33aedb7992ffa5163570355fc1757e123bd588aa4f9a84302967a0c
 
 ## Reproduce with the supported source-review command
 
