@@ -234,8 +234,8 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   const vote = await voter.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
   const voteFinal = summarize(await finalStatus(worker, vote, voter.accountId));
   const vote2 = await voter2.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
-  const vote2Final = summarize(await finalStatus(worker, vote2, voter2.accountId));
-  await waitProposal(worker, dao, id, 'Failed');
+  const vote2Final = await withHeight(worker, summarize(await finalStatus(worker, vote2, voter2.accountId)));
+  const failedProposal = await waitProposal(worker, dao, id, 'Failed');
 
   if (baseWasm) {
     stage(`${tag} upgrade to the candidate`);
@@ -332,7 +332,7 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   return {
     proposalId: id,
     deploy: {...deployFinal, codeHash: deployedCodeHash, wasmSha256: sha256(deployedBytes)},
-    transactions: {deploy: deployFinal, init: initFinal, add: addFinal, upgrade, delete: deleteFinal, vote: voteFinal, vote2: vote2Final, retries: retryFinals, retry: retryFinal, unauthorized, duplicate: duplicateFinal},
+    transactions: {deploy: deployFinal, init: initFinal, add: addFinal, upgrade, delete: deleteFinal, vote: voteFinal, vote2: vote2Final, failedProposal, retries: retryFinals, retry: retryFinal, unauthorized, duplicate: duplicateFinal},
     legacy: baseWasm ? {
       baseWasmSha256: sha256(baseWasm),
       candidateWasmSha256: sha256(wasm),

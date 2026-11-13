@@ -23,51 +23,60 @@ function base58Encode(bytes) {
   return out || '1';
 }
 
-function successfulReceiptChain(transaction, label, fail) {
+function receiptChain(transaction, label, fail, allowInFlight = false) {
   const start = transaction?.transactionOutcome?.status?.SuccessReceiptId;
-  if (!start) { fail(`${label} has no SuccessReceiptId`); return false; }
+  if (!start) { fail(`${label} has no SuccessReceiptId`); return {ok: false}; }
   if (!Array.isArray(transaction.transactionOutcome.receiptIds) || !transaction.transactionOutcome.receiptIds.includes(start)) {
     fail(`${label} initial transaction does not link its SuccessReceiptId`);
-    return false;
+    return {ok: false};
   }
   const receipts = Array.isArray(transaction.receipts) ? transaction.receipts : [];
   const byId = new Map();
   for (const receipt of receipts) {
     if (!receipt?.id) continue;
-    if (byId.has(receipt.id)) { fail(`${label} has a duplicate receipt id`); return false; }
+    if (byId.has(receipt.id)) { fail(`${label} has a duplicate receipt id`); return {ok: false}; }
     byId.set(receipt.id, receipt);
   }
   const seen = new Set();
   let id = start;
   let first = true;
   while (id) {
-    if (seen.has(id)) { fail(`${label} receipt chain contains a cycle`); return false; }
+    if (seen.has(id)) { fail(`${label} receipt chain contains a cycle`); return {ok: false}; }
     seen.add(id);
     const receipt = byId.get(id);
-    if (!receipt) { fail(`${label} receipt chain has a missing child`); return false; }
+    if (!receipt) { fail(`${label} receipt chain has a missing child`); return {ok: false}; }
     if (first) {
       if (receipt.executorId !== transaction.transaction?.receiverId) {
         fail(`${label} first child receipt executed by the wrong receiver`);
-        return false;
+        return {ok: false};
       }
       first = false;
     }
     const status = receipt.status || {};
-    if (status.Failure) { fail(`${label} receipt chain contains a failure`); return false; }
-    if (Object.prototype.hasOwnProperty.call(status, 'SuccessValue')) return true;
+    if (status.Failure) {
+      const error = JSON.stringify(status.Failure);
+      if (allowInFlight && error.includes('ERR_PROPOSAL_NOT_IN_PROGRESS')) return {ok: false, expected: true};
+      fail(`${label} receipt chain contains a failure`);
+      return {ok: false};
+    }
+    if (Object.prototype.hasOwnProperty.call(status, 'SuccessValue')) return {ok: true};
     const next = typeof status.SuccessReceiptId === 'string' ? status.SuccessReceiptId : null;
-    if (!next) { fail(`${label} receipt chain has no terminal SuccessValue`); return false; }
+    if (!next) { fail(`${label} receipt chain has no terminal SuccessValue`); return {ok: false}; }
     if (!Array.isArray(receipt.receiptIds) || !receipt.receiptIds.includes(next)) {
       fail(`${label} receipt chain child is not linked by the preceding receipt`);
-      return false;
+      return {ok: false};
     }
     id = next;
   }
   fail(`${label} receipt chain has no terminal SuccessValue`);
-  return false;
+  return {ok: false};
 }
 
-function deploymentCommitment(deploy, label, fail) {
+function successfulReceiptChain(transaction, label, fail) {
+  return receiptChain(transaction, label, fail).ok;
+}
+
+function deploymentCommitment(deploy, label, fail, expectedDao = null) {
   if (!deploy || deploy.finalExecutionStatus !== 'FINAL') { fail(`${label} deployment was not FINAL`); return null; }
   if (!successfulReceiptChain(deploy, label, fail)) return null;
   const action = (deploy.transaction?.actions || []).find((entry) => entry && entry.DeployContract);
@@ -115,6 +124,7 @@ function verifyVote(scenario, signer, label, failFor) {
   if (!decoded) return false;
   if (decoded.call.method_name !== 'act_proposal' || decoded.args?.action !== 'VoteApprove') failFor(false, `${label} is not a VoteApprove`);
   if (String(decoded.args?.id) !== String(scenario.proposalId)) failFor(false, `${label} targets a different proposal`);
+  if (!successfulReceiptChain(vote, label, (message) => failFor(false, message))) return false;
   return true;
 }
 
@@ -128,6 +138,7 @@ function verifyRetries(scenario, dao, failFor) {
   if (!verifyVote(scenario, voteSigners[0], 'vote', failFor) || !verifyVote(scenario, voteSigners[1], 'vote2', failFor)) return;
   const hashes = [];
   const signers = [];
+  let successful = 0;
   raw.forEach((tx, index) => {
     const label = `retry ${index + 1}`;
     if (tx.finalExecutionStatus !== 'FINAL') failFor(false, `${label} was not FINAL`);
@@ -144,14 +155,13 @@ function verifyRetries(scenario, dao, failFor) {
     if (attempt?.transactionHash !== tx.transactionHash) failFor(false, `${label} summary hash does not match its attempt`);
     if (attempt?.signerId !== tx.transaction?.signerId) failFor(false, `${label} summary signer does not match its attempt`);
     if (JSON.stringify(attempt?.receiptIds || []) !== JSON.stringify(receiptIds)) failFor(false, `${label} summary receipts do not match its attempt`);
+    const outcome = receiptChain(tx, label, (message) => failFor(false, message), true);
+    if (outcome.ok) successful += 1;
     hashes.push(tx.transactionHash); signers.push(tx.transaction?.signerId);
-    if (tx.transactionOutcome?.status?.Failure) {
-      const err = JSON.stringify(tx.transactionOutcome.status.Failure);
-      if (!err.includes('ERR_PROPOSAL_NOT_IN_PROGRESS')) failFor(false, `${label} failed for an unexpected reason`);
-    }
   });
   if (new Set(hashes).size !== 2) failFor(false, 'retry transactions do not have distinct hashes');
   if (new Set(signers).size !== 2) failFor(false, 'retry transactions do not have distinct signers');
+  if (successful < 1) failFor(false, 'no retry transaction successfully executed the action');
 }
 
 function verifyScenario(scenario, mode, context) {
@@ -182,7 +192,7 @@ function verifyScenario(scenario, mode, context) {
     if (!upgrade || upgrade.candidateWasmSha256 !== candidateWasmSha256 || !upgrade.deploy || !upgrade.migrate) {
       failFor(false, 'legacy upgrade transaction evidence is missing');
     } else {
-      const upgradedCode = deploymentCommitment(upgrade.deploy, 'inherited upgrade', (message) => failFor(false, message));
+      const upgradedCode = deploymentCommitment(upgrade.deploy, 'inherited upgrade', (message) => failFor(false, message), scenario.deploy?.transaction?.receiverId);
       if (upgradedCode !== candidateWasmSha256) failFor(false, 'inherited upgrade does not commit to the candidate WASM');
       if (upgrade.codeHash !== base58Encode(Buffer.from(candidateWasmSha256, 'hex'))) failFor(false, 'inherited installed code hash is not the candidate');
       if (upgrade.migrate?.finalExecutionStatus !== 'FINAL') failFor(false, 'inherited migrate was not successful');
@@ -190,16 +200,21 @@ function verifyScenario(scenario, mode, context) {
         failFor(false, 'inherited migrate child receipt failed');
       }
     }
-    const baseCommitted = deploymentCommitment(scenario.deploy, 'inherited base', (message) => failFor(false, message));
+    const baseCommitted = deploymentCommitment(scenario.deploy, 'inherited base', (message) => failFor(false, message), scenario.deploy?.transaction?.receiverId);
     if (baseCommitted !== baseWasmSha256) failFor(false, 'inherited scenario does not commit to the pinned base WASM');
     if (scenario.deploy?.wasmSha256 !== baseWasmSha256) failFor(false, 'inherited scenario did not deploy the pinned base WASM');
     verifyMigrate(scenario, scenario.deploy?.transaction?.receiverId, failFor);
     const addHeight = scenario.transactions?.add?.blockHeight;
+    const vote2Height = scenario.transactions?.vote2?.blockHeight;
+    const failedLog = scenario.transactions?.failedProposal?.last_actions_log;
+    const failureHeight = failedLog?.[failedLog.length - 1]?.block_height;
     const upgradeHeight = scenario.transactions?.upgrade?.deploy?.blockHeight;
     const migrateHeight = scenario.transactions?.upgrade?.migrate?.blockHeight;
     const legacyHeight = scenario.transactions?.upgrade?.legacyFinalize?.blockHeight;
     if (!Number.isInteger(addHeight) || !Number.isInteger(upgradeHeight)) failFor(false, 'recorded add/upgrade block heights are missing');
     else if (addHeight >= upgradeHeight) failFor(false, 'proposal was not added before the candidate upgrade');
+    if (!Number.isInteger(vote2Height) || vote2Height >= upgradeHeight) failFor(false, 'second approval was not before the candidate upgrade');
+    if (!Number.isInteger(failureHeight) || failureHeight >= upgradeHeight) failFor(false, 'recorded old-code failure was not before the candidate upgrade');
     if (!Number.isInteger(legacyHeight) || legacyHeight < upgradeHeight) failFor(false, 'legacy finalize was not after the candidate upgrade');
     if (!Number.isInteger(migrateHeight) || migrateHeight < upgradeHeight) failFor(false, 'migrate was not after the candidate upgrade');
   }

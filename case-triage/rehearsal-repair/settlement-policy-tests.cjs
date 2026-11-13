@@ -103,6 +103,56 @@ unlinkedStart.fresh.deploy.transactionOutcome.receiptIds = [];
 assert.equal(verifySettlementReport(unlinkedStart, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'the initial transaction receiptIds must link the SuccessReceiptId');
 
+const emptyVoteReceipts = JSON.parse(JSON.stringify(correctedReport));
+emptyVoteReceipts.inherited.transactions.vote.receipts = [];
+emptyVoteReceipts.inherited.transactions.vote2.receipts = [];
+assert.equal(verifySettlementReport(emptyVoteReceipts, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'approvals must prove their own linked execution');
+
+const retryChildFailure = JSON.parse(JSON.stringify(correctedReport));
+{
+  const retry = retryChildFailure.inherited.transactions.retries[0];
+  const id = retry.transactionOutcome.status.SuccessReceiptId;
+  retry.receipts.find((receipt) => receipt.id === id).status = {Failure: {ActionError: {kind: 'ERR_PERMISSION_DENIED'}}};
+}
+assert.equal(verifySettlementReport(retryChildFailure, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a retry child failure other than the expected in-flight error must fail');
+
+const retryNoReceiptLink = JSON.parse(JSON.stringify(correctedReport));
+retryNoReceiptLink.inherited.transactions.retries[0].transactionOutcome.receiptIds = [];
+assert.equal(verifySettlementReport(retryNoReceiptLink, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a raw retry must link its first executed receipt');
+
+const unrelatedUpgrade = JSON.parse(JSON.stringify(correctedReport));
+{
+  const deploy = unrelatedUpgrade.inherited.transactions.upgrade.deploy;
+  deploy.transaction.receiverId = 'unrelated.test.near';
+  deploy.receipts[0].executorId = 'unrelated.test.near';
+}
+assert.equal(verifySettlementReport(unrelatedUpgrade, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'base, upgrade and migrate must target the same inherited DAO');
+
+const missingVote2Height = JSON.parse(JSON.stringify(correctedReport));
+missingVote2Height.inherited.transactions.vote2.blockHeight = null;
+assert.equal(verifySettlementReport(missingVote2Height, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the second approval height must be recorded');
+
+const missingFailureHeight = JSON.parse(JSON.stringify(correctedReport));
+{
+  const logs = missingFailureHeight.inherited.transactions.failedProposal.last_actions_log;
+  logs[logs.length - 1].block_height = null;
+}
+assert.equal(verifySettlementReport(missingFailureHeight, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the recorded old-code failure height must be enforced');
+
+const failureAfterUpgrade = JSON.parse(JSON.stringify(correctedReport));
+{
+  const logs = failureAfterUpgrade.inherited.transactions.failedProposal.last_actions_log;
+  logs[logs.length - 1].block_height = failureAfterUpgrade.inherited.transactions.upgrade.deploy.blockHeight + 1;
+}
+assert.equal(verifySettlementReport(failureAfterUpgrade, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the old-code failure cannot be after the candidate upgrade');
+
 const substitutedMigrate = JSON.parse(JSON.stringify(correctedReport));
 substitutedMigrate.inherited.transactions.upgrade.migrate.transaction.actions[0].FunctionCall.method_name = 'get_config';
 assert.equal(verifySettlementReport(substitutedMigrate, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
@@ -251,6 +301,13 @@ console.log(JSON.stringify({
     'identity-label-swap-fails',
     'installed-code-hash-fails',
     'failed-deployment-receipt-fails',
+    'approval-receipts-required',
+    'retry-child-failure-fails',
+    'retry-initial-link-required',
+    'unrelated-upgrade-dao-fails',
+    'missing-vote2-height-fails',
+    'missing-failure-height-fails',
+    'failure-after-upgrade-fails',
     'migrate-method-substitution-fails',
     'migrate-receiver-substitution-fails',
     'missing-raw-retries-fail',
