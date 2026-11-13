@@ -143,6 +143,8 @@ function policyIdentity(baseReport) {
   const files = {
     controllerManifest: sha256File(CONTROLLER_MANIFEST),
     buildManifest: sha256File(BUILD_MANIFEST),
+    pipeline: sha256File(PIPELINE),
+    persistedRecovery: sha256File(PERSISTED),
     acceptance: sha256File(ACCEPTANCE),
     persistedAcceptance: sha256File(PERSISTED_ACCEPTANCE),
     baseReport: sha256File(baseReport),
@@ -221,6 +223,10 @@ function reportSummary(report, acceptance, run) {
   };
 }
 
+function asBigInt(value) {
+  try { return BigInt(value); } catch { return null; }
+}
+
 function checksFrom(pipeline, report, acceptance) {
   const checks = [];
   const add = (id, ok, detail, status = null) => checks.push({
@@ -237,9 +243,9 @@ function checksFrom(pipeline, report, acceptance) {
   add('persisted-acceptance', acceptance?.ok === true, acceptance?.errors?.join('; ') || (acceptance ? 'accepted' : 'acceptance did not run'));
   if (report) {
     add('failed-status', report.failed?.proposal?.status === 'Failed', `failed proposal status: ${report.failed?.proposal?.status || 'missing'}`);
-    add('bond-recovered-once', BigInt(report.firstRecovery?.grossRecoveryYocto || 0) === 10n ** 24n,
+    add('bond-recovered-once', asBigInt(report.firstRecovery?.grossRecoveryYocto) === 10n ** 24n,
       `gross recovery: ${formatYocto(report.firstRecovery?.grossRecoveryYocto)}`);
-    add('retry-no-principal', BigInt(report.secondRetry?.grossRecoveryYocto || 0) === 0n,
+    add('retry-no-principal', asBigInt(report.secondRetry?.grossRecoveryYocto) === 0n,
       `retry gross: ${formatYocto(report.secondRetry?.grossRecoveryYocto)}`);
     add('healthy-obligations', report.healthyPreservation?.checks?.settledApproved === true
       && report.healthyPreservation?.checks?.pendingPayout === true
@@ -298,6 +304,14 @@ function renderReport(review) {
     '## Checks',
     '',
     ...review.checks.map((check) => `- **${check.status}** ${check.id}: ${check.detail}`),
+    '',
+    '## Reproduce',
+    '',
+    '```sh',
+    'npm run review:patch -- --patch <same.diff> --source <clean-checkout-at-pinned-commit> --out <new-directory>',
+    '```',
+    '',
+    `The pinned source commit is ${review.verified.sourceCommitPinned}. The submitted patch is bound by SHA-256 ${review.verified.patchSha256}.`,
     '',
     '## Evidence',
     '',
@@ -474,7 +488,7 @@ function runReview(opts) {
             reason = result.reason;
             checks = [{id: 'persisted-recovery', status: 'error', detail: result.reason}];
           } else {
-            const acceptanceResult = runNode([
+            const acceptanceArgs = [
               PERSISTED_ACCEPTANCE,
               '--report', path.join(persistedDir, 'persisted-recovery.json'),
               '--wasm', wasmPath,
@@ -483,8 +497,10 @@ function runReview(opts) {
               '--source', appliedSource,
               '--expected-wasm-sha256', verified.builtWasmSha256,
               '--expected-patch-sha256', verified.patchSha256,
-              '--expected-source-sha256', verified.appliedSourceSha256 || pipeline.identity?.source?.sha256 || '',
-            ], {timeout: ACCEPTANCE_TIMEOUT_MS});
+            ];
+            const expectedSource = verified.appliedSourceSha256 || pipeline.identity?.source?.sha256;
+            if (expectedSource) acceptanceArgs.push('--expected-source-sha256', expectedSource);
+            const acceptanceResult = runNode(acceptanceArgs, {timeout: ACCEPTANCE_TIMEOUT_MS});
             writeLog(path.join(evidenceDir, 'acceptance.log'), acceptanceResult);
             try { acceptance = JSON.parse(acceptanceResult.stdout); } catch { acceptance = null; }
             if (acceptance) fs.writeFileSync(path.join(persistedDir, 'persisted-recovery-acceptance.json'), json(acceptance));
@@ -572,4 +588,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = {parseArgs, classify, policyIdentity, runReview, renderReport, checkSource, sandboxFromEnvironment};
+module.exports = {parseArgs, classify, policyIdentity, runReview, renderReport, checkSource, checksFrom, sandboxFromEnvironment};

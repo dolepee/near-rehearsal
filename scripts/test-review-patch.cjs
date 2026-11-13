@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  parseArgs, classify, policyIdentity, renderReport, checkSource,
+  parseArgs, classify, policyIdentity, renderReport, checkSource, checksFrom,
 } = require('./review-patch.cjs');
 
 const here = __dirname;
@@ -46,6 +46,7 @@ const review = {
   supplied: {repo: 'caller/repo', base: 'base-label', head: 'head-label', patchFilename: 'candidate.diff'},
   verified: {
     sourceCommit: '5434a59dec23ee0c49df8c8c4350c208a7e75b0b',
+    sourceCommitPinned: '5434a59dec23ee0c49df8c8c4350c208a7e75b0b',
     patchSha256: 'a'.repeat(64),
     appliedSourceSha256: 'b'.repeat(64),
     builtWasmSha256: 'c'.repeat(64),
@@ -63,8 +64,18 @@ assert.match(rendered, /ACCEPTED means the defined checks/);
 assert.match(rendered, /does not mean the patch is universally safe/);
 assert.match(rendered, /caller metadata/);
 assert.match(rendered, /not verified provenance/);
+assert.match(rendered, /## Reproduce/);
 assert.doesNotMatch(rendered, /\/Users\/|\/workspace\//);
 console.log('accepted: report language is bounded and caller labels are not presented as provenance');
+
+const malformed = checksFrom(
+  {ok: true, changedPaths: ['sputnikdao2/src/proposals.rs'], hashes: {wasm: 'c'.repeat(64)}, acceptanceErrors: []},
+  {failed: {proposal: {status: 'Failed'}}, firstRecovery: {grossRecoveryYocto: 'not-a-number'}, secondRetry: {grossRecoveryYocto: '0'}},
+  {ok: true, errors: []},
+);
+assert.equal(malformed.find((check) => check.id === 'bond-recovered-once').status, 'fail');
+assert.doesNotThrow(() => renderReport({...review, checks: malformed}));
+console.log('accepted: malformed recovery fields fail closed rather than throwing');
 
 const rejected = renderReport({...review, status: 'REJECTED', checks: [{id: 'bond-recovered-once', status: 'fail', detail: 'bond remained'}]});
 assert.match(rejected, /valid executable candidate failed/);
@@ -85,6 +96,7 @@ console.log(JSON.stringify({
     'argument parsing', 'required input failures', 'input error', 'build error',
     'inconclusive', 'rejected', 'accepted', 'policy identity', 'bounded report language',
     'rejected language', 'no checked-in absolute paths', 'source checkout failure',
+    'malformed recovery fields',
   ],
   passed: true,
 }, null, 2));
