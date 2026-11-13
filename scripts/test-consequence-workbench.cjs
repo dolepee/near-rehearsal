@@ -16,6 +16,10 @@ const {validateRepairCandidate, validateUpgrade, bindCandidateSwitch} = require(
 
 const SHA = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const data = JSON.parse(fs.readFileSync(path.join(OUT, 'cases.json'), 'utf8'));
+const page = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
+assert.match(page, /Run locally \/ setup/);
+assert.doesNotMatch(page, />Back to local Rehearsal</);
+assert.match(page, /<base href="\/consequences\/">/);
 const repair = data.cases['238'];
 const upgrade = data.cases['226'];
 
