@@ -592,12 +592,13 @@ function runReview(opts) {
                   const settlementResult = runNode([
                     SETTLEMENT,
                     '--candidate-wasm', wasmPath,
+                    '--base-wasm', BASE_WASM,
                     '--out', settlementDir,
                   ], {timeout: SETTLEMENT_TIMEOUT_MS, env: sandboxDir ? {NEAR_SANDBOX_BIN_PATH: sandboxDir, NEAR_SANDBOX_BINARY_PATH: sandboxDir} : {}});
                   writeLog(path.join(evidenceDir, 'settlement.log'), settlementResult);
                   safeCopy(path.join(settlementDir, 'settlement-refund.json'), path.join(evidenceDir, 'settlement-refund.json'));
                   const settlement = readJson(path.join(settlementDir, 'settlement-refund.json'));
-                  if (settlement) settlementCheck = verifySettlementReport(settlement, {candidateWasmSha256: verified.builtWasmSha256});
+                  if (settlement) settlementCheck = verifySettlementReport(settlement, {candidateWasmSha256: verified.builtWasmSha256, baseWasmSha256: sha256File(BASE_WASM)});
                 }
               }
               // A gate that ran and returned a verified failure is a rejection, not a
@@ -613,15 +614,18 @@ function runReview(opts) {
               } else {
                 checks = checksFrom(pipeline, report, acceptance, mixedCheck, settlementCheck);
                 const verdict = evaluateCandidate({
-                  fresh: stageFromChecks(pipeline.ok === true && (pipeline.acceptanceErrors || []).length === 0, pipeline.acceptanceErrors || []),
-                  recovery: stageFromChecks(acceptance.ok === true, acceptance.errors || []),
-                  mixed: stageFromChecks(mixedCheck?.ok === true, mixedCheck?.errors || [], {policyVersion: POLICY_VERSION}),
-                  settlement: stageFromChecks(settlementCheck?.ok === true, settlementCheck?.errors || []),
+                  fresh: stageFromChecks(pipeline.ok === true && (pipeline.acceptanceErrors || []).length === 0, pipeline.acceptanceErrors || [], {evidenceValid: Boolean(pipeline)}),
+                  recovery: stageFromChecks(acceptance.ok === true, acceptance.errors || [], {evidenceValid: Boolean(acceptance)}),
+                  mixed: stageFromChecks(mixedCheck?.ok === true, mixedCheck?.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedCheck)}),
+                  settlement: stageFromChecks(settlementCheck?.ok === true, settlementCheck?.errors || [], {evidenceValid: Boolean(settlementCheck)}),
                 });
                 acceptanceVerdict = verdict;
-                if (!verdict.ok) {
+                if (verdict.status === 'REJECTED') {
                   status = 'REJECTED';
                   reason = `versioned acceptance policy ${verdict.policyVersion} failed: ${verdict.errors.join('; ')}`;
+                } else if (verdict.status === 'INCONCLUSIVE') {
+                  status = 'INCONCLUSIVE';
+                  reason = `versioned acceptance policy ${verdict.policyVersion} was inconclusive: ${verdict.errors.join('; ')}`;
                 } else {
                   status = 'ACCEPTED';
                   reason = `All policy ${verdict.policyVersion} source, build, replay, recovery, same-DAO and preservation checks passed.`;

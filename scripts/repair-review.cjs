@@ -467,12 +467,13 @@ const runSettlementGate = (candidateWasm, outDir, sandboxDir) => {
   const result = requireCommand([
     SETTLEMENT,
     '--candidate-wasm', candidateWasm,
+    '--base-wasm', BASE_WASM,
     '--out', settlementDir,
     '--sandbox-dir', sandboxDir,
   ], 'failed-refund settlement gate');
   const reportPath = path.join(settlementDir, 'settlement-refund.json');
   const report = readJson(reportPath, 'failed-refund settlement report');
-  const checked = verifySettlementReport(report, {candidateWasmSha256: sha256(fs.readFileSync(candidateWasm))});
+  const checked = verifySettlementReport(report, {candidateWasmSha256: sha256(fs.readFileSync(candidateWasm)), baseWasmSha256: sha256(fs.readFileSync(BASE_WASM))});
   if (!checked.ok) fail(`failed-refund settlement gate failed: ${checked.errors.join('; ')}`);
   return {settlementDir, reportPath, report, checked, stdout: result.stdout};
 };
@@ -643,12 +644,12 @@ const main = () => {
   const settlementRun = runSettlementGate(run.builtWasm || run.wasmPath, outDir, plan.sandboxDir);
   if (settlementRun.report.candidate.wasmSha256 !== reviewerArtifactWasmSha256) fail('settlement gate did not execute the built/recorded candidate artifact');
   const acceptancePolicy = evaluateCandidate({
-    fresh: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted/fresh acceptance did not pass']),
-    recovery: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted recovery report did not pass acceptance']),
-    mixed: stageFromChecks(mixedRun.checked.ok === true, mixedRun.checked.errors || [], {policyVersion: POLICY_VERSION}),
-    settlement: stageFromChecks(settlementRun.checked.ok === true, settlementRun.checked.errors || []),
+    fresh: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted/fresh acceptance did not pass'], {evidenceValid: Boolean(summary)}),
+    recovery: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted recovery report did not pass acceptance'], {evidenceValid: Boolean(report)}),
+    mixed: stageFromChecks(mixedRun.checked.ok === true, mixedRun.checked.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedRun.checked)}),
+    settlement: stageFromChecks(settlementRun.checked.ok === true, settlementRun.checked.errors || [], {evidenceValid: Boolean(settlementRun.checked)}),
   });
-  if (!acceptancePolicy.ok) fail(`versioned acceptance policy ${acceptancePolicy.policyVersion} failed: ${acceptancePolicy.errors.join('; ')}`);
+  if (!acceptancePolicy.ok) fail(`${acceptancePolicy.status}: versioned acceptance policy ${acceptancePolicy.policyVersion} failed: ${acceptancePolicy.errors.join('; ')}`);
   const resultPath = path.join(outDir, 'review-result.json');
   const result = {
     schema: 'near-rehearsal/repair-review-handoff/v1',

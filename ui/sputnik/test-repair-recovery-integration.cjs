@@ -32,7 +32,7 @@ function arg(args, name) {
   return index >= 0 ? args[index + 1] : null;
 }
 
-function fakeSpawn({mixedPath = mixedReport} = {}) {
+function fakeSpawn({mixedPath = mixedReport, writeSettlement = true} = {}) {
   return (command, args, options) => {
     const child = new EventEmitter();
     child.pid = 900000 + Math.floor(Math.random() * 1000);
@@ -80,6 +80,7 @@ function fakeSpawn({mixedPath = mixedReport} = {}) {
           fs.mkdirSync(out, {recursive: true});
           fs.copyFileSync(persistedReport, path.join(out, 'persisted-recovery.json'));
         } else if (command === process.execPath && args[0]?.endsWith('settlement-refund-tests.cjs')) {
+          if (!writeSettlement) throw new Error('settlement child failed before writing a report');
           const out = arg(args, '--out');
           fs.mkdirSync(out, {recursive: true});
           fs.copyFileSync(settlementReport, path.join(out, 'settlement-refund.json'));
@@ -177,6 +178,23 @@ function fakeSpawn({mixedPath = mixedReport} = {}) {
   assert.equal(clearRun.status, 'rejected', 'a valid clear-all policy failure must be rejected, not inconclusive');
   assert.match(clearRun.error, /mixed|liability|unrelated obligation/i);
   assert.equal(clearRun.mixed.ok, false);
+
+  const missingRoot = path.join(tmp, 'missing-settlement-run');
+  const missingManager = createManager({
+    runsRoot: missingRoot,
+    spawn: fakeSpawn({writeSettlement: false}),
+    config: {
+      configured: true, providerConfigured: true, missing: [], sandboxDir: '/fake-sandbox',
+      baseWasm: path.join(repair, 'bundle/artifacts/base.wasm'), privateRuntime: path.join(tmp, 'missing-provider-runtime'),
+      timeouts: {baselineMs: 30000, generationMs: 30000, pipelineMs: 30000, recoveryMs: 30000, mixedMs: 30000, settlementMs: 30000, jobMs: 120000},
+    },
+  });
+  const missingStarted = missingManager.start('sputnik-238-async-bond');
+  await missingManager.get(missingStarted.id).done;
+  const missingRun = missingManager.get(missingStarted.id);
+  assert.equal(missingRun.status, 'inconclusive', 'an unexecuted settlement check must be inconclusive, not rejected');
+  assert.equal(missingRun.mixed.ok, true);
+  assert.equal(missingRun.settlement.ok, false);
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-recovery-integration-tests/v1',
     passed: true,

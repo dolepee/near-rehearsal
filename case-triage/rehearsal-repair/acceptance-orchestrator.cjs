@@ -17,6 +17,7 @@ function normalizeStage(stage) {
     errors: Array.isArray(stage.errors) ? stage.errors.slice() : [],
     status: stage.status || null,
     sha256: stage.sha256 || null,
+    evidenceValid: stage.evidenceValid === true,
   };
 }
 
@@ -30,14 +31,21 @@ function evaluateCandidate(stages = {}) {
       errors.push(`${name} acceptance did not pass${detail}`);
     }
   }
-  if (stages.mixed && stages.mixed.policyVersion && stages.mixed.policyVersion !== POLICY_VERSION) {
+  const policyMismatch = Boolean(stages.mixed && stages.mixed.policyVersion && stages.mixed.policyVersion !== POLICY_VERSION);
+  if (policyMismatch) {
     errors.push(`mixed gate policy ${stages.mixed.policyVersion} does not match ${POLICY_VERSION}`);
   }
+  const allPassed = REQUIRED_STAGES.every((name) => normalized[name].ok);
+  const verifiedFailure = policyMismatch || REQUIRED_STAGES.some((name) => (
+    normalized[name].ok === false && normalized[name].evidenceValid === true
+  ));
+  const status = policyMismatch ? 'REJECTED' : allPassed ? 'ACCEPTED' : verifiedFailure ? 'REJECTED' : 'INCONCLUSIVE';
   return {
-    schema: 'near-rehearsal/acceptance/v2',
+    schema: 'near-rehearsal/acceptance/v3',
     policyVersion: POLICY_VERSION,
     requiredStages: REQUIRED_STAGES.slice(),
-    ok: errors.length === 0,
+    status,
+    ok: status === 'ACCEPTED',
     errors,
     stages: normalized,
   };

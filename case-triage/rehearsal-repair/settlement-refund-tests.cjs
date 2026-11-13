@@ -2,14 +2,20 @@
 /*
  * Local-chain settlement regression for the #238 repair.
  *
- * The proposal is created by the candidate (so its original bond is recorded),
- * then the proposer account is deleted before the failed action's callback.
- * The refund transfer therefore fails. The debt must remain locked; after the
- * proposer is recreated and the proposal is finalised again, exactly one bond
- * must be paid, and a further finalise must not pay a second time.
+ * Two scenarios run in one report, because they fail differently:
+ *   fresh     - the candidate is deployed from genesis and records the bond itself.
+ *   inherited - the proposal and its bond are created on the pinned base artifact,
+ *               then the candidate is installed by upgrade and must settle the
+ *               inherited debt without any local bond/refund history.
+ * In both, the proposer account is deleted before the failed action's callback,
+ * so the refund transfer fails. The debt must remain locked; after the proposer
+ * is recreated and the proposal is finalised by two independently signed council
+ * transactions, exactly one bond must be paid, and a further finalise must not
+ * pay a second time.
  *
  * usage: NEAR_SANDBOX_BIN_PATH=/workspace/tools/near-sandbox-2.14-wrapper \
- *   node settlement-refund-tests.cjs --wasm <candidate.wasm> --out <dir>
+ *   node settlement-refund-tests.cjs --wasm <candidate.wasm> \
+ *     --base-wasm <pinned-base.wasm> --out <dir>
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -90,6 +96,8 @@ function summarize(final) {
   }));
   return {
     transactionHash: final?.hash ?? null,
+    blockHash: txo?.block_hash ?? null,
+    blockHeight: txo?.block_height ?? null,
     finalExecutionStatus: final?.status?.final_execution_status ?? null,
     transactionOutcome: {
       status: txo?.outcome?.status ?? null,
@@ -177,6 +185,181 @@ async function settle(worker, dao, proposerId, voter) {
   return snapshot(worker, dao, proposerId, voter);
 }
 
+async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
+  const errors = [];
+  const label = (name) => `${tag}: ${name}`;
+  const fail = (condition, message) => { if (!condition) errors.push(message); };
+  const root = worker.rootAccount;
+  const proposerId = `${prefix}-proposer`;
+  const proposer = await root.createSubAccount(proposerId, {initialBalance: parseNEAR('20')});
+  const voter = await root.createSubAccount(`${prefix}-voter`, {initialBalance: parseNEAR('20')});
+  const voter2 = await root.createSubAccount(`${prefix}-voter2`, {initialBalance: parseNEAR('20')});
+  const dao = await root.createSubAccount(`${prefix}-dao`, {initialBalance: parseNEAR('100')});
+
+  stage(`${tag} deploy ${baseWasm ? 'pinned base' : 'candidate'}`);
+  const deployedBytes = baseWasm || wasm;
+  const deploy = await dao.deploy(deployedBytes);
+  const deployFinal = summarize(await finalStatus(worker, deploy, root.accountId));
+  const deployedCodeHash = hashContract(deployedBytes);
+  const init = await root.callRaw(dao, 'new', {
+    config: {name: `settlement ${tag}`, purpose: 'bounded refund settlement', metadata: ''},
+    policy: [voter.accountId, voter2.accountId],
+  }, {gas: GAS});
+  const initFinal = summarize(await finalStatus(worker, init, root.accountId));
+
+  const kind = {FunctionCall: {receiver_id: 'missing-target.test.near', actions: [{method_name: 'ping', args: '', deposit: '0', gas: ACTION_GAS.toString()}]}};
+  stage(`${tag} add`);
+  const add = await proposer.callRaw(dao, 'add_proposal', {proposal: {description: 'deleted proposer refund', kind}}, {gas: GAS, attachedDeposit: BOND.toString()});
+  const addFinal = summarize(await finalStatus(worker, add, proposer.accountId));
+  const id = add.parseResult();
+  let upgrade = null;
+  let deleteFinal = null;
+
+  if (!baseWasm) {
+    stage(`${tag} delete proposer before the failed action`);
+    const deleted = await proposer.delete(root.accountId);
+    deleteFinal = {transactionHash: deleted?.transactionReceipt?.hash || null, transactionOutcome: {status: 'DeleteAccount submitted'}};
+  }
+
+  stage(`${tag} vote`);
+  const vote = await voter.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
+  const voteFinal = summarize(await finalStatus(worker, vote, voter.accountId));
+  const vote2 = await voter2.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
+  const vote2Final = summarize(await finalStatus(worker, vote2, voter2.accountId));
+  await waitProposal(worker, dao, id, 'Failed');
+
+  if (baseWasm) {
+    stage(`${tag} upgrade to the candidate`);
+    const codeHash = hashContract(wasm);
+    const upgradeDeploy = await dao.deploy(wasm);
+    const upgradeDeployFinal = summarize(await finalStatus(worker, upgradeDeploy, root.accountId));
+    const migrate = await dao.callRaw(dao, 'migrate', {}, {gas: GAS});
+    const migrateFinal = summarize(await finalStatus(worker, migrate, root.accountId));
+    let installed = false;
+    for (let i = 0; i < 40; i += 1) {
+      const code = await dao.viewCode();
+      if (code?.length && hashContract(code) === codeHash) { installed = true; break; }
+      await sleep(250);
+    }
+    fail(installed, 'candidate code was not installed on the inherited DAO');
+    upgrade = {deploy: upgradeDeployFinal, migrate: migrateFinal, codeHash, candidateWasmSha256: sha256(wasm)};
+    stage(`${tag} delete proposer after the upgrade`);
+    const deleted = await proposer.delete(root.accountId);
+    deleteFinal = {transactionHash: deleted?.transactionReceipt?.hash || null, transactionOutcome: {status: 'DeleteAccount submitted'}};
+    stage(`${tag} legacy finalize while the proposer is deleted`);
+    const legacyFinalize = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
+    const legacyFinalizeFinal = summarize(await finalStatus(worker, legacyFinalize, voter.accountId));
+    await waitProposal(worker, dao, id, 'Failed');
+    upgrade.legacyFinalize = legacyFinalizeFinal;
+  }
+
+  const failedRefund = await settle(worker, dao, proposer.accountId, voter.accountId);
+  fail(failedRefund.lockedAmount === BOND.toString(), `locked liability after failed refund is ${failedRefund.lockedAmount}, expected ${BOND}`);
+  fail(failedRefund.proposal.status === 'Failed', `proposal after failed refund is ${failedRefund.proposal.status}`);
+
+  stage(`${tag} recreate proposer`);
+  await root.createSubAccount(proposerId, {initialBalance: parseNEAR('10')});
+  const recreatedBalance = await viewAmount(worker, proposer.accountId);
+  stage(`${tag} recreated balance ${recreatedBalance}`);
+  const beforeRetry = await snapshot(worker, dao, proposer.accountId, voter.accountId);
+  stage(`${tag} concurrent retry`);
+  // Two independently signed council transactions. Both approve the original
+  // proposal, so each is authorized; the concurrent Finalize submissions have
+  // distinct signers, nonces, transaction hashes and receipts.
+  const retryFinals = [];
+  const submitted = await Promise.allSettled([
+    voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS}),
+    voter2.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS}),
+  ]);
+  for (const entry of submitted) {
+    if (entry.status !== 'fulfilled') { retryFinals.push({error: String(entry.reason?.message || entry.reason).slice(0, 500)}); continue; }
+    try {
+      const signer = entry.value?.transaction?.signerId || null;
+      const summarized = summarize(await finalStatus(worker, entry.value, signer || voter.accountId));
+      retryFinals.push({...summarized, signerId: summarized.transaction?.signerId || null});
+    } catch (error) { retryFinals.push({error: String(error.message || error).slice(0, 500)}); }
+  }
+  await waitProposal(worker, dao, id, 'Failed');
+  await settle(worker, dao, proposer.accountId, voter.accountId);
+  const retryFinal = retryFinals.find((value) => value && value.finalExecutionStatus === 'FINAL') || retryFinals[0] || null;
+  const afterRetry = await settle(worker, dao, proposer.accountId, voter.accountId);
+  const retryDelta = BigInt(afterRetry.proposer ?? 0) - BigInt(beforeRetry.proposer ?? 0);
+  fail(retryDelta === BOND, `retry proposer delta is ${retryDelta}, expected ${BOND}`);
+  fail(afterRetry.lockedAmount === '0', `locked liability after successful retry is ${afterRetry.lockedAmount}`);
+
+  stage(`${tag} unauthorized callback`);
+  const unauthorizedArgs = {proposal_id: id, attempt: 999};
+  const unauthorized = await voter.callRaw(dao, 'on_refund_callback', unauthorizedArgs, {gas: GAS}).then(
+    (tx) => finalStatus(worker, tx, voter.accountId).then((final) => ({ok: false, value: summarize(final)})),
+    (error) => ({ok: false, error: String(error.message || error).slice(0, 500)}),
+  );
+  const afterUnauthorized = await settle(worker, dao, proposer.accountId, voter.accountId);
+  fail(afterUnauthorized.proposer === afterRetry.proposer, 'unauthorized callback changed proposer balance');
+  fail(afterUnauthorized.lockedAmount === '0', 'unauthorized callback changed locked debt');
+
+  stage(`${tag} duplicate retry`);
+  const duplicate = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
+  const duplicateFinal = summarize(await finalStatus(worker, duplicate, voter.accountId));
+  const afterDuplicate = await settle(worker, dao, proposer.accountId, voter.accountId);
+  const duplicateDelta = BigInt(afterDuplicate.proposer ?? 0) - BigInt(afterRetry.proposer ?? 0);
+  fail(duplicateDelta === 0n, `duplicate retry paid ${duplicateDelta}`);
+  fail(afterDuplicate.lockedAmount === '0', `duplicate retry changed locked amount to ${afterDuplicate.lockedAmount}`);
+
+  const hashes = retryFinals.map((value) => value.transactionHash).filter(Boolean);
+  const signers = retryFinals.map((value) => value.signerId).filter(Boolean);
+  const bothFinal = retryFinals.every((value) => value.finalExecutionStatus === 'FINAL');
+  const receiptBacked = retryFinals.every((value) => (value.receipts || []).length > 0);
+  const overlapOk = retryFinals.length === 2
+    && new Set(hashes).size === 2
+    && new Set(signers).size === 2
+    && bothFinal
+    && receiptBacked
+    && retryDelta === BOND
+    && afterRetry.lockedAmount === '0';
+  fail(overlapOk, 'concurrent retry evidence did not produce two distinct, independently signed, receipt-backed executions');
+
+  return {
+    proposalId: id,
+    deploy: {...deployFinal, codeHash: deployedCodeHash, wasmSha256: sha256(deployedBytes)},
+    transactions: {deploy: deployFinal, init: initFinal, add: addFinal, upgrade, delete: deleteFinal, vote: voteFinal, vote2: vote2Final, retries: retryFinals, retry: retryFinal, unauthorized, duplicate: duplicateFinal},
+    legacy: baseWasm ? {
+      baseWasmSha256: sha256(baseWasm),
+      candidateWasmSha256: sha256(wasm),
+      upgradeCodeHash: upgrade?.codeHash || null,
+      proposalCreatedBeforeUpgrade: true,
+      legacyFinalize: upgrade?.legacyFinalize || null,
+    } : null,
+    unauthorized,
+    unauthorizedArgs,
+    overlap: {
+      kind: 'concurrent-submission',
+      ok: overlapOk,
+      distinctHashes: new Set(hashes).size === 2,
+      distinctSigners: new Set(signers).size === 2,
+      bothFinal,
+      receiptBacked,
+      attempts: retryFinals.map((value) => ({
+        finalExecutionStatus: value.finalExecutionStatus || null,
+        error: value.error || null,
+        transactionHash: value.transactionHash || null,
+        signerId: value.signerId || null,
+        receiptIds: (value.receipts || []).map((receipt) => receipt.id),
+        blockHash: value.blockHash || null,
+      })),
+      delta: retryDelta.toString(),
+      lockedAfter: afterRetry.lockedAmount,
+    },
+    failedRefund,
+    beforeRetry,
+    afterRetry,
+    afterUnauthorized,
+    afterDuplicate,
+    deltas: {retryProposer: retryDelta.toString(), duplicateProposer: duplicateDelta.toString()},
+    errors,
+    ok: errors.length === 0,
+  };
+}
+
 (async () => {
   const opts = parseArgs(process.argv.slice(2));
   const rt = runtime();
@@ -185,139 +368,38 @@ async function settle(worker, dao, proposerId, voter) {
   process.env.NEAR_SANDBOX_VERSION = rt.version;
   const wasm = fs.readFileSync(opts.wasm);
   const baseWasm = opts.baseWasm ? fs.readFileSync(opts.baseWasm) : null;
-  const errors = [];
-  const require = (condition, message) => { if (!condition) errors.push(message); };
+  if (!baseWasm) throw new Error('--base-wasm is required: accepted settlement evidence must cover both the fresh candidate and the inherited pinned-base proposal');
   const worker = await Worker.init({network: 'sandbox'});
   try {
     assertLocal(worker);
-    const root = worker.rootAccount;
-    const proposer = await root.createSubAccount('proposer', {initialBalance: parseNEAR('20')});
-    const voter = await root.createSubAccount('voter', {initialBalance: parseNEAR('20')});
-    const dao = await root.createSubAccount('dao', {initialBalance: parseNEAR('100')});
-    stage('deploy');
-    const deploy = await dao.deploy(baseWasm || wasm);
-    const deployFinal = summarize(await finalStatus(worker, deploy, root.accountId));
-    const init = await root.callRaw(dao, 'new', {
-      config: {name: 'settlement', purpose: 'bounded refund settlement', metadata: ''},
-      policy: [voter.accountId],
-    }, {gas: GAS});
-    const initFinal = summarize(await finalStatus(worker, init, root.accountId));
-
-    const kind = {FunctionCall: {receiver_id: 'missing-target.test.near', actions: [{method_name: 'ping', args: '', deposit: '0', gas: ACTION_GAS.toString()}]}};
-    stage('add');
-    const add = await proposer.callRaw(dao, 'add_proposal', {proposal: {description: 'deleted proposer refund', kind}}, {gas: GAS, attachedDeposit: BOND.toString()});
-    const addFinal = summarize(await finalStatus(worker, add, proposer.accountId));
-    const id = add.parseResult();
-    let upgrade = null;
-    let deleteFinal;
-    if (!baseWasm) {
-      stage('delete proposer');
-      const deleted = await proposer.delete(root.accountId);
-      deleteFinal = {transactionHash: deleted?.transactionReceipt?.hash || null, transactionOutcome: {status: 'DeleteAccount submitted'}};
-    }
-    stage('vote');
-    const vote = await voter.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
-    const voteFinal = summarize(await finalStatus(worker, vote, voter.accountId));
-    await waitProposal(worker, dao, id, 'Failed');
-    if (baseWasm) {
-      stage('upgrade candidate');
-      const codeHash = hashContract(wasm);
-      const upgradeDeploy = await dao.deploy(wasm);
-      const upgradeDeployFinal = summarize(await finalStatus(worker, upgradeDeploy, root.accountId));
-      const migrate = await dao.callRaw(dao, 'migrate', {}, {gas: GAS});
-      const migrateFinal = summarize(await finalStatus(worker, migrate, root.accountId));
-      for (let i = 0; i < 40; i += 1) {
-        const code = await dao.viewCode();
-        if (code?.length && hashContract(code) === codeHash) break;
-        await sleep(250);
-      }
-      upgrade = {deploy: upgradeDeployFinal, migrate: migrateFinal, codeHash};
-      stage('delete proposer');
-      const deleted = await proposer.delete(root.accountId);
-      deleteFinal = {transactionHash: deleted?.transactionReceipt?.hash || null, transactionOutcome: {status: 'DeleteAccount submitted'}};
-      stage('legacy finalize while deleted');
-      const legacyFinalize = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
-      const legacyFinalizeFinal = summarize(await finalStatus(worker, legacyFinalize, voter.accountId));
-      await waitProposal(worker, dao, id, 'Failed');
-      upgrade.legacyFinalize = legacyFinalizeFinal;
-    }
-    const failedRefund = await settle(worker, dao, proposer.accountId, voter.accountId);
-    require(failedRefund.lockedAmount === BOND.toString(), `locked liability after failed refund is ${failedRefund.lockedAmount}, expected ${BOND}`);
-    require(failedRefund.proposal.status === 'Failed', `proposal after failed refund is ${failedRefund.proposal.status}`);
-
-    stage('recreate proposer');
-    const recreated = await root.createSubAccount('proposer', {initialBalance: parseNEAR('10')});
-    const recreateFinal = {accountId: recreated.accountId, status: 'created'};
-    const recreatedBalance = await viewAmount(worker, proposer.accountId);
-    stage(`recreated balance ${recreatedBalance}`);
-    const beforeRetry = await snapshot(worker, dao, proposer.accountId, voter.accountId);
-    stage('overlapping retry');
-    const overlapAttempts = await Promise.allSettled([
-      voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS}),
-      voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS}),
-    ]);
-    const retryFinals = [];
-    for (const entry of overlapAttempts) {
-      if (entry.status !== 'fulfilled') { retryFinals.push({error: String(entry.reason?.message || entry.reason).slice(0, 500)}); continue; }
-      try { retryFinals.push(summarize(await finalStatus(worker, entry.value, entry.value?.transaction?.signerId || voter.accountId))); }
-      catch (error) { retryFinals.push({error: String(error.message || error).slice(0, 500)}); }
-    }
-    await waitProposal(worker, dao, id, 'Failed');
-    await settle(worker, dao, proposer.accountId, voter.accountId);
-    const retryFinal = retryFinals.find((value) => value && value.finalExecutionStatus === 'FINAL') || retryFinals[0];
-    const afterRetry = await settle(worker, dao, proposer.accountId, voter.accountId);
-    const retryDelta = BigInt(afterRetry.proposer ?? 0) - BigInt(beforeRetry.proposer ?? 0);
-    require(retryDelta === BOND, `retry proposer delta is ${retryDelta}, expected ${BOND}`);
-    require(afterRetry.lockedAmount === '0', `locked liability after successful retry is ${afterRetry.lockedAmount}`);
-
-    stage('unauthorized callback');
-    const unauthorizedArgs = {proposal_id: id, attempt: 999};
-    const unauthorized = await voter.callRaw(dao, 'on_refund_callback', unauthorizedArgs, {gas: GAS}).then(
-      (tx) => finalStatus(worker, tx, voter.accountId).then((final) => ({ok: false, value: summarize(final)})),
-      (error) => ({ok: false, error: String(error.message || error).slice(0, 500)}),
-    );
-    const afterUnauthorized = await settle(worker, dao, proposer.accountId, voter.accountId);
-    require(afterUnauthorized.proposer === afterRetry.proposer, 'unauthorized callback changed proposer balance');
-    require(afterUnauthorized.lockedAmount === '0', 'unauthorized callback changed locked debt');
-
-    stage('duplicate retry');
-    const duplicate = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
-    const duplicateFinal = summarize(await finalStatus(worker, duplicate, voter.accountId));
-    const afterDuplicate = await settle(worker, dao, proposer.accountId, voter.accountId);
-    const duplicateDelta = BigInt(afterDuplicate.proposer ?? 0) - BigInt(afterRetry.proposer ?? 0);
-    require(duplicateDelta === 0n, `duplicate retry paid ${duplicateDelta}`);
-    require(afterDuplicate.lockedAmount === '0', `duplicate retry changed locked amount to ${afterDuplicate.lockedAmount}`);
-
+    const fresh = await runScenario({worker, tag: 'fresh', prefix: 'fresh', wasm, baseWasm: null});
+    const inherited = await runScenario({worker, tag: 'inherited', prefix: 'inherited', wasm, baseWasm});
+    const errors = [
+      ...fresh.errors.map((error) => `fresh: ${error}`),
+      ...inherited.errors.map((error) => `inherited: ${error}`),
+    ];
     const report = {
-      schema: 'near-rehearsal/settlement-refund/v1',
+      schema: 'near-rehearsal/settlement-refund/v2',
       generatedAt: new Date().toISOString(),
       source: {repository: 'https://github.com/near-daos/sputnik-dao-contract', commit: '5434a59dec23ee0c49df8c8c4350c208a7e75b0b'},
       candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length},
+      baseWasmSha256: sha256(baseWasm),
       runtime: rt,
-      proposalId: id,
-      transactions: {deploy: deployFinal, init: initFinal, add: addFinal, upgrade, delete: deleteFinal, vote: voteFinal, retries: retryFinals, retry: retryFinal, unauthorized, duplicate: duplicateFinal},
-      unauthorized,
-      unauthorizedArgs,
-      overlap: {
-        ok: retryFinals.some((value) => value.finalExecutionStatus === 'FINAL') && retryDelta === BOND && afterRetry.lockedAmount === '0',
-        attempts: retryFinals.map((value) => ({finalExecutionStatus: value.finalExecutionStatus || null, error: value.error || null, transactionHash: value.transactionHash || null})),
-        delta: retryDelta.toString(),
-        lockedAfter: afterRetry.lockedAmount,
-      },
-      failedRefund,
-      beforeRetry,
-      afterRetry,
-      afterUnauthorized,
-      afterDuplicate,
-      deltas: {retryProposer: retryDelta.toString(), duplicateProposer: duplicateDelta.toString()},
+      fresh: {...fresh, mode: 'candidate-only'},
+      inherited: {...inherited, mode: 'legacy-upgrade'},
       errors,
-      ok: errors.length === 0,
+      ok: fresh.ok && inherited.ok,
       boundary: 'Local Sandbox settlement regression. No live DAO, production funds, deployment or universal recovery claim.',
     };
     fs.mkdirSync(opts.out, {recursive: true});
     fs.writeFileSync(path.join(opts.out, 'settlement-refund.json'), json(report));
-    console.log(json({ok: report.ok, errors, deltas: report.deltas, failedLocked: failedRefund.lockedAmount, finalLocked: afterDuplicate.lockedAmount}));
-    if (errors.length) process.exitCode = 1;
+    console.log(json({
+      ok: report.ok,
+      errors,
+      fresh: {locked: fresh.failedRefund?.lockedAmount, delta: fresh.deltas?.retryProposer, finalLocked: fresh.afterDuplicate?.lockedAmount},
+      inherited: {locked: inherited.failedRefund?.lockedAmount, delta: inherited.deltas?.retryProposer, finalLocked: inherited.afterDuplicate?.lockedAmount},
+    }));
+    if (!report.ok) process.exitCode = 1;
   } finally {
     await worker.tearDown?.().catch(() => {});
   }

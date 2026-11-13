@@ -24,7 +24,7 @@ const PERSISTED_ACCEPTANCE = path.join(REPAIR, 'persisted-recovery-acceptance.cj
 const MIXED = path.join(REPAIR, 'mixed-obligation.cjs');
 const SETTLEMENT = path.join(REPAIR, 'settlement-refund-tests.cjs');
 const {verifyMixedReport} = require(path.join(REPAIR, 'mixed-policy.cjs'));
-const {verifySettlementReport} = require(path.join(REPAIR, 'settlement-policy.cjs'));
+const {verifySettlementReport, REQUIRED_SCHEMA: SETTLEMENT_SCHEMA} = require(path.join(REPAIR, 'settlement-policy.cjs'));
 const {mixedPolicyIdentity} = require(path.join(REPAIR, 'mixed-policy-identity.cjs'));
 const {POLICY_VERSION, evaluateCandidate, stageFromChecks} = require(path.join(REPAIR, 'acceptance-orchestrator.cjs'));
 const CONTROLLER_MANIFEST = path.join(REPAIR, 'controller-manifest.json');
@@ -703,11 +703,15 @@ function createManager(options = {}) {
       const settlementArgs = [
         SETTLEMENT,
         '--candidate-wasm', wasmPath,
+        '--base-wasm', config.baseWasm,
         '--out', settlementDir,
       ];
       if (config.sandboxDir) settlementArgs.push('--sandbox-dir', config.sandboxDir);
       let settlementExitError = null;
       try {
+        if (!config.baseWasm || !fs.existsSync(config.baseWasm)) {
+          throw new Error('The pinned base WASM is required to prove inherited failed-refund settlement.');
+        }
         await spawnStep(run, 'Failed-refund settlement', process.execPath, settlementArgs, {timeoutMs: config.timeouts.settlementMs});
       } catch (error) {
         settlementExitError = error;
@@ -715,7 +719,7 @@ function createManager(options = {}) {
       const settlementReportPath = path.join(settlementDir, 'settlement-refund.json');
       const settlementReport = readJson(settlementReportPath);
       const settlementCheck = settlementReport
-        ? verifySettlementReport(settlementReport, {candidateWasmSha256: sha256File(wasmPath)})
+        ? verifySettlementReport(settlementReport, {candidateWasmSha256: sha256File(wasmPath), baseWasmSha256: config.baseWasmSha256})
         : {ok: false, errors: ['failed-refund settlement gate produced no report'], outcomes: null};
       run.settlement = {
         ok: settlementCheck.ok === true,
@@ -733,19 +737,17 @@ function createManager(options = {}) {
       run.checks.settlementAccepted = settlementCheck.ok === true;
 
       const acceptanceVerdict = evaluateCandidate({
-        fresh: stageFromChecks(freshAccepted, freshAccepted ? [] : (pipeline.acceptanceErrors || ['fresh-state checks failed'])),
-        recovery: stageFromChecks(recoveryAccepted, recoveryAccepted ? [] : (run.recovery?.acceptanceErrors || [run.recovery?.error || 'persisted recovery did not pass acceptance'])),
-        mixed: stageFromChecks(mixedCheck.ok === true, mixedCheck.errors || [], {policyVersion: POLICY_VERSION}),
-        settlement: stageFromChecks(settlementCheck.ok === true, settlementCheck.errors || []),
+        fresh: stageFromChecks(freshAccepted, freshAccepted ? [] : (pipeline.acceptanceErrors || ['fresh-state checks failed']), {evidenceValid: Boolean(pipeline)}),
+        recovery: stageFromChecks(recoveryAccepted, recoveryAccepted ? [] : (run.recovery?.acceptanceErrors || [run.recovery?.error || 'persisted recovery did not pass acceptance']), {evidenceValid: Boolean(run.recovery?.report)}),
+        mixed: stageFromChecks(mixedCheck.ok === true, mixedCheck.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedReport) && mixedReport?.schema === 'near-rehearsal/mixed-obligation/v1'}),
+        settlement: stageFromChecks(settlementCheck.ok === true, settlementCheck.errors || [], {evidenceValid: Boolean(settlementReport) && settlementReport?.schema === SETTLEMENT_SCHEMA}),
       });
       run.acceptancePolicy = acceptanceVerdict;
-      const accepted = acceptanceVerdict.ok;
+      const accepted = acceptanceVerdict.status === 'ACCEPTED';
       if (accepted) {
         run.status = 'accepted'; setPhase(run, 'accepted');
       } else {
-        const mixedTerminal = mixedReport?.schema === 'near-rehearsal/mixed-obligation/v1' && Boolean(mixedReport?.candidate?.wasmSha256);
-        const settlementTerminal = settlementReport?.schema === 'near-rehearsal/settlement-refund/v1' && Boolean(settlementReport?.candidate?.wasmSha256);
-        run.status = !freshAccepted || !recoveryAccepted || mixedTerminal || settlementTerminal ? 'rejected' : 'inconclusive';
+        run.status = acceptanceVerdict.status.toLowerCase();
         setPhase(run, run.status);
         run.error = `The repair ran but was not accepted by ${acceptanceVerdict.policyVersion}: ${acceptanceVerdict.errors.join('; ')}`;
         if (pipelineExitError) run.error += ` Pipeline exited: ${pipelineExitError.message}`;
