@@ -100,6 +100,7 @@ function writeReviewBundle(dir, job) {
   const baseReport = pipelineJson?.baseReport || path.join(root, 'case-triage/rehearsal-repair/out/issue238-local.json');
   const recovery = path.join(out, 'evidence', 'persisted-recovery.json');
   const acceptance = path.join(out, 'evidence', 'persisted-recovery-acceptance.json');
+  const mixed = path.join(out, 'evidence', 'mixed-obligation.json');
   const identity = path.join(pipeline, 'candidate-identity.json');
   const wasm = path.join(pipeline, 'applied', 'target', 'wasm32-unknown-unknown', 'release', 'sputnikdao2.wasm');
   const patch = path.join(dir, names.patch);
@@ -115,6 +116,7 @@ function writeReviewBundle(dir, job) {
       candidateReportPath: candidateReport,
       recoveryPath: recovery,
       acceptancePath: acceptance,
+      mixedPath: mixed,
       producer: {runId: job.id, status: job.status, createdAt: job.createdAt},
       policy: statusDocument(dir)?.policy || null,
     });
@@ -159,6 +161,7 @@ function packageReadme(dir, job) {
     `- Built artifact: ${wasm === 'not produced' ? 'not produced for this run' : 'artifact/sputnikdao2.wasm'}`,
     '- Submitted source diff: submitted.patch',
     '- Reviewer-compatible bundle (when accepted): review-bundle.json; open it in /review for recorded-WASM or source-build verification.',
+    '- Same-DAO mixed-obligation evidence: evidence/mixed-obligation.json; the primary gate rejects a candidate that erases Bob’s locked liability.',
     '- Root project license: LICENSE',
     '- Third-party and upstream notices: THIRD_PARTY_NOTICES.md and LICENSES/',
     '- No Cargo build tree is included. Only the selected evidence, built artifact and notices are packaged.',
@@ -262,7 +265,7 @@ function ensurePackage(dir, job) {
     };
     add(status, 'review-status.json', MAX_PACKAGE_BYTES);
     add(report, 'review-report.md', MAX_PACKAGE_BYTES);
-    for (const name of ['recovery-packet.json', 'rejected-evidence.json', 'review-evidence.json']) add(path.join(output, name), name);
+    for (const name of ['recovery-packet.json', 'rejected-evidence.json', 'review-evidence.json', 'mixed-obligation.json', 'mixed.log']) add(path.join(output, name), name);
     for (const name of ['evidence', 'persisted']) {
       const from = path.join(output, name);
       if (dirExists(from)) for (const file of collectFiles(from, from)) {

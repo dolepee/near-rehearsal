@@ -21,6 +21,7 @@ function buildReviewBundle(opts = {}) {
   const candidateReportText = text(opts.candidateReportPath);
   const recoveryReportText = text(opts.recoveryPath);
   const acceptance = parse(opts.acceptancePath);
+  const mixedText = opts.mixedPath && fs.existsSync(opts.mixedPath) ? text(opts.mixedPath) : null;
   if (acceptance?.ok !== true) throw new Error('refusing to export a reviewer bundle without passing persisted acceptance');
   if (identity?.schema !== 'near-rehearsal/repair-candidate-identity/v1') throw new Error('candidate identity schema is invalid');
   if (identity.wasm?.sha256 !== sha256(wasm)) throw new Error('candidate identity WASM hash does not match the built artifact');
@@ -66,6 +67,7 @@ function buildReviewBundle(opts = {}) {
     baseline: {reportText: baseReportText, reportSha256: sha256(Buffer.from(baseReportText, 'utf8'))},
     candidate,
     recovery,
+    mixed: mixedText ? {reportText: mixedText, reportSha256: sha256(Buffer.from(mixedText, 'utf8'))} : null,
     producer: opts.producer || null,
     policy: opts.policy || null,
   };

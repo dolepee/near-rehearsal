@@ -128,18 +128,18 @@ function summarize(final) {
 const summaryGas = (summary) => BigInt(summary?.transactionOutcome?.tokensBurntYocto ?? 0) +
   (summary?.receipts || []).reduce((sum, receipt) => sum + BigInt(receipt?.tokensBurntYocto ?? 0), 0n);
 
-async function viewJson(worker, id, method, args = {}) {
-  const result = await worker.provider.viewCall(id, method, args, {finality: 'final'});
+async function viewJson(worker, id, method, args = {}, blockId = null) {
+  const result = await worker.provider.viewCall(id, method, args, blockId ? {blockId} : {finality: 'final'});
   if (!result || !Array.isArray(result.result)) throw new Error(`${method} returned no result`);
   return JSON.parse(Buffer.from(result.result).toString('utf8'));
 }
 
-async function viewAmount(worker, id) {
-  return (await worker.provider.viewAccount(id, {finality: 'final'})).amount;
+async function viewAmount(worker, id, blockId = null) {
+  return (await worker.provider.viewAccount(id, blockId ? {blockId} : {finality: 'final'})).amount;
 }
 
-async function viewToken(worker, id, method) {
-  const result = await worker.provider.viewCall(id, method, {}, {finality: 'final'});
+async function viewToken(worker, id, method, blockId = null) {
+  const result = await worker.provider.viewCall(id, method, {}, blockId ? {blockId} : {finality: 'final'});
   if (!result || !Array.isArray(result.result)) throw new Error(`${method} returned no result`);
   const text = Buffer.from(result.result).toString('utf8');
   let value;
@@ -150,8 +150,8 @@ async function viewToken(worker, id, method) {
   throw new Error(`${method} returned an unreadable NearToken: ${text.slice(0, 200)}`);
 }
 
-async function readState(worker, id) {
-  return (await worker.provider.viewStateRaw(id, '', {finality: 'final'}))
+async function readState(worker, id, blockId = null) {
+  return (await worker.provider.viewStateRaw(id, '', blockId ? {blockId} : {finality: 'final'}))
     .map(({key, value}) => ({key, value}))
     .sort((a, b) => a.key.localeCompare(b.key));
 }
@@ -184,23 +184,31 @@ async function initWorker() {
 }
 
 async function snapshot(worker, dao, accounts, proposals) {
-  const account = await dao.accountView();
-  const available = await viewToken(worker, dao.accountId, 'get_available_amount');
-  const lockedStorage = await viewToken(worker, dao.accountId, 'get_locked_storage_amount');
+  // Pin every read in a snapshot to one final block. Without this, a later
+  // account view can include a receipt that the earlier contract view did not,
+  // which makes derived locked amounts look inconsistent.
+  const block = await worker.provider.sendJsonRpc('block', {finality: 'final'});
+  const blockId = block?.header?.hash;
+  if (!blockId) throw new Error('could not read a final block for snapshot');
+  const account = await worker.provider.viewAccount(dao.accountId, {blockId});
+  const available = await viewToken(worker, dao.accountId, 'get_available_amount', blockId);
+  const lockedStorage = await viewToken(worker, dao.accountId, 'get_locked_storage_amount', blockId);
   const balance = BigInt(account.amount);
-  const state = await readState(worker, dao.accountId);
+  const state = await readState(worker, dao.accountId, blockId);
   return {
-    codeHash: hashContract(await dao.viewCode()),
+    blockHeight: block.header.height,
+    blockHash: blockId,
+    codeHash: hashContract(await worker.provider.viewCode(dao.accountId, {blockId})),
     state,
     stateHash: stateHash(state),
-    policy: await viewJson(worker, dao.accountId, 'get_policy'),
-    proposals: Object.fromEntries(await Promise.all(proposals.map(async (proposal) => [proposal.label, await viewJson(worker, dao.accountId, 'get_proposal', {id: proposal.id})]))),
+    policy: await viewJson(worker, dao.accountId, 'get_policy', {}, blockId),
+    proposals: Object.fromEntries(await Promise.all(proposals.map(async (proposal) => [proposal.label, await viewJson(worker, dao.accountId, 'get_proposal', {id: proposal.id}, blockId)]))),
     contractBalance: account.amount,
     storageUsage: account.storage_usage,
     availableAmount: available.toString(),
     lockedStorageAmount: lockedStorage.toString(),
     lockedAmount: (balance - lockedStorage - available).toString(),
-    balances: Object.fromEntries(await Promise.all(accounts.map(async (account) => [account.label, await viewAmount(worker, account.accountId)]))),
+    balances: Object.fromEntries(await Promise.all(accounts.map(async (account) => [account.label, await viewAmount(worker, account.accountId, blockId)]))),
   };
 }
 

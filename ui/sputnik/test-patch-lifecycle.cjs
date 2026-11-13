@@ -4,6 +4,7 @@ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'rehearsal-patch-life-'));
 (async()=>{
  fs.mkdirSync(path.join(dir,'ui/sputnik'),{recursive:true});fs.mkdirSync(path.join(dir,'scripts'));fs.mkdirSync(path.join(dir,'case-triage/rehearsal-repair'),{recursive:true});
  fs.copyFileSync(path.join(__dirname,'patch-route.cjs'),path.join(dir,'ui/sputnik/patch-route.cjs'));
+ fs.copyFileSync(path.join(__dirname,'../../case-triage/rehearsal-repair/review-bundle.cjs'),path.join(dir,'case-triage/rehearsal-repair/review-bundle.cjs'));
  fs.writeFileSync(path.join(dir,'case-triage/rehearsal-repair/controller-manifest.json'),JSON.stringify({source:{commit:'fixture'}}));
  fs.writeFileSync(path.join(dir,'scripts/review-patch.cjs'),`const fs=require('fs'),{spawn}=require('child_process');const c=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});fs.writeFileSync(${JSON.stringify(path.join(dir,'pids.json'))},JSON.stringify([process.pid,c.pid]));setInterval(()=>{},1000);`);
  const adapter=require(path.join(dir,'ui/sputnik/patch-route.cjs'));
