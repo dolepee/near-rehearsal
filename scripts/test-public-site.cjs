@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const {buildPublicSite, CANONICAL} = require('./build-public-site.cjs');
+const {buildPublicSite, assertPublicationInputs, CANONICAL} = require('./build-public-site.cjs');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rehearsal-public-'));
 try {
   const out = path.join(tmp, 'site');
@@ -37,5 +37,17 @@ try {
   assert.equal(png.readUInt32BE(16), 1200);
   assert.equal(png.readUInt32BE(20), 675);
   assert.throws(() => buildPublicSite({out, commit: '1'.repeat(40)}), /already exists/);
+  for (const directory of ['ui/sputnik/public/consequences', 'case-triage/sputnik-226/review-packet']) {
+    const ignored = path.join(__dirname, '..', directory, `${path.basename(tmp)}.log`);
+    let created = false;
+    try {
+      fs.writeFileSync(ignored, 'private diagnostic fixture; must never be published\n', {flag: 'wx'});
+      created = true;
+      assert.throws(() => assertPublicationInputs(), /Unexpected publication input/);
+      const rejected = path.join(tmp, 'rejected-site');
+      assert.throws(() => buildPublicSite({out: rejected, commit: '1'.repeat(40)}), /Unexpected publication input/);
+      assert.equal(fs.existsSync(rejected), false, 'unexpected input must fail before any publication output');
+    } finally { if (created) fs.unlinkSync(ignored); }
+  }
   console.log('public-site: isolated static output, recorded evidence parity, metadata, notices and manifest verified');
 } finally { fs.rmSync(tmp, {recursive: true, force: true}); }

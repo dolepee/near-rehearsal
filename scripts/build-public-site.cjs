@@ -10,18 +10,41 @@ const ROOT = path.resolve(__dirname, '..');
 const VIEW = path.join(ROOT, 'ui/sputnik/public/consequences');
 const ASSETS = path.join(ROOT, 'ui/sputnik/public-release-assets');
 const OUT = path.join(ROOT, '.local/public-site');
+const PACKET = path.join(ROOT, 'case-triage/sputnik-226/review-packet');
 const ORIGIN = 'https://rehearsal.dolepee.com';
 const CANONICAL = `${ORIGIN}/consequences/`;
 const sha = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 
-function copyTree(from, to) {
-  fs.mkdirSync(to, {recursive: true});
-  for (const entry of fs.readdirSync(from, {withFileTypes: true})) {
-    if (entry.isSymbolicLink()) throw new Error(`Refusing symlink in public assets: ${entry.name}`);
-    const source = path.join(from, entry.name), target = path.join(to, entry.name);
-    if (entry.isDirectory()) copyTree(source, target);
-    else if (entry.isFile()) fs.copyFileSync(source, target);
-    else throw new Error(`Unsupported public asset: ${entry.name}`);
+function trackedTree(from) {
+  const relative = path.relative(ROOT, from);
+  const files = execFileSync('git', ['ls-files', '-z', '--', relative], {cwd: ROOT, encoding: 'utf8'}).split('\0').filter(Boolean);
+  if (!files.length) throw new Error(`No tracked publication inputs: ${relative}`);
+  const allowed = new Set(files.map((file) => path.resolve(ROOT, file)));
+  function inspect(dir) {
+    for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
+      const source = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) throw new Error(`Refusing symlink in public assets: ${source}`);
+      if (entry.isDirectory()) inspect(source);
+      else if (!entry.isFile() || !allowed.has(source)) throw new Error(`Unexpected publication input: ${source}`);
+    }
+  }
+  inspect(from);
+  return [...allowed].sort();
+}
+
+function assertPublicationInputs() {
+  const trees = new Map();
+  for (const dir of [VIEW, ASSETS, path.join(ROOT, 'LICENSES'), PACKET]) trees.set(dir, trackedTree(dir));
+  return trees;
+}
+
+function copyTree(from, to, files) {
+  // Copy the checked allowlist, never a fresh recursive directory listing.
+  for (const source of files) {
+    if (!fs.lstatSync(source).isFile()) throw new Error(`Publication input is not a regular file: ${source}`);
+    const target = path.join(to, path.relative(from, source));
+    fs.mkdirSync(path.dirname(target), {recursive: true});
+    fs.copyFileSync(source, target);
   }
 }
 
@@ -30,12 +53,13 @@ function buildPublicSite({out = OUT, commit} = {}) {
   const target = path.resolve(out);
   if (target === ROOT || ROOT.startsWith(`${target}${path.sep}`) || target === VIEW || target.startsWith(`${VIEW}${path.sep}`)) throw new Error('Output must not overwrite source');
   if (fs.existsSync(target)) throw new Error('Public output already exists; use a new directory');
+  const trees = assertPublicationInputs();
   const data = JSON.parse(fs.readFileSync(path.join(VIEW, 'cases.json'), 'utf8'));
   assertCaseFiles(data, VIEW);
   verifyPacket(path.join(VIEW, 'downloads/226'));
-  copyTree(VIEW, path.join(target, 'consequences'));
-  copyTree(ASSETS, path.join(target, 'assets'));
-  copyTree(path.join(ROOT, 'LICENSES'), path.join(target, 'LICENSES'));
+  copyTree(VIEW, path.join(target, 'consequences'), trees.get(VIEW));
+  copyTree(ASSETS, path.join(target, 'assets'), trees.get(ASSETS));
+  copyTree(path.join(ROOT, 'LICENSES'), path.join(target, 'LICENSES'), trees.get(path.join(ROOT, 'LICENSES')));
   for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md']) fs.copyFileSync(path.join(ROOT, name), path.join(target, name));
   const htmlPath = path.join(target, 'consequences/index.html');
   let html = fs.readFileSync(htmlPath, 'utf8');
@@ -57,7 +81,7 @@ function buildPublicSite({out = OUT, commit} = {}) {
   <meta name="twitter:description" content="Recorded repair consequences, inspectable evidence, and a local reviewer handoff.">
   <meta name="twitter:image" content="${ORIGIN}/assets/og.png">`;
   if (!html.includes('</head>') || !html.includes('</footer>')) throw new Error('Workbench HTML structure changed');
-  html = html.replace('</head>', `${metadata}\n</head>`).replace('</footer>', `<nav class="footer-links" aria-label="Publication evidence"><a href="https://github.com/dolepee/near-rehearsal/tree/${commit}">Source revision</a><a href="https://github.com/dolepee/near-rehearsal/actions/workflows/handoff.yml">Build checks</a><a href="/release.json">Release manifest</a><a href="/THIRD_PARTY_NOTICES.md">Licenses</a></nav></footer>`);
+  html = html.replace('</head>', `${metadata}\n</head>`).replace('No deployment, public-chain transaction, audit or universal-recovery claim.', 'No contract deployment, public-chain transaction, audit or universal-recovery claim.').replace('</footer>', `<nav class="footer-links" aria-label="Publication evidence"><a href="https://github.com/dolepee/near-rehearsal/tree/${commit}">Source revision</a><a href="https://github.com/dolepee/near-rehearsal/actions/workflows/handoff.yml">Build checks</a><a href="/release.json">Release manifest</a><a href="/THIRD_PARTY_NOTICES.md">Licenses</a></nav></footer>`);
   fs.writeFileSync(htmlPath, html);
   fs.writeFileSync(path.join(target, '_redirects'), '/ /consequences/ 302\n/consequences /consequences/ 301\n');
   fs.writeFileSync(path.join(target, '_headers'), `/*
@@ -78,7 +102,7 @@ function buildPublicSite({out = OUT, commit} = {}) {
     for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
       const file = path.join(dir, entry.name);
       if (entry.isDirectory()) inventory(file);
-      else { const bytes = fs.readFileSync(file); files.push({path: path.relative(target, file).split(path.sep).join('/'), bytes: bytes.length, sha256: sha(bytes)}); }
+      else { const bytes = fs.readFileSync(file); const name = path.relative(target, file).split(path.sep).join('/'); files.push({path: name, served: !['_redirects', '_headers'].includes(name), bytes: bytes.length, sha256: sha(bytes)}); }
     }
   }
   inventory(target);
@@ -94,6 +118,8 @@ if (require.main === module) {
     const dirty = status ? status.split('\n').filter((line) => !generated.has(line.slice(3))) : [];
     if (dirty.length) throw new Error('Commit source changes before packaging a public release');
     const commit = execFileSync('git', ['rev-parse', 'HEAD'], {cwd: ROOT, encoding: 'utf8'}).trim();
+    // Check before the workbench builder can copy packet files into its ZIPs.
+    assertPublicationInputs();
     buildWorkbench();
     const result = buildPublicSite({commit});
     console.log(`Static publication prepared: ${path.relative(ROOT, result.out)} (${result.manifest.files.length} files)`);
@@ -101,4 +127,4 @@ if (require.main === module) {
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
 
-module.exports = {buildPublicSite, OUT, CANONICAL};
+module.exports = {buildPublicSite, assertPublicationInputs, OUT, CANONICAL};

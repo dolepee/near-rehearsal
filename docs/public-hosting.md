@@ -55,3 +55,6 @@ Use a prior verified Pages deployment to roll back an existing release. For
 the initial release, removing only the newly created CNAME restores the
 domain's previous wildcard behavior. Preserve the generated package and its
 manifest as the release's byte-level reference.
+
+The manifest marks `_headers` and `_redirects` as `served: false`: Cloudflare
+consumes those upload controls instead of publishing them as HTTP resources.
