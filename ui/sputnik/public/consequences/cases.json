@@ -1,0 +1,2068 @@
+{
+  "schema": "near-rehearsal/consequence-workbench/v1",
+  "generatedAt": "2026-11-13T15:13:37.850Z",
+  "label": "Recorded execution",
+  "disclaimer": "These are recorded local results. The page does not run a fresh Sandbox, compile code or query a public chain.",
+  "cases": {
+    "226": {
+      "title": "Sputnik #226 — upgrade compatibility",
+      "kind": "recorded-upgrade",
+      "label": "Recorded local run",
+      "status": "PASS",
+      "headline": "An inherited Sputnik proposal survives the upgrade and pays exactly once.",
+      "summary": "Proposal 0 survived migration. It paid exactly 1 local NEAR. Two retry routes were rejected, the recipient stayed at 2 NEAR total, and the DAO config stayed unchanged.",
+      "source": {
+        "repository": "https://github.com/near-daos/sputnik-dao-contract",
+        "pr": 226,
+        "baseCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5",
+        "candidateCommit": "8112278fc2874a3abc12fb056b2d4c97ff796431",
+        "mergeCommit": null,
+        "harnessCommit": "3898440e5caa2d0351720ed990eee9f6678664b2",
+        "mode": "local-configured-factory-update",
+        "state": "locally constructed old-version state, not mainnet capture"
+      },
+      "runtime": {
+        "version": "2.6.2",
+        "platform": "Darwin-arm64",
+        "binarySha256": "8b9403f091137afc234eaf4bac06660e5ca31a851afdadfc73eb66c9d43fbcae"
+      },
+      "result": {
+        "proposalId": 0,
+        "proposalStatusBefore": "InProgress",
+        "proposalStatusAfterUpgrade": "InProgress",
+        "proposalStatusAfter": "Approved",
+        "proposalStatusAfterRetries": "Approved",
+        "rootVote": "Approve",
+        "configUnchanged": true,
+        "recipientBefore": "1",
+        "recipientAfterFirst": "2",
+        "recipientAfterReplay": "2",
+        "recipientAfterFinalizeRetry": "2",
+        "firstPaymentNear": "1",
+        "totalDeltaNear": "1",
+        "retries": [
+          {
+            "id": "replay",
+            "label": "Duplicate VoteApprove",
+            "status": "rejected",
+            "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at sputnikdao2/src/proposals.rs:634:17:\\nERR_PROPOSAL_NOT_READY_FOR_VOTE\"}}}}"
+          },
+          {
+            "id": "finalizeRetry",
+            "label": "Finalize retry",
+            "status": "rejected",
+            "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at sputnikdao2/src/policy.rs:394:9:\\nERR_PROPOSAL_NOT_IN_PROGRESS\"}}}}"
+          }
+        ]
+      },
+      "stages": [
+        {
+          "id": "deploy",
+          "label": "Deploy base WASM",
+          "transaction": "3P91CYSoMYDX1UCV99J6KcidnVo11aihfbFPqaHtjog9",
+          "result": "success",
+          "error": null,
+          "finality": {
+            "target": 8,
+            "finalized": 8,
+            "waitedMs": 767
+          },
+          "detail": "Source-built base deployed to the local Sandbox."
+        },
+        {
+          "id": "init",
+          "label": "Initialize through root",
+          "transaction": "FKUvfcHayYJkjYX1mFDxtnwBLRLZJGjcFZ4jY3nXonJM",
+          "result": "success",
+          "error": null,
+          "finality": {
+            "target": 13,
+            "finalized": 13,
+            "waitedMs": 1275
+          },
+          "detail": "Root is persisted as FactoryInfo.factory_id; this is a configured test factory."
+        },
+        {
+          "id": "addProposal",
+          "label": "Create inherited proposal",
+          "transaction": "3qNhZ2z4A1TzAYraeq6qXxonFz6f855G9skKXbvQYJar",
+          "result": "success",
+          "error": null,
+          "finality": {
+            "target": 18,
+            "finalized": 18,
+            "waitedMs": 1018
+          },
+          "detail": "Proposal 0 exists before the upgrade, status InProgress."
+        },
+        {
+          "id": "update",
+          "label": "Configured-factory update",
+          "transaction": "98WEgmUDRRBC7wxqJAFZRPnukXGo2MwRqsdUUgPPwe1X",
+          "result": "success",
+          "error": null,
+          "finality": {
+            "target": 24,
+            "finalized": 24,
+            "waitedMs": 1020
+          },
+          "detail": "Root calls update(candidate bytes); candidate deployed and migrate() runs."
+        },
+        {
+          "id": "approve",
+          "label": "First approval",
+          "transaction": "GFaUASHdhrZaWHufEyrcSF8SJUmCWVctXHVbbd4Yr7cP",
+          "result": "success",
+          "error": null,
+          "finality": {
+            "target": 32,
+            "finalized": 32,
+            "waitedMs": 1277
+          },
+          "detail": "Root VoteApprove; proposal becomes Approved; exactly 1 local NEAR is paid."
+        },
+        {
+          "id": "replay",
+          "label": "Retry VoteApprove",
+          "transaction": "F6mQGe7c6n5HCqNZpLJagTAg6sWDdmnBH67GZ9aF7zZb",
+          "result": "failure",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at sputnikdao2/src/proposals.rs:634:17:\\nERR_PROPOSAL_NOT_READY_FOR_VOTE\"}}}}",
+          "finality": {
+            "target": 37,
+            "finalized": 37,
+            "waitedMs": 1022
+          },
+          "detail": "Rejected after Approved; no second transfer."
+        },
+        {
+          "id": "finalizeRetry",
+          "label": "Retry Finalize",
+          "transaction": "7zjvaUmHAXT7GmtNnkoHYtBmbtTBgT3SVjCbhAj8mErK",
+          "result": "failure",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at sputnikdao2/src/policy.rs:394:9:\\nERR_PROPOSAL_NOT_IN_PROGRESS\"}}}}",
+          "finality": {
+            "target": 42,
+            "finalized": 42,
+            "waitedMs": 1021
+          },
+          "detail": "Rejected because policy::proposal_status only accepts InProgress/Failed; no second transfer."
+        }
+      ],
+      "checks": {
+        "nodePassed": true,
+        "nativePassed": true,
+        "nativeEvidenceStages": [
+          "deploy",
+          "init",
+          "add_proposal",
+          "update",
+          "approve",
+          "replay",
+          "finalize_retry",
+          "complete"
+        ],
+        "configUnchanged": true,
+        "proposalSurvived": true,
+        "firstPaymentExact": true,
+        "bothRetriesRejected": true,
+        "noSecondTransfer": true,
+        "finalityTargetsReached": true,
+        "receiptGraphsSucceeded": true
+      },
+      "scope": [
+        "Historical source pins; no source or lockfile changes.",
+        "Locally constructed old-version state, not a mainnet capture.",
+        "Local configured-factory update, not governance UpgradeSelf or the self-call/callback branch.",
+        "Recorded local run; ownership evidence retained outside Git.",
+        "Two tested retry routes, not a universal exactly-once guarantee.",
+        "No safe-release, onchain-mainnet, or current-app Sputnik-support claim."
+      ],
+      "limits": [
+        "Local historical-source pilot, not current product integration.",
+        "No maintainer acceptance, measured preference, time saving, or production safety claim.",
+        "Native near-workspaces can express the same invariant; the hypothesis is reviewer effort and packaging, not a unique execution primitive."
+      ],
+      "negativeControls": [
+        {
+          "label": "Hash rejected",
+          "status": "rejected",
+          "detail": "Wrong candidate hash rejected at the inputs stage before any Sandbox transaction.",
+          "link": "evidence/wrong-hash-probe.json"
+        },
+        {
+          "label": "Unconfigured caller denied",
+          "status": "denied",
+          "detail": "Separate probe: upgrade denied with ERR_MUST_BE_SELF_OR_FACTORY; code and config unchanged.",
+          "link": "evidence/authority-probe.json"
+        }
+      ],
+      "commands": {
+        "rerun": "node case-triage/sputnik-226/run-case.cjs --sandbox-dir \"/path/to/pinned/sandbox-directory\" --out \"/path/to/new-output-directory\"",
+        "verify": "node case-triage/sputnik-226/review-packet/verify.cjs",
+        "note": "The runner verifies the recorded packet and supplied artifacts, then writes fresh evidence to a new directory. It never overwrites an existing run. Offline verification is not cryptographic proof of execution; the rerun is the execution check.",
+        "prerequisite": "Fresh local replay needs a shell that permits local TCP listeners on 127.0.0.1 and 0.0.0.0. run-case.cjs now fails fast with a setup error if the shell denies the bind; increasing Node heap will not fix it."
+      },
+      "packet": {
+        "href": "downloads/226/index.html",
+        "verify": "downloads/226/index.html",
+        "sha256": "ffdabb82b4f0103ca42f531fb3fbc63e10bf123b374777bc7690328fb54dceca"
+      },
+      "downloads": {
+        "evidence": {
+          "path": "downloads/226-evidence.zip",
+          "sha256": "e0a254832e0e593557f0df0e622806b03b11662d85d2f750ae92ab0aa3b6b01b",
+          "bytes": 830245
+        },
+        "directory": "downloads/226/",
+        "packet": "downloads/226/index.html"
+      }
+    },
+    "238": {
+      "title": "Sputnik #238 — repair decision",
+      "kind": "repair-decision",
+      "label": "Recorded execution",
+      "source": {
+        "repository": "https://github.com/near-daos/sputnik-dao-contract",
+        "commit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b",
+        "issue": "https://github.com/near-daos/sputnik-dao-contract/issues/238",
+        "baseWasmSha256": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578"
+      },
+      "runtime": {
+        "version": "2.14.0",
+        "commit": "bc4e9e8cfb03d9e82f027883055624e18576993e",
+        "protocol": 88,
+        "binarySha256": "6fb550b3cda8d877e86b9da7aed7f6dffe4a320c59def0dc6fd016e65d8605c2"
+      },
+      "policy": {
+        "files": {
+          "mixedObligation": "759da1ae9e29bdca71f37d462b82f0d9e6bc25494b28610c1f82341855b5d27c",
+          "mixedPolicy": "5b231ff0a98b86d1b08bbdef485a7898848ef8476f58c2178fab65efe5ab251d",
+          "baseWasm": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578",
+          "baseReport": "73b5ef5d3ee19fe1bc165cf7f7d542b4903732c9bf91daae500f66c10a4b922f"
+        },
+        "sha256": "003766299d6f793f6a6b724296f23a3bd78c7b968323c8d20dc2d1ad40f4c2c6"
+      },
+      "baseline": {
+        "label": "Pinned baseline — no repair",
+        "stages": [
+          {
+            "id": "beforeUpgrade",
+            "label": "Before upgrade",
+            "locked": "2000000000000000000000000",
+            "blockHeight": null,
+            "blockHash": null,
+            "proposals": {
+              "alice": {
+                "id": 1,
+                "proposer": "alice.test.near",
+                "description": "alice failed async",
+                "kind": {
+                  "FunctionCall": {
+                    "receiver_id": "missing-target.test.near",
+                    "actions": [
+                      {
+                        "method_name": "ping",
+                        "args": "",
+                        "deposit": "0",
+                        "gas": "20000000000000"
+                      }
+                    ]
+                  }
+                },
+                "status": "Failed",
+                "vote_counts": {
+                  "council": [
+                    "1",
+                    "0",
+                    "0"
+                  ]
+                },
+                "votes": {
+                  "alice.test.near": "Approve"
+                },
+                "submission_time": "1794578965627112249",
+                "last_actions_log": [
+                  {
+                    "block_height": "66"
+                  },
+                  {
+                    "block_height": "72"
+                  }
+                ]
+              },
+              "bob": {
+                "id": 2,
+                "proposer": "bob.test.near",
+                "description": "bob healthy pending",
+                "kind": {
+                  "Transfer": {
+                    "token_id": "",
+                    "receiver_id": "bob-recipient.test.near",
+                    "amount": "100000000000000000000000",
+                    "msg": null
+                  }
+                },
+                "status": "InProgress",
+                "vote_counts": {},
+                "votes": {},
+                "submission_time": "1794578977293199213",
+                "last_actions_log": [
+                  {
+                    "block_height": "84"
+                  }
+                ]
+              },
+              "carol": {
+                "id": 0,
+                "proposer": "carol.test.near",
+                "description": "carol already paid",
+                "kind": {
+                  "Transfer": {
+                    "token_id": "",
+                    "receiver_id": "carol-recipient.test.near",
+                    "amount": "100000000000000000000000",
+                    "msg": null
+                  }
+                },
+                "status": "Approved",
+                "vote_counts": {
+                  "council": [
+                    "1",
+                    "0",
+                    "0"
+                  ]
+                },
+                "votes": {
+                  "alice.test.near": "Approve"
+                },
+                "submission_time": "1794578952476902187",
+                "last_actions_log": [
+                  {
+                    "block_height": "47"
+                  },
+                  {
+                    "block_height": "53"
+                  }
+                ]
+              }
+            },
+            "balances": {
+              "alice": "98998546309623677800000000",
+              "bob": "98999764546485631400000000",
+              "carol": "99999767980029758700000000",
+              "aliceRecipient": "10000000000000000000000000",
+              "bobRecipient": "10000000000000000000000000",
+              "carolRecipient": "10100000000000000000000000",
+              "dao": "101896167652766276500000000"
+            }
+          },
+          {
+            "id": "afterUpgrade",
+            "label": "After upgrade",
+            "locked": "2000000000000000000000000",
+            "blockHeight": null,
+            "blockHash": null,
+            "proposals": {
+              "alice": {
+                "id": 1,
+                "proposer": "alice.test.near",
+                "description": "alice failed async",
+                "kind": {
+                  "FunctionCall": {
+                    "receiver_id": "missing-target.test.near",
+                    "actions": [
+                      {
+                        "method_name": "ping",
+                        "args": "",
+                        "deposit": "0",
+                        "gas": "20000000000000"
+                      }
+                    ]
+                  }
+                },
+                "status": "Failed",
+                "vote_counts": {
+                  "council": [
+                    "1",
+                    "0",
+                    "0"
+                  ]
+                },
+                "votes": {
+                  "alice.test.near": "Approve"
+                },
+                "submission_time": "1794578965627112249",
+                "last_actions_log": [
+                  {
+                    "block_height": "66"
+                  },
+                  {
+                    "block_height": "72"
+                  }
+                ]
+              },
+              "bob": {
+                "id": 2,
+                "proposer": "bob.test.near",
+                "description": "bob healthy pending",
+                "kind": {
+                  "Transfer": {
+                    "token_id": "",
+                    "receiver_id": "bob-recipient.test.near",
+                    "amount": "100000000000000000000000",
+                    "msg": null
+                  }
+                },
+                "status": "InProgress",
+                "vote_counts": {},
+                "votes": {},
+                "submission_time": "1794578977293199213",
+                "last_actions_log": [
+                  {
+                    "block_height": "84"
+                  }
+                ]
+              },
+              "carol": {
+                "id": 0,
+                "proposer": "carol.test.near",
+                "description": "carol already paid",
+                "kind": {
+                  "Transfer": {
+                    "token_id": "",
+                    "receiver_id": "carol-recipient.test.near",
+                    "amount": "100000000000000000000000",
+                    "msg": null
+                  }
+                },
+                "status": "Approved",
+                "vote_counts": {
+                  "council": [
+                    "1",
+                    "0",
+                    "0"
+                  ]
+                },
+                "votes": {
+                  "alice.test.near": "Approve"
+                },
+                "submission_time": "1794578952476902187",
+                "last_actions_log": [
+                  {
+                    "block_height": "47"
+                  },
+                  {
+                    "block_height": "53"
+                  }
+                ]
+              }
+            },
+            "balances": {
+              "alice": "98998546309623677800000000",
+              "bob": "98999764546485631400000000",
+              "carol": "99999767980029758700000000",
+              "aliceRecipient": "10000000000000000000000000",
+              "bobRecipient": "10000000000000000000000000",
+              "carolRecipient": "10100000000000000000000000",
+              "dao": "101892126324858897000000000"
+            }
+          }
+        ],
+        "note": "Two obligations are already locked. This is the state the repair must preserve while releasing only Alice’s bond."
+      },
+      "candidates": [
+        {
+          "id": "clear-all",
+          "label": "Clear-all repair",
+          "status": "REJECTED",
+          "summary": "Alice is refunded, but the aggregate locked ledger drops from 2 NEAR to 0. Bob’s inherited liability disappears before his funded operation, so the repair is rejected.",
+          "errors": [
+            "Alice recovery did not release exactly one locked bond",
+            "Bob liability disappeared after Alice recovery",
+            "Bob settlement failed payout or liability-release checks"
+          ],
+          "outcomes": {
+            "alicePaid": true,
+            "aliceProposerDelta": "999308265580192200000000",
+            "aliceRetryPayerDelta": "-640011183186600000000",
+            "aliceLockedDelta": "-2000000000000000000000000",
+            "bobLiabilityAfterAlice": false,
+            "bobTransferPaid": true,
+            "bobPaidExactlyOnce": false,
+            "bobProposerDelta": "1000000000000000000000000",
+            "bobPayerDelta": "-621225190633600000000",
+            "bobRetryPayerDelta": "-228299809807500000000",
+            "carolRetryPayerDelta": "-228352698206700000000",
+            "aliceStatusAfterRetry": "Failed",
+            "bobStatusAfterRetry": "Approved",
+            "carolStatusAfterRetry": "Approved",
+            "bobLockedDelta": "0",
+            "bobRecipientDelta": "100000000000000000000000",
+            "gas": {
+              "aliceRecovery": "691734419807800000000",
+              "aliceRetry": "640011183186600000000",
+              "bobPayout": "621225190633600000000",
+              "bobRetry": "228299809807500000000",
+              "carolRetry": "228352698206700000000"
+            }
+          },
+          "stages": [
+            {
+              "id": "beforeUpgrade",
+              "label": "Before upgrade",
+              "locked": "2000000000000000000000000",
+              "blockHeight": 85,
+              "blockHash": "hGWrSpKTxCwPQBAEfqMrwu3vdRGRguxTdP5rg4hU4tS",
+              "proposals": {
+                "alice": {
+                  "id": 1,
+                  "proposer": "alice.test.near",
+                  "description": "alice failed async",
+                  "kind": {
+                    "FunctionCall": {
+                      "receiver_id": "missing-target.test.near",
+                      "actions": [
+                        {
+                          "method_name": "ping",
+                          "args": "",
+                          "deposit": "0",
+                          "gas": "20000000000000"
+                        }
+                      ]
+                    }
+                  },
+                  "status": "Failed",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582750605915306",
+                  "last_actions_log": [
+                    {
+                      "block_height": "65"
+                    },
+                    {
+                      "block_height": "71"
+                    }
+                  ]
+                },
+                "bob": {
+                  "id": 2,
+                  "proposer": "bob.test.near",
+                  "description": "bob healthy pending",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "bob-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "InProgress",
+                  "vote_counts": {},
+                  "votes": {},
+                  "submission_time": "1794582761302872140",
+                  "last_actions_log": [
+                    {
+                      "block_height": "82"
+                    }
+                  ]
+                },
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582738710992599",
+                  "last_actions_log": [
+                    {
+                      "block_height": "46"
+                    },
+                    {
+                      "block_height": "52"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "98998546309623677800000000",
+                "bob": "98999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10000000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "101896167652766276500000000"
+              }
+            },
+            {
+              "id": "afterUpgrade",
+              "label": "After upgrade",
+              "locked": "2000000000000000000000000",
+              "blockHeight": 99,
+              "blockHash": "GDJTVPXQAefkG1hTmn9V9KaZvQRDhs5c5tvy3C3CMgX2",
+              "proposals": {
+                "alice": {
+                  "id": 1,
+                  "proposer": "alice.test.near",
+                  "description": "alice failed async",
+                  "kind": {
+                    "FunctionCall": {
+                      "receiver_id": "missing-target.test.near",
+                      "actions": [
+                        {
+                          "method_name": "ping",
+                          "args": "",
+                          "deposit": "0",
+                          "gas": "20000000000000"
+                        }
+                      ]
+                    }
+                  },
+                  "status": "Failed",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582750605915306",
+                  "last_actions_log": [
+                    {
+                      "block_height": "65"
+                    },
+                    {
+                      "block_height": "71"
+                    }
+                  ]
+                },
+                "bob": {
+                  "id": 2,
+                  "proposer": "bob.test.near",
+                  "description": "bob healthy pending",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "bob-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "InProgress",
+                  "vote_counts": {},
+                  "votes": {},
+                  "submission_time": "1794582761302872140",
+                  "last_actions_log": [
+                    {
+                      "block_height": "82"
+                    }
+                  ]
+                },
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582738710992599",
+                  "last_actions_log": [
+                    {
+                      "block_height": "46"
+                    },
+                    {
+                      "block_height": "52"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "98998546309623677800000000",
+                "bob": "98999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10000000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "101892131803986889800000000"
+              }
+            },
+            {
+              "id": "aliceRecovery",
+              "label": "Alice recovery",
+              "locked": "0",
+              "blockHeight": 113,
+              "blockHash": "44SHc3YKrK3WBskULSp2kzT6Mc8WRcE6FxaDzXg1iHip",
+              "proposals": {
+                "alice": {
+                  "id": 1,
+                  "proposer": "alice.test.near",
+                  "description": "alice failed async",
+                  "kind": {
+                    "FunctionCall": {
+                      "receiver_id": "missing-target.test.near",
+                      "actions": [
+                        {
+                          "method_name": "ping",
+                          "args": "",
+                          "deposit": "0",
+                          "gas": "20000000000000"
+                        }
+                      ]
+                    }
+                  },
+                  "status": "Failed",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582750605915306",
+                  "last_actions_log": [
+                    {
+                      "block_height": "65"
+                    },
+                    {
+                      "block_height": "71"
+                    },
+                    {
+                      "block_height": "106"
+                    }
+                  ]
+                },
+                "bob": {
+                  "id": 2,
+                  "proposer": "bob.test.near",
+                  "description": "bob healthy pending",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "bob-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "InProgress",
+                  "vote_counts": {},
+                  "votes": {},
+                  "submission_time": "1794582761302872140",
+                  "last_actions_log": [
+                    {
+                      "block_height": "82"
+                    }
+                  ]
+                },
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582738710992599",
+                  "last_actions_log": [
+                    {
+                      "block_height": "46"
+                    },
+                    {
+                      "block_height": "52"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "99997854575203870000000000",
+                "bob": "98999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10000000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "100892131803986889800000000"
+              }
+            },
+            {
+              "id": "aliceRetry",
+              "label": "Alice retry",
+              "locked": "0",
+              "blockHeight": 123,
+              "blockHash": "ET4KV9U5nyjMFfEQvcAo7khTydeoMUMw4iTmpqUFfA7b",
+              "proposals": {
+                "alice": {
+                  "id": 1,
+                  "proposer": "alice.test.near",
+                  "description": "alice failed async",
+                  "kind": {
+                    "FunctionCall": {
+                      "receiver_id": "missing-target.test.near",
+                      "actions": [
+                        {
+                          "method_name": "ping",
+                          "args": "",
+                          "deposit": "0",
+                          "gas": "20000000000000"
+                        }
+                      ]
+                    }
+                  },
+                  "status": "Failed",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582750605915306",
+                  "last_actions_log": [
+                    {
+                      "block_height": "65"
+                    },
+                    {
+                      "block_height": "71"
+                    },
+                    {
+                      "block_height": "106"
+                    },
+                    {
+                      "block_height": "118"
+                    }
+                  ]
+                },
+                "bob": {
+                  "id": 2,
+                  "proposer": "bob.test.near",
+                  "description": "bob healthy pending",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "bob-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "InProgress",
+                  "vote_counts": {},
+                  "votes": {},
+                  "submission_time": "1794582761302872140",
+                  "last_actions_log": [
+                    {
+                      "block_height": "82"
+                    }
+                  ]
+                },
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582738710992599",
+                  "last_actions_log": [
+                    {
+                      "block_height": "46"
+                    },
+                    {
+                      "block_height": "52"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "99997214564020683400000000",
+                "bob": "98999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10000000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "100892131803986889800000000"
+              }
+            },
+            {
+              "id": "bobPayout",
+              "label": "Bob payout",
+              "locked": "0",
+              "blockHeight": 136,
+              "blockHash": "FLG78cKwBS7c5CAnhZAhJuQ13g3nqxpzzzof5h1CNGKS",
+              "proposals": {
+                "alice": {
+                  "id": 1,
+                  "proposer": "alice.test.near",
+                  "description": "alice failed async",
+                  "kind": {
+                    "FunctionCall": {
+                      "receiver_id": "missing-target.test.near",
+                      "actions": [
+                        {
+                          "method_name": "ping",
+                          "args": "",
+                          "deposit": "0",
+                          "gas": "20000000000000"
+                        }
+                      ]
+                    }
+                  },
+                  "status": "Failed",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582750605915306",
+                  "last_actions_log": [
+                    {
+                      "block_height": "65"
+                    },
+                    {
+                      "block_height": "71"
+                    },
+                    {
+                      "block_height": "106"
+                    },
+                    {
+                      "block_height": "118"
+                    }
+                  ]
+                },
+                "bob": {
+                  "id": 2,
+                  "proposer": "bob.test.near",
+                  "description": "bob healthy pending",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "bob-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582761302872140",
+                  "last_actions_log": [
+                    {
+                      "block_height": "82"
+                    },
+                    {
+                      "block_height": "129"
+                    }
+                  ]
+                },
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582738710992599",
+                  "last_actions_log": [
+                    {
+                      "block_height": "46"
+                    },
+                    {
+                      "block_height": "52"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "99996593338830049800000000",
+                "bob": "99999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10100000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "99792131803986889800000000"
+              }
+            },
+            {
+              "id": "bobRetry",
+              "label": "Bob retry",
+              "locked": "0",
+              "blockHeight": 145,
+              "blockHash": "EjfMSLUbND7YwiNNqzFgRDAtgRdqcokzV3bC3bQdae5H",
+              "proposals": {
+                "bob": {
+                  "id": 2,
+                  "proposer": "bob.test.near",
+                  "description": "bob healthy pending",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "bob-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582761302872140",
+                  "last_actions_log": [
+                    {
+                      "block_height": "82"
+                    },
+                    {
+                      "block_height": "129"
+                    }
+                  ]
+                },
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582738710992599",
+                  "last_actions_log": [
+                    {
+                      "block_height": "46"
+                    },
+                    {
+                      "block_height": "52"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "99996365039020242300000000",
+                "bob": "99999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10100000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "99792131803986889800000000"
+              }
+            },
+            {
+              "id": "carolRetry",
+              "label": "Carol retry",
+              "locked": "0",
+              "blockHeight": 154,
+              "blockHash": "7vhhmWXMY573Nox8KhCPZbx79iSf3buGCWmMUfZhnTye",
+              "proposals": {
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582738710992599",
+                  "last_actions_log": [
+                    {
+                      "block_height": "46"
+                    },
+                    {
+                      "block_height": "52"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "99996136686322035600000000",
+                "bob": "99999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10100000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "99792131803986889800000000"
+              }
+            }
+          ],
+          "cash": {
+            "aliceBondReturned": "999308265580192200000000",
+            "aliceContractDelta": "-1000000000000000000000000",
+            "bobTransfer": "100000000000000000000000",
+            "bobBondReturned": "1000000000000000000000000",
+            "bobContractDelta": "-1100000000000000000000000"
+          },
+          "candidate": {
+            "wasm": {
+              "sha256": "684eabc429fc691f68aef8baf7f2e226f42ae481e3da4a1f41a54598e302d9b6",
+              "bytes": 527889,
+              "path": "downloads/238/clear-all.wasm"
+            },
+            "patch": {
+              "sha256": "2f905c3f0849b24f362e75a4771a597715a779cc6a78c15aef2ae1a077a8cd11",
+              "path": "downloads/238/clear-all.patch"
+            },
+            "report": {
+              "path": "downloads/238/mixed-obligation-clear-all.json",
+              "sha256": "78e66885dc506e130ca30b2270c76bdc7ea42de52efacaa78dbdf9efd915c7ab",
+              "bytes": 96373
+            }
+          },
+          "evidence": [
+            {
+              "label": "Recorded report",
+              "href": "downloads/238/mixed-obligation-clear-all.json"
+            },
+            {
+              "label": "Source patch",
+              "href": "downloads/238/clear-all.patch"
+            },
+            {
+              "label": "Candidate WASM",
+              "href": "downloads/238/clear-all.wasm"
+            }
+          ]
+        },
+        {
+          "id": "intended",
+          "label": "Intended repair",
+          "status": "ACCEPTED",
+          "summary": "Alice recovers exactly her bond; Bob’s 1 NEAR remains locked until his funded operation, then both liabilities reach zero.",
+          "errors": [],
+          "outcomes": {
+            "alicePaid": true,
+            "aliceProposerDelta": "999307697170046200000000",
+            "aliceRetryPayerDelta": "-639504224761100000000",
+            "aliceLockedDelta": "-1000000000000000000000000",
+            "bobLiabilityAfterAlice": true,
+            "bobTransferPaid": true,
+            "bobPaidExactlyOnce": true,
+            "bobProposerDelta": "1000000000000000000000000",
+            "bobPayerDelta": "-621734280072000000000",
+            "bobRetryPayerDelta": "-228444384818300000000",
+            "carolRetryPayerDelta": "-228497273217500000000",
+            "aliceStatusAfterRetry": "Failed",
+            "bobStatusAfterRetry": "Approved",
+            "carolStatusAfterRetry": "Approved",
+            "bobLockedDelta": "-1000000000000000000000000",
+            "bobRecipientDelta": "100000000000000000000000",
+            "gas": {
+              "aliceRecovery": "692302829953800000000",
+              "aliceRetry": "639504224761100000000",
+              "bobPayout": "621734280072000000000",
+              "bobRetry": "228444384818300000000",
+              "carolRetry": "228497273217500000000"
+            }
+          },
+          "stages": [
+            {
+              "id": "beforeUpgrade",
+              "label": "Before upgrade",
+              "locked": "2000000000000000000000000",
+              "blockHeight": 87,
+              "blockHash": "4zYGLXSXkJSkPZ2FaSnk1qN6bgoWgowcC4M3NAUbNnWC",
+              "proposals": {
+                "alice": {
+                  "id": 1,
+                  "proposer": "alice.test.near",
+                  "description": "alice failed async",
+                  "kind": {
+                    "FunctionCall": {
+                      "receiver_id": "missing-target.test.near",
+                      "actions": [
+                        {
+                          "method_name": "ping",
+                          "args": "",
+                          "deposit": "0",
+                          "gas": "20000000000000"
+                        }
+                      ]
+                    }
+                  },
+                  "status": "Failed",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582577251367131",
+                  "last_actions_log": [
+                    {
+                      "block_height": "66"
+                    },
+                    {
+                      "block_height": "72"
+                    }
+                  ]
+                },
+                "bob": {
+                  "id": 2,
+                  "proposer": "bob.test.near",
+                  "description": "bob healthy pending",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "bob-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "InProgress",
+                  "vote_counts": {},
+                  "votes": {},
+                  "submission_time": "1794582588332435679",
+                  "last_actions_log": [
+                    {
+                      "block_height": "83"
+                    }
+                  ]
+                },
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582564671885928",
+                  "last_actions_log": [
+                    {
+                      "block_height": "47"
+                    },
+                    {
+                      "block_height": "53"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "98998546309623677800000000",
+                "bob": "98999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10000000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "101896167652766276500000000"
+              }
+            },
+            {
+              "id": "afterUpgrade",
+              "label": "After upgrade",
+              "locked": "2000000000000000000000000",
+              "blockHeight": 100,
+              "blockHash": "GKHu2BTVsbz5379i9anWWoNv1iHVNqh5xn5eWdHtL5N8",
+              "proposals": {
+                "alice": {
+                  "id": 1,
+                  "proposer": "alice.test.near",
+                  "description": "alice failed async",
+                  "kind": {
+                    "FunctionCall": {
+                      "receiver_id": "missing-target.test.near",
+                      "actions": [
+                        {
+                          "method_name": "ping",
+                          "args": "",
+                          "deposit": "0",
+                          "gas": "20000000000000"
+                        }
+                      ]
+                    }
+                  },
+                  "status": "Failed",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582577251367131",
+                  "last_actions_log": [
+                    {
+                      "block_height": "66"
+                    },
+                    {
+                      "block_height": "72"
+                    }
+                  ]
+                },
+                "bob": {
+                  "id": 2,
+                  "proposer": "bob.test.near",
+                  "description": "bob healthy pending",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "bob-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "InProgress",
+                  "vote_counts": {},
+                  "votes": {},
+                  "submission_time": "1794582588332435679",
+                  "last_actions_log": [
+                    {
+                      "block_height": "83"
+                    }
+                  ]
+                },
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582564671885928",
+                  "last_actions_log": [
+                    {
+                      "block_height": "47"
+                    },
+                    {
+                      "block_height": "53"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "98998546309623677800000000",
+                "bob": "98999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10000000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "101892135238151747000000000"
+              }
+            },
+            {
+              "id": "aliceRecovery",
+              "label": "Alice recovery",
+              "locked": "1000000000000000000000000",
+              "blockHeight": 116,
+              "blockHash": "F7d9rYGbBwFEngUcEi6fwydDRr4LX6ky18fTv9th3pCT",
+              "proposals": {
+                "alice": {
+                  "id": 1,
+                  "proposer": "alice.test.near",
+                  "description": "alice failed async",
+                  "kind": {
+                    "FunctionCall": {
+                      "receiver_id": "missing-target.test.near",
+                      "actions": [
+                        {
+                          "method_name": "ping",
+                          "args": "",
+                          "deposit": "0",
+                          "gas": "20000000000000"
+                        }
+                      ]
+                    }
+                  },
+                  "status": "Failed",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582577251367131",
+                  "last_actions_log": [
+                    {
+                      "block_height": "66"
+                    },
+                    {
+                      "block_height": "72"
+                    },
+                    {
+                      "block_height": "108"
+                    }
+                  ]
+                },
+                "bob": {
+                  "id": 2,
+                  "proposer": "bob.test.near",
+                  "description": "bob healthy pending",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "bob-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "InProgress",
+                  "vote_counts": {},
+                  "votes": {},
+                  "submission_time": "1794582588332435679",
+                  "last_actions_log": [
+                    {
+                      "block_height": "83"
+                    }
+                  ]
+                },
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582564671885928",
+                  "last_actions_log": [
+                    {
+                      "block_height": "47"
+                    },
+                    {
+                      "block_height": "53"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "99997854006793724000000000",
+                "bob": "98999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10000000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "100892135238151747000000000"
+              }
+            },
+            {
+              "id": "aliceRetry",
+              "label": "Alice retry",
+              "locked": "1000000000000000000000000",
+              "blockHeight": 127,
+              "blockHash": "3F97GyjYhsH79vCQUFn4mbT1hG5x6BJYuNhTDnRaMpsd",
+              "proposals": {
+                "alice": {
+                  "id": 1,
+                  "proposer": "alice.test.near",
+                  "description": "alice failed async",
+                  "kind": {
+                    "FunctionCall": {
+                      "receiver_id": "missing-target.test.near",
+                      "actions": [
+                        {
+                          "method_name": "ping",
+                          "args": "",
+                          "deposit": "0",
+                          "gas": "20000000000000"
+                        }
+                      ]
+                    }
+                  },
+                  "status": "Failed",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582577251367131",
+                  "last_actions_log": [
+                    {
+                      "block_height": "66"
+                    },
+                    {
+                      "block_height": "72"
+                    },
+                    {
+                      "block_height": "108"
+                    },
+                    {
+                      "block_height": "121"
+                    }
+                  ]
+                },
+                "bob": {
+                  "id": 2,
+                  "proposer": "bob.test.near",
+                  "description": "bob healthy pending",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "bob-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "InProgress",
+                  "vote_counts": {},
+                  "votes": {},
+                  "submission_time": "1794582588332435679",
+                  "last_actions_log": [
+                    {
+                      "block_height": "83"
+                    }
+                  ]
+                },
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582564671885928",
+                  "last_actions_log": [
+                    {
+                      "block_height": "47"
+                    },
+                    {
+                      "block_height": "53"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "99997214502568962900000000",
+                "bob": "98999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10000000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "100892135238151747000000000"
+              }
+            },
+            {
+              "id": "bobPayout",
+              "label": "Bob payout",
+              "locked": "0",
+              "blockHeight": 139,
+              "blockHash": "B8bj2aSMaGsLV7xgNjLAvJXQqXBVV2SYJ49MgTPhrNVp",
+              "proposals": {
+                "alice": {
+                  "id": 1,
+                  "proposer": "alice.test.near",
+                  "description": "alice failed async",
+                  "kind": {
+                    "FunctionCall": {
+                      "receiver_id": "missing-target.test.near",
+                      "actions": [
+                        {
+                          "method_name": "ping",
+                          "args": "",
+                          "deposit": "0",
+                          "gas": "20000000000000"
+                        }
+                      ]
+                    }
+                  },
+                  "status": "Failed",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582577251367131",
+                  "last_actions_log": [
+                    {
+                      "block_height": "66"
+                    },
+                    {
+                      "block_height": "72"
+                    },
+                    {
+                      "block_height": "108"
+                    },
+                    {
+                      "block_height": "121"
+                    }
+                  ]
+                },
+                "bob": {
+                  "id": 2,
+                  "proposer": "bob.test.near",
+                  "description": "bob healthy pending",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "bob-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582588332435679",
+                  "last_actions_log": [
+                    {
+                      "block_height": "83"
+                    },
+                    {
+                      "block_height": "132"
+                    }
+                  ]
+                },
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582564671885928",
+                  "last_actions_log": [
+                    {
+                      "block_height": "47"
+                    },
+                    {
+                      "block_height": "53"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "99996592768288890900000000",
+                "bob": "99999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10100000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "99792135238151747000000000"
+              }
+            },
+            {
+              "id": "bobRetry",
+              "label": "Bob retry",
+              "locked": "0",
+              "blockHeight": 147,
+              "blockHash": "6oAWVict4akqNdQwNC2arE1tQTs6ckp3aJ8VP6RjehWs",
+              "proposals": {
+                "bob": {
+                  "id": 2,
+                  "proposer": "bob.test.near",
+                  "description": "bob healthy pending",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "bob-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582588332435679",
+                  "last_actions_log": [
+                    {
+                      "block_height": "83"
+                    },
+                    {
+                      "block_height": "132"
+                    }
+                  ]
+                },
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582564671885928",
+                  "last_actions_log": [
+                    {
+                      "block_height": "47"
+                    },
+                    {
+                      "block_height": "53"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "99996364323904072600000000",
+                "bob": "99999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10100000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "99792135238151747000000000"
+              }
+            },
+            {
+              "id": "carolRetry",
+              "label": "Carol retry",
+              "locked": "0",
+              "blockHeight": 157,
+              "blockHash": "FpzfPXFFNycqEyebTc7DSSZiVWTryy6MMKEao7Ray6eY",
+              "proposals": {
+                "carol": {
+                  "id": 0,
+                  "proposer": "carol.test.near",
+                  "description": "carol already paid",
+                  "kind": {
+                    "Transfer": {
+                      "token_id": "",
+                      "receiver_id": "carol-recipient.test.near",
+                      "amount": "100000000000000000000000",
+                      "msg": null
+                    }
+                  },
+                  "status": "Approved",
+                  "vote_counts": {
+                    "council": [
+                      "1",
+                      "0",
+                      "0"
+                    ]
+                  },
+                  "votes": {
+                    "alice.test.near": "Approve"
+                  },
+                  "submission_time": "1794582564671885928",
+                  "last_actions_log": [
+                    {
+                      "block_height": "47"
+                    },
+                    {
+                      "block_height": "53"
+                    }
+                  ]
+                }
+              },
+              "balances": {
+                "alice": "99996135826630855100000000",
+                "bob": "99999764546485631400000000",
+                "carol": "99999767980029758700000000",
+                "aliceRecipient": "10000000000000000000000000",
+                "bobRecipient": "10100000000000000000000000",
+                "carolRecipient": "10100000000000000000000000",
+                "dao": "99792135238151747000000000"
+              }
+            }
+          ],
+          "cash": {
+            "aliceBondReturned": "999307697170046200000000",
+            "aliceContractDelta": "-1000000000000000000000000",
+            "bobTransfer": "100000000000000000000000",
+            "bobBondReturned": "1000000000000000000000000",
+            "bobContractDelta": "-1100000000000000000000000"
+          },
+          "candidate": {
+            "wasm": {
+              "sha256": "49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923",
+              "bytes": 527405,
+              "path": "downloads/238/intended.wasm"
+            },
+            "patch": {
+              "sha256": "edf16b966f0f49f26d73b2ac0fde980b3f8c4f638fcbbcc7c6a6bcb4fd25cf21",
+              "path": "downloads/238/intended.patch"
+            },
+            "report": {
+              "path": "downloads/238/mixed-obligation-intended.json",
+              "sha256": "c2554f7c8d7f9d0aabbda8de2a1f6ab58db8ac192e86139d9e98797a7e039488",
+              "bytes": 96704
+            }
+          },
+          "evidence": [
+            {
+              "label": "Recorded report",
+              "href": "downloads/238/mixed-obligation-intended.json"
+            },
+            {
+              "label": "Source patch",
+              "href": "downloads/238/intended.patch"
+            },
+            {
+              "label": "Candidate WASM",
+              "href": "downloads/238/intended.wasm"
+            }
+          ]
+        }
+      ],
+      "defaultCandidate": "clear-all",
+      "commands": {
+        "review": "npm run review:patch -- --patch <downloaded>/clear-all.patch --source <clean-pinned-checkout> --out <new-directory> --sandbox-dir <sandbox-2.14-directory>",
+        "intended": "npm run review:patch -- --patch <downloaded>/intended.patch --source <clean-pinned-checkout> --out <new-directory> --sandbox-dir <sandbox-2.14-directory>"
+      },
+      "downloads": {
+        "evidence": {
+          "path": "downloads/238-evidence.zip",
+          "sha256": "55186a2325dc75dbe54843d0da0932b538d109b07c30462db727dbc2043b51e7",
+          "bytes": 537173
+        },
+        "directory": "downloads/238/"
+      }
+    }
+  }
+}

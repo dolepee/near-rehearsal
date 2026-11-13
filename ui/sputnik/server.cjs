@@ -33,10 +33,30 @@ const send = (res, status, data) => {
   res.writeHead(status, {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(body)});
   res.end(body);
 };
+const contentTypes = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.md': 'text/plain; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+  '.zip': 'application/zip',
+  '.wasm': 'application/wasm',
+};
 const file = (res, name) => {
   const ext = path.extname(name);
-  const type = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8'}[ext] || 'application/octet-stream';
+  const type = contentTypes[ext] || 'application/octet-stream';
   fs.readFile(path.join(PUBLIC, name), (e, data) => {
+    if (e) { res.writeHead(404); res.end('Not found'); return; }
+    res.writeHead(200, {'content-type': type, 'cache-control': 'no-store'}); res.end(data);
+  });
+};
+const nestedFile = (res, name) => {
+  const base = path.resolve(PUBLIC);
+  const target = path.resolve(base, name);
+  if (target !== base && !target.startsWith(`${base}${path.sep}`)) { res.writeHead(404); res.end('Not found'); return; }
+  const type = contentTypes[path.extname(target)] || 'application/octet-stream';
+  fs.readFile(target, (e, data) => {
     if (e) { res.writeHead(404); res.end('Not found'); return; }
     res.writeHead(200, {'content-type': type, 'cache-control': 'no-store'}); res.end(data);
   });
@@ -425,6 +445,8 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (url.pathname === '/') return file(res, 'home.html');
+    if (url.pathname === '/consequences' || url.pathname === '/consequences/') return file(res, 'consequences/index.html');
+    if (url.pathname.startsWith('/consequences/')) return nestedFile(res, url.pathname.slice(1));
     if (url.pathname === '/compare' || url.pathname === '/compare/' || url.pathname === '/index.html') return file(res, 'index.html');
     if ((url.pathname === '/repair' || url.pathname === '/repair/') && url.searchParams.get('mode') === 'patch') return file(res, 'patch.html');
     if (url.pathname === '/repair' || url.pathname === '/repair/') return file(res, 'repair.html');

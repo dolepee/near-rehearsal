@@ -32,6 +32,8 @@
     "test:classification": "node case-triage/sputnik-public-capture/test-classification.cjs",
     "test:operation-classification": "node scripts/test-operation-classification.cjs",
     "test:release-review": "node scripts/test-release-review-guards.cjs",
+    "build:consequences": "node scripts/build-consequence-workbench.cjs",
+    "test:consequences": "node scripts/test-consequence-workbench.cjs",
     "test": "node scripts/test-core.cjs",
     "doctor": "node scripts/check-setup.cjs",
     "ui:repair": "node scripts/start-rehearsal.cjs --flow repair",

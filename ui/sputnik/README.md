@@ -10,6 +10,18 @@ runner; it does not load a committed report as a fresh result.
 PORT=4174 npm run ui:sputnik
 ```
 
+Open `http://127.0.0.1:4174`. The recorded consequence workbench is at `/consequences`; its static directory is `ui/sputnik/public/consequences/`. Build it and check its evidence before starting the UI:
+
+```sh
+npm run build:consequences
+npm run test:consequences
+npm run ui:sputnik
+```
+
+The workbench is read-only recorded evidence for #238 and #226. It is not a
+fresh runner, does not call a provider and does not query a public chain. The
+`downloads/` tree is portable with the page for a static host.
+
 Open `http://127.0.0.1:4174`. The root `/` is the maintainer front door: the supported stranded-bond problem and three actions, **Check your source patch** (`/repair?mode=patch`), **Generate a fresh repair** (`/repair`) and **Independently review a repair** (`/review`). The older authored three-branch comparison is at `/compare`; `/index.html` remains a legacy alias of that comparison.
 
 Required local environment:

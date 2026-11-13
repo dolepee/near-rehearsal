@@ -1,0 +1,2725 @@
+{
+  "schema": "near-rehearsal/mixed-obligation/v1",
+  "generatedAt": "2026-11-13T14:10:22.830Z",
+  "caseId": "sputnik-238-same-dao-mixed",
+  "source": {
+    "repository": "https://github.com/near-daos/sputnik-dao-contract",
+    "commit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b",
+    "issue": "https://github.com/near-daos/sputnik-dao-contract/issues/238",
+    "baseWasmSha256": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578",
+    "baseWasmHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm"
+  },
+  "candidate": {
+    "wasmSha256": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578",
+    "wasmHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
+    "wasmBytes": 528645
+  },
+  "accounts": {
+    "contract": "dao.test.near",
+    "alice": "alice.test.near",
+    "bob": "bob.test.near",
+    "carol": "carol.test.near",
+    "aliceRecipient": "alice-recipient.test.near",
+    "bobRecipient": "bob-recipient.test.near",
+    "carolRecipient": "carol-recipient.test.near"
+  },
+  "deploy": {
+    "transactionHash": "CkTFbwVMkAbTqNueP3zEFb8zpqVXWrRgzAts7h5Hjd5e",
+    "finalExecutionStatus": "FINAL",
+    "succeeded": true,
+    "receiptFailure": false,
+    "transactionOutcome": {
+      "status": {
+        "SuccessReceiptId": "7eLjwk2hLa1czxTpo5s1gAYGnN5t99jDhdeqUMtErCq6"
+      },
+      "gasBurntUnits": "3894483106355",
+      "tokensBurntYocto": "389448310635500000000",
+      "rootReceiptIds": [
+        "7eLjwk2hLa1czxTpo5s1gAYGnN5t99jDhdeqUMtErCq6"
+      ]
+    },
+    "transactionTokensBurntYocto": "389448310635500000000",
+    "receiptTokensBurntYocto": "3442898923088000000000",
+    "gasBurntYocto": "3832347233723500000000",
+    "receipts": [
+      {
+        "id": "7eLjwk2hLa1czxTpo5s1gAYGnN5t99jDhdeqUMtErCq6",
+        "receiptIds": [
+          "AUTk32F2826DFv5gvvvTnG4exgmtvx7otHcx3YiQLcjd"
+        ],
+        "executorId": "dao.test.near",
+        "status": {
+          "SuccessValue": ""
+        },
+        "gasBurntUnits": "34428989230880",
+        "tokensBurntYocto": "3442898923088000000000",
+        "logs": []
+      },
+      {
+        "id": "AUTk32F2826DFv5gvvvTnG4exgmtvx7otHcx3YiQLcjd",
+        "receiptIds": [],
+        "executorId": "dao.test.near",
+        "status": {
+          "SuccessValue": ""
+        },
+        "gasBurntUnits": "223182562500",
+        "tokensBurntYocto": "0",
+        "logs": []
+      }
+    ],
+    "transaction": {
+      "signerId": "dao.test.near",
+      "receiverId": "dao.test.near",
+      "actions": [
+        {
+          "DeployContract": {
+            "code": "WiDqZR2mhMliPLubMsq5aOTu08oiuQXez9sqSqqhZXg="
+          }
+        }
+      ]
+    }
+  },
+  "init": {
+    "transactionHash": "Gho4nXF9a6XRMthigDE5tcBdzxL2K89VACFLLxmLDqkS",
+    "finalExecutionStatus": "FINAL",
+    "succeeded": true,
+    "receiptFailure": false,
+    "transactionOutcome": {
+      "status": {
+        "SuccessReceiptId": "CoUt8hkdsWdSpVU9m9hGsmCguKwcCxEa46crpB9JPYBG"
+      },
+      "gasBurntUnits": "314735220100",
+      "tokensBurntYocto": "31473522010000000000",
+      "rootReceiptIds": [
+        "CoUt8hkdsWdSpVU9m9hGsmCguKwcCxEa46crpB9JPYBG"
+      ]
+    },
+    "transactionTokensBurntYocto": "31473522010000000000",
+    "receiptTokensBurntYocto": "202857911886300000000",
+    "gasBurntYocto": "234331433896300000000",
+    "receipts": [
+      {
+        "id": "CoUt8hkdsWdSpVU9m9hGsmCguKwcCxEa46crpB9JPYBG",
+        "receiptIds": [
+          "38p5hWsrqgBgdAXCUV5Qn3Gpr19wn2FTdJuHmq9im6nz"
+        ],
+        "executorId": "dao.test.near",
+        "status": {
+          "SuccessValue": ""
+        },
+        "gasBurntUnits": "2028579118863",
+        "tokensBurntYocto": "202857911886300000000",
+        "logs": [
+          "Contract state version: V2"
+        ]
+      },
+      {
+        "id": "38p5hWsrqgBgdAXCUV5Qn3Gpr19wn2FTdJuHmq9im6nz",
+        "receiptIds": [],
+        "executorId": "test.near",
+        "status": {
+          "SuccessValue": ""
+        },
+        "gasBurntUnits": "223182562500",
+        "tokensBurntYocto": "0",
+        "logs": []
+      }
+    ],
+    "transaction": {
+      "signerId": "test.near",
+      "receiverId": "dao.test.near",
+      "actions": [
+        {
+          "FunctionCall": {
+            "args": "eyJjb25maWciOnsibmFtZSI6Im1peGVkLW9ibGlnYXRpb24tcmVjb3ZlcnkiLCJwdXJwb3NlIjoiYm91bmRlZCBzYW1lLURBTyBtaXhlZCBvYmxpZ2F0aW9ucyIsIm1ldGFkYXRhIjoiIn0sInBvbGljeSI6WyJhbGljZS50ZXN0Lm5lYXIiXX0=",
+            "deposit": "0",
+            "gas": 300000000000000,
+            "method_name": "new"
+          }
+        }
+      ]
+    }
+  },
+  "carol": {
+    "proposalId": 0,
+    "add": {
+      "transactionHash": "33RkcxyhdSwefaUBMWvZwUYobRXDgZWFHTMrMaoxtLEP",
+      "finalExecutionStatus": "FINAL",
+      "succeeded": true,
+      "receiptFailure": false,
+      "transactionOutcome": {
+        "status": {
+          "SuccessReceiptId": "6dADA1A33n75BB11xFny265gd9ueA8vVqtVi97Bi7pDH"
+        },
+        "gasBurntUnits": "316928670990",
+        "tokensBurntYocto": "31692867099000000000",
+        "rootReceiptIds": [
+          "6dADA1A33n75BB11xFny265gd9ueA8vVqtVi97Bi7pDH"
+        ]
+      },
+      "transactionTokensBurntYocto": "31692867099000000000",
+      "receiptTokensBurntYocto": "200327103142300000000",
+      "gasBurntYocto": "232019970241300000000",
+      "receipts": [
+        {
+          "id": "6dADA1A33n75BB11xFny265gd9ueA8vVqtVi97Bi7pDH",
+          "receiptIds": [
+            "4BgQ7nz4enBmxe9HgnaLVi7c4qdBbPinryhKuTtMsGTW"
+          ],
+          "executorId": "dao.test.near",
+          "status": {
+            "SuccessValue": "MA=="
+          },
+          "gasBurntUnits": "2003271031423",
+          "tokensBurntYocto": "200327103142300000000",
+          "logs": []
+        },
+        {
+          "id": "4BgQ7nz4enBmxe9HgnaLVi7c4qdBbPinryhKuTtMsGTW",
+          "receiptIds": [],
+          "executorId": "carol.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "logs": []
+        }
+      ],
+      "transaction": {
+        "signerId": "carol.test.near",
+        "receiverId": "dao.test.near",
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJwcm9wb3NhbCI6eyJkZXNjcmlwdGlvbiI6ImNhcm9sIGFscmVhZHkgcGFpZCIsImtpbmQiOnsiVHJhbnNmZXIiOnsidG9rZW5faWQiOiIiLCJyZWNlaXZlcl9pZCI6ImNhcm9sLXJlY2lwaWVudC50ZXN0Lm5lYXIiLCJhbW91bnQiOiIxMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJtc2ciOm51bGx9fX19",
+              "deposit": "1000000000000000000000000",
+              "gas": 300000000000000,
+              "method_name": "add_proposal"
+            }
+          }
+        ]
+      }
+    },
+    "after": {
+      "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "GQAAAG1peGVkLW9ibGlnYXRpb24tcmVjb3ZlcnkiAAAAYm91bmRlZCBzYW1lLURBTyBtaXhlZCBvYmxpZ2F0aW9ucwAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAADwAAAGFsaWNlLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "AwAAAAAAAAAA",
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyACtDx5cMoOcYAgAAAC8AAAAAAAAANQAAAAAAAAA="
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAQAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcCAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAA"
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ],
+      "stateHash": "805bf41d8c8e941feba93f5b287c7601cf947efef82364c48dfd0a924e683ab6",
+      "policy": {
+        "roles": [
+          {
+            "name": "all",
+            "kind": "Everyone",
+            "permissions": [
+              "*:AddProposal"
+            ],
+            "vote_policy": {}
+          },
+          {
+            "name": "council",
+            "kind": {
+              "Group": [
+                "alice.test.near"
+              ]
+            },
+            "permissions": [
+              "*:VoteReject",
+              "*:Finalize",
+              "*:AddProposal",
+              "*:VoteApprove",
+              "*:VoteRemove"
+            ],
+            "vote_policy": {}
+          }
+        ],
+        "default_vote_policy": {
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [
+            1,
+            2
+          ]
+        },
+        "proposal_bond": "1000000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "1000000000000000000000000",
+        "bounty_forgiveness_period": "86400000000000"
+      },
+      "proposals": {
+        "carol": {
+          "id": 0,
+          "proposer": "carol.test.near",
+          "description": "carol already paid",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "carol-recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "Approved",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578952476902187",
+          "last_actions_log": [
+            {
+              "block_height": "47"
+            },
+            {
+              "block_height": "53"
+            }
+          ]
+        }
+      },
+      "contractBalance": "99896167652766276500000000",
+      "storageUsage": 529805,
+      "availableAmount": "94598117652766276500000000",
+      "lockedStorageAmount": "5298050000000000000000000",
+      "lockedAmount": "0",
+      "balances": {
+        "alice": "99999402582121746300000000",
+        "bob": "100000000000000000000000000",
+        "carol": "99999767980029758700000000",
+        "aliceRecipient": "10000000000000000000000000",
+        "bobRecipient": "10000000000000000000000000",
+        "carolRecipient": "10100000000000000000000000",
+        "dao": "99896167652766276500000000"
+      }
+    }
+  },
+  "alice": {
+    "proposalId": 1,
+    "add": {
+      "transactionHash": "8jYyfCSyGRfMLSSbY3wHFf1MBg1vZ9R35GNrVqANX2xw",
+      "finalExecutionStatus": "FINAL",
+      "succeeded": true,
+      "receiptFailure": false,
+      "transactionOutcome": {
+        "status": {
+          "SuccessReceiptId": "3X6sCdyJRyGPNFES81Lqt2mDWABa4xPLqvAUQCPEJh2Q"
+        },
+        "gasBurntUnits": "318073080150",
+        "tokensBurntYocto": "31807308015000000000",
+        "rootReceiptIds": [
+          "3X6sCdyJRyGPNFES81Lqt2mDWABa4xPLqvAUQCPEJh2Q"
+        ]
+      },
+      "transactionTokensBurntYocto": "31807308015000000000",
+      "receiptTokensBurntYocto": "203733114672700000000",
+      "gasBurntYocto": "235540422687700000000",
+      "receipts": [
+        {
+          "id": "3X6sCdyJRyGPNFES81Lqt2mDWABa4xPLqvAUQCPEJh2Q",
+          "receiptIds": [
+            "2zN5wxuyDMjwQgrZApYmV4NwuJknnFav94ttiSymxSaE"
+          ],
+          "executorId": "dao.test.near",
+          "status": {
+            "SuccessValue": "MQ=="
+          },
+          "gasBurntUnits": "2037331146727",
+          "tokensBurntYocto": "203733114672700000000",
+          "logs": []
+        },
+        {
+          "id": "2zN5wxuyDMjwQgrZApYmV4NwuJknnFav94ttiSymxSaE",
+          "receiptIds": [],
+          "executorId": "alice.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "logs": []
+        }
+      ],
+      "transaction": {
+        "signerId": "alice.test.near",
+        "receiverId": "dao.test.near",
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJwcm9wb3NhbCI6eyJkZXNjcmlwdGlvbiI6ImFsaWNlIGZhaWxlZCBhc3luYyIsImtpbmQiOnsiRnVuY3Rpb25DYWxsIjp7InJlY2VpdmVyX2lkIjoibWlzc2luZy10YXJnZXQudGVzdC5uZWFyIiwiYWN0aW9ucyI6W3sibWV0aG9kX25hbWUiOiJwaW5nIiwiYXJncyI6IiIsImRlcG9zaXQiOiIwIiwiZ2FzIjoiMjAwMDAwMDAwMDAwMDAifV19fX19",
+              "deposit": "1000000000000000000000000",
+              "gas": 300000000000000,
+              "method_name": "add_proposal"
+            }
+          }
+        ]
+      }
+    },
+    "failed": {
+      "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "GQAAAG1peGVkLW9ibGlnYXRpb24tcmVjb3ZlcnkiAAAAYm91bmRlZCBzYW1lLURBTyBtaXhlZCBvYmxpZ2F0aW9ucwAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAADwAAAGFsaWNlLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "AwAAAAAAAAAA",
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyACtDx5cMoOcYAgAAAC8AAAAAAAAANQAAAAAAAAA="
+        },
+        {
+          "key": "AwEAAAAAAAAA",
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyADmLl6cPoOcYAgAAAEIAAAAAAAAASAAAAAAAAAA="
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAKHtzM4bwtMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAgAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcEAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAA"
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ],
+      "stateHash": "e8706d9ef16026394555bcd60f77f69184fc73ac0b7b55443802eb449cf87507",
+      "policy": {
+        "roles": [
+          {
+            "name": "all",
+            "kind": "Everyone",
+            "permissions": [
+              "*:AddProposal"
+            ],
+            "vote_policy": {}
+          },
+          {
+            "name": "council",
+            "kind": {
+              "Group": [
+                "alice.test.near"
+              ]
+            },
+            "permissions": [
+              "*:AddProposal",
+              "*:VoteApprove",
+              "*:Finalize",
+              "*:VoteRemove",
+              "*:VoteReject"
+            ],
+            "vote_policy": {}
+          }
+        ],
+        "default_vote_policy": {
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [
+            1,
+            2
+          ]
+        },
+        "proposal_bond": "1000000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "1000000000000000000000000",
+        "bounty_forgiveness_period": "86400000000000"
+      },
+      "proposals": {
+        "alice": {
+          "id": 1,
+          "proposer": "alice.test.near",
+          "description": "alice failed async",
+          "kind": {
+            "FunctionCall": {
+              "receiver_id": "missing-target.test.near",
+              "actions": [
+                {
+                  "method_name": "ping",
+                  "args": "",
+                  "deposit": "0",
+                  "gas": "20000000000000"
+                }
+              ]
+            }
+          },
+          "status": "Failed",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578965627112249",
+          "last_actions_log": [
+            {
+              "block_height": "66"
+            },
+            {
+              "block_height": "72"
+            }
+          ]
+        }
+      },
+      "contractBalance": "100896167652766276500000000",
+      "storageUsage": 530153,
+      "availableAmount": "94594637652766276500000000",
+      "lockedStorageAmount": "5301530000000000000000000",
+      "lockedAmount": "1000000000000000000000000",
+      "balances": {
+        "alice": "98998546309623677800000000",
+        "bob": "100000000000000000000000000",
+        "carol": "99999767980029758700000000",
+        "aliceRecipient": "10000000000000000000000000",
+        "bobRecipient": "10000000000000000000000000",
+        "carolRecipient": "10100000000000000000000000",
+        "dao": "100896167652766276500000000"
+      }
+    }
+  },
+  "bob": {
+    "proposalId": 2,
+    "add": {
+      "transactionHash": "69MmA3gtVNfBNAGchKtrCDgqgw2ExuaawqApbrsjL3bu",
+      "finalExecutionStatus": "FINAL",
+      "succeeded": true,
+      "receiptFailure": false,
+      "transactionOutcome": {
+        "status": {
+          "SuccessReceiptId": "9ZJtnBdmBmV6QyzKRrctfv3mqWMFq7mYNzzLSgwLhr4t"
+        },
+        "gasBurntUnits": "316880987275",
+        "tokensBurntYocto": "31688098727500000000",
+        "rootReceiptIds": [
+          "9ZJtnBdmBmV6QyzKRrctfv3mqWMFq7mYNzzLSgwLhr4t"
+        ]
+      },
+      "transactionTokensBurntYocto": "31688098727500000000",
+      "receiptTokensBurntYocto": "203765415641100000000",
+      "gasBurntYocto": "235453514368600000000",
+      "receipts": [
+        {
+          "id": "9ZJtnBdmBmV6QyzKRrctfv3mqWMFq7mYNzzLSgwLhr4t",
+          "receiptIds": [
+            "6AhCpV7Xc4UhYVJeAqwj5GbWQPuwmfaT79ZRijecF2Sf"
+          ],
+          "executorId": "dao.test.near",
+          "status": {
+            "SuccessValue": "Mg=="
+          },
+          "gasBurntUnits": "2037654156411",
+          "tokensBurntYocto": "203765415641100000000",
+          "logs": []
+        },
+        {
+          "id": "6AhCpV7Xc4UhYVJeAqwj5GbWQPuwmfaT79ZRijecF2Sf",
+          "receiptIds": [],
+          "executorId": "bob.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "logs": []
+        }
+      ],
+      "transaction": {
+        "signerId": "bob.test.near",
+        "receiverId": "dao.test.near",
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJwcm9wb3NhbCI6eyJkZXNjcmlwdGlvbiI6ImJvYiBoZWFsdGh5IHBlbmRpbmciLCJraW5kIjp7IlRyYW5zZmVyIjp7InRva2VuX2lkIjoiIiwicmVjZWl2ZXJfaWQiOiJib2ItcmVjaXBpZW50LnRlc3QubmVhciIsImFtb3VudCI6IjEwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCIsIm1zZyI6bnVsbH19fX0=",
+              "deposit": "1000000000000000000000000",
+              "gas": 300000000000000,
+              "method_name": "add_proposal"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "beforeUpgrade": {
+    "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
+    "state": [
+      {
+        "key": "AA==",
+        "value": "GQAAAG1peGVkLW9ibGlnYXRpb24tcmVjb3ZlcnkiAAAAYm91bmRlZCBzYW1lLURBTyBtaXhlZCBvYmxpZ2F0aW9ucwAAAAA="
+      },
+      {
+        "key": "AQ==",
+        "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAADwAAAGFsaWNlLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+      },
+      {
+        "key": "AwAAAAAAAAAA",
+        "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyACtDx5cMoOcYAgAAAC8AAAAAAAAANQAAAAAAAAA="
+      },
+      {
+        "key": "AwEAAAAAAAAA",
+        "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyADmLl6cPoOcYAgAAAEIAAAAAAAAASAAAAAAAAAA="
+      },
+      {
+        "key": "AwIAAAAAAAAA",
+        "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAbefxXhKg5xgBAAAAVAAAAAAAAAA="
+      },
+      {
+        "key": "RkFDVE9SWQ==",
+        "value": "CQAAAHRlc3QubmVhcgE="
+      },
+      {
+        "key": "U1RBVEU=",
+        "value": "AQAAAAABAAAAAQAAAELbmZ03hKcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcFAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA=="
+      },
+      {
+        "key": "U1RBVEVWRVJTSU9O",
+        "value": "AQ=="
+      }
+    ],
+    "stateHash": "bce32f65981b24d072c298dac5ef1f82582f162a26b445beac1f2eeda888a309",
+    "policy": {
+      "roles": [
+        {
+          "name": "all",
+          "kind": "Everyone",
+          "permissions": [
+            "*:AddProposal"
+          ],
+          "vote_policy": {}
+        },
+        {
+          "name": "council",
+          "kind": {
+            "Group": [
+              "alice.test.near"
+            ]
+          },
+          "permissions": [
+            "*:AddProposal",
+            "*:VoteApprove",
+            "*:VoteReject",
+            "*:Finalize",
+            "*:VoteRemove"
+          ],
+          "vote_policy": {}
+        }
+      ],
+      "default_vote_policy": {
+        "weight_kind": "RoleWeight",
+        "quorum": "0",
+        "threshold": [
+          1,
+          2
+        ]
+      },
+      "proposal_bond": "1000000000000000000000000",
+      "proposal_period": "604800000000000",
+      "bounty_bond": "1000000000000000000000000",
+      "bounty_forgiveness_period": "86400000000000"
+    },
+    "proposals": {
+      "alice": {
+        "id": 1,
+        "proposer": "alice.test.near",
+        "description": "alice failed async",
+        "kind": {
+          "FunctionCall": {
+            "receiver_id": "missing-target.test.near",
+            "actions": [
+              {
+                "method_name": "ping",
+                "args": "",
+                "deposit": "0",
+                "gas": "20000000000000"
+              }
+            ]
+          }
+        },
+        "status": "Failed",
+        "vote_counts": {
+          "council": [
+            "1",
+            "0",
+            "0"
+          ]
+        },
+        "votes": {
+          "alice.test.near": "Approve"
+        },
+        "submission_time": "1794578965627112249",
+        "last_actions_log": [
+          {
+            "block_height": "66"
+          },
+          {
+            "block_height": "72"
+          }
+        ]
+      },
+      "bob": {
+        "id": 2,
+        "proposer": "bob.test.near",
+        "description": "bob healthy pending",
+        "kind": {
+          "Transfer": {
+            "token_id": "",
+            "receiver_id": "bob-recipient.test.near",
+            "amount": "100000000000000000000000",
+            "msg": null
+          }
+        },
+        "status": "InProgress",
+        "vote_counts": {},
+        "votes": {},
+        "submission_time": "1794578977293199213",
+        "last_actions_log": [
+          {
+            "block_height": "84"
+          }
+        ]
+      },
+      "carol": {
+        "id": 0,
+        "proposer": "carol.test.near",
+        "description": "carol already paid",
+        "kind": {
+          "Transfer": {
+            "token_id": "",
+            "receiver_id": "carol-recipient.test.near",
+            "amount": "100000000000000000000000",
+            "msg": null
+          }
+        },
+        "status": "Approved",
+        "vote_counts": {
+          "council": [
+            "1",
+            "0",
+            "0"
+          ]
+        },
+        "votes": {
+          "alice.test.near": "Approve"
+        },
+        "submission_time": "1794578952476902187",
+        "last_actions_log": [
+          {
+            "block_height": "47"
+          },
+          {
+            "block_height": "53"
+          }
+        ]
+      }
+    },
+    "contractBalance": "101896167652766276500000000",
+    "storageUsage": 530355,
+    "availableAmount": "94592617652766276500000000",
+    "lockedStorageAmount": "5303550000000000000000000",
+    "lockedAmount": "2000000000000000000000000",
+    "balances": {
+      "alice": "98998546309623677800000000",
+      "bob": "98999764546485631400000000",
+      "carol": "99999767980029758700000000",
+      "aliceRecipient": "10000000000000000000000000",
+      "bobRecipient": "10000000000000000000000000",
+      "carolRecipient": "10100000000000000000000000",
+      "dao": "101896167652766276500000000"
+    }
+  },
+  "upgrade": {
+    "method": "account-key deploy + private migrate",
+    "deploy": {
+      "transactionHash": "ALsR3hFKEzN9zZMVByBbsWMMPnFErwhv9KN2ZcCoZpFU",
+      "finalExecutionStatus": "FINAL",
+      "succeeded": true,
+      "receiptFailure": false,
+      "transactionOutcome": {
+        "status": {
+          "SuccessReceiptId": "6qr7f29nYxdM7zCDcKRphvS2kKh2nVdvP58MvVZhNj1z"
+        },
+        "gasBurntUnits": "3894483106355",
+        "tokensBurntYocto": "389448310635500000000",
+        "rootReceiptIds": [
+          "6qr7f29nYxdM7zCDcKRphvS2kKh2nVdvP58MvVZhNj1z"
+        ]
+      },
+      "transactionTokensBurntYocto": "389448310635500000000",
+      "receiptTokensBurntYocto": "3442898923088000000000",
+      "gasBurntYocto": "3832347233723500000000",
+      "receipts": [
+        {
+          "id": "6qr7f29nYxdM7zCDcKRphvS2kKh2nVdvP58MvVZhNj1z",
+          "receiptIds": [
+            "2puDzfgmcoDYryPPPeBpBQMvtsYsJjzVSBFP6ktXemEa"
+          ],
+          "executorId": "dao.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "34428989230880",
+          "tokensBurntYocto": "3442898923088000000000",
+          "logs": []
+        },
+        {
+          "id": "2puDzfgmcoDYryPPPeBpBQMvtsYsJjzVSBFP6ktXemEa",
+          "receiptIds": [],
+          "executorId": "dao.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "logs": []
+        }
+      ],
+      "transaction": {
+        "signerId": "dao.test.near",
+        "receiverId": "dao.test.near",
+        "actions": [
+          {
+            "DeployContract": {
+              "code": "WiDqZR2mhMliPLubMsq5aOTu08oiuQXez9sqSqqhZXg="
+            }
+          }
+        ]
+      }
+    },
+    "migrate": {
+      "transactionHash": "FWezAHvgJTBhAxzhZdbfJ685HZXBPdMed2DfRZGerht5",
+      "finalExecutionStatus": "FINAL",
+      "succeeded": true,
+      "receiptFailure": false,
+      "transactionOutcome": {
+        "status": {
+          "SuccessReceiptId": "32hZi65PQMXk1Z3roYcJ5N4s6dBQMJGovm6XTGkZiUPA"
+        },
+        "gasBurntUnits": "308079623406",
+        "tokensBurntYocto": "30807962340600000000",
+        "rootReceiptIds": [
+          "32hZi65PQMXk1Z3roYcJ5N4s6dBQMJGovm6XTGkZiUPA"
+        ]
+      },
+      "transactionTokensBurntYocto": "30807962340600000000",
+      "receiptTokensBurntYocto": "178172711315400000000",
+      "gasBurntYocto": "208980673656000000000",
+      "receipts": [
+        {
+          "id": "32hZi65PQMXk1Z3roYcJ5N4s6dBQMJGovm6XTGkZiUPA",
+          "receiptIds": [
+            "EqYBAmbSZr7pS2pmZysmrxyZS1LfSbgVvUNfckRfjn4V"
+          ],
+          "executorId": "dao.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "1781727113154",
+          "tokensBurntYocto": "178172711315400000000",
+          "logs": []
+        },
+        {
+          "id": "EqYBAmbSZr7pS2pmZysmrxyZS1LfSbgVvUNfckRfjn4V",
+          "receiptIds": [],
+          "executorId": "dao.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "logs": []
+        }
+      ],
+      "transaction": {
+        "signerId": "dao.test.near",
+        "receiverId": "dao.test.near",
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "e30=",
+              "deposit": "0",
+              "gas": 300000000000000,
+              "method_name": "migrate"
+            }
+          }
+        ]
+      }
+    },
+    "receiptFailure": false
+  },
+  "afterUpgrade": {
+    "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
+    "state": [
+      {
+        "key": "AA==",
+        "value": "GQAAAG1peGVkLW9ibGlnYXRpb24tcmVjb3ZlcnkiAAAAYm91bmRlZCBzYW1lLURBTyBtaXhlZCBvYmxpZ2F0aW9ucwAAAAA="
+      },
+      {
+        "key": "AQ==",
+        "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAADwAAAGFsaWNlLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+      },
+      {
+        "key": "AwAAAAAAAAAA",
+        "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyACtDx5cMoOcYAgAAAC8AAAAAAAAANQAAAAAAAAA="
+      },
+      {
+        "key": "AwEAAAAAAAAA",
+        "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyADmLl6cPoOcYAgAAAEIAAAAAAAAASAAAAAAAAAA="
+      },
+      {
+        "key": "AwIAAAAAAAAA",
+        "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAbefxXhKg5xgBAAAAVAAAAAAAAAA="
+      },
+      {
+        "key": "RkFDVE9SWQ==",
+        "value": "CQAAAHRlc3QubmVhcgE="
+      },
+      {
+        "key": "U1RBVEU=",
+        "value": "AQAAAAABAAAAAQAAAELbmZ03hKcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcFAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA=="
+      },
+      {
+        "key": "U1RBVEVWRVJTSU9O",
+        "value": "AQ=="
+      }
+    ],
+    "stateHash": "bce32f65981b24d072c298dac5ef1f82582f162a26b445beac1f2eeda888a309",
+    "policy": {
+      "roles": [
+        {
+          "name": "all",
+          "kind": "Everyone",
+          "permissions": [
+            "*:AddProposal"
+          ],
+          "vote_policy": {}
+        },
+        {
+          "name": "council",
+          "kind": {
+            "Group": [
+              "alice.test.near"
+            ]
+          },
+          "permissions": [
+            "*:AddProposal",
+            "*:VoteApprove",
+            "*:VoteReject",
+            "*:Finalize",
+            "*:VoteRemove"
+          ],
+          "vote_policy": {}
+        }
+      ],
+      "default_vote_policy": {
+        "weight_kind": "RoleWeight",
+        "quorum": "0",
+        "threshold": [
+          1,
+          2
+        ]
+      },
+      "proposal_bond": "1000000000000000000000000",
+      "proposal_period": "604800000000000",
+      "bounty_bond": "1000000000000000000000000",
+      "bounty_forgiveness_period": "86400000000000"
+    },
+    "proposals": {
+      "alice": {
+        "id": 1,
+        "proposer": "alice.test.near",
+        "description": "alice failed async",
+        "kind": {
+          "FunctionCall": {
+            "receiver_id": "missing-target.test.near",
+            "actions": [
+              {
+                "method_name": "ping",
+                "args": "",
+                "deposit": "0",
+                "gas": "20000000000000"
+              }
+            ]
+          }
+        },
+        "status": "Failed",
+        "vote_counts": {
+          "council": [
+            "1",
+            "0",
+            "0"
+          ]
+        },
+        "votes": {
+          "alice.test.near": "Approve"
+        },
+        "submission_time": "1794578965627112249",
+        "last_actions_log": [
+          {
+            "block_height": "66"
+          },
+          {
+            "block_height": "72"
+          }
+        ]
+      },
+      "bob": {
+        "id": 2,
+        "proposer": "bob.test.near",
+        "description": "bob healthy pending",
+        "kind": {
+          "Transfer": {
+            "token_id": "",
+            "receiver_id": "bob-recipient.test.near",
+            "amount": "100000000000000000000000",
+            "msg": null
+          }
+        },
+        "status": "InProgress",
+        "vote_counts": {},
+        "votes": {},
+        "submission_time": "1794578977293199213",
+        "last_actions_log": [
+          {
+            "block_height": "84"
+          }
+        ]
+      },
+      "carol": {
+        "id": 0,
+        "proposer": "carol.test.near",
+        "description": "carol already paid",
+        "kind": {
+          "Transfer": {
+            "token_id": "",
+            "receiver_id": "carol-recipient.test.near",
+            "amount": "100000000000000000000000",
+            "msg": null
+          }
+        },
+        "status": "Approved",
+        "vote_counts": {
+          "council": [
+            "1",
+            "0",
+            "0"
+          ]
+        },
+        "votes": {
+          "alice.test.near": "Approve"
+        },
+        "submission_time": "1794578952476902187",
+        "last_actions_log": [
+          {
+            "block_height": "47"
+          },
+          {
+            "block_height": "53"
+          }
+        ]
+      }
+    },
+    "contractBalance": "101892126324858897000000000",
+    "storageUsage": 530355,
+    "availableAmount": "94588576324858897000000000",
+    "lockedStorageAmount": "5303550000000000000000000",
+    "lockedAmount": "2000000000000000000000000",
+    "balances": {
+      "alice": "98998546309623677800000000",
+      "bob": "98999764546485631400000000",
+      "carol": "99999767980029758700000000",
+      "aliceRecipient": "10000000000000000000000000",
+      "bobRecipient": "10000000000000000000000000",
+      "carolRecipient": "10100000000000000000000000",
+      "dao": "101892126324858897000000000"
+    }
+  },
+  "aliceRecovery": {
+    "attempt": {
+      "label": "alice recovery",
+      "ok": true,
+      "executed": true,
+      "value": {
+        "transactionHash": "C7ojWRzw4q3DUZj1zRygC6JQiT5Rpzk1d8XX8ERxTsmG",
+        "finalExecutionStatus": "FINAL",
+        "succeeded": true,
+        "receiptFailure": true,
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "HAnYvgmb9gyj7KwJm1xoLb9UvHfgaAa33jhdRny6TYRM"
+          },
+          "gasBurntUnits": "317262456995",
+          "tokensBurntYocto": "31726245699500000000",
+          "rootReceiptIds": [
+            "HAnYvgmb9gyj7KwJm1xoLb9UvHfgaAa33jhdRny6TYRM"
+          ]
+        },
+        "transactionTokensBurntYocto": "31726245699500000000",
+        "receiptTokensBurntYocto": "588216907594900000000",
+        "gasBurntYocto": "619943153294400000000",
+        "receipts": [
+          {
+            "id": "HAnYvgmb9gyj7KwJm1xoLb9UvHfgaAa33jhdRny6TYRM",
+            "receiptIds": [
+              "DNvykMo61C2wjbV7asRrY2YsEx4CpgcHQqaNswc6c6dC",
+              "BTJL3hnynQWSkYwRT8hmVjFUPTKWnH2VgGxF2kQQjrgC",
+              "yH6gdRLh1jqMWT8fcvjn4dTRPUQ1c6L18RqXTADkBBZ"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "2982880002739",
+            "tokensBurntYocto": "298288000273900000000",
+            "logs": []
+          },
+          {
+            "id": "DNvykMo61C2wjbV7asRrY2YsEx4CpgcHQqaNswc6c6dC",
+            "receiptIds": [
+              "6gUZmKRkBRkcQnoCrvzP76sRZpwJDERY61HVQaD82bdp"
+            ],
+            "executorId": "missing-target.test.near",
+            "status": {
+              "Failure": {
+                "ActionError": {
+                  "index": 0,
+                  "kind": {
+                    "AccountDoesNotExist": {
+                      "account_id": "missing-target.test.near"
+                    }
+                  }
+                }
+              }
+            },
+            "gasBurntUnits": "888068443736",
+            "tokensBurntYocto": "88806844373600000000",
+            "logs": []
+          },
+          {
+            "id": "6gUZmKRkBRkcQnoCrvzP76sRZpwJDERY61HVQaD82bdp",
+            "receiptIds": [],
+            "executorId": "alice.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "BTJL3hnynQWSkYwRT8hmVjFUPTKWnH2VgGxF2kQQjrgC",
+            "receiptIds": [
+              "FRNLzpAXvRwexqrEFrkKTq4P9QhSVVQsFbhfRNAwA1vZ"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": "bnVsbA=="
+            },
+            "gasBurntUnits": "2011220629474",
+            "tokensBurntYocto": "201122062947400000000",
+            "logs": []
+          },
+          {
+            "id": "FRNLzpAXvRwexqrEFrkKTq4P9QhSVVQsFbhfRNAwA1vZ",
+            "receiptIds": [],
+            "executorId": "alice.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "yH6gdRLh1jqMWT8fcvjn4dTRPUQ1c6L18RqXTADkBBZ",
+            "receiptIds": [],
+            "executorId": "alice.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "alice.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MSwiYWN0aW9uIjoiRmluYWxpemUiLCJwcm9wb3NhbCI6eyJGdW5jdGlvbkNhbGwiOnsicmVjZWl2ZXJfaWQiOiJtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIiLCJhY3Rpb25zIjpbeyJtZXRob2RfbmFtZSI6InBpbmciLCJhcmdzIjoiIiwiZGVwb3NpdCI6IjAiLCJnYXMiOiIyMDAwMDAwMDAwMDAwMCJ9XX19fQ==",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "act_proposal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "after": {
+      "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "GQAAAG1peGVkLW9ibGlnYXRpb24tcmVjb3ZlcnkiAAAAYm91bmRlZCBzYW1lLURBTyBtaXhlZCBvYmxpZ2F0aW9ucwAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAADwAAAGFsaWNlLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "AwAAAAAAAAAA",
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyACtDx5cMoOcYAgAAAC8AAAAAAAAANQAAAAAAAAA="
+        },
+        {
+          "key": "AwEAAAAAAAAA",
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyADmLl6cPoOcYAwAAAEIAAAAAAAAASAAAAAAAAABpAAAAAAAAAA=="
+        },
+        {
+          "key": "AwIAAAAAAAAA",
+          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAbefxXhKg5xgBAAAAVAAAAAAAAAA="
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAELbmZ03hKcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcGAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAVpAAAAAAAAAA=="
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ],
+      "stateHash": "7dd9a0b7a6fff3a026c70bb04112bf1e8d68304d89e3b439e76953177d41a0b5",
+      "policy": {
+        "roles": [
+          {
+            "name": "all",
+            "kind": "Everyone",
+            "permissions": [
+              "*:AddProposal"
+            ],
+            "vote_policy": {}
+          },
+          {
+            "name": "council",
+            "kind": {
+              "Group": [
+                "alice.test.near"
+              ]
+            },
+            "permissions": [
+              "*:VoteApprove",
+              "*:Finalize",
+              "*:AddProposal",
+              "*:VoteReject",
+              "*:VoteRemove"
+            ],
+            "vote_policy": {}
+          }
+        ],
+        "default_vote_policy": {
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [
+            1,
+            2
+          ]
+        },
+        "proposal_bond": "1000000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "1000000000000000000000000",
+        "bounty_forgiveness_period": "86400000000000"
+      },
+      "proposals": {
+        "alice": {
+          "id": 1,
+          "proposer": "alice.test.near",
+          "description": "alice failed async",
+          "kind": {
+            "FunctionCall": {
+              "receiver_id": "missing-target.test.near",
+              "actions": [
+                {
+                  "method_name": "ping",
+                  "args": "",
+                  "deposit": "0",
+                  "gas": "20000000000000"
+                }
+              ]
+            }
+          },
+          "status": "Failed",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578965627112249",
+          "last_actions_log": [
+            {
+              "block_height": "66"
+            },
+            {
+              "block_height": "72"
+            },
+            {
+              "block_height": "105"
+            }
+          ]
+        },
+        "bob": {
+          "id": 2,
+          "proposer": "bob.test.near",
+          "description": "bob healthy pending",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "bob-recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "InProgress",
+          "vote_counts": {},
+          "votes": {},
+          "submission_time": "1794578977293199213",
+          "last_actions_log": [
+            {
+              "block_height": "84"
+            }
+          ]
+        },
+        "carol": {
+          "id": 0,
+          "proposer": "carol.test.near",
+          "description": "carol already paid",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "carol-recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "Approved",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578952476902187",
+          "last_actions_log": [
+            {
+              "block_height": "47"
+            },
+            {
+              "block_height": "53"
+            }
+          ]
+        }
+      },
+      "contractBalance": "101892126324858897000000000",
+      "storageUsage": 530399,
+      "availableAmount": "94588136324858897000000000",
+      "lockedStorageAmount": "5303990000000000000000000",
+      "lockedAmount": "2000000000000000000000000",
+      "balances": {
+        "alice": "98997926366470383400000000",
+        "bob": "98999764546485631400000000",
+        "carol": "99999767980029758700000000",
+        "aliceRecipient": "10000000000000000000000000",
+        "bobRecipient": "10000000000000000000000000",
+        "carolRecipient": "10100000000000000000000000",
+        "dao": "101892126324858897000000000"
+      }
+    },
+    "deltas": {
+      "contract": "0",
+      "recipient": "0",
+      "proposer": "-619943153294400000000",
+      "locked": "0"
+    },
+    "gasBurntYocto": "619943153294400000000",
+    "before": {
+      "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "GQAAAG1peGVkLW9ibGlnYXRpb24tcmVjb3ZlcnkiAAAAYm91bmRlZCBzYW1lLURBTyBtaXhlZCBvYmxpZ2F0aW9ucwAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAADwAAAGFsaWNlLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "AwAAAAAAAAAA",
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyACtDx5cMoOcYAgAAAC8AAAAAAAAANQAAAAAAAAA="
+        },
+        {
+          "key": "AwEAAAAAAAAA",
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyADmLl6cPoOcYAgAAAEIAAAAAAAAASAAAAAAAAAA="
+        },
+        {
+          "key": "AwIAAAAAAAAA",
+          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAbefxXhKg5xgBAAAAVAAAAAAAAAA="
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAELbmZ03hKcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcFAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA=="
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ],
+      "stateHash": "bce32f65981b24d072c298dac5ef1f82582f162a26b445beac1f2eeda888a309",
+      "policy": {
+        "roles": [
+          {
+            "name": "all",
+            "kind": "Everyone",
+            "permissions": [
+              "*:AddProposal"
+            ],
+            "vote_policy": {}
+          },
+          {
+            "name": "council",
+            "kind": {
+              "Group": [
+                "alice.test.near"
+              ]
+            },
+            "permissions": [
+              "*:AddProposal",
+              "*:VoteApprove",
+              "*:VoteReject",
+              "*:Finalize",
+              "*:VoteRemove"
+            ],
+            "vote_policy": {}
+          }
+        ],
+        "default_vote_policy": {
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [
+            1,
+            2
+          ]
+        },
+        "proposal_bond": "1000000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "1000000000000000000000000",
+        "bounty_forgiveness_period": "86400000000000"
+      },
+      "proposals": {
+        "alice": {
+          "id": 1,
+          "proposer": "alice.test.near",
+          "description": "alice failed async",
+          "kind": {
+            "FunctionCall": {
+              "receiver_id": "missing-target.test.near",
+              "actions": [
+                {
+                  "method_name": "ping",
+                  "args": "",
+                  "deposit": "0",
+                  "gas": "20000000000000"
+                }
+              ]
+            }
+          },
+          "status": "Failed",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578965627112249",
+          "last_actions_log": [
+            {
+              "block_height": "66"
+            },
+            {
+              "block_height": "72"
+            }
+          ]
+        },
+        "bob": {
+          "id": 2,
+          "proposer": "bob.test.near",
+          "description": "bob healthy pending",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "bob-recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "InProgress",
+          "vote_counts": {},
+          "votes": {},
+          "submission_time": "1794578977293199213",
+          "last_actions_log": [
+            {
+              "block_height": "84"
+            }
+          ]
+        },
+        "carol": {
+          "id": 0,
+          "proposer": "carol.test.near",
+          "description": "carol already paid",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "carol-recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "Approved",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578952476902187",
+          "last_actions_log": [
+            {
+              "block_height": "47"
+            },
+            {
+              "block_height": "53"
+            }
+          ]
+        }
+      },
+      "contractBalance": "101892126324858897000000000",
+      "storageUsage": 530355,
+      "availableAmount": "94588576324858897000000000",
+      "lockedStorageAmount": "5303550000000000000000000",
+      "lockedAmount": "2000000000000000000000000",
+      "balances": {
+        "alice": "98998546309623677800000000",
+        "bob": "98999764546485631400000000",
+        "carol": "99999767980029758700000000",
+        "aliceRecipient": "10000000000000000000000000",
+        "bobRecipient": "10000000000000000000000000",
+        "carolRecipient": "10100000000000000000000000",
+        "dao": "101892126324858897000000000"
+      }
+    }
+  },
+  "aliceRetry": {
+    "attempt": {
+      "label": "alice retry",
+      "ok": true,
+      "executed": true,
+      "value": {
+        "transactionHash": "6KdKhGVuLNQ1eNCBszVgzRB8Fxg9J7PATefPwSSpTFxT",
+        "finalExecutionStatus": "FINAL",
+        "succeeded": true,
+        "receiptFailure": true,
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "ETgeDYHgtaxqKAoDRi6AUiR2at8aF357oq7hC8ofH1qp"
+          },
+          "gasBurntUnits": "317262456995",
+          "tokensBurntYocto": "31726245699500000000",
+          "rootReceiptIds": [
+            "ETgeDYHgtaxqKAoDRi6AUiR2at8aF357oq7hC8ofH1qp"
+          ]
+        },
+        "transactionTokensBurntYocto": "31726245699500000000",
+        "receiptTokensBurntYocto": "589968600096900000000",
+        "gasBurntYocto": "621694845796400000000",
+        "receipts": [
+          {
+            "id": "ETgeDYHgtaxqKAoDRi6AUiR2at8aF357oq7hC8ofH1qp",
+            "receiptIds": [
+              "DXQWzYToMJSKLarog82uQEUmqEH8s9R2CDpMhEtAEvkE",
+              "4Sc3bpEDCRUAryXg2nmpqiEDvsK5yqAbbALAXsuye9M6",
+              "Dsjsx2yUaMuv3fzLmnq16UvSYLrc4tw1VPUxG35nv8Mc"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "2991524513543",
+            "tokensBurntYocto": "299152451354300000000",
+            "logs": []
+          },
+          {
+            "id": "DXQWzYToMJSKLarog82uQEUmqEH8s9R2CDpMhEtAEvkE",
+            "receiptIds": [
+              "6DkXoMaPK3ZFGuoqfaomEA2a64CKABSjnjs1gxpqW8DU"
+            ],
+            "executorId": "missing-target.test.near",
+            "status": {
+              "Failure": {
+                "ActionError": {
+                  "index": 0,
+                  "kind": {
+                    "AccountDoesNotExist": {
+                      "account_id": "missing-target.test.near"
+                    }
+                  }
+                }
+              }
+            },
+            "gasBurntUnits": "888068443736",
+            "tokensBurntYocto": "88806844373600000000",
+            "logs": []
+          },
+          {
+            "id": "6DkXoMaPK3ZFGuoqfaomEA2a64CKABSjnjs1gxpqW8DU",
+            "receiptIds": [],
+            "executorId": "alice.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "4Sc3bpEDCRUAryXg2nmpqiEDvsK5yqAbbALAXsuye9M6",
+            "receiptIds": [
+              "GcJ7J4NiSKYcf98rQkLqPyhyomw1zEnBe2xTS1dUyWFn"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": "bnVsbA=="
+            },
+            "gasBurntUnits": "2020093043690",
+            "tokensBurntYocto": "202009304369000000000",
+            "logs": []
+          },
+          {
+            "id": "GcJ7J4NiSKYcf98rQkLqPyhyomw1zEnBe2xTS1dUyWFn",
+            "receiptIds": [],
+            "executorId": "alice.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "Dsjsx2yUaMuv3fzLmnq16UvSYLrc4tw1VPUxG35nv8Mc",
+            "receiptIds": [],
+            "executorId": "alice.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "alice.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MSwiYWN0aW9uIjoiRmluYWxpemUiLCJwcm9wb3NhbCI6eyJGdW5jdGlvbkNhbGwiOnsicmVjZWl2ZXJfaWQiOiJtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIiLCJhY3Rpb25zIjpbeyJtZXRob2RfbmFtZSI6InBpbmciLCJhcmdzIjoiIiwiZGVwb3NpdCI6IjAiLCJnYXMiOiIyMDAwMDAwMDAwMDAwMCJ9XX19fQ==",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "act_proposal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "after": {
+      "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "GQAAAG1peGVkLW9ibGlnYXRpb24tcmVjb3ZlcnkiAAAAYm91bmRlZCBzYW1lLURBTyBtaXhlZCBvYmxpZ2F0aW9ucwAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAADwAAAGFsaWNlLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "AwAAAAAAAAAA",
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyACtDx5cMoOcYAgAAAC8AAAAAAAAANQAAAAAAAAA="
+        },
+        {
+          "key": "AwEAAAAAAAAA",
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyADmLl6cPoOcYBAAAAEIAAAAAAAAASAAAAAAAAABpAAAAAAAAAHQAAAAAAAAA"
+        },
+        {
+          "key": "AwIAAAAAAAAA",
+          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAbefxXhKg5xgBAAAAVAAAAAAAAAA="
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAELbmZ03hKcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcHAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAVpAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV0AAAAAAAAAA=="
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ],
+      "stateHash": "703832e659abf115d54e7a1b8f7ee9bfef796d0b8ab2d0dfda82817e63c7aca6",
+      "policy": {
+        "roles": [
+          {
+            "name": "all",
+            "kind": "Everyone",
+            "permissions": [
+              "*:AddProposal"
+            ],
+            "vote_policy": {}
+          },
+          {
+            "name": "council",
+            "kind": {
+              "Group": [
+                "alice.test.near"
+              ]
+            },
+            "permissions": [
+              "*:Finalize",
+              "*:VoteApprove",
+              "*:AddProposal",
+              "*:VoteRemove",
+              "*:VoteReject"
+            ],
+            "vote_policy": {}
+          }
+        ],
+        "default_vote_policy": {
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [
+            1,
+            2
+          ]
+        },
+        "proposal_bond": "1000000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "1000000000000000000000000",
+        "bounty_forgiveness_period": "86400000000000"
+      },
+      "proposals": {
+        "alice": {
+          "id": 1,
+          "proposer": "alice.test.near",
+          "description": "alice failed async",
+          "kind": {
+            "FunctionCall": {
+              "receiver_id": "missing-target.test.near",
+              "actions": [
+                {
+                  "method_name": "ping",
+                  "args": "",
+                  "deposit": "0",
+                  "gas": "20000000000000"
+                }
+              ]
+            }
+          },
+          "status": "Failed",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578965627112249",
+          "last_actions_log": [
+            {
+              "block_height": "66"
+            },
+            {
+              "block_height": "72"
+            },
+            {
+              "block_height": "105"
+            },
+            {
+              "block_height": "116"
+            }
+          ]
+        },
+        "bob": {
+          "id": 2,
+          "proposer": "bob.test.near",
+          "description": "bob healthy pending",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "bob-recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "InProgress",
+          "vote_counts": {},
+          "votes": {},
+          "submission_time": "1794578977293199213",
+          "last_actions_log": [
+            {
+              "block_height": "84"
+            }
+          ]
+        },
+        "carol": {
+          "id": 0,
+          "proposer": "carol.test.near",
+          "description": "carol already paid",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "carol-recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "Approved",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578952476902187",
+          "last_actions_log": [
+            {
+              "block_height": "47"
+            },
+            {
+              "block_height": "53"
+            }
+          ]
+        }
+      },
+      "contractBalance": "101892126324858897000000000",
+      "storageUsage": 530443,
+      "availableAmount": "94587696324858897000000000",
+      "lockedStorageAmount": "5304430000000000000000000",
+      "lockedAmount": "2000000000000000000000000",
+      "balances": {
+        "alice": "98997304671624587000000000",
+        "bob": "98999764546485631400000000",
+        "carol": "99999767980029758700000000",
+        "aliceRecipient": "10000000000000000000000000",
+        "bobRecipient": "10000000000000000000000000",
+        "carolRecipient": "10100000000000000000000000",
+        "dao": "101892126324858897000000000"
+      }
+    },
+    "deltas": {
+      "contract": "0",
+      "proposer": "0",
+      "recipient": "0",
+      "locked": "0"
+    }
+  },
+  "bobPayout": {
+    "attempt": {
+      "label": "bob payout",
+      "ok": true,
+      "executed": true,
+      "value": {
+        "transactionHash": "cDHv7FA8BLYjPWPVE7mDo9xqTGT8QePodQbyyzFKDRe",
+        "finalExecutionStatus": "FINAL",
+        "succeeded": true,
+        "receiptFailure": false,
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "6H5eDWptDUibRDJugRuk8f7RMgBxcbtUAVRHnjRHRdp7"
+          },
+          "gasBurntUnits": "316165731550",
+          "tokensBurntYocto": "31616573155000000000",
+          "rootReceiptIds": [
+            "6H5eDWptDUibRDJugRuk8f7RMgBxcbtUAVRHnjRHRdp7"
+          ]
+        },
+        "transactionTokensBurntYocto": "31616573155000000000",
+        "receiptTokensBurntYocto": "575306183901100000000",
+        "gasBurntYocto": "606922757056100000000",
+        "receipts": [
+          {
+            "id": "6H5eDWptDUibRDJugRuk8f7RMgBxcbtUAVRHnjRHRdp7",
+            "receiptIds": [
+              "8DWBHMgEqx6ifqvauHCrfMgQ1of9QdovWmNRf35ANQoq",
+              "7TtZ4qNqgSE9njiMx5vHkGT3pwfF7HgJazY5CyS8HFua",
+              "CBoJKzBF1XfEYLAnQWJ86SNFocNXvXtXXHDyJBSHoXyz"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "2934397497803",
+            "tokensBurntYocto": "293439749780300000000",
+            "logs": []
+          },
+          {
+            "id": "8DWBHMgEqx6ifqvauHCrfMgQ1of9QdovWmNRf35ANQoq",
+            "receiptIds": [
+              "6yJqCNEVLHdSuAequoXrtud5a9xTgKLhjqwChSeMDc1h"
+            ],
+            "executorId": "bob-recipient.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "22318256250000000000",
+            "logs": []
+          },
+          {
+            "id": "6yJqCNEVLHdSuAequoXrtud5a9xTgKLhjqwChSeMDc1h",
+            "receiptIds": [],
+            "executorId": "alice.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "7TtZ4qNqgSE9njiMx5vHkGT3pwfF7HgJazY5CyS8HFua",
+            "receiptIds": [
+              "2vJiCJBrxMCxVP3rYpqZDSN92EwfBCcCRz6waa8iL9SE",
+              "AUkJK95oKWkNZpNLYAZQzmvfvuqcY4J7yWeGBbyYqnp"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "SuccessReceiptId": "2vJiCJBrxMCxVP3rYpqZDSN92EwfBCcCRz6waa8iL9SE"
+            },
+            "gasBurntUnits": "2372299216208",
+            "tokensBurntYocto": "237229921620800000000",
+            "logs": []
+          },
+          {
+            "id": "2vJiCJBrxMCxVP3rYpqZDSN92EwfBCcCRz6waa8iL9SE",
+            "receiptIds": [
+              "86NyHKRHi2Z6AXmSLeFydbz9Um9xSQK6763gTfSRMrgg"
+            ],
+            "executorId": "bob.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "22318256250000000000",
+            "logs": []
+          },
+          {
+            "id": "86NyHKRHi2Z6AXmSLeFydbz9Um9xSQK6763gTfSRMrgg",
+            "receiptIds": [],
+            "executorId": "alice.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "AUkJK95oKWkNZpNLYAZQzmvfvuqcY4J7yWeGBbyYqnp",
+            "receiptIds": [],
+            "executorId": "alice.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          },
+          {
+            "id": "CBoJKzBF1XfEYLAnQWJ86SNFocNXvXtXXHDyJBSHoXyz",
+            "receiptIds": [],
+            "executorId": "alice.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "alice.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MiwiYWN0aW9uIjoiVm90ZUFwcHJvdmUiLCJwcm9wb3NhbCI6eyJUcmFuc2ZlciI6eyJ0b2tlbl9pZCI6IiIsInJlY2VpdmVyX2lkIjoiYm9iLXJlY2lwaWVudC50ZXN0Lm5lYXIiLCJhbW91bnQiOiIxMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJtc2ciOm51bGx9fX0=",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "act_proposal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "after": {
+      "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "GQAAAG1peGVkLW9ibGlnYXRpb24tcmVjb3ZlcnkiAAAAYm91bmRlZCBzYW1lLURBTyBtaXhlZCBvYmxpZ2F0aW9ucwAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAADwAAAGFsaWNlLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "AwAAAAAAAAAA",
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyACtDx5cMoOcYAgAAAC8AAAAAAAAANQAAAAAAAAA="
+        },
+        {
+          "key": "AwEAAAAAAAAA",
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyADmLl6cPoOcYBAAAAEIAAAAAAAAASAAAAAAAAABpAAAAAAAAAHQAAAAAAAAA"
+        },
+        {
+          "key": "AwIAAAAAAAAA",
+          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAG3n8V4SoOcYAgAAAFQAAAAAAAAAfwAAAAAAAAA="
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAKHtzM4bwtMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcIAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAVpAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV0AAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXICAAAAAAAAAAJ/AAAAAAAAAA=="
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ],
+      "stateHash": "dca8af66e39a7e5453df32c88b8a07974e948df2e4b9f4cf6fa1524f6aec842a",
+      "policy": {
+        "roles": [
+          {
+            "name": "all",
+            "kind": "Everyone",
+            "permissions": [
+              "*:AddProposal"
+            ],
+            "vote_policy": {}
+          },
+          {
+            "name": "council",
+            "kind": {
+              "Group": [
+                "alice.test.near"
+              ]
+            },
+            "permissions": [
+              "*:VoteReject",
+              "*:VoteApprove",
+              "*:AddProposal",
+              "*:Finalize",
+              "*:VoteRemove"
+            ],
+            "vote_policy": {}
+          }
+        ],
+        "default_vote_policy": {
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [
+            1,
+            2
+          ]
+        },
+        "proposal_bond": "1000000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "1000000000000000000000000",
+        "bounty_forgiveness_period": "86400000000000"
+      },
+      "proposals": {
+        "alice": {
+          "id": 1,
+          "proposer": "alice.test.near",
+          "description": "alice failed async",
+          "kind": {
+            "FunctionCall": {
+              "receiver_id": "missing-target.test.near",
+              "actions": [
+                {
+                  "method_name": "ping",
+                  "args": "",
+                  "deposit": "0",
+                  "gas": "20000000000000"
+                }
+              ]
+            }
+          },
+          "status": "Failed",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578965627112249",
+          "last_actions_log": [
+            {
+              "block_height": "66"
+            },
+            {
+              "block_height": "72"
+            },
+            {
+              "block_height": "105"
+            },
+            {
+              "block_height": "116"
+            }
+          ]
+        },
+        "bob": {
+          "id": 2,
+          "proposer": "bob.test.near",
+          "description": "bob healthy pending",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "bob-recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "Approved",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578977293199213",
+          "last_actions_log": [
+            {
+              "block_height": "84"
+            },
+            {
+              "block_height": "127"
+            }
+          ]
+        },
+        "carol": {
+          "id": 0,
+          "proposer": "carol.test.near",
+          "description": "carol already paid",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "carol-recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "Approved",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578952476902187",
+          "last_actions_log": [
+            {
+              "block_height": "47"
+            },
+            {
+              "block_height": "53"
+            }
+          ]
+        }
+      },
+      "contractBalance": "100792126324858897000000000",
+      "storageUsage": 530566,
+      "availableAmount": "94486466324858897000000000",
+      "lockedStorageAmount": "5305660000000000000000000",
+      "lockedAmount": "1000000000000000000000000",
+      "balances": {
+        "alice": "98996697748867530900000000",
+        "bob": "99999764546485631400000000",
+        "carol": "99999767980029758700000000",
+        "aliceRecipient": "10000000000000000000000000",
+        "bobRecipient": "10100000000000000000000000",
+        "carolRecipient": "10100000000000000000000000",
+        "dao": "100792126324858897000000000"
+      }
+    },
+    "deltas": {
+      "contract": "-1100000000000000000000000",
+      "proposer": "1000000000000000000000000",
+      "recipient": "100000000000000000000000",
+      "locked": "-1000000000000000000000000"
+    },
+    "gasBurntYocto": "606922757056100000000"
+  },
+  "bobRetry": {
+    "attempt": {
+      "label": "bob retry",
+      "ok": true,
+      "executed": true,
+      "value": {
+        "transactionHash": "9GVmNKSqaAEBAVaVs5xwiQPgrr7cwNhMv4Qe9LmexDgw",
+        "finalExecutionStatus": "FINAL",
+        "succeeded": true,
+        "receiptFailure": true,
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "947VyayZ42itE8tHX6A23qE2iYcbuPZXZAsET7hLAZeC"
+          },
+          "gasBurntUnits": "316022680405",
+          "tokensBurntYocto": "31602268040500000000",
+          "rootReceiptIds": [
+            "947VyayZ42itE8tHX6A23qE2iYcbuPZXZAsET7hLAZeC"
+          ]
+        },
+        "transactionTokensBurntYocto": "31602268040500000000",
+        "receiptTokensBurntYocto": "196779892469000000000",
+        "gasBurntYocto": "228382160509500000000",
+        "receipts": [
+          {
+            "id": "947VyayZ42itE8tHX6A23qE2iYcbuPZXZAsET7hLAZeC",
+            "receiptIds": [
+              "pBf7LYHBqYHhjm55DzgMs5W7GBDwTkwVS4ZccRNu6W3"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "Failure": {
+                "ActionError": {
+                  "index": 0,
+                  "kind": {
+                    "FunctionCallError": {
+                      "ExecutionError": "Smart contract panicked: panicked at sputnikdao2/src/policy.rs:386:9:\nERR_PROPOSAL_NOT_IN_PROGRESS"
+                    }
+                  }
+                }
+              }
+            },
+            "gasBurntUnits": "1967798924690",
+            "tokensBurntYocto": "196779892469000000000",
+            "logs": []
+          },
+          {
+            "id": "pBf7LYHBqYHhjm55DzgMs5W7GBDwTkwVS4ZccRNu6W3",
+            "receiptIds": [],
+            "executorId": "alice.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "alice.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MiwiYWN0aW9uIjoiRmluYWxpemUiLCJwcm9wb3NhbCI6eyJUcmFuc2ZlciI6eyJ0b2tlbl9pZCI6IiIsInJlY2VpdmVyX2lkIjoiYm9iLXJlY2lwaWVudC50ZXN0Lm5lYXIiLCJhbW91bnQiOiIxMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJtc2ciOm51bGx9fX0=",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "act_proposal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "after": {
+      "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "GQAAAG1peGVkLW9ibGlnYXRpb24tcmVjb3ZlcnkiAAAAYm91bmRlZCBzYW1lLURBTyBtaXhlZCBvYmxpZ2F0aW9ucwAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAADwAAAGFsaWNlLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "AwAAAAAAAAAA",
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyACtDx5cMoOcYAgAAAC8AAAAAAAAANQAAAAAAAAA="
+        },
+        {
+          "key": "AwEAAAAAAAAA",
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyADmLl6cPoOcYBAAAAEIAAAAAAAAASAAAAAAAAABpAAAAAAAAAHQAAAAAAAAA"
+        },
+        {
+          "key": "AwIAAAAAAAAA",
+          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAG3n8V4SoOcYAgAAAFQAAAAAAAAAfwAAAAAAAAA="
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAKHtzM4bwtMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcIAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAVpAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV0AAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXICAAAAAAAAAAJ/AAAAAAAAAA=="
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ],
+      "stateHash": "dca8af66e39a7e5453df32c88b8a07974e948df2e4b9f4cf6fa1524f6aec842a",
+      "policy": {
+        "roles": [
+          {
+            "name": "all",
+            "kind": "Everyone",
+            "permissions": [
+              "*:AddProposal"
+            ],
+            "vote_policy": {}
+          },
+          {
+            "name": "council",
+            "kind": {
+              "Group": [
+                "alice.test.near"
+              ]
+            },
+            "permissions": [
+              "*:VoteReject",
+              "*:VoteApprove",
+              "*:AddProposal",
+              "*:Finalize",
+              "*:VoteRemove"
+            ],
+            "vote_policy": {}
+          }
+        ],
+        "default_vote_policy": {
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [
+            1,
+            2
+          ]
+        },
+        "proposal_bond": "1000000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "1000000000000000000000000",
+        "bounty_forgiveness_period": "86400000000000"
+      },
+      "proposals": {
+        "bob": {
+          "id": 2,
+          "proposer": "bob.test.near",
+          "description": "bob healthy pending",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "bob-recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "Approved",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578977293199213",
+          "last_actions_log": [
+            {
+              "block_height": "84"
+            },
+            {
+              "block_height": "127"
+            }
+          ]
+        },
+        "carol": {
+          "id": 0,
+          "proposer": "carol.test.near",
+          "description": "carol already paid",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "carol-recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "Approved",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578952476902187",
+          "last_actions_log": [
+            {
+              "block_height": "47"
+            },
+            {
+              "block_height": "53"
+            }
+          ]
+        }
+      },
+      "contractBalance": "100792126324858897000000000",
+      "storageUsage": 530566,
+      "availableAmount": "94486466324858897000000000",
+      "lockedStorageAmount": "5305660000000000000000000",
+      "lockedAmount": "1000000000000000000000000",
+      "balances": {
+        "alice": "98996469366707021400000000",
+        "bob": "99999764546485631400000000",
+        "carol": "99999767980029758700000000",
+        "aliceRecipient": "10000000000000000000000000",
+        "bobRecipient": "10100000000000000000000000",
+        "carolRecipient": "10100000000000000000000000",
+        "dao": "100792126324858897000000000"
+      }
+    },
+    "deltas": {
+      "contract": "0",
+      "proposer": "0",
+      "recipient": "0",
+      "locked": "0"
+    }
+  },
+  "carolRetry": {
+    "attempt": {
+      "label": "carol retry",
+      "ok": true,
+      "executed": true,
+      "value": {
+        "transactionHash": "HrLUGQCFJpTq9zqjtf7m9v3WV18RuNsH8XKBfj4Hx2KC",
+        "finalExecutionStatus": "FINAL",
+        "succeeded": true,
+        "receiptFailure": true,
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "Bcxs1vwucuzgDFHS237rSZTf6MDD9QdiVLzVdBvj5ha7"
+          },
+          "gasBurntUnits": "316118047835",
+          "tokensBurntYocto": "31611804783500000000",
+          "rootReceiptIds": [
+            "Bcxs1vwucuzgDFHS237rSZTf6MDD9QdiVLzVdBvj5ha7"
+          ]
+        },
+        "transactionTokensBurntYocto": "31611804783500000000",
+        "receiptTokensBurntYocto": "196823244125200000000",
+        "gasBurntYocto": "228435048908700000000",
+        "receipts": [
+          {
+            "id": "Bcxs1vwucuzgDFHS237rSZTf6MDD9QdiVLzVdBvj5ha7",
+            "receiptIds": [
+              "BMy9j44oCFsYKscKV2BZBXDFyz9BTMUHmb4Af5LNuzqR"
+            ],
+            "executorId": "dao.test.near",
+            "status": {
+              "Failure": {
+                "ActionError": {
+                  "index": 0,
+                  "kind": {
+                    "FunctionCallError": {
+                      "ExecutionError": "Smart contract panicked: panicked at sputnikdao2/src/policy.rs:386:9:\nERR_PROPOSAL_NOT_IN_PROGRESS"
+                    }
+                  }
+                }
+              }
+            },
+            "gasBurntUnits": "1968232441252",
+            "tokensBurntYocto": "196823244125200000000",
+            "logs": []
+          },
+          {
+            "id": "BMy9j44oCFsYKscKV2BZBXDFyz9BTMUHmb4Af5LNuzqR",
+            "receiptIds": [],
+            "executorId": "alice.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "gasBurntUnits": "223182562500",
+            "tokensBurntYocto": "0",
+            "logs": []
+          }
+        ],
+        "transaction": {
+          "signerId": "alice.test.near",
+          "receiverId": "dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MCwiYWN0aW9uIjoiRmluYWxpemUiLCJwcm9wb3NhbCI6eyJUcmFuc2ZlciI6eyJ0b2tlbl9pZCI6IiIsInJlY2VpdmVyX2lkIjoiY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhciIsImFtb3VudCI6IjEwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCIsIm1zZyI6bnVsbH19fQ==",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "act_proposal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "after": {
+      "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
+      "state": [
+        {
+          "key": "AA==",
+          "value": "GQAAAG1peGVkLW9ibGlnYXRpb24tcmVjb3ZlcnkiAAAAYm91bmRlZCBzYW1lLURBTyBtaXhlZCBvYmxpZ2F0aW9ucwAAAAA="
+        },
+        {
+          "key": "AQ==",
+          "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAADwAAAGFsaWNlLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+        },
+        {
+          "key": "AwAAAAAAAAAA",
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyACtDx5cMoOcYAgAAAC8AAAAAAAAANQAAAAAAAAA="
+        },
+        {
+          "key": "AwEAAAAAAAAA",
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyADmLl6cPoOcYBAAAAEIAAAAAAAAASAAAAAAAAABpAAAAAAAAAHQAAAAAAAAA"
+        },
+        {
+          "key": "AwIAAAAAAAAA",
+          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAG3n8V4SoOcYAgAAAFQAAAAAAAAAfwAAAAAAAAA="
+        },
+        {
+          "key": "RkFDVE9SWQ==",
+          "value": "CQAAAHRlc3QubmVhcgE="
+        },
+        {
+          "key": "U1RBVEU=",
+          "value": "AQAAAAABAAAAAQAAAKHtzM4bwtMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcIAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAVpAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV0AAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXICAAAAAAAAAAJ/AAAAAAAAAA=="
+        },
+        {
+          "key": "U1RBVEVWRVJTSU9O",
+          "value": "AQ=="
+        }
+      ],
+      "stateHash": "dca8af66e39a7e5453df32c88b8a07974e948df2e4b9f4cf6fa1524f6aec842a",
+      "policy": {
+        "roles": [
+          {
+            "name": "all",
+            "kind": "Everyone",
+            "permissions": [
+              "*:AddProposal"
+            ],
+            "vote_policy": {}
+          },
+          {
+            "name": "council",
+            "kind": {
+              "Group": [
+                "alice.test.near"
+              ]
+            },
+            "permissions": [
+              "*:VoteReject",
+              "*:VoteApprove",
+              "*:AddProposal",
+              "*:Finalize",
+              "*:VoteRemove"
+            ],
+            "vote_policy": {}
+          }
+        ],
+        "default_vote_policy": {
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [
+            1,
+            2
+          ]
+        },
+        "proposal_bond": "1000000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "1000000000000000000000000",
+        "bounty_forgiveness_period": "86400000000000"
+      },
+      "proposals": {
+        "carol": {
+          "id": 0,
+          "proposer": "carol.test.near",
+          "description": "carol already paid",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "carol-recipient.test.near",
+              "amount": "100000000000000000000000",
+              "msg": null
+            }
+          },
+          "status": "Approved",
+          "vote_counts": {
+            "council": [
+              "1",
+              "0",
+              "0"
+            ]
+          },
+          "votes": {
+            "alice.test.near": "Approve"
+          },
+          "submission_time": "1794578952476902187",
+          "last_actions_log": [
+            {
+              "block_height": "47"
+            },
+            {
+              "block_height": "53"
+            }
+          ]
+        }
+      },
+      "contractBalance": "100792126324858897000000000",
+      "storageUsage": 530566,
+      "availableAmount": "94486466324858897000000000",
+      "lockedStorageAmount": "5305660000000000000000000",
+      "lockedAmount": "1000000000000000000000000",
+      "balances": {
+        "alice": "98996240931658112700000000",
+        "bob": "99999764546485631400000000",
+        "carol": "99999767980029758700000000",
+        "aliceRecipient": "10000000000000000000000000",
+        "bobRecipient": "10100000000000000000000000",
+        "carolRecipient": "10100000000000000000000000",
+        "dao": "100792126324858897000000000"
+      }
+    },
+    "deltas": {
+      "contract": "0",
+      "proposer": "0",
+      "recipient": "0",
+      "locked": "0"
+    }
+  },
+  "checks": {
+    "beforeLockedTwoBonds": true,
+    "aliceFailedBeforeUpgrade": true,
+    "bobPendingBeforeUpgrade": true,
+    "carolPaidBeforeUpgrade": true,
+    "upgradePreservedLocked": true,
+    "upgradePreservedProposals": true,
+    "aliceRecoveredOnce": false,
+    "aliceRetryNoExtra": true,
+    "bobPaidOnce": true,
+    "bobRetryNoExtra": true,
+    "carolRetryNoExtra": true
+  },
+  "boundary": "Local Sandbox evidence for the pinned Sputnik #238 case. No live DAO recovery, deployment, audit, universal safety claim, signature or merge enforcement.",
+  "runtime": {
+    "version": "2.14.0",
+    "commit": "bc4e9e8cfb03d9e82f027883055624e18576993e",
+    "protocol": 88,
+    "binary": "/workspace/tools/near-sandbox-2.14-wrapper/near-sandbox",
+    "binarySha256": "6fb550b3cda8d877e86b9da7aed7f6dffe4a320c59def0dc6fd016e65d8605c2",
+    "versionOutput": "neard (release 2.14.0) (build 2.14.0) (commit bc4e9e8cfb03d9e82f027883055624e18576993e) (rustc 1.95.0) (min_protocol 84) (protocol 88) (db 51)\nfeatures: [default, dump_test_contract, json_rpc, near_dump_test_contract, rosetta_rpc, sandbox]\n\n<jemalloc>: MADV_DONTNEED does not work (memset will be used instead)\n<jemalloc>: (This is the expected behaviour if you are running under QEMU)"
+  }
+}

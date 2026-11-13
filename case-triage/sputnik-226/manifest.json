@@ -1,6 +1,6 @@
 {
   "schema": "near-rehearsal/pilot/sputnik-226-old-proposal/v1",
-  "status": "source-built-wasm-ready; configured-factory-harness-rerun-pending",
+  "status": "verified-local-recorded-case; fresh CLI preflight added; recorded packet and native 2.6.2 pass",
   "repo": "https://github.com/near-daos/sputnik-dao-contract",
   "pr": 226,
   "baseCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5",
@@ -26,13 +26,17 @@
       "path": "pilot/base.wasm",
       "sourceCommit": "a9a9ed1019d517b519ca214592388e7fdbf13ea5",
       "buildRequired": true,
-      "sha256": null
+      "sha256": "d1269a7be654211172cde60bccfa05a76996a3163b55abaeb58737f8661aaebf",
+      "recordedPath": "review-packet/evidence/base.wasm",
+      "bytes": 417648
     },
     "candidate": {
       "path": "pilot/candidate.wasm",
       "sourceCommit": "8112278fc2874a3abc12fb056b2d4c97ff796431",
       "buildRequired": true,
-      "sha256": null
+      "sha256": "088c69b79aaf6c7b2d8196348c65f66f44a773f05e1f350120a78579f594daf3",
+      "recordedPath": "review-packet/evidence/candidate.wasm",
+      "bytes": 430589
     },
     "committedRes": {
       "path": "sputnikdao2/res/sputnikdao2.wasm",
@@ -88,16 +92,10 @@
     "buildCandidate": "git worktree add ../sputnik-candidate 8112278fc2874a3abc12fb056b2d4c97ff796431 && (cd ../sputnik-candidate/sputnikdao2 && cargo +1.84.1 near build non-reproducible-wasm --locked --no-abi) # then required wasm-opt post-step",
     "runPilot": "cp pilot/old_proposal_upgrade.rs sputnikdao2/tests/test_pilot_old_proposal_upgrade.rs && EVIDENCE_PATH=\"$PWD/pilot/evidence.log\" cargo +1.84.1 test -p sputnikdao2 --test test_pilot_old_proposal_upgrade -- --ignored --nocapture",
     "comparator": "cargo +1.84.1 test -p sputnikdao-factory2 --test test_upgrade test_upgrade -- --nocapture",
-    "nodeHarness": "BASE_WASM=... BASE_WASM_SHA256=... CANDIDATE_WASM=... CANDIDATE_WASM_SHA256=... NODE_SANDBOX_BIN_DIR=... EVIDENCE_PATH=... node case-triage/sputnik-226/node-harness.cjs"
+    "nodeHarness": "BASE_WASM=... BASE_WASM_SHA256=... CANDIDATE_WASM=... CANDIDATE_WASM_SHA256=... NODE_SANDBOX_BIN_DIR=... EVIDENCE_PATH=... node case-triage/sputnik-226/node-harness.cjs",
+    "runCase": "node case-triage/sputnik-226/run-case.cjs --sandbox-dir <pinned-2.6.2-directory> --out <new-directory>",
+    "verifyRecordedPacket": "node case-triage/sputnik-226/review-packet/verify.cjs"
   },
-  "blockers": [
-    "No Rust toolchain on the current triage host",
-    "Source-built base/candidate hashes still need to be recorded in this manifest; owner has the artifacts",
-    "Docker absent: reproducible-wasm cannot be produced; no reproducibility claim",
-    "near-workspaces 0.17.0 sandbox-utils 0.13.0 runtime wiring needs review-machine confirmation",
-    "Maintainer acceptance pending; no outreach from triage",
-    "Native comparator finality helper needs rerun after the Query<ViewBlock> API fix; no full native pass claimed"
-  ],
   "dependencies": {
     "declared": {
       "nearSdk": "^5.10.0",
@@ -114,14 +112,15 @@
   },
   "verification": {
     "nativeRustHarness": {
-      "state": "compiled on owner review host",
+      "state": "recorded native pass at Sandbox 2.6.2; evidence preserved in review-packet/evidence",
       "hostToolchain": "stable 1.96",
-      "wasmPass": false,
-      "finalityApi": "near-workspaces 0.17 Query<ViewBlock> has no finality(); local plain block RPC via curl with finality=final, loopback-only, 30s bound"
+      "wasmPass": true,
+      "finalityApi": "near-workspaces 0.17 Query<ViewBlock> has no finality(); local plain block RPC via curl with finality=final, loopback-only, 30s bound",
+      "recordedPacket": "review-packet/data/packet.json"
     },
     "sourceWasm": {
-      "state": "built with official cargo-near 0.13.3, --locked --no-abi, required wasm-opt post-step; loaded on Sandbox 2.6.2",
-      "fullHarnessPass": false,
+      "state": "source-built WASM with official cargo-near 0.13.3 and required wasm-opt post-step; recorded on Sandbox 2.6.2",
+      "fullHarnessPass": true,
       "reproducibleClaim": false
     },
     "priorFailure": {
@@ -130,15 +129,43 @@
       "cause": "direct DAO-to-DAO call entered the callback branch; replaced with root configured-factory call"
     },
     "nodeHarness": {
-      "state": "owner-run pass at f38c7b9 for the pre-replay harness; replay plus Finalize extension rerun pending",
-      "evidence": "preserved locally by owner for f38c7b9",
+      "state": "recorded Node pass; duplicate approval and Finalize retry rejected without a second transfer",
+      "evidence": "review-packet/evidence/node-evidence.json",
       "governanceFlowClaim": false,
-      "customerPreferenceClaim": false
+      "customerPreferenceClaim": false,
+      "replayPlusFinalizeVerified": true
     }
   },
   "apiChecks": {
     "parseNEAR": "returns decimal string; normalize to BigInt for initialBalance, attachedDeposit and accounting",
     "viewCodeRaw": "returns base64 string; use viewCode() or Buffer.from(raw, \"base64\")",
     "proposalSigner": "add_proposal and act_proposal sign as the policy account root; update signs as root for the configured-factory branch, not as a DAO self-call"
-  }
+  },
+  "recordedVerification": {
+    "state": "recorded local case review present and verified by the packet verifier",
+    "packet": "case-triage/sputnik-226/review-packet",
+    "verifiedCase": "case-triage/sputnik-226/verified-case/provenance.json",
+    "runtimeVersion": "2.6.2",
+    "runtimePlatform": "Darwin-arm64",
+    "runtimeSha256": "8b9403f091137afc234eaf4bac06660e5ca31a851afdadfc73eb66c9d43fbcae",
+    "nodePassed": true,
+    "nativePassed": true,
+    "firstPaymentNear": "1",
+    "retryRoutes": "duplicate VoteApprove and Finalize rejected without a second transfer",
+    "scope": "local configured-factory update; locally constructed state; not mainnet capture or governance UpgradeSelf"
+  },
+  "historicalBlockers": [
+    "No Rust toolchain on the current triage host",
+    "Source-built base/candidate hashes still need to be recorded in this manifest; owner has the artifacts",
+    "Docker absent: reproducible-wasm cannot be produced; no reproducibility claim",
+    "near-workspaces 0.17.0 sandbox-utils 0.13.0 runtime wiring needs review-machine confirmation",
+    "Maintainer acceptance pending; no outreach from triage",
+    "Native comparator finality helper needs rerun after the Query<ViewBlock> API fix; no full native pass claimed"
+  ],
+  "blockers": [
+    "Fresh run requires local TCP listener permission; run-case now checks 127.0.0.1 and 0.0.0.0 and fails fast when the shell denies bind.",
+    "The public consequence workbench is recorded-only; it does not start a fresh runner or expose a browser execution button.",
+    "Docker absent: reproducible-wasm cannot be produced; no byte-identical reproducibility claim.",
+    "Maintainer acceptance pending; no outreach from triage."
+  ]
 }
