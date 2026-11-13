@@ -175,6 +175,38 @@ function runRestartRecovery() {
     'the interrupted state is persisted for the next restart');
 }
 
+function runHistoricalMissingEvidence() {
+  const runsRoot = path.join(tmp, 'historical');
+  const dir = path.join(runsRoot, 'run-accepted-without-artifacts');
+  fs.mkdirSync(dir, {recursive: true});
+  fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify({
+    schema: 'near-rehearsal/review-browser-run/v1',
+    id: 'run-accepted-without-artifacts',
+    status: 'accepted',
+    phase: 'accepted',
+    startedAt: new Date().toISOString(),
+    finishedAt: new Date().toISOString(),
+    error: null,
+    bundle: {sha256: 'a'.repeat(64)},
+    mode: 'recorded-wasm',
+    result: {summary: {checks: {accepted: true}}},
+    logs: [],
+  }));
+  const manager = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: sandboxDir}});
+  manager.recover();
+  const run = manager.get('run-accepted-without-artifacts');
+  assert.equal(run.status, 'unavailable');
+  assert.equal(run.historicalStatus, 'accepted');
+  assert.match(run.error, /previously passed.*unavailable/);
+  assert.equal(manager.publicRun(run).downloadUrl, null);
+  assert.equal(manager.publicRun(run).evidenceUrl, null);
+  assert.equal(manager.publicRun(run).inputUrl, null);
+  assert.equal(manager.download(run.id), null);
+  assert.equal(manager.evidence(run.id), null);
+  assert.equal(manager.list()[0].accepted, false);
+  console.log('review-history: accepted metadata without supporting artifacts becomes unavailable');
+}
+
 function validation() {
   const manager = createManager({runsRoot: path.join(tmp, 'validation'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({hold: true})});
   assert.throws(() => manager.start(example.bundle, 'not-a-mode'), (error) => error.statusCode === 400);
@@ -193,6 +225,7 @@ function validation() {
     await runRejected();
     await runActive();
     runRestartRecovery();
+    runHistoricalMissingEvidence();
     console.log('review-job: accepted, rejected, active-lock, recovery and sanitization checks passed');
   } finally {
     fs.rmSync(tmp, {recursive: true, force: true});

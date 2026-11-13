@@ -59,6 +59,14 @@ expectFail('healthy payout missing', (b, r) => { r.healthy.deltas.recipient = '0
 expectFail('failed proposal marked approved', (b, r) => { r.failed.after.proposal.status = 'Approved'; });
 expectFail('repaired artifact identity changed', (b, r) => { r.source.wasmSha256 = '0'.repeat(64); });
 expectFail('unauthorized callback recorded as accepted', (b, r) => { r.healthy.unauthorizedCallback.receipts[0].status = { SuccessValue: '' }; });
+expectFail('unauthorized callback failed for an unrelated reason', (b, r) => {
+  const receipt = r.healthy.unauthorizedCallback.receipts[0];
+  receipt.status = {Failure: {ActionError: {kind: {FunctionCallError: {ExecutionError: 'Smart contract panicked: ERR_UNEXPECTED_CALLBACK_PROMISES'}}}}};
+});
+expectFail('unauthorized callback failed at the wrong executor', (b, r) => {
+  const receipt = r.healthy.unauthorizedCallback.receipts[0];
+  receipt.executorId = 'attacker.test.near';
+});
 expectFail('healthy beneficiary changed', (b, r) => { r.healthy.kind.Transfer.receiver_id = 'attacker.test.near'; });
 expectFail('retry not executed but zero deltas', (b, r) => {
   r.failed.retry.final = null;
