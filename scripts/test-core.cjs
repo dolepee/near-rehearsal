@@ -46,6 +46,7 @@ const suites = [
   'ui/sputnik/test-review-start-race.cjs',
   'ui/sputnik/test-review-submit-lock.cjs',
   'scripts/test-setup.cjs',
+  'scripts/test-runtime-tar.cjs',
   'case-triage/sputnik-226/test-local-network.cjs',
   'scripts/test-public-site.cjs',
 ];
