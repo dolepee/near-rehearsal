@@ -37,7 +37,7 @@
       const s = run.summary;
       const cards = [
         ['Bond returned', value(s.firstRecovery?.gross), s.firstRecovery?.endedFailed ? 'Failed status preserved' : 'No failed status recorded'],
-        ['Retry principal', value(s.retry?.gross, '0 NEAR'), 'Second finalize; no extra principal when 0'],
+        ['Retry principal', value(s.retry?.gross), 'Second finalize; no extra principal when measured at zero'],
         ['Healthy settled', value(s.healthy?.settledTransfer), 'Already-paid Transfer'],
         ['Healthy pending', value(s.healthy?.pendingTransfer), 'Inherited pending Transfer'],
       ];

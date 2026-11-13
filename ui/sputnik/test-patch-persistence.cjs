@@ -38,18 +38,26 @@ function completed(id, status) {
     fs.mkdirSync(path.join(pipeline, 'applied/target/wasm32-unknown-unknown/release'), {recursive: true});
     fs.mkdirSync(path.join(pipeline, 'applied/sputnikdao2/src'), {recursive: true});
     fs.writeFileSync(path.join(pipeline, 'applied/target/wasm32-unknown-unknown/release/sputnikdao2.wasm'), Buffer.from([0, 97, 115, 109]));
+    fs.mkdirSync(path.join(pipeline, 'applied/target/debug/incremental'), {recursive: true});
+    fs.writeFileSync(path.join(pipeline, 'applied/target/debug/incremental/cache.bin'), 'cache');
+    fs.writeFileSync(path.join(pipeline, 'applied/Cargo.lock'), 'lock');
+    fs.mkdirSync(path.join(pipeline, 'applied/sputnikdao2/target/release'), {recursive: true});
+    fs.writeFileSync(path.join(pipeline, 'applied/sputnikdao2/target/release/object.o'), 'object');
     fs.writeFileSync(path.join(pipeline, 'applied/sputnikdao2/src/proposals.rs'), 'fixture source\n');
     fs.writeFileSync(path.join(pipeline, 'candidate-identity.json'), '{}');
     fs.writeFileSync(path.join(pipeline, 'pipeline.json'), '{}');
     fs.writeFileSync(path.join(pipeline, 'build.log'), 'exit=0\n');
     fs.writeFileSync(path.join(pipeline, 'replay.log'), 'fixture\n');
   }
-  fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify({schema: 'near-rehearsal/patch-browser-run/v1', id, status, createdAt: '2026-11-13T10:00:00.000Z', finishedAt: '2026-11-13T10:01:00.000Z', patchSha256: 'a'.repeat(64)}));
+  fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify({schema: 'near-rehearsal/patch-browser-run/v1', id, status, createdAt: '2026-11-13T10:00:00.000Z', finishedAt: '2026-11-13T10:01:00.000Z', patchSha256: 'a'.repeat(64), checkerRevision: 'f'.repeat(40), exitCode: status === 'accepted' ? 0 : 1, signal: null, termination: 'process-closed'}));
 }
 completed(acceptedId, 'accepted');
 fs.mkdirSync(path.join(runsRoot, interruptedId), {recursive: true});
 fs.writeFileSync(path.join(runsRoot, interruptedId, 'submitted.patch'), 'diff --git a/x b/x\n');
-fs.writeFileSync(path.join(runsRoot, interruptedId, 'run.json'), JSON.stringify({schema: 'near-rehearsal/patch-browser-run/v1', id: interruptedId, status: 'running', createdAt: '2026-11-13T10:02:00.000Z', finishedAt: null, patchSha256: 'd'.repeat(64)}));
+fs.mkdirSync(path.join(runsRoot, interruptedId, 'evidence'), {recursive: true});
+fs.writeFileSync(path.join(runsRoot, interruptedId, 'evidence/review-status.json'), JSON.stringify({status: 'accepted', checks: [{id: 'leftover', status: 'pass'}], summary: {retry: {gross: '0 NEAR'}}, verified: {patchSha256: 'd'.repeat(64)}, policy: {policySha256: 'e'.repeat(64)}}));
+fs.writeFileSync(path.join(runsRoot, interruptedId, 'evidence/review-report.md'), '# leftover accepted report\n');
+fs.writeFileSync(path.join(runsRoot, interruptedId, 'run.json'), JSON.stringify({schema: 'near-rehearsal/patch-browser-run/v1', id: interruptedId, status: 'running', createdAt: '2026-11-13T10:02:00.000Z', finishedAt: null, patchSha256: 'd'.repeat(64), checkerRevision: 'f'.repeat(40), exitCode: null, signal: null, termination: null}));
 
 const route = require(path.join(routeDir, 'patch-route.cjs'));
 const runs = route.list();
@@ -91,6 +99,14 @@ assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8'
     const packageReadme = spawnSync('unzip', ['-p', file, 'README.md'], {encoding: 'utf8', timeout: 15_000});
     assert.match(packageReadme.stdout, /No Cargo build tree/);
     assert.match(packageReadme.stdout, /artifact\/sputnikdao2\.wasm/);
+    assert.match(packageReadme.stdout, /Get the checker before running/);
+    assert.match(packageReadme.stdout, /does \*\*not\*\* include the Rehearsal application checkout/);
+    assert.doesNotMatch(packageReadme.stdout, /\/workspace|\/tmp\//);
+    assert.doesNotMatch(packageReadme.stdout, /applied\/|target\/|Cargo\.lock/);
+    const packagedRun = spawnSync('unzip', ['-p', file, 'run.json'], {encoding: 'utf8', timeout: 15_000});
+    assert.equal(packagedRun.status, 0);
+    assert.match(packagedRun.stdout, /"status":"accepted"/);
+    assert.doesNotMatch(packagedRun.stdout, /"status":"running"/);
     const incomplete = await fetch(`${origin}/api/patch/runs/${interruptedId}/package`);
     assert.equal(incomplete.status, 200);
     const incompleteFile = path.join(runsRoot, interruptedId, 'review-package.zip');
@@ -101,7 +117,7 @@ assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8'
     assert.match(incompleteListing.stdout, /run\.json/);
     const incompleteReadme = spawnSync('unzip', ['-p', incompleteFile, 'README.md'], {encoding: 'utf8', timeout: 15_000});
     assert.equal(incompleteReadme.status, 0);
-    assert.match(incompleteReadme.stdout, /No completed checker report/);
+    assert.match(incompleteReadme.stdout, /inconclusive|not accepted evidence|No completed checker report/i);
     const missing = await fetch(`${origin}/api/patch/runs/33333333-3333-4333-8333-333333333333`).then((r) => r.status);
     assert.equal(missing, 404);
     console.log('patch persistence: completed results load, interrupted runs become inconclusive, package includes patch/evidence/checksums/reproduce instructions');

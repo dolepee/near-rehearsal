@@ -14,6 +14,11 @@ const cli = path.join(root, 'scripts/review-patch.cjs');
 const output = path.join(root, '.local/browser-patch-runs');
 const manifest = require('../../case-triage/rehearsal-repair/controller-manifest.json');
 const SOURCE_PATH = 'sputnikdao2/src/proposals.rs';
+
+function checkerRevision() {
+  const run = spawnSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8', timeout: 10_000});
+  return run.status === 0 ? run.stdout.trim() : null;
+}
 const names = {status:'review-status.json',report:'review-report.md',patch:'submitted.patch'};
 const max = 65536;
 const MAX_PACKAGE_BYTES = 32 * 1024 * 1024;
@@ -89,6 +94,7 @@ function packageReadme(dir, job) {
   const source = verified.sourceCommitPinned || verified.sourceCommit || manifest.source.commit;
   const patchSha = verified.patchSha256 || job.patchSha256 || 'unknown';
   const wasm = verified.builtWasmSha256 || 'not produced';
+  const checker = job.checkerRevision || 'the revision that produced this packet';
   return [
     '# Rehearsal source-patch evidence package',
     '',
@@ -106,6 +112,7 @@ function packageReadme(dir, job) {
     `- Submitted patch SHA-256: ${patchSha}`,
     `- Built WASM SHA-256: ${wasm}`,
     `- Checker policy SHA-256: ${policy.policySha256 || 'not available in this incomplete run'}`,
+    `- Checker revision: ${checker}`,
     '',
     '## Artifact and notices',
     '',
@@ -115,17 +122,28 @@ function packageReadme(dir, job) {
     '- Third-party and upstream notices: THIRD_PARTY_NOTICES.md and LICENSES/',
     '- No Cargo build tree is included. Only the selected evidence, built artifact and notices are packaged.',
     '',
+    '## Get the checker before running',
+    '',
+    'This packet does **not** include the Rehearsal application checkout or its `package.json`; do not run `npm` from the extracted packet. Extract the packet, then obtain the Rehearsal checkout at the checker revision above and install its dependencies there:',
+    '',
+    '```sh',
+    'cd <rehearsal-checkout-at-' + checker + '>',
+    'npm ci',
+    '```',
+    '',
     '## Reproduce with the supported CLI',
+    '',
+    'Run this from the Rehearsal checkout, not from the extracted packet:',
     '',
     '```sh',
     'npm run review:patch -- \\',
-    '  --patch submitted.patch \\',
-    '  --source <clean checkout at ' + source + '> \\',
-    '  --out <new directory> \\',
+    '  --patch <extracted-packet>/submitted.patch \\',
+    '  --source <clean Sputnik checkout at ' + source + '> \\',
+    '  --out <new output directory> \\',
     '  --sandbox-dir <directory containing near-sandbox>',
     '```',
     '',
-    'The source checkout must be clean and at the pinned commit. The output directory must be new or empty. Compare the source commit, patch SHA-256, built WASM and checker policy identities; do not treat the submitted labels as provenance.',
+    'The source checkout must be clean and at the pinned commit. The output directory must be new or empty. Compare the source commit, patch SHA-256, built WASM and checker policy identities; do not treat the submitted labels as provenance. No original absolute path is required: use paths in your own extracted packet and checkouts.',
     '',
     'The original report and status are under `evidence/`. A rejected or incomplete package is evidence, not an accepted recovery packet.',
     '',
@@ -279,6 +297,10 @@ function writeMeta(dir, job) {
     id: job.id, status: job.status, note: job.note || NOTES[job.status] || NOTES.inconclusive,
     createdAt: job.createdAt || nowIso(), finishedAt: job.finishedAt || null,
     patchSha256: job.patchSha256 || null, packageName: job.packageName || null,
+    checkerRevision: job.checkerRevision || null,
+    exitCode: job.exitCode === undefined ? null : job.exitCode,
+    signal: job.signal || null,
+    termination: job.termination || null,
   };
   fs.writeFileSync(metaPath(dir), json(meta), {mode: 0o600});
   return meta;
@@ -294,24 +316,29 @@ function load(id) {
   const job = {
     id, status: meta.status, createdAt: meta.createdAt, finishedAt: meta.finishedAt,
     patchSha256: meta.patchSha256, packageName: meta.packageName,
+    checkerRevision: meta.checkerRevision || null,
+    exitCode: meta.exitCode === undefined ? null : meta.exitCode,
+    signal: meta.signal || null,
+    termination: meta.termination || null,
   };
-  const doc = statusDocument(dir);
-  if (doc) {
-    const actual = terminalStatus(dir, 0, null);
-    if (job.status !== actual) {
-      job.status = actual;
-      job.finishedAt = job.finishedAt || nowIso();
-      writeMeta(dir, job);
-    }
-  } else if (job.status === 'running') {
+  if (job.status === 'running') {
+    // A leftover status/report from an interrupted process is not evidence of
+    // a successful exit. Never infer exit code zero from the files alone.
     job.status = 'inconclusive';
     job.finishedAt = job.finishedAt || nowIso();
+    job.termination = job.termination || 'server-restart';
     job.note = 'The server restarted before this patch check completed. This run is not accepted evidence and was not resumed.';
     writeMeta(dir, job);
   } else if (!reportText(dir)) {
     job.status = 'inconclusive';
     job.finishedAt = job.finishedAt || nowIso();
+    job.termination = job.termination || 'missing-verdict';
     job.note = 'The completed checker verdict is unavailable; this run is not accepted evidence.';
+    writeMeta(dir, job);
+  } else if (job.status === 'accepted' && ((job.exitCode !== null && job.exitCode !== 0) || job.signal)) {
+    job.status = 'inconclusive';
+    job.finishedAt = job.finishedAt || nowIso();
+    job.note = 'The recorded process termination does not support an accepted verdict; this run is not accepted evidence.';
     writeMeta(dir, job);
   }
   enrich(job, dir);
@@ -344,6 +371,13 @@ function recover() {
 function finish(job, dir, code, signal) {
   job.status = terminalStatus(dir, code, signal);
   job.finishedAt = nowIso();
+  job.exitCode = Number.isInteger(code) ? code : null;
+  job.signal = signal || null;
+  job.termination = 'process-closed';
+  job.downloads = ['status', 'report', 'patch'].filter((key) => artifactInfo(dir, key));
+  // Persist the final verdict and process evidence before materialising the
+  // package, so the packet cannot carry stale running metadata.
+  writeMeta(dir, job);
   enrich(job, dir);
   writeMeta(dir, job);
 }
@@ -381,14 +415,14 @@ async function handle({req, res, url, send}) {
     const id = crypto.randomUUID(), dir = dirFor(id), input = path.join(dir, names.patch);
     fs.mkdirSync(dir, {recursive: true, mode: 0o700});
     fs.writeFileSync(input, patch, {flag: 'wx', mode: 0o600});
-    const job = {id, status: 'running', createdAt: nowIso(), finishedAt: null, patchSha256: sha256(Buffer.from(patch)), downloads: []};
+    const job = {id, status: 'running', createdAt: nowIso(), finishedAt: null, patchSha256: sha256(Buffer.from(patch)), downloads: [], checkerRevision: checkerRevision(), exitCode: null, signal: null, termination: null};
     writeMeta(dir, job);
     memory.set(id, job); active = id;
     const args = [cli, '--patch', input, '--base', manifest.source.commit, '--source', path.resolve(process.env.REPAIR_SOURCE_DIR), '--out', path.join(dir, 'evidence')];
     const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => ['HOME','PATH','TMPDIR','LANG','CARGO_HOME','RUSTUP_HOME','REPAIR_SANDBOX_DIR','CARGO_NET_OFFLINE'].includes(k)));
     let child;
     try { child = spawn(process.execPath, args, {cwd: root, env, stdio: 'ignore', detached: true}); }
-    catch { active = null; job.status = 'inconclusive'; writeMeta(dir, job); return send(res, 503, {error: 'The local checker could not start.'}); }
+    catch { active = null; job.status = 'inconclusive'; job.termination = 'not-started'; writeMeta(dir, job); return send(res, 503, {error: 'The local checker could not start.'}); }
     currentChild = child;
     const timer = setTimeout(() => { if (child.pid) { try { process.kill(-child.pid, 'SIGKILL'); } catch {} } }, 20 * 60 * 1000);
     timer.unref();

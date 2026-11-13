@@ -17,6 +17,8 @@ assert.match(html, /Recent patch checks/);
 assert.match(js, /api\/patch\/runs/);
 assert.match(js, /Not available/);
 assert.match(js, /Not measured/);
+assert.match(js, /value\(s\.retry\?\.gross\)/);
+assert.doesNotMatch(js, /retry\?\.gross,\s*'0 NEAR'/);
 assert.match(js, /All defined checks passed/);
 assert.match(js, /failed/);
 assert.match(route, /review-package/);

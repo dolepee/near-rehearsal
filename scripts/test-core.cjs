@@ -26,6 +26,7 @@ const suites = [
   'ui/sputnik/test-patch-lifecycle.cjs',
   'ui/sputnik/test-patch-persistence.cjs',
   'ui/sputnik/test-patch-ui.cjs',
+  'ui/sputnik/test-patch-package.cjs',
   'scripts/test-review-patch.cjs',
   'ui/sputnik/test-repair-history.cjs',
   'ui/sputnik/test-repair-ui.cjs',
