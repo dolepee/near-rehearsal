@@ -1,0 +1,6 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "near-rehearsal",
+  "compatibility_date": "2026-11-13",
+  "pages_build_output_dir": ".local/public-site"
+}

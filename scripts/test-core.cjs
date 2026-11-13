@@ -47,6 +47,7 @@ const suites = [
   'ui/sputnik/test-review-submit-lock.cjs',
   'scripts/test-setup.cjs',
   'case-triage/sputnik-226/test-local-network.cjs',
+  'scripts/test-public-site.cjs',
 ];
 for (const suite of suites) {
   console.log(`\n> ${suite}`);
