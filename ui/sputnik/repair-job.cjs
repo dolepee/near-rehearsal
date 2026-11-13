@@ -745,7 +745,7 @@ function createManager(options = {}) {
       } else {
         const mixedTerminal = mixedReport?.schema === 'near-rehearsal/mixed-obligation/v1' && Boolean(mixedReport?.candidate?.wasmSha256);
         const settlementTerminal = settlementReport?.schema === 'near-rehearsal/settlement-refund/v1' && Boolean(settlementReport?.candidate?.wasmSha256);
-        run.status = freshAccepted && recoveryAccepted && (mixedTerminal || settlementTerminal) ? 'rejected' : 'inconclusive';
+        run.status = !freshAccepted || !recoveryAccepted || mixedTerminal || settlementTerminal ? 'rejected' : 'inconclusive';
         setPhase(run, run.status);
         run.error = `The repair ran but was not accepted by ${acceptanceVerdict.policyVersion}: ${acceptanceVerdict.errors.join('; ')}`;
         if (pipelineExitError) run.error += ` Pipeline exited: ${pipelineExitError.message}`;
