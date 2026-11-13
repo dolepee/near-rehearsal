@@ -3,7 +3,7 @@
   const el = (id) => document.getElementById(id);
   const input = el('patch-text'), file = el('patch-file'), button = el('check'), status = el('patch-status');
   const max = 64 * 1024;
-  let selection = 0, active = false, pendingFile = false, loadedText = null;
+  let selection = 0, view = 0, active = false, pendingFile = false, loadedText = null;
   function resetResult() {
     el('patch-result').hidden = true;
     el('patch-outcomes').hidden = true;
@@ -12,7 +12,7 @@
     el('evidence-links').replaceChildren();
   }
   function controls() { button.disabled = active || pendingFile; input.disabled = file.disabled = active; }
-  function editing() { resetResult(); status.textContent = ''; }
+  function editing() { ++view; resetResult(); status.textContent = ''; }
   file.addEventListener('change', async () => {
     const mine = ++selection, f = file.files[0]; editing(); loadedText = null; input.value = ''; pendingFile = Boolean(f); controls();
     if (!f) return;
@@ -37,7 +37,10 @@
       const s = run.summary;
       const cards = [
         ['Bond returned', value(s.firstRecovery?.gross), s.firstRecovery?.endedFailed ? 'Failed status preserved' : 'No failed status recorded'],
+        ['First recovery gas', value(s.firstRecovery?.gas), 'Reported separately from the gross bond'],
+        ['Proposer net', value(s.firstRecovery?.proposerNet), 'Gross bond less measured gas'],
         ['Retry principal', value(s.retry?.gross), 'Second finalize; no extra principal when measured at zero'],
+        ['Retry gas', value(s.retry?.gas), 'Gas moved separately from retry principal'],
         ['Healthy settled', value(s.healthy?.settledTransfer), 'Already-paid Transfer'],
         ['Healthy pending', value(s.healthy?.pendingTransfer), 'Inherited pending Transfer'],
       ];
@@ -100,24 +103,32 @@
   }
   const runKey = 'rehearsal-patch-run';
   async function follow(runId, initial = null) {
+    const mine = ++view;
     active = true; controls();
     const until = Date.now() + 21 * 60 * 1000;
     try {
       let run = initial || await json('/api/patch/runs/'+encodeURIComponent(runId));
+      if (mine !== view) return;
+      sessionStorage.setItem(runKey, runId);
       while (run.status === 'running') {
         status.textContent = 'Building and checking your patch in the local Sandbox…';
         if (Date.now() > until) throw new Error('Timed out waiting for the checker.');
         await new Promise(resolve => setTimeout(resolve,1500));
+        if (mine !== view) return;
         run = await json('/api/patch/runs/'+encodeURIComponent(runId));
       }
+      if (mine !== view) return;
       status.textContent = ''; result(run); await loadRecent();
     } catch(e) {
+      if (mine !== view) return;
       status.textContent = e.message + ' You can resume this check without submitting the patch again.';
       const resume = document.createElement('button');
       resume.type = 'button'; resume.className = 'secondary'; resume.textContent = 'Resume check';
       resume.addEventListener('click', () => { resume.remove(); follow(runId); });
       status.append(document.createTextNode(' '), resume);
-    } finally { active = false; controls(); }
+    } finally {
+      if (mine === view) { active = false; controls(); }
+    }
   }
   el('patch-form').addEventListener('submit', async ev => {
     ev.preventDefault(); if (active || pendingFile) return;

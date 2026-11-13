@@ -52,18 +52,30 @@ function completed(id, status) {
   fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify({schema: 'near-rehearsal/patch-browser-run/v1', id, status, createdAt: '2026-11-13T10:00:00.000Z', finishedAt: '2026-11-13T10:01:00.000Z', patchSha256: 'a'.repeat(64), checkerRevision: 'f'.repeat(40), exitCode: status === 'accepted' ? 0 : 1, signal: null, termination: 'process-closed'}));
 }
 completed(acceptedId, 'accepted');
+const oldStage = path.join(root, 'old-package');
+fs.mkdirSync(oldStage, {recursive: true});
+fs.writeFileSync(path.join(oldStage, 'README.md'), '# old package\n');
+fs.writeFileSync(path.join(oldStage, 'run.json'), JSON.stringify({status: 'running'}));
+spawnSync('zip', ['-q', '-r', path.join(runsRoot, acceptedId, 'review-package.zip'), '.'], {cwd: oldStage, timeout: 15_000});
 fs.mkdirSync(path.join(runsRoot, interruptedId), {recursive: true});
 fs.writeFileSync(path.join(runsRoot, interruptedId, 'submitted.patch'), 'diff --git a/x b/x\n');
 fs.mkdirSync(path.join(runsRoot, interruptedId, 'evidence'), {recursive: true});
 fs.writeFileSync(path.join(runsRoot, interruptedId, 'evidence/review-status.json'), JSON.stringify({status: 'accepted', checks: [{id: 'leftover', status: 'pass'}], summary: {retry: {gross: '0 NEAR'}}, verified: {patchSha256: 'd'.repeat(64)}, policy: {policySha256: 'e'.repeat(64)}}));
 fs.writeFileSync(path.join(runsRoot, interruptedId, 'evidence/review-report.md'), '# leftover accepted report\n');
 fs.writeFileSync(path.join(runsRoot, interruptedId, 'run.json'), JSON.stringify({schema: 'near-rehearsal/patch-browser-run/v1', id: interruptedId, status: 'running', createdAt: '2026-11-13T10:02:00.000Z', finishedAt: null, patchSha256: 'd'.repeat(64), checkerRevision: 'f'.repeat(40), exitCode: null, signal: null, termination: null}));
+const missingStatusId = '33333333-3333-4333-8333-333333333333';
+const missingStatusDir = path.join(runsRoot, missingStatusId);
+fs.mkdirSync(path.join(missingStatusDir, 'evidence'), {recursive: true});
+fs.writeFileSync(path.join(missingStatusDir, 'submitted.patch'), 'diff --git a/x b/x\n');
+fs.writeFileSync(path.join(missingStatusDir, 'evidence/review-report.md'), '# accepted-looking report without status\n');
+fs.writeFileSync(path.join(missingStatusDir, 'run.json'), JSON.stringify({schema: 'near-rehearsal/patch-browser-run/v1', id: missingStatusId, status: 'accepted', createdAt: '2026-11-13T10:03:00.000Z', finishedAt: '2026-11-13T10:04:00.000Z', patchSha256: 'f'.repeat(64), checkerRevision: 'f'.repeat(40), exitCode: 0, signal: null, termination: 'process-closed'}));
 
 const route = require(path.join(routeDir, 'patch-route.cjs'));
 const runs = route.list();
 assert.equal(runs.find((run) => run.id === acceptedId).status, 'accepted');
 assert.equal(runs.find((run) => run.id === interruptedId).status, 'inconclusive');
 assert.match(runs.find((run) => run.id === interruptedId).note, /restarted|not accepted/);
+assert.equal(runs.find((run) => run.id === missingStatusId).status, 'inconclusive', 'accepted metadata without review-status.json is not accepted');
 assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8').includes('"accepted"'), true);
 
 (async () => {
@@ -76,7 +88,7 @@ assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8'
     assert.equal(one.status, 'accepted');
     assert.ok(one.summary.firstRecovery.gross, 'completed summary survives reload');
     const list = await fetch(`${origin}/api/patch/runs`).then((r) => r.json());
-    assert.equal(list.runs.length, 2);
+    assert.equal(list.runs.length, 3);
     const pkg = await fetch(`${origin}/api/patch/runs/${acceptedId}/package`);
     assert.equal(pkg.status, 200);
     const bytes = Buffer.from(await pkg.arrayBuffer());
@@ -89,6 +101,9 @@ assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8'
     assert.match(listing.stdout, /evidence\/review-status\.json/);
     assert.match(listing.stdout, /README\.md/);
     assert.match(listing.stdout, /SHA256SUMS/);
+    const packageMarker = spawnSync('unzip', ['-p', file, 'README.md'], {encoding: 'utf8', timeout: 15_000});
+    assert.match(packageMarker.stdout, /Package format: 2/);
+    assert.doesNotMatch(packageMarker.stdout, /^# old package/m);
     assert.match(listing.stdout, /REPRODUCE|review-report\.md/);
     assert.match(listing.stdout, /artifact\/sputnikdao2\.wasm/);
     assert.match(listing.stdout, /source\/proposals\.rs/);
@@ -118,7 +133,7 @@ assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8'
     const incompleteReadme = spawnSync('unzip', ['-p', incompleteFile, 'README.md'], {encoding: 'utf8', timeout: 15_000});
     assert.equal(incompleteReadme.status, 0);
     assert.match(incompleteReadme.stdout, /inconclusive|not accepted evidence|No completed checker report/i);
-    const missing = await fetch(`${origin}/api/patch/runs/33333333-3333-4333-8333-333333333333`).then((r) => r.status);
+    const missing = await fetch(`${origin}/api/patch/runs/44444444-4444-4444-8444-444444444444`).then((r) => r.status);
     assert.equal(missing, 404);
     console.log('patch persistence: completed results load, interrupted runs become inconclusive, package includes patch/evidence/checksums/reproduce instructions');
   } finally {

@@ -22,6 +22,7 @@ function checkerRevision() {
 const names = {status:'review-status.json',report:'review-report.md',patch:'submitted.patch'};
 const max = 65536;
 const MAX_PACKAGE_BYTES = 32 * 1024 * 1024;
+const PACKAGE_FORMAT = 2;
 const memory = new Map();
 let active = null;
 let currentChild = null;
@@ -104,6 +105,8 @@ function packageReadme(dir, job) {
     '',
     status.status ? '' : 'No completed checker report was produced for this run. The submitted diff and run metadata are preserved; no success is implied.',
     '',
+    `Package format: ${PACKAGE_FORMAT} (source-patch review)`,
+    '',
     'This is the source-patch review package, not the older `repair:review` bundle format.',
     '',
     '## Bound identities',
@@ -166,15 +169,37 @@ function writeSums(stage) {
   fs.writeFileSync(path.join(stage, 'SHA256SUMS'), `${lines.join('\n')}\n`);
 }
 
+function archiveEntry(file, name) {
+  const zip = file.endsWith('.zip');
+  const run = spawnSync(zip ? 'unzip' : 'tar', zip ? ['-p', file, name] : ['-xzOf', file, name], {encoding: 'utf8', timeout: 15_000});
+  return run.status === 0 ? run.stdout : null;
+}
+
+function packageCurrent(file, job) {
+  const readme = archiveEntry(file, 'README.md');
+  if (!readme || !readme.includes(`Package format: ${PACKAGE_FORMAT}`)) return false;
+  const raw = archiveEntry(file, 'run.json');
+  if (!raw) return false;
+  try {
+    const meta = JSON.parse(raw);
+    return meta && meta.status === job.status;
+  } catch { return false; }
+}
+
 function ensurePackage(dir, job) {
   if (!dirExists(dir) || !job || job.status === 'running') return null;
+  let existing = null;
   for (const name of ['review-package.zip', 'review-package.tar.gz']) {
-    const existing = path.join(dir, name);
-    if (exists(existing)) {
-      job.packageName = name;
-      return existing;
-    }
+    const file = path.join(dir, name);
+    if (exists(file)) { existing = file; break; }
   }
+  if (existing && packageCurrent(existing, job)) {
+    job.packageName = path.basename(existing);
+    return existing;
+  }
+  // Old packages copied the complete Cargo tree and can carry a stale running
+  // run.json. Remove them so the next read regenerates from this allowlist.
+  for (const name of ['review-package.zip', 'review-package.tar.gz']) fs.rmSync(path.join(dir, name), {force: true});
   const status = artifactPath(dir, 'status');
   const report = artifactPath(dir, 'report');
   const patch = artifactPath(dir, 'patch');
@@ -334,6 +359,12 @@ function load(id) {
     job.finishedAt = job.finishedAt || nowIso();
     job.termination = job.termination || 'missing-verdict';
     job.note = 'The completed checker verdict is unavailable; this run is not accepted evidence.';
+    writeMeta(dir, job);
+  } else if (job.status === 'accepted' && !statusDocument(dir)) {
+    job.status = 'inconclusive';
+    job.finishedAt = job.finishedAt || nowIso();
+    job.termination = job.termination || 'missing-status';
+    job.note = 'The accepted run is missing its structured checker status; this run is not accepted evidence.';
     writeMeta(dir, job);
   } else if (job.status === 'accepted' && ((job.exitCode !== null && job.exitCode !== 0) || job.signal)) {
     job.status = 'inconclusive';
