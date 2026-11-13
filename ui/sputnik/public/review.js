@@ -251,7 +251,7 @@
         ['Alice bond returned once', outcome(reviewer.alicePaid), comparison.legacy ? 'not applicable' : outcome(producer.alicePaid)],
         ['Bob liability preserved', outcome(reviewer.bobLiabilityAfterAlice), comparison.legacy ? 'not applicable' : outcome(producer.bobLiabilityAfterAlice)],
         ['Bob transfer paid', outcome(reviewer.bobTransferPaid), comparison.legacy ? 'not applicable' : outcome(producer.bobTransferPaid)],
-        ['Bob paid exactly once', outcome(reviewer.bobPaidExactlyOnce), comparison.legacy ? 'not applicable' : outcome(producer.bobPaidExactlyOnce)],
+        ['Bob payout and liability release valid', outcome(reviewer.bobPaidExactlyOnce), comparison.legacy ? 'not applicable' : outcome(producer.bobPaidExactlyOnce)],
       ].map(([label, reviewerValue, producerValue]) => `<li><span class="check-mark${reviewerValue === 'yes' ? '' : ' bad'}" aria-hidden="true">${reviewerValue === 'yes' ? '✓' : '×'}</span><span>${esc(label)} — reviewer <b>${esc(reviewerValue)}</b>${comparison.legacy ? '' : `; producer <b>${esc(producerValue)}</b>`}</span></li>`).join('');
       $('same-dao-copy').textContent += ` Policy ${short(mixed.policy?.sha256)}.`;
       if (comparison.differences?.length) $('same-dao-copy').textContent += ` Differences: ${comparison.differences.join(', ')}.`;

@@ -163,7 +163,7 @@ function verifyMixedReport(report, opts = {}) {
     && bobAfter?.proposals?.bob?.status === 'Approved' && bobRecipient === expectedTransfer;
   const bobPaidExactlyOnce = bobTransferPaid && bobContract === -(expectedBond + expectedTransfer) && bobLocked === -expectedBond;
   if (!bobTransferPaid) fail('Bob transfer was not paid');
-  if (!bobPaidExactlyOnce) fail('Bob did not receive exactly one transfer and one bond return');
+  if (!bobPaidExactlyOnce) fail('Bob settlement failed payout or liability-release checks');
   if (bobProposer !== expectedBond) fail('Bob proposer bond return is not exactly one bond');
   if (bob?.deltas?.proposer && amount(bob.deltas.proposer, 'Bob payout reported proposer') !== bobProposer) fail('Bob proposer delta does not match snapshot balances');
   if (bobPayer >= 0n) fail('Bob payout did not charge Alice as the action payer');

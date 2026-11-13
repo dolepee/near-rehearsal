@@ -328,7 +328,7 @@ function renderReport(review) {
       `- Alice paid exactly once: ${review.mixed.outcomes.alicePaid === true}`,
       `- Bob liability after Alice recovery: ${review.mixed.outcomes.bobLiabilityAfterAlice === true}`,
       `- Bob transfer paid: ${review.mixed.outcomes.bobTransferPaid === true}`,
-      `- Bob paid exactly once with bond returned: ${review.mixed.outcomes.bobPaidExactlyOnce === true}`,
+      `- Bob settlement preserves payout and liability accounting: ${review.mixed.outcomes.bobPaidExactlyOnce === true}`,
       ...(review.mixed.errors || []).map((error) => `- Failure: ${error}`),
     ] : ['- Same-DAO mixed-obligation policy did not produce a verified report.']),
     '',
