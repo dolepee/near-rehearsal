@@ -283,8 +283,8 @@ function verify(run) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url || '/', `http://${HOST}:${PORT}`);
   try {
+    const url = new URL(req.url || '/', `http://${HOST}:${PORT}`);
     if (url.pathname.startsWith('/api/')) {
       const denied = apiRequestError(req);
       if (denied) return send(res, denied.status, {error: denied.error});
