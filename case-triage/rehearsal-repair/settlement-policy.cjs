@@ -12,6 +12,31 @@
  */
 const BOND = 10n ** 24n;
 const REQUIRED_SCHEMA = 'near-rehearsal/settlement-refund/v2';
+
+const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function base58Encode(bytes) {
+  let n = 0n;
+  for (const byte of bytes) n = (n << 8n) + BigInt(byte);
+  let out = '';
+  while (n > 0n) { out = BASE58[Number(n % 58n)] + out; n /= 58n; }
+  for (const byte of bytes) { if (byte !== 0) break; out = `1${out}`; }
+  return out || '1';
+}
+
+function deploymentCommitment(deploy, label, fail) {
+  if (!deploy || deploy.finalExecutionStatus !== 'FINAL') { fail(`${label} deployment was not FINAL`); return null; }
+  if (!deploy.transactionOutcome?.status?.SuccessReceiptId) { fail(`${label} deployment has no successful receipt`); }
+  const action = (deploy.transaction?.actions || []).find((entry) => entry && entry.DeployContract);
+  if (!action) { fail(`${label} deployment has no DeployContract action`); return null; }
+  let code;
+  try { code = Buffer.from(action.DeployContract.code, 'base64'); } catch { code = null; }
+  if (!code || code.length !== 32) { fail(`${label} DeployContract code commitment is not 32 bytes`); return null; }
+  const sha256 = code.toString('hex');
+  if (deploy.wasmSha256 !== sha256) fail(`${label} deployment label does not match its DeployContract commitment`);
+  if (deploy.codeHash !== base58Encode(code)) fail(`${label} installed code hash does not match its DeployContract commitment`);
+  return sha256;
+}
+
 const DEFAULT_BASE_WASM_SHA256 = '5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578';
 
 function verifyScenario(scenario, mode, context) {
@@ -21,6 +46,8 @@ function verifyScenario(scenario, mode, context) {
 
   if (mode === 'candidate-only') {
     if (scenario.legacy) failFor(false, 'fresh candidate scenario must not claim legacy upgrade evidence');
+    const committed = deploymentCommitment(scenario.deploy, 'fresh candidate', (message) => failFor(false, message));
+    if (committed !== candidateWasmSha256) failFor(false, 'fresh candidate deployment does not commit to the candidate WASM');
     if (scenario.deploy?.wasmSha256 !== candidateWasmSha256) failFor(false, 'fresh candidate scenario did not deploy the candidate WASM');
     const upgrade = report?.inherited?.transactions?.upgrade;
     if (upgrade && scenario.deploy?.codeHash && upgrade.codeHash && scenario.deploy.codeHash !== upgrade.codeHash) {
@@ -39,7 +66,14 @@ function verifyScenario(scenario, mode, context) {
     const upgrade = scenario.transactions?.upgrade;
     if (!upgrade || upgrade.candidateWasmSha256 !== candidateWasmSha256 || !upgrade.deploy || !upgrade.migrate) {
       failFor(false, 'legacy upgrade transaction evidence is missing');
+    } else {
+      const upgradedCode = deploymentCommitment(upgrade.deploy, 'inherited upgrade', (message) => failFor(false, message));
+      if (upgradedCode !== candidateWasmSha256) failFor(false, 'inherited upgrade does not commit to the candidate WASM');
+      if (upgrade.codeHash !== base58Encode(Buffer.from(candidateWasmSha256, 'hex'))) failFor(false, 'inherited installed code hash is not the candidate');
+      if (upgrade.migrate?.finalExecutionStatus !== 'FINAL' || !upgrade.migrate?.transactionOutcome?.status?.SuccessReceiptId) failFor(false, 'inherited migrate was not successful');
     }
+    const baseCommitted = deploymentCommitment(scenario.deploy, 'inherited base', (message) => failFor(false, message));
+    if (baseCommitted !== baseWasmSha256) failFor(false, 'inherited scenario does not commit to the pinned base WASM');
     if (scenario.deploy?.wasmSha256 !== baseWasmSha256) failFor(false, 'inherited scenario did not deploy the pinned base WASM');
   }
 

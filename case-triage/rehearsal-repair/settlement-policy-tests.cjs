@@ -26,6 +26,36 @@ assert.equal(correctedCheck.outcomes.overlapDelta, '1000000000000000000000000');
 assert.equal(correctedCheck.outcomes.fresh.failedRefundLocked, '1000000000000000000000000', 'the fresh candidate scenario must also retain the debt');
 assert.equal(correctedCheck.outcomes.inherited.failedRefundLocked, '1000000000000000000000000', 'the inherited scenario must retain the debt');
 
+const labelSwap = JSON.parse(JSON.stringify(correctedReport));
+const forged = '1'.repeat(64);
+labelSwap.candidate.wasmSha256 = forged;
+labelSwap.fresh.deploy.wasmSha256 = forged;
+labelSwap.inherited.legacy.candidateWasmSha256 = forged;
+labelSwap.inherited.transactions.upgrade.candidateWasmSha256 = forged;
+const labelSwapCheck = verifySettlementReport(labelSwap, {candidateWasmSha256: forged});
+assert.equal(labelSwapCheck.ok, false, 'copied identity labels must not replace DeployContract evidence');
+assert.ok(labelSwapCheck.errors.some((error) => /DeployContract|deployment label|commitment|installed code hash/.test(error)));
+
+const badInstalledHash = JSON.parse(JSON.stringify(correctedReport));
+badInstalledHash.fresh.deploy.codeHash = '1111111111111111111111111111111111';
+assert.equal(verifySettlementReport(badInstalledHash, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a deployment whose installed code hash disagrees with its commitment must fail');
+
+const nonFinalDeploy = JSON.parse(JSON.stringify(correctedReport));
+nonFinalDeploy.fresh.deploy.finalExecutionStatus = 'INCLUDED';
+assert.equal(verifySettlementReport(nonFinalDeploy, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a non-final deployment must fail');
+
+const failedDeploy = JSON.parse(JSON.stringify(correctedReport));
+failedDeploy.fresh.deploy.transactionOutcome.status = {Failure: {}};
+assert.equal(verifySettlementReport(failedDeploy, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a failed deployment must fail');
+
+const missingAction = JSON.parse(JSON.stringify(correctedReport));
+missingAction.fresh.deploy.transaction.actions = [];
+assert.equal(verifySettlementReport(missingAction, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a deployment without DeployContract evidence must fail');
+
 const swapped = JSON.parse(JSON.stringify(correctedReport));
 swapped.candidate.wasmSha256 = oldReport.candidate.wasmSha256;
 assert.equal(verifySettlementReport(swapped, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false, 'a report bound to a different candidate must fail');
@@ -80,6 +110,11 @@ console.log(JSON.stringify({
     'old-premature-fails',
     'corrected-passes',
     'candidate-binding-fails',
+    'identity-label-swap-fails',
+    'installed-code-hash-fails',
+    'non-final-deployment-fails',
+    'failed-deployment-fails',
+    'missing-deploy-action-fails',
     'candidate-only-fails',
     'missing-fresh-fails',
     'wrong-base-fails',

@@ -233,6 +233,8 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
     const codeHash = hashContract(wasm);
     const upgradeDeploy = await dao.deploy(wasm);
     const upgradeDeployFinal = summarize(await finalStatus(worker, upgradeDeploy, root.accountId));
+    upgradeDeployFinal.wasmSha256 = sha256(wasm);
+    upgradeDeployFinal.codeHash = codeHash;
     const migrate = await dao.callRaw(dao, 'migrate', {}, {gas: GAS});
     const migrateFinal = summarize(await finalStatus(worker, migrate, root.accountId));
     let installed = false;

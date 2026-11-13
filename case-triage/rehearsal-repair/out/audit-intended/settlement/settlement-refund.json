@@ -1575,7 +1575,9 @@
                 }
               }
             ]
-          }
+          },
+          "wasmSha256": "fe4401bcc33aedb7992ffa5163570355fc1757e123bd588aa4f9a84302967a0c",
+          "codeHash": "J7YheRDqnVdrxQTdTLmFNrC79ASMwNHkNZG79yfdzPJs"
         },
         "migrate": {
           "transactionHash": "8gR1dXwv11XBJYatd6qEqNQNy3BX3bRRTfBRs1g8Q35J",
