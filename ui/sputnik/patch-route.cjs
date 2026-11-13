@@ -191,6 +191,8 @@ function packageReadme(dir, job) {
     '',
     'The original report and status are under `evidence/`. A rejected or incomplete package is evidence, not an accepted recovery packet.',
     '',
+    'Source builds run as trusted local host execution; build scripts can read host files and credentials. The package does not claim compiler isolation or an untrusted-code sandbox.',
+    '',
   ].join('\n');
 }
 
