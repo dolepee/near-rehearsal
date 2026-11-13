@@ -1,0 +1,20 @@
+{
+  "schema": "near-rehearsal/repair-candidate-identity/v1",
+  "source": {
+    "repository": "https://github.com/near-daos/sputnik-dao-contract",
+    "commit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b",
+    "path": "sputnikdao2/src/proposals.rs",
+    "sha256": "ee1c80aa89ba9ee0cf140ed2effe6400023a2cc3782c207caddcb5656ce8e7ff"
+  },
+  "patch": {
+    "sha256": "7192990b09683d7d9cbeb8a8840484d2a0af31a830926e57958dc4fd52d2cf0e"
+  },
+  "wasm": {
+    "sha256": "fe4401bcc33aedb7992ffa5163570355fc1757e123bd588aa4f9a84302967a0c",
+    "bytes": 533106
+  },
+  "controller": {
+    "generatedAt": "2026-11-13T21:14:05.207Z",
+    "generatedBy": "repair-candidate-identity/v1"
+  }
+}
