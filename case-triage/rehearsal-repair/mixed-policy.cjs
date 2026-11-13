@@ -4,8 +4,14 @@
  * and deltas are evidence, not authority: every actor credit, action-payer
  * charge, receipt-derived gas amount and terminal proposal state is checked.
  */
+const fs = require('node:fs');
+const path = require('node:path');
 const BOND = 10n ** 24n;
 const TRANSFER = 10n ** 23n;
+const FIXTURE = path.join(__dirname, 'out', 'issue238-local.json');
+const fixture = (() => { try { return JSON.parse(fs.readFileSync(FIXTURE, 'utf8')); } catch { return null; } })();
+const fixtureBond = (() => { try { return BigInt(fixture.failed.bondDeclaredYocto); } catch { return BOND; } })();
+const fixtureTransfer = (() => { try { return BigInt(fixture.healthy.transferDeclaredYocto); } catch { return TRANSFER; } })();
 const SOURCE = '5434a59dec23ee0c49df8c8c4350c208a7e75b0b';
 const BASE_WASM = '5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578';
 
@@ -31,6 +37,8 @@ const strictAmount = (value, label, fail, {nonNegative = false} = {}) => {
 function verifyMixedReport(report, opts = {}) {
   const errors = [];
   const fail = (message) => errors.push(message);
+  const expectedBond = opts.expectedBond ? BigInt(opts.expectedBond) : fixtureBond;
+  const expectedTransfer = opts.expectedTransfer ? BigInt(opts.expectedTransfer) : fixtureTransfer;
   const amount = (value, label, nonNegative = false) => strictAmount(value, label, fail, {nonNegative});
   const delta = (after, before, key, label) => {
     const a = amount(after?.[key], `${label} after`);
@@ -77,7 +85,7 @@ function verifyMixedReport(report, opts = {}) {
 
   const before = report?.beforeUpgrade;
   const afterUpgrade = report?.afterUpgrade;
-  if (amount(before?.lockedAmount, 'pre-upgrade locked', true) !== BOND * 2n) fail('two pre-upgrade bond liabilities were not locked');
+  if (amount(before?.lockedAmount, 'pre-upgrade locked', true) !== expectedBond * 2n) fail('two pre-upgrade bond liabilities were not locked');
   if (before?.proposals?.alice?.status !== 'Failed') fail('Alice was not Failed before upgrade');
   if (before?.proposals?.bob?.status !== 'InProgress') fail('Bob was not pending before upgrade');
   if (before?.proposals?.carol?.status !== 'Approved') fail('Carol was not already paid');
@@ -95,7 +103,7 @@ function verifyMixedReport(report, opts = {}) {
       amount(snap?.balances?.[name], `${label} ${name} balance`, true);
     }
   }
-  if (amount(afterUpgrade?.lockedAmount, 'post-upgrade locked', true) !== BOND * 2n) fail('upgrade changed the two locked liabilities');
+  if (amount(afterUpgrade?.lockedAmount, 'post-upgrade locked', true) !== expectedBond * 2n) fail('upgrade changed the two locked liabilities');
   for (const name of ['alice', 'bob', 'carol']) {
     if (JSON.stringify(afterUpgrade?.proposals?.[name]) !== JSON.stringify(before?.proposals?.[name])) fail(`${name} proposal changed across upgrade`);
   }
@@ -126,13 +134,13 @@ function verifyMixedReport(report, opts = {}) {
   const aliceProposer = balanceDelta(ar, afterUpgrade, 'alice', 'Alice recovery');
   const alicePaid = alice?.attempt?.ok === true && alice?.attempt?.value?.receiptFailure === true
     && alice?.attempt?.value?.finalExecutionStatus === 'FINAL'
-    && ar?.proposals?.alice?.status === 'Failed' && aliceContract === -BOND && aliceRecipient === 0n;
+    && ar?.proposals?.alice?.status === 'Failed' && aliceContract === -expectedBond && aliceRecipient === 0n;
   if (!alicePaid) fail('Alice recovery did not return exactly one bond while preserving Failed status');
-  if (gas.aliceRecovery !== null && aliceProposer !== BOND - gas.aliceRecovery) fail('Alice proposer delta is not bond minus receipt-derived gas');
+  if (gas.aliceRecovery !== null && aliceProposer !== expectedBond - gas.aliceRecovery) fail('Alice proposer delta is not bond minus receipt-derived gas');
   if (alice?.gasBurntYocto && amount(alice.gasBurntYocto, 'Alice recovery gas field', true) !== gas.aliceRecovery) fail('Alice recovery gas field does not match receipts');
   if (alice?.deltas?.proposer && amount(alice.deltas.proposer, 'Alice recovery reported proposer') !== aliceProposer) fail('Alice proposer delta does not match snapshot balances');
-  if (aliceLocked !== -BOND) fail('Alice recovery did not release exactly one locked bond');
-  if (amount(ar?.lockedAmount, 'Alice recovery locked balance', true) < BOND) fail('Bob liability disappeared after Alice recovery');
+  if (aliceLocked !== -expectedBond) fail('Alice recovery did not release exactly one locked bond');
+  if (amount(ar?.lockedAmount, 'Alice recovery locked balance', true) < expectedBond) fail('Bob liability disappeared after Alice recovery');
   unchanged(ar, afterUpgrade, ['bob', 'carol', 'aliceRecipient', 'bobRecipient', 'carolRecipient'], 'Alice recovery');
 
   const aliceRetryAfter = report?.aliceRetry?.after;
@@ -152,11 +160,11 @@ function verifyMixedReport(report, opts = {}) {
   const bobProposer = balanceDelta(bobAfter, aliceRetryAfter, 'bob', 'Bob payout');
   const bobPayer = payer(bobAfter, aliceRetryAfter, gas.bobPayout, 'Bob payout');
   const bobTransferPaid = bob?.attempt?.ok === true && bob.attempt.value?.receiptFailure === false
-    && bobAfter?.proposals?.bob?.status === 'Approved' && bobRecipient === TRANSFER;
-  const bobPaidExactlyOnce = bobTransferPaid && bobContract === -(BOND + TRANSFER) && bobLocked === -BOND;
+    && bobAfter?.proposals?.bob?.status === 'Approved' && bobRecipient === expectedTransfer;
+  const bobPaidExactlyOnce = bobTransferPaid && bobContract === -(expectedBond + expectedTransfer) && bobLocked === -expectedBond;
   if (!bobTransferPaid) fail('Bob transfer was not paid');
   if (!bobPaidExactlyOnce) fail('Bob did not receive exactly one transfer and one bond return');
-  if (bobProposer !== BOND) fail('Bob proposer bond return is not exactly one bond');
+  if (bobProposer !== expectedBond) fail('Bob proposer bond return is not exactly one bond');
   if (bob?.deltas?.proposer && amount(bob.deltas.proposer, 'Bob payout reported proposer') !== bobProposer) fail('Bob proposer delta does not match snapshot balances');
   if (bobPayer >= 0n) fail('Bob payout did not charge Alice as the action payer');
   unchanged(bobAfter, aliceRetryAfter, ['carol', 'aliceRecipient', 'carolRecipient'], 'Bob payout');
@@ -187,7 +195,7 @@ function verifyMixedReport(report, opts = {}) {
       aliceProposerDelta: aliceProposer.toString(),
       aliceRetryPayerDelta: aliceRetryPayer.toString(),
       aliceLockedDelta: aliceLocked.toString(),
-      bobLiabilityAfterAlice: amount(ar?.lockedAmount, 'Alice recovery locked outcome', true) >= BOND,
+      bobLiabilityAfterAlice: amount(ar?.lockedAmount, 'Alice recovery locked outcome', true) >= expectedBond,
       bobTransferPaid,
       bobPaidExactlyOnce,
       bobProposerDelta: bobProposer.toString(),
