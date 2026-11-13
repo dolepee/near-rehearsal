@@ -29,6 +29,7 @@ policy; it does not execute a public chain transaction.
 
 - `clear-all.patch` / `clear-all.wasm`: rejected candidate.
 - `intended.patch` / `intended.wasm`: accepted candidate.
+- `intended.proposals.rs` / `intended-identity.json`: applied source and controller identity for that candidate.
 - `old.wasm`: pinned baseline code.
 - `mixed-obligation-clear-all.json`: recorded bad result.
 - `mixed-obligation-intended.json`: recorded good result.
