@@ -23,6 +23,7 @@ const candidateWasm = path.join(repair, 'generated/e8262f5a/candidate.wasm');
 const candidatePatch = path.join(repair, 'generated/e8262f5a/repair.patch');
 const candidateIdentity = path.join(repair, 'generated/e8262f5a/candidate-identity.json');
 const persistedReport = path.join(repair, 'out/persisted-recovery.json');
+const mixedReport = path.join(repair, 'out/mixed-obligation-intended.json');
 
 function arg(args, name) {
   const index = args.indexOf(name);
@@ -68,6 +69,10 @@ function fakeSpawn() {
             changedArtifactRejected: true,
             hashes: {patch: identity.patch.sha256, appliedSource: identity.source.sha256, wasm: identity.wasm.sha256},
           }));
+        } else if (command === process.execPath && args[0]?.endsWith('mixed-obligation.cjs')) {
+          const out = arg(args, '--out');
+          fs.mkdirSync(out, {recursive: true});
+          fs.copyFileSync(mixedReport, path.join(out, 'mixed-obligation.json'));
         } else if (command === process.execPath && args[0]?.endsWith('persisted-recovery.cjs')) {
           const out = arg(args, '--out');
           fs.mkdirSync(out, {recursive: true});
