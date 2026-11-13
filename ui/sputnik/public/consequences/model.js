@@ -17,6 +17,13 @@
     for (const field of ['aliceBondGross', 'aliceBondNet', 'aliceGas', 'bobTransfer', 'bobBondReturned', 'bobContractDelta']) {
       if (!integer(candidate.cash[field])) return {ok: false, reason: `candidate cash.${field} is missing or non-integer`};
     }
+    const cash = Object.fromEntries(Object.entries(candidate.cash).map(([key, value]) => [key, BigInt(value)]));
+    if (cash.aliceBondGross !== 1000000000000000000000000n) return {ok: false, reason: 'Alice bond gross is not 1 NEAR'};
+    if (cash.aliceGas <= 0n) return {ok: false, reason: 'measured gas must be positive'};
+    if (cash.aliceBondGross - cash.aliceGas !== cash.aliceBondNet) return {ok: false, reason: 'Alice gross minus gas does not equal net'};
+    if (cash.bobTransfer !== 100000000000000000000000n) return {ok: false, reason: 'Bob transfer is not the recorded 0.1 NEAR'};
+    if (cash.bobBondReturned !== 1000000000000000000000000n) return {ok: false, reason: 'Bob bond return is not 1 NEAR'};
+    if (cash.bobContractDelta !== -(cash.bobTransfer + cash.bobBondReturned)) return {ok: false, reason: 'Bob contract debit does not equal transfer plus bond'};
     if (!Array.isArray(candidate.stages) || candidate.stages.length !== 7) return {ok: false, reason: 'candidate must contain seven recorded stages'};
     const locked = [];
     for (const stage of candidate.stages) {
@@ -47,6 +54,8 @@
     if (!Array.isArray(record.stages) || record.stages.length !== 7) return {ok: false, reason: 'upgrade must contain seven recorded stages'};
     const ids = record.stages.map((stage) => stage?.id);
     if (!requiredStageIds.every((id, index) => ids[index] === id)) return {ok: false, reason: 'upgrade stage order is incomplete'};
+    const expectedResults = ['success', 'success', 'success', 'success', 'success', 'failure', 'failure'];
+    if (!record.stages.every((stage, index) => stage?.result === expectedResults[index])) return {ok: false, reason: 'upgrade stage results do not match the recorded prerequisites and rejected retries'};
     if (!isObject(record.checks) || record.checks.nodePassed !== true || record.checks.nativePassed !== true) return {ok: false, reason: 'upgrade checks are not both recorded as passed'};
     return {ok: true};
   }

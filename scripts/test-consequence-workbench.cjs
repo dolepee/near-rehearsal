@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
-const {assertCaseFiles, OUT, shaFile} = require('./build-consequence-workbench.cjs');
+const {assertCaseFiles, bindReportIdentity, OUT, shaFile} = require('./build-consequence-workbench.cjs');
 const {verifyPacket} = require('../case-triage/sputnik-226/review-packet/packet-model.cjs');
 const {validateRepairCandidate, validateUpgrade, bindCandidateSwitch} = require('../ui/sputnik/public/consequences/model.js');
 
@@ -68,6 +68,11 @@ assert.equal(validateRepairCandidate(contradictoryAccepted).ok, false, 'accepted
 const badLedger = JSON.parse(JSON.stringify(repair.candidates[1]));
 badLedger.stages[2].locked = '0';
 assert.equal(validateRepairCandidate(badLedger).ok, false, 'accepted status with a rejected ledger must fail closed');
+const badCash = JSON.parse(JSON.stringify(repair.candidates[1]));
+badCash.cash.aliceBondGross = '0';
+badCash.cash.aliceGas = '-100';
+badCash.cash.aliceBondNet = '3000000000000000000000000';
+assert.equal(validateRepairCandidate(badCash).ok, false, 'inconsistent gross/net/gas must fail closed');
 assert.equal(validateUpgrade(upgrade).ok, true, '#226 integrity');
 const badUpgrade = JSON.parse(JSON.stringify(upgrade));
 badUpgrade.status = 'INCONCLUSIVE';
@@ -75,6 +80,12 @@ assert.equal(validateUpgrade(badUpgrade).ok, false, 'unknown #226 status must fa
 const missingUpgradeStage = JSON.parse(JSON.stringify(upgrade));
 missingUpgradeStage.stages.pop();
 assert.equal(validateUpgrade(missingUpgradeStage).ok, false, 'missing #226 stage must fail closed');
+const badUpgradeResult = JSON.parse(JSON.stringify(upgrade));
+badUpgradeResult.stages[5].result = 'success';
+assert.equal(validateUpgrade(badUpgradeResult).ok, false, 'successful retry must fail closed');
+const missingUpgradeResult = JSON.parse(JSON.stringify(upgrade));
+delete missingUpgradeResult.stages[4].result;
+assert.equal(validateUpgrade(missingUpgradeResult).ok, false, 'missing prerequisite result must fail closed');
 
 const fakeRoot = {
   handlers: [],
@@ -112,6 +123,19 @@ for (const candidate of repair.candidates) {
   if (candidate.candidate.patch) assert.equal(shaFile(path.resolve(OUT, candidate.candidate.patch.path)), candidate.candidate.patch.sha256);
 }
 assert.doesNotMatch(JSON.stringify(data), /\/workspace\/|\/Users\/|C:\\/);
+
+const candidateManifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../case-triage/rehearsal-repair/mixed-candidates/manifest.json'), 'utf8'));
+const intendedReport = JSON.parse(fs.readFileSync(path.join(__dirname, '../case-triage/rehearsal-repair/out/mixed-obligation-intended.json'), 'utf8'));
+assert.doesNotThrow(() => bindReportIdentity(intendedReport, candidateManifest, 'intended', repair.candidates[1].candidate.wasm, repair.candidates[1].candidate.patch));
+const zeroCandidate = JSON.parse(JSON.stringify(intendedReport));
+zeroCandidate.candidate.wasmSha256 = '0'.repeat(64);
+assert.throws(() => bindReportIdentity(zeroCandidate, candidateManifest, 'intended', repair.candidates[1].candidate.wasm, repair.candidates[1].candidate.patch), /report WASM|identity/);
+const swappedCandidate = JSON.parse(JSON.stringify(intendedReport));
+swappedCandidate.candidate.wasmSha256 = candidateManifest.candidates['clear-all'].wasmSha256;
+assert.throws(() => bindReportIdentity(swappedCandidate, candidateManifest, 'intended', repair.candidates[1].candidate.wasm, repair.candidates[1].candidate.patch), /does not match the manifest/);
+const swappedBase = JSON.parse(JSON.stringify(intendedReport));
+swappedBase.source.baseWasmSha256 = candidateManifest.candidates['clear-all'].wasmSha256;
+assert.throws(() => bindReportIdentity(swappedBase, candidateManifest, 'intended', repair.candidates[1].candidate.wasm, repair.candidates[1].candidate.patch), /base WASM/);
 
 const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../case-triage/sputnik-226/manifest.json'), 'utf8'));
 assert.match(manifest.status, /verified-local-recorded-case/);

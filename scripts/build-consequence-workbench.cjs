@@ -38,6 +38,8 @@ function copyFile(from, to) {
   fs.mkdirSync(path.dirname(to), {recursive: true});
   fs.copyFileSync(from, to);
   fs.chmodSync(to, 0o644);
+  const stable = new Date('2020-01-01T00:00:00.000Z');
+  fs.utimesSync(to, stable, stable);
   return {path: path.relative(OUT, to).split(path.sep).join('/'), sha256: shaFile(to), bytes: fs.statSync(to).size};
 }
 
@@ -103,11 +105,29 @@ function sequence(report) {
   ];
 }
 
+function bindReportIdentity(report, manifest, id, copiedWasm, copiedPatch) {
+  const candidate = manifest.candidates?.[id];
+  if (!candidate) throw new Error(`candidate ${id} is missing from the manifest`);
+  if (!report?.source || !report?.candidate) throw new Error(`candidate ${id} report identity is missing`);
+  if (report.source.commit !== manifest.source?.commit) throw new Error(`candidate ${id} source commit does not match the manifest`);
+  if (report.source.baseWasmSha256 !== manifest.candidates?.old?.wasmSha256) throw new Error(`candidate ${id} base WASM does not match the manifest`);
+  if (!/^[0-9a-f]{64}$/.test(report.candidate.wasmSha256 || '') || /^0+$/.test(report.candidate.wasmSha256)) throw new Error(`candidate ${id} report WASM identity is invalid`);
+  if (report.candidate.wasmSha256 !== candidate.wasmSha256) throw new Error(`candidate ${id} report WASM does not match the manifest`);
+  if (report.candidate.wasmBytes !== candidate.wasmBytes) throw new Error(`candidate ${id} report WASM byte count does not match the manifest`);
+  const copiedPath = (entry) => path.isAbsolute(entry.path) ? entry.path : path.join(OUT, entry.path);
+  if (shaFile(copiedPath(copiedWasm)) !== report.candidate.wasmSha256) throw new Error(`candidate ${id} copied WASM does not match the report`);
+  if (candidate.patch) {
+    if (!copiedPatch) throw new Error(`candidate ${id} patch copy is missing`);
+    if (shaFile(copiedPath(copiedPatch)) !== candidate.patchSha256) throw new Error(`candidate ${id} copied patch does not match the manifest`);
+  }
+}
+
 function candidateData(id, label, manifest, reportPath, copiedPatch, copiedWasm, verified) {
   const candidate = manifest.candidates?.[id];
   if (!candidate) throw new Error(`candidate ${id} is missing from the manifest`);
   if (!verified?.outcomes) throw new Error(`candidate ${id} has no policy outcomes`);
   const report = readJson(reportPath);
+  bindReportIdentity(report, manifest, id, copiedWasm, copiedPatch);
   const stages = sequence(report);
   const aliceRecovery = report.aliceRecovery?.deltas || {};
   const bobPayout = report.bobPayout?.deltas || {};
@@ -194,7 +214,8 @@ function build238() {
   const baselineStage = snap(baseline, 'beforeUpgrade', 'Before upgrade');
   const baselineAfter = snap(baseline, 'afterUpgrade', 'After upgrade');
 
-  fs.writeFileSync(path.join(destination, 'README.md'), `# Sputnik #238 consequence evidence
+  const readmePath = path.join(destination, 'README.md');
+  fs.writeFileSync(readmePath, `# Sputnik #238 consequence evidence
 
 Recorded local review material. These files are not a live run and not a mainnet claim.
 
@@ -233,6 +254,8 @@ policy; it does not execute a public chain transaction.
 - \`manifest.json\`: candidate source/build identity.
 `);
 
+  const stable = new Date('2020-01-01T00:00:00.000Z');
+  fs.utimesSync(readmePath, stable, stable);
   return {
     title: 'Sputnik #238 — repair decision',
     kind: 'repair-decision',
@@ -373,4 +396,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = {buildWorkbench, build238, build226, assertCaseFiles, OUT, DOWNLOADS, shaFile};
+module.exports = {buildWorkbench, build238, build226, bindReportIdentity, assertCaseFiles, OUT, DOWNLOADS, shaFile};
