@@ -288,6 +288,15 @@ function checksFrom(pipeline, report, acceptance, mixedCheck = null, settlementC
   return checks;
 }
 
+// A gate that ran and returned a verified failure is a rejection, not missing
+// evidence. Only an unreported gate, with no verified failure elsewhere, leaves
+// the outcome open.
+function missingGateIsInconclusive({acceptanceOk, mixedCheck, settlementCheck}) {
+  if (acceptanceOk !== true) return false;
+  if (mixedCheck?.ok === false || settlementCheck?.ok === false) return false;
+  return !mixedCheck || !settlementCheck;
+}
+
 function renderReport(review) {
   const lines = [
     `# Rehearsal patch review — ${review.status}`,
@@ -591,7 +600,9 @@ function runReview(opts) {
                   if (settlement) settlementCheck = verifySettlementReport(settlement, {candidateWasmSha256: verified.builtWasmSha256});
                 }
               }
-              if (acceptance.ok === true && (!mixedCheck || !settlementCheck)) {
+              // A gate that ran and returned a verified failure is a rejection, not a
+              // missing-evidence result. Only an unreported gate leaves the outcome open.
+              if (missingGateIsInconclusive({acceptanceOk: true, mixedCheck, settlementCheck})) {
                 status = 'INCONCLUSIVE';
                 reason = 'same-DAO mixed-obligation or failed-refund settlement gate produced no verified report';
                 checks = [
@@ -682,4 +693,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = {exitCodeForStatus, REVIEW_EXIT_CODES, parseArgs, classify, classifyPipelineResult, policyIdentity, runReview, renderReport, checkSource, checksFrom, sandboxFromEnvironment};
+module.exports = {exitCodeForStatus, REVIEW_EXIT_CODES, parseArgs, classify, classifyPipelineResult, policyIdentity, runReview, renderReport, checkSource, checksFrom, missingGateIsInconclusive, sandboxFromEnvironment};

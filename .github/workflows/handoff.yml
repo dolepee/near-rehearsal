@@ -157,6 +157,13 @@ jobs:
           tar --no-same-owner -xzf "$sandbox_dir/near-sandbox.tar.gz" -C "$sandbox_dir"
           chmod +x "$sandbox_dir/Linux-x86_64/near-sandbox"
           echo "REPAIR_SANDBOX_DIR=$sandbox_dir/Linux-x86_64" >> "$GITHUB_ENV"
+      - name: Build the settlement-fixed reviewer bundle
+        run: |
+          set -euo pipefail
+          bundle="$RUNNER_TEMP/settlement-fixed-bundle.json"
+          node case-triage/rehearsal-repair/handoff-bundle.cjs "$bundle"
+          test -s "$bundle"
+          echo "REPAIR_BUNDLE=$bundle" >> "$GITHUB_ENV"
       - name: Run actual repair review source build
         run: |
           set -euo pipefail
@@ -164,7 +171,7 @@ jobs:
           out_dir="$RUNNER_TEMP/repair-review"
           test ! -e "$out_dir"
           npm run repair:review -- \
-            --bundle test-fixtures/repair-browser-export-1de7b8c5.json \
+            --bundle "$REPAIR_BUNDLE" \
             --out "$out_dir" \
             --source "$REPAIR_REVIEW_SOURCE" 2>&1 | tee "$RUNNER_TEMP/repair-review.log"
           test -s "$out_dir/review-result.json"
@@ -179,7 +186,7 @@ jobs:
           out_dir="$RUNNER_TEMP/repair-replay"
           test ! -e "$out_dir"
           npm run repair:review -- \
-            --bundle test-fixtures/repair-browser-export-1de7b8c5.json \
+            --bundle "$REPAIR_BUNDLE" \
             --out "$out_dir" \
             --mode recorded-wasm 2>&1 | tee "$RUNNER_TEMP/repair-replay.log"
           test -s "$out_dir/review-result.json"
@@ -190,6 +197,7 @@ jobs:
         with:
           name: repair-review-source-build
           path: |
+            ${{ runner.temp }}/settlement-fixed-bundle.json
             ${{ runner.temp }}/repair-review.log
             ${{ runner.temp }}/repair-replay.log
             ${{ runner.temp }}/repair-review/review-result.json

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
-const {exitCodeForStatus} = require('./review-patch.cjs');
+const {exitCodeForStatus, missingGateIsInconclusive} = require('./review-patch.cjs');
 const root = path.resolve(__dirname, '..');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'rehearsal-exit-'));
 try {
@@ -19,5 +19,13 @@ try {
   assert.equal(args.status, 1);
   for (const [status, code] of Object.entries({ACCEPTED:0,REJECTED:2,INPUT_ERROR:3,BUILD_ERROR:4,INCONCLUSIVE:5})) assert.equal(exitCodeForStatus(status), code);
   assert.equal(exitCodeForStatus('unknown'),1);
-  console.log('review CLI: INPUT_ERROR exits nonzero and retains reports; help and status mapping checked');
+  const mixedPass = {ok: true, errors: []};
+  const mixedFail = {ok: false, errors: ['Alice recovery did not return exactly one bond while preserving Failed status']};
+  assert.equal(missingGateIsInconclusive({acceptanceOk: true, mixedCheck: mixedPass, settlementCheck: mixedPass}), false, 'both gates reported');
+  assert.equal(missingGateIsInconclusive({acceptanceOk: true, mixedCheck: mixedPass, settlementCheck: null}), true, 'settlement gate missing after a pass');
+  assert.equal(missingGateIsInconclusive({acceptanceOk: true, mixedCheck: null, settlementCheck: null}), true, 'mixed gate missing');
+  assert.equal(missingGateIsInconclusive({acceptanceOk: true, mixedCheck: mixedFail, settlementCheck: null}), false, 'a verified gate failure must not be called inconclusive');
+  assert.equal(missingGateIsInconclusive({acceptanceOk: true, mixedCheck: mixedPass, settlementCheck: mixedFail}), false, 'a verified settlement failure must not be called inconclusive');
+  assert.equal(missingGateIsInconclusive({acceptanceOk: false, mixedCheck: null, settlementCheck: null}), false, 'a failed recovery keeps its own rejection');
+  console.log('review CLI: INPUT_ERROR exits nonzero and retains reports; help, status mapping and gate classification checked');
 } finally { fs.rmSync(temp,{recursive:true,force:true}); }

@@ -66,12 +66,21 @@ reviewer opened explicitly.
 npm run setup
 npm run test:repair-review
 
+node case-triage/rehearsal-repair/handoff-bundle.cjs /tmp/settlement-fixed-bundle.json
+
 npm run repair:review -- \
-  --bundle test-fixtures/repair-browser-export-1de7b8c5.json \
+  --bundle /tmp/settlement-fixed-bundle.json \
   --out /tmp/repair-handoff \
   --source /path/to/sputnik-dao-contract \
   --sandbox-dir /path/to/near-sandbox-2.14
 ```
+
+The checked-in `test-fixtures/repair-browser-export-1de7b8c5.json` is the
+8 November recorded model candidate. It predates the failed-refund settlement
+policy and is rejected at that gate, so it is kept as a historical record and a
+negative control rather than as the accepted example. `handoff-bundle.cjs`
+assembles the settlement-fixed candidate from the tracked artifacts of the
+accepted source run; every hash and identity in it is still re-verified here.
 
 The output directory must be absent or empty. The command verifies:
 

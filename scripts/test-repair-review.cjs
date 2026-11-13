@@ -9,6 +9,7 @@ const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const { checkBundle, compareMixed, formatYocto, yoctoNear, preflight } = require('./repair-review.cjs');
 const { buildReviewBundle } = require('../case-triage/rehearsal-repair/review-bundle.cjs');
+const { buildHandoffBundle } = require('../case-triage/rehearsal-repair/handoff-bundle.cjs');
 
 const fixture = path.join(__dirname, '..', 'test-fixtures', 'repair-browser-export-1de7b8c5.json');
 const original = JSON.parse(fs.readFileSync(fixture, 'utf8'));
@@ -19,18 +20,7 @@ const rejects = (label, mutate) => {
   assert.throws(() => checkBundle(bundle), undefined, label);
 };
 
-const mixedOriginal = buildReviewBundle({
-  runId: 'mixed-policy-guard',
-  patchPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'mixed-candidates/intended.patch'),
-  wasmPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'mixed-candidates/intended.wasm'),
-  candidateIdentityPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'mixed-candidates/intended-identity.json'),
-  baseReportPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/issue238-local.json'),
-  candidateReportPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/audit-intended/fresh/issue238-local.json'),
-  recoveryPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/audit-intended/persisted/persisted-recovery.json'),
-  acceptancePath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/audit-intended/persisted/persisted-recovery-acceptance.json'),
-  mixedPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/mixed-obligation-intended.json'),
-  settlementPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/audit-intended/settlement/settlement-refund.json'),
-});
+const mixedOriginal = buildHandoffBundle({runId: 'mixed-policy-guard', createdAt: '2026-11-13T21:15:09.000Z'});
 assert.doesNotThrow(() => checkBundle(mixedOriginal));
 for (const [label, mutate] of [
   ['fake mixed report', (b) => { b.mixed.reportText = 'not a real mixed report'; b.mixed.reportSha256 = '0'.repeat(64); }],
