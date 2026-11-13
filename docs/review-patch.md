@@ -67,7 +67,8 @@ The report separately records what was actually checked:
 - applied source SHA-256;
 - built WASM SHA-256;
 - checker policy SHA-256, covering the controller manifest, build manifest,
-  base report, base WASM and acceptance scripts;
+  pipeline, persisted-recovery engine, base report, base WASM and acceptance
+  scripts;
 - the actual checks that ran.
 
 The report is evidence, not a signature and not a GitHub-enforced merge
