@@ -15,7 +15,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const {spawnSync} = require('node:child_process');
-const {Worker, parseNEAR} = require('near-workspaces');
+const {Worker, parseNEAR, hashContract} = require('near-workspaces');
 
 const BOND = BigInt(parseNEAR('1'));
 const GAS = 300_000_000_000_000n;
@@ -30,6 +30,7 @@ function parseArgs(argv) {
   const opts = {};
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--wasm') opts.wasm = path.resolve(argv[++i]);
+    else if (argv[i] === '--base-wasm') opts.baseWasm = path.resolve(argv[++i]);
     else if (argv[i] === '--out') opts.out = path.resolve(argv[++i]);
     else throw new Error(`unknown argument ${argv[i]}`);
   }
@@ -178,6 +179,7 @@ async function settle(worker, dao, proposerId, voter) {
   process.env.NEAR_SANDBOX_BINARY_PATH = path.dirname(rt.binary);
   process.env.NEAR_SANDBOX_VERSION = rt.version;
   const wasm = fs.readFileSync(opts.wasm);
+  const baseWasm = opts.baseWasm ? fs.readFileSync(opts.baseWasm) : null;
   const errors = [];
   const require = (condition, message) => { if (!condition) errors.push(message); };
   const worker = await Worker.init({network: 'sandbox'});
@@ -188,7 +190,7 @@ async function settle(worker, dao, proposerId, voter) {
     const voter = await root.createSubAccount('voter', {initialBalance: parseNEAR('20')});
     const dao = await root.createSubAccount('dao', {initialBalance: parseNEAR('100')});
     stage('deploy');
-    const deploy = await dao.deploy(wasm);
+    const deploy = await dao.deploy(baseWasm || wasm);
     const deployFinal = summarize(await finalStatus(worker, deploy, root.accountId));
     const init = await root.callRaw(dao, 'new', {
       config: {name: 'settlement', purpose: 'bounded refund settlement', metadata: ''},
@@ -201,13 +203,39 @@ async function settle(worker, dao, proposerId, voter) {
     const add = await proposer.callRaw(dao, 'add_proposal', {proposal: {description: 'deleted proposer refund', kind}}, {gas: GAS, attachedDeposit: BOND.toString()});
     const addFinal = summarize(await finalStatus(worker, add, proposer.accountId));
     const id = add.parseResult();
-    stage('delete proposer');
-    const deleted = await proposer.delete(root.accountId);
-    const deleteFinal = {transactionHash: deleted?.transactionReceipt?.hash || null, transactionOutcome: {status: 'DeleteAccount submitted'}};
+    let upgrade = null;
+    let deleteFinal;
+    if (!baseWasm) {
+      stage('delete proposer');
+      const deleted = await proposer.delete(root.accountId);
+      deleteFinal = {transactionHash: deleted?.transactionReceipt?.hash || null, transactionOutcome: {status: 'DeleteAccount submitted'}};
+    }
     stage('vote');
     const vote = await voter.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
     const voteFinal = summarize(await finalStatus(worker, vote, voter.accountId));
     await waitProposal(worker, dao, id, 'Failed');
+    if (baseWasm) {
+      stage('upgrade candidate');
+      const codeHash = hashContract(wasm);
+      const upgradeDeploy = await dao.deploy(wasm);
+      const upgradeDeployFinal = summarize(await finalStatus(worker, upgradeDeploy, root.accountId));
+      const migrate = await dao.callRaw(dao, 'migrate', {}, {gas: GAS});
+      const migrateFinal = summarize(await finalStatus(worker, migrate, root.accountId));
+      for (let i = 0; i < 40; i += 1) {
+        const code = await dao.viewCode();
+        if (code?.length && hashContract(code) === codeHash) break;
+        await sleep(250);
+      }
+      upgrade = {deploy: upgradeDeployFinal, migrate: migrateFinal, codeHash};
+      stage('delete proposer');
+      const deleted = await proposer.delete(root.accountId);
+      deleteFinal = {transactionHash: deleted?.transactionReceipt?.hash || null, transactionOutcome: {status: 'DeleteAccount submitted'}};
+      stage('legacy finalize while deleted');
+      const legacyFinalize = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
+      const legacyFinalizeFinal = summarize(await finalStatus(worker, legacyFinalize, voter.accountId));
+      await waitProposal(worker, dao, id, 'Failed');
+      upgrade.legacyFinalize = legacyFinalizeFinal;
+    }
     const failedRefund = await settle(worker, dao, proposer.accountId, voter.accountId);
     require(failedRefund.lockedAmount === BOND.toString(), `locked liability after failed refund is ${failedRefund.lockedAmount}, expected ${BOND}`);
     require(failedRefund.proposal.status === 'Failed', `proposal after failed refund is ${failedRefund.proposal.status}`);
@@ -250,7 +278,7 @@ async function settle(worker, dao, proposerId, voter) {
       candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length},
       runtime: rt,
       proposalId: id,
-      transactions: {deploy: deployFinal, init: initFinal, add: addFinal, delete: deleteFinal, vote: voteFinal, retry: retryFinal, unauthorized, duplicate: duplicateFinal},
+      transactions: {deploy: deployFinal, init: initFinal, add: addFinal, upgrade, delete: deleteFinal, vote: voteFinal, retry: retryFinal, unauthorized, duplicate: duplicateFinal},
       failedRefund,
       beforeRetry,
       afterRetry,
