@@ -57,4 +57,12 @@ const missingSettlement = evaluateCandidate({
 });
 assert.equal(missingSettlement.status, 'INCONCLUSIVE', 'missing execution is not a semantic rejection');
 
+const unprovenGuard = evaluateCandidate({
+  fresh: stageFromChecks(true),
+  recovery: stageFromChecks(true),
+  mixed: stageFromChecks(true),
+  settlement: stageFromChecks(false, ['in-flight retry guard was not exercised'], {evidenceValid: false}),
+});
+assert.equal(unprovenGuard.status, 'INCONCLUSIVE', 'an unexercised guard is unproven, not a semantic rejection');
+
 console.log('acceptance-orchestrator: mixed and settlement gates are mandatory and policy versions cannot drift');

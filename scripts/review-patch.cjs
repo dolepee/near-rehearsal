@@ -617,7 +617,7 @@ function runReview(opts) {
                   fresh: stageFromChecks(pipeline.ok === true && (pipeline.acceptanceErrors || []).length === 0, pipeline.acceptanceErrors || [], {evidenceValid: Boolean(pipeline)}),
                   recovery: stageFromChecks(acceptance.ok === true, acceptance.errors || [], {evidenceValid: Boolean(acceptance)}),
                   mixed: stageFromChecks(mixedCheck?.ok === true, mixedCheck?.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedCheck)}),
-                  settlement: stageFromChecks(settlementCheck?.ok === true, settlementCheck?.errors || [], {evidenceValid: Boolean(settlementCheck)}),
+                  settlement: stageFromChecks(settlementCheck?.ok === true, settlementCheck?.errors || [], {evidenceValid: Boolean(settlementCheck) && settlementCheck?.unproven !== true}),
                 });
                 acceptanceVerdict = verdict;
                 if (verdict.status === 'REJECTED') {

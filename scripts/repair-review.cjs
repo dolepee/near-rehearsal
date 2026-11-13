@@ -647,7 +647,7 @@ const main = () => {
     fresh: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted/fresh acceptance did not pass'], {evidenceValid: Boolean(summary)}),
     recovery: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted recovery report did not pass acceptance'], {evidenceValid: Boolean(report)}),
     mixed: stageFromChecks(mixedRun.checked.ok === true, mixedRun.checked.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedRun.checked)}),
-    settlement: stageFromChecks(settlementRun.checked.ok === true, settlementRun.checked.errors || [], {evidenceValid: Boolean(settlementRun.checked)}),
+    settlement: stageFromChecks(settlementRun.checked.ok === true, settlementRun.checked.errors || [], {evidenceValid: Boolean(settlementRun.checked) && settlementRun.checked?.unproven !== true}),
   });
   if (!acceptancePolicy.ok) fail(`${acceptancePolicy.status}: versioned acceptance policy ${acceptancePolicy.policyVersion} failed: ${acceptancePolicy.errors.join('; ')}`);
   const resultPath = path.join(outDir, 'review-result.json');

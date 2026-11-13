@@ -112,6 +112,7 @@ const genuineTrace = JSON.parse(JSON.stringify(correctedReport));
   t.upgrade.deploy.blockHeight = 167;
   t.upgrade.migrate.blockHeight = 172;
   t.upgrade.legacyFinalize.blockHeight = 180;
+  genuineTrace.inherited.legacy.legacyFinalize.blockHeight = 180;
 }
 assert.equal(verifySettlementReport(genuineTrace, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, true,
   'the genuine ordered inherited trace must pass');
@@ -151,6 +152,44 @@ const legacyBeforeMigrate = JSON.parse(JSON.stringify(correctedReport));
 legacyBeforeMigrate.inherited.transactions.upgrade.legacyFinalize.blockHeight = Number(legacyBeforeMigrate.inherited.transactions.upgrade.migrate.blockHeight) - 1;
 assert.equal(verifySettlementReport(legacyBeforeMigrate, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'legacy finalize cannot precede migrate');
+
+const legacyLabelOnly = JSON.parse(JSON.stringify(correctedReport));
+legacyLabelOnly.inherited.legacy.legacyFinalize = {
+  finalExecutionStatus: 'FINAL',
+  blockHeight: correctedReport.inherited.legacy.legacyFinalize.blockHeight,
+};
+assert.equal(verifySettlementReport(legacyLabelOnly, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a legacy finalize label without actions and receipts must fail');
+
+const legacyWrongMethod = JSON.parse(JSON.stringify(correctedReport));
+legacyWrongMethod.inherited.transactions.upgrade.legacyFinalize.transaction.actions[0].FunctionCall.method_name = 'get_config';
+legacyWrongMethod.inherited.legacy.legacyFinalize.transaction.actions[0].FunctionCall.method_name = 'get_config';
+assert.equal(verifySettlementReport(legacyWrongMethod, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'legacy finalize must be act_proposal, not another method');
+
+const legacyRepresentationMismatch = JSON.parse(JSON.stringify(correctedReport));
+legacyRepresentationMismatch.inherited.legacy.legacyFinalize.transaction.receiverId = 'unrelated.test.near';
+assert.equal(verifySettlementReport(legacyRepresentationMismatch, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the two legacy finalize representations must be the same full transaction');
+
+const bothRetriesSucceed = JSON.parse(JSON.stringify(correctedReport));
+{
+  const retry = bothRetriesSucceed.inherited.transactions.retries[0];
+  const id = retry.transactionOutcome.status.SuccessReceiptId;
+  retry.receipts.find((receipt) => receipt.id === id).status = {SuccessValue: ''};
+}
+const bothSuccessResult = verifySettlementReport(bothRetriesSucceed, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(bothSuccessResult.ok, false, 'two successful retries leave the in-flight guard unproven and must fail');
+assert.equal(bothSuccessResult.unproven, true, 'an unexercised in-flight guard must be reported as unproven');
+
+const bothRetriesInFlight = JSON.parse(JSON.stringify(correctedReport));
+{
+  const retry = bothRetriesInFlight.inherited.transactions.retries[1];
+  const id = retry.transactionOutcome.status.SuccessReceiptId;
+  retry.receipts.find((receipt) => receipt.id === id).status = {Failure: {ActionError: {kind: 'ERR_PROPOSAL_NOT_IN_PROGRESS'}}};
+}
+assert.equal(verifySettlementReport(bothRetriesInFlight, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'two in-flight rejections leave no successful retry action and must fail');
 
 const stringFailureHeight = JSON.parse(JSON.stringify(correctedReport));
 {
@@ -368,6 +407,11 @@ console.log(JSON.stringify({
     'failed-deployment-receipt-fails',
     'approval-receipts-required',
     'genuine-ordered-trace-passes',
+    'legacy-label-only-fails',
+    'legacy-wrong-method-fails',
+    'legacy-representation-mismatch-fails',
+    'two-successful-retries-fail',
+    'two-in-flight-retries-fail',
     'wrong-beneficiary-fails',
     'failed-proposal-id-fails',
     'failed-proposal-status-fails',

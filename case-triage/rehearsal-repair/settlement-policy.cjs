@@ -132,6 +132,22 @@ function verifyVote(scenario, signer, label, failFor) {
   return true;
 }
 
+function verifyLegacyFinalize(scenario, dao, failFor) {
+  const recorded = scenario.legacy?.legacyFinalize;
+  const transaction = scenario.transactions?.upgrade?.legacyFinalize;
+  if (!recorded || !transaction) { failFor(false, 'legacy finalize representations are missing'); return; }
+  if (JSON.stringify(recorded) !== JSON.stringify(transaction)) failFor(false, 'legacy finalize representations are not the same full transaction');
+  if (transaction.finalExecutionStatus !== 'FINAL') failFor(false, 'legacy finalize was not FINAL');
+  if (transaction.transaction?.receiverId !== dao) failFor(false, 'legacy finalize did not target the inherited DAO');
+  const voteSigners = [scenario.transactions?.vote?.transaction?.signerId, scenario.transactions?.vote2?.transaction?.signerId].filter(Boolean);
+  if (!voteSigners.includes(transaction.transaction?.signerId)) failFor(false, 'legacy finalize was not signed by an approving voter');
+  const decoded = decodeCall(transaction, 'legacy finalize', (message) => failFor(false, message));
+  if (!decoded) return;
+  if (decoded.call.method_name !== 'act_proposal' || decoded.args?.action !== 'Finalize') failFor(false, 'legacy finalize is not an act_proposal Finalize');
+  if (String(decoded.args?.id) !== String(scenario.proposalId)) failFor(false, 'legacy finalize targets a different proposal');
+  if (!successfulReceiptChain(transaction, 'legacy finalize', (message) => failFor(false, message))) failFor(false, 'legacy finalize action did not execute successfully');
+}
+
 function verifyRetries(scenario, dao, failFor) {
   const raw = scenario.transactions?.retries;
   const attempts = scenario.overlap?.attempts;
@@ -143,6 +159,7 @@ function verifyRetries(scenario, dao, failFor) {
   const hashes = [];
   const signers = [];
   let successful = 0;
+  let expectedInFlight = 0;
   raw.forEach((tx, index) => {
     const label = `retry ${index + 1}`;
     if (tx.finalExecutionStatus !== 'FINAL') failFor(false, `${label} was not FINAL`);
@@ -161,11 +178,14 @@ function verifyRetries(scenario, dao, failFor) {
     if (JSON.stringify(attempt?.receiptIds || []) !== JSON.stringify(receiptIds)) failFor(false, `${label} summary receipts do not match its attempt`);
     const outcome = receiptChain(tx, label, (message) => failFor(false, message), true);
     if (outcome.ok) successful += 1;
+    if (outcome.expected) expectedInFlight += 1;
     hashes.push(tx.transactionHash); signers.push(tx.transaction?.signerId);
   });
   if (new Set(hashes).size !== 2) failFor(false, 'retry transactions do not have distinct hashes');
   if (new Set(signers).size !== 2) failFor(false, 'retry transactions do not have distinct signers');
-  if (successful < 1) failFor(false, 'no retry transaction successfully executed the action');
+  if (successful !== 1) failFor(false, `expected exactly one successful retry action, got ${successful}`);
+  if (expectedInFlight !== 1) failFor(false, `expected exactly one receipt-backed ERR_PROPOSAL_NOT_IN_PROGRESS rejection, got ${expectedInFlight}`);
+  return {guardUnproven: successful === 2 && expectedInFlight === 0};
 }
 
 
@@ -215,6 +235,7 @@ function verifyScenario(scenario, mode, context) {
     if (baseCommitted !== baseWasmSha256) failFor(false, 'inherited scenario does not commit to the pinned base WASM');
     if (scenario.deploy?.wasmSha256 !== baseWasmSha256) failFor(false, 'inherited scenario did not deploy the pinned base WASM');
     verifyMigrate(scenario, scenario.deploy?.transaction?.receiverId, failFor);
+    verifyLegacyFinalize(scenario, scenario.deploy?.transaction?.receiverId, failFor);
     const addHeight = recordedHeight(scenario.transactions?.add?.blockHeight);
     const vote2Height = recordedHeight(scenario.transactions?.vote2?.blockHeight);
     const failedLog = scenario.transactions?.failedProposal?.last_actions_log;
@@ -283,7 +304,7 @@ function verifyScenario(scenario, mode, context) {
   }
   if (scenario.unauthorizedArgs?.attempt !== 999) failFor(false, 'unauthorized callback did not use the numeric attempt argument');
 
-  verifyRetries(scenario, scenario.deploy?.transaction?.receiverId, failFor);
+  const retryProof = verifyRetries(scenario, scenario.deploy?.transaction?.receiverId, failFor);
   const overlap = scenario.overlap;
   if (!overlap || overlap.ok !== true) failFor(false, 'overlapping retry evidence missing or failed');
   else {
@@ -309,6 +330,7 @@ function verifyScenario(scenario, mode, context) {
   }
 
   return {
+    retryGuardUnproven: retryProof?.guardUnproven === true,
     failedRefundLocked: text(failed?.lockedAmount),
     retryDelta: before && after ? (BigInt(after.proposer ?? 0) - BigInt(before.proposer ?? 0)).toString() : null,
     duplicateDelta: text(scenario.afterDuplicate?.proposer) && text(after?.proposer) ? (BigInt(scenario.afterDuplicate.proposer) - BigInt(after.proposer)).toString() : null,
@@ -338,6 +360,7 @@ function verifySettlementReport(report, opts = {}) {
   return {
     ok: errors.length === 0,
     errors,
+    unproven: freshOutcomes?.retryGuardUnproven === true || inheritedOutcomes?.retryGuardUnproven === true,
     outcomes: inheritedOutcomes ? {
       ...inheritedOutcomes,
       fresh: freshOutcomes,
