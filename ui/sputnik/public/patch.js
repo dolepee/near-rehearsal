@@ -151,13 +151,18 @@
     if (!patch.trim() || new TextEncoder().encode(patch).length > max) {
       status.textContent = 'Enter a source diff of up to 64 KiB.'; input.focus(); return;
     }
+    const submitView = view;
     active = true; controls(); status.textContent = 'Starting the local source check…';
     try {
       const run = await json('/api/patch/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patch})});
+      if (submitView !== view) return;
       sessionStorage.setItem(runKey, run.id);
       await follow(run.id, run);
-    } catch(e) { status.textContent = e.message; }
-    finally { active = false; controls(); }
+    } catch(e) {
+      if (submitView !== view) return;
+      status.textContent = e.message;
+    }
+    finally { if (submitView === view) { active = false; controls(); } }
   });
   loadRecent();
   const saved = sessionStorage.getItem(runKey);
