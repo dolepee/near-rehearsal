@@ -79,6 +79,10 @@ function successfulReceiptChain(transaction, label, fail) {
 function deploymentCommitment(deploy, label, fail, expectedDao = null) {
   if (!deploy || deploy.finalExecutionStatus !== 'FINAL') { fail(`${label} deployment was not FINAL`); return null; }
   if (!successfulReceiptChain(deploy, label, fail)) return null;
+  if (expectedDao && deploy.transaction?.receiverId !== expectedDao) {
+    fail(`${label} receiver is not the inherited DAO`);
+    return null;
+  }
   const action = (deploy.transaction?.actions || []).find((entry) => entry && entry.DeployContract);
   if (!action) { fail(`${label} deployment has no DeployContract action`); return null; }
   let code;
@@ -164,6 +168,13 @@ function verifyRetries(scenario, dao, failFor) {
   if (successful < 1) failFor(false, 'no retry transaction successfully executed the action');
 }
 
+
+function recordedHeight(value) {
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return BigInt(value);
+  if (typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value)) return BigInt(value);
+  return null;
+}
+
 function verifyScenario(scenario, mode, context) {
   const {fail, text, candidateWasmSha256, baseWasmSha256, report} = context;
   if (!scenario) { fail(`${mode} settlement scenario is missing`); return null; }
@@ -204,19 +215,19 @@ function verifyScenario(scenario, mode, context) {
     if (baseCommitted !== baseWasmSha256) failFor(false, 'inherited scenario does not commit to the pinned base WASM');
     if (scenario.deploy?.wasmSha256 !== baseWasmSha256) failFor(false, 'inherited scenario did not deploy the pinned base WASM');
     verifyMigrate(scenario, scenario.deploy?.transaction?.receiverId, failFor);
-    const addHeight = scenario.transactions?.add?.blockHeight;
-    const vote2Height = scenario.transactions?.vote2?.blockHeight;
+    const addHeight = recordedHeight(scenario.transactions?.add?.blockHeight);
+    const vote2Height = recordedHeight(scenario.transactions?.vote2?.blockHeight);
     const failedLog = scenario.transactions?.failedProposal?.last_actions_log;
-    const failureHeight = failedLog?.[failedLog.length - 1]?.block_height;
-    const upgradeHeight = scenario.transactions?.upgrade?.deploy?.blockHeight;
-    const migrateHeight = scenario.transactions?.upgrade?.migrate?.blockHeight;
-    const legacyHeight = scenario.transactions?.upgrade?.legacyFinalize?.blockHeight;
-    if (!Number.isInteger(addHeight) || !Number.isInteger(upgradeHeight)) failFor(false, 'recorded add/upgrade block heights are missing');
+    const failureHeight = recordedHeight(failedLog?.[failedLog.length - 1]?.block_height);
+    const upgradeHeight = recordedHeight(scenario.transactions?.upgrade?.deploy?.blockHeight);
+    const migrateHeight = recordedHeight(scenario.transactions?.upgrade?.migrate?.blockHeight);
+    const legacyHeight = recordedHeight(scenario.transactions?.upgrade?.legacyFinalize?.blockHeight);
+    if (addHeight === null || upgradeHeight === null) failFor(false, 'recorded add/upgrade block heights are missing or malformed');
     else if (addHeight >= upgradeHeight) failFor(false, 'proposal was not added before the candidate upgrade');
-    if (!Number.isInteger(vote2Height) || vote2Height >= upgradeHeight) failFor(false, 'second approval was not before the candidate upgrade');
-    if (!Number.isInteger(failureHeight) || failureHeight >= upgradeHeight) failFor(false, 'recorded old-code failure was not before the candidate upgrade');
-    if (!Number.isInteger(legacyHeight) || legacyHeight < upgradeHeight) failFor(false, 'legacy finalize was not after the candidate upgrade');
-    if (!Number.isInteger(migrateHeight) || migrateHeight < upgradeHeight) failFor(false, 'migrate was not after the candidate upgrade');
+    if (vote2Height === null || vote2Height >= upgradeHeight) failFor(false, 'second approval height is missing, malformed or not before the candidate upgrade');
+    if (failureHeight === null || failureHeight >= upgradeHeight) failFor(false, 'recorded old-code failure height is missing, malformed or not before the candidate upgrade');
+    if (legacyHeight === null || legacyHeight < upgradeHeight) failFor(false, 'legacy finalize height is missing, malformed or not after the candidate upgrade');
+    if (migrateHeight === null || migrateHeight < upgradeHeight) failFor(false, 'migrate height is missing, malformed or not after the candidate upgrade');
   }
 
   const failed = scenario.failedRefund;

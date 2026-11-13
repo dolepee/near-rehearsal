@@ -103,6 +103,22 @@ unlinkedStart.fresh.deploy.transactionOutcome.receiptIds = [];
 assert.equal(verifySettlementReport(unlinkedStart, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'the initial transaction receiptIds must link the SuccessReceiptId');
 
+const stringFailureHeight = JSON.parse(JSON.stringify(correctedReport));
+{
+  const logs = stringFailureHeight.inherited.transactions.failedProposal.last_actions_log;
+  logs[logs.length - 1].block_height = String(Number(correctedReport.inherited.transactions.upgrade.deploy.blockHeight) - 1);
+}
+assert.equal(verifySettlementReport(stringFailureHeight, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, true,
+  'a valid decimal-string failure height must normalize and pass chronology');
+
+const malformedFailureHeight = JSON.parse(JSON.stringify(correctedReport));
+{
+  const logs = malformedFailureHeight.inherited.transactions.failedProposal.last_actions_log;
+  logs[logs.length - 1].block_height = '202x';
+}
+assert.equal(verifySettlementReport(malformedFailureHeight, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a malformed failure height must fail chronology');
+
 const emptyVoteReceipts = JSON.parse(JSON.stringify(correctedReport));
 emptyVoteReceipts.inherited.transactions.vote.receipts = [];
 emptyVoteReceipts.inherited.transactions.vote2.receipts = [];
@@ -302,6 +318,8 @@ console.log(JSON.stringify({
     'installed-code-hash-fails',
     'failed-deployment-receipt-fails',
     'approval-receipts-required',
+    'string-failure-height-passes',
+    'malformed-failure-height-fails',
     'retry-child-failure-fails',
     'retry-initial-link-required',
     'unrelated-upgrade-dao-fails',
