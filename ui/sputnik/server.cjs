@@ -263,6 +263,9 @@ function verify(run) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${HOST}:${PORT}`);
   try {
+    if (url.pathname === '/api/patch' || url.pathname.startsWith('/api/patch/')) {
+      return await require('./patch-route.cjs').handle({req, res, url, send});
+    }
     if (url.pathname === '/api/health') return send(res, 200, {ok: true, running: !!activeId, repairRunning: Boolean(repairManager.active()), reviewRunning: Boolean(reviewManager.active())});
     if (url.pathname === '/api/review/config' && req.method === 'GET') return send(res, 200, {
       case: reviewManager.case,
@@ -417,9 +420,10 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/') return file(res, 'home.html');
     if (url.pathname === '/compare' || url.pathname === '/compare/' || url.pathname === '/index.html') return file(res, 'index.html');
+    if ((url.pathname === '/repair' || url.pathname === '/repair/') && url.searchParams.get('mode') === 'patch') return file(res, 'patch.html');
     if (url.pathname === '/repair' || url.pathname === '/repair/') return file(res, 'repair.html');
     if (url.pathname === '/review' || url.pathname === '/review/') return file(res, 'review.html');
-    if (['/app.js', '/styles.css', '/home.css', '/repair.js', '/repair.css', '/review.js', '/review.css'].includes(url.pathname)) return file(res, url.pathname.slice(1));
+    if (['/app.js', '/patch.js', '/styles.css', '/home.css', '/repair.js', '/repair.css', '/review.js', '/review.css'].includes(url.pathname)) return file(res, url.pathname.slice(1));
     return send(res, 404, {error: 'Not found.'});
   } catch (e) {
     return send(res, e.statusCode || 400, {error: e.message});
@@ -435,6 +439,7 @@ if (require.main === module) {
     if (stopping) return;
     stopping = true;
     server.close();
+    try { await require('./patch-route.cjs').shutdown(); } catch {}
     try { await repairManager.shutdown(); } catch {}
     try { await reviewManager.shutdown(); } catch {}
     process.exit(0);

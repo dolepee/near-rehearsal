@@ -339,7 +339,12 @@ async function runRecovery(worker, candidateWasm) {
 
   const unauthorizedUpdate = await attempt('unauthorized update', () => updateCode(worker, base.proposer, base.dao, candidateWasm));
   const unauthorizedUpdateRejected = unauthorizedUpdate.ok && unauthorizedUpdate.value?.receiptFailure === true;
-  if (!unauthorizedUpdateRejected) throw new Error('unauthorized update probe did not produce an executed rejection');
+  // An executed probe that did not fail is a demonstrated authority violation.
+  // Keep it in the report so acceptance can reject it. A transport/runtime
+  // failure has no executed transaction and remains inconclusive.
+  if (!unauthorizedUpdate.ok) {
+    throw new Error(`unauthorized update probe did not execute: ${unauthorizedUpdate.error || 'no transaction result'}`);
+  }
 
   // The contract's factory `update` path deliberately creates a timed
   // UpgradeSelf proposal instead of deploying immediately. This runner uses
@@ -355,7 +360,11 @@ async function runRecovery(worker, candidateWasm) {
     return summarize(await finalStatus(worker, tx, base.recipient.accountId));
   });
   const unauthorizedFinalizeRejected = unauthorizedFinalize.ok && unauthorizedFinalize.value?.receiptFailure === true;
-  if (!unauthorizedFinalizeRejected) throw new Error('unauthorized finalize probe did not produce an executed rejection');
+  // As above: preserve an executed authority violation for the acceptance
+  // report instead of turning it into a missing/inconclusive result.
+  if (!unauthorizedFinalize.ok) {
+    throw new Error(`unauthorized finalize probe did not execute: ${unauthorizedFinalize.error || 'no transaction result'}`);
+  }
 
   // Authority probes can burn the probe signer's gas. Start the recovery
   // accounting after those probes so their gas is not misread as a payout.

@@ -136,6 +136,26 @@ authority checks.
 
 Source-build applies the exported patch to a clean pinned checkout and builds the WASM by executing the patch. Its digest may match or differ from the recorded artifact; either way it is a new execution, not a byte-reproducibility claim. Recorded-WASM mode executes the exact supplied bytes and does **not** claim that a source build produces them. Source-build refuses local source changes or untracked inputs; recorded-WASM does not require or inspect a source checkout. Both modes verify the bundle identity and require an absent or empty output directory, and neither merges, publishes or upgrades an external contract.
 
+## Review a maintainer patch
+
+A maintainer can submit a source diff directly, without first producing a
+Rehearsal bundle and without a model account:
+
+```sh
+npm run review:patch -- \
+  --patch /path/to/candidate.diff \
+  --source "$REPAIR_SOURCE_DIR" \
+  --out .local/review-patch \
+  --sandbox-dir "$REPAIR_SANDBOX_DIR"
+```
+
+The command reuses the pinned build, fresh replay and persisted-recovery
+acceptance. It writes `ACCEPTED`, `REJECTED`, `INPUT_ERROR`, `BUILD_ERROR` or
+`INCONCLUSIVE` with the patch, logs and hashes preserved. `ACCEPTED` means the
+defined checks passed for this case, not that the patch is universally safe.
+Caller-supplied repository/base/head labels are recorded as supplied metadata,
+not verified provenance. See [review a maintainer patch](docs/review-patch.md).
+
 ## Generate a fresh model repair
 
 Fresh generation is the only route that asks a model for a patch. It needs your own existing supported Codex CLI login, an available model, the pinned source checkout, a dedicated temporary provider runtime, an enforced provider policy and the Rust build tools. Rehearsal never includes credentials in a bundle. Provider availability, subscription entitlement and output quality are not guaranteed.
