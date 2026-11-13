@@ -84,6 +84,15 @@ async function finalStatus(worker, tx, sender) {
   throw new Error(`tx ${hash} did not reach FINAL: ${JSON.stringify(last)}`);
 }
 
+async function withHeight(worker, summary) {
+  if (!summary?.blockHash) return summary;
+  try {
+    const block = await worker.provider.sendJsonRpc('block', {block_id: summary.blockHash});
+    summary.blockHeight = block?.header?.height ?? summary.blockHeight;
+  } catch {}
+  return summary;
+}
+
 function summarize(final) {
   const txo = final?.status?.transaction_outcome;
   const receipts = (final?.status?.receipts_outcome || []).map((r) => ({
@@ -210,7 +219,7 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   const kind = {FunctionCall: {receiver_id: 'missing-target.test.near', actions: [{method_name: 'ping', args: '', deposit: '0', gas: ACTION_GAS.toString()}]}};
   stage(`${tag} add`);
   const add = await proposer.callRaw(dao, 'add_proposal', {proposal: {description: 'deleted proposer refund', kind}}, {gas: GAS, attachedDeposit: BOND.toString()});
-  const addFinal = summarize(await finalStatus(worker, add, proposer.accountId));
+  const addFinal = await withHeight(worker, summarize(await finalStatus(worker, add, proposer.accountId)));
   const id = add.parseResult();
   let upgrade = null;
   let deleteFinal = null;
@@ -232,11 +241,11 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
     stage(`${tag} upgrade to the candidate`);
     const codeHash = hashContract(wasm);
     const upgradeDeploy = await dao.deploy(wasm);
-    const upgradeDeployFinal = summarize(await finalStatus(worker, upgradeDeploy, root.accountId));
+    const upgradeDeployFinal = await withHeight(worker, summarize(await finalStatus(worker, upgradeDeploy, root.accountId)));
     upgradeDeployFinal.wasmSha256 = sha256(wasm);
     upgradeDeployFinal.codeHash = codeHash;
     const migrate = await dao.callRaw(dao, 'migrate', {}, {gas: GAS});
-    const migrateFinal = summarize(await finalStatus(worker, migrate, root.accountId));
+    const migrateFinal = await withHeight(worker, summarize(await finalStatus(worker, migrate, root.accountId)));
     let installed = false;
     for (let i = 0; i < 40; i += 1) {
       const code = await dao.viewCode();
@@ -250,7 +259,7 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
     deleteFinal = {transactionHash: deleted?.transactionReceipt?.hash || null, transactionOutcome: {status: 'DeleteAccount submitted'}};
     stage(`${tag} legacy finalize while the proposer is deleted`);
     const legacyFinalize = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
-    const legacyFinalizeFinal = summarize(await finalStatus(worker, legacyFinalize, voter.accountId));
+    const legacyFinalizeFinal = await withHeight(worker, summarize(await finalStatus(worker, legacyFinalize, voter.accountId)));
     await waitProposal(worker, dao, id, 'Failed');
     upgrade.legacyFinalize = legacyFinalizeFinal;
   }

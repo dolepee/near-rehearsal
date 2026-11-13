@@ -103,6 +103,40 @@ unlinkedStart.fresh.deploy.transactionOutcome.receiptIds = [];
 assert.equal(verifySettlementReport(unlinkedStart, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'the initial transaction receiptIds must link the SuccessReceiptId');
 
+const substitutedMigrate = JSON.parse(JSON.stringify(correctedReport));
+substitutedMigrate.inherited.transactions.upgrade.migrate.transaction.actions[0].FunctionCall.method_name = 'get_config';
+assert.equal(verifySettlementReport(substitutedMigrate, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a deploy/get_config transaction relabelled as migrate must fail');
+
+const wrongMigrateReceiver = JSON.parse(JSON.stringify(correctedReport));
+wrongMigrateReceiver.inherited.transactions.upgrade.migrate.transaction.receiverId = 'fresh-dao.test.near';
+assert.equal(verifySettlementReport(wrongMigrateReceiver, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'migrate must target the inherited DAO');
+
+const missingRawRetries = JSON.parse(JSON.stringify(correctedReport));
+missingRawRetries.inherited.transactions.retries = [];
+assert.equal(verifySettlementReport(missingRawRetries, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'overlap cannot be accepted without the two full raw retry summaries');
+
+const rawSummaryMismatch = JSON.parse(JSON.stringify(correctedReport));
+rawSummaryMismatch.inherited.transactions.retries[0].transactionHash = 'not-the-summary-hash';
+assert.equal(verifySettlementReport(rawSummaryMismatch, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a raw retry summary must match the recorded overlap hash');
+
+const reversedChronology = JSON.parse(JSON.stringify(correctedReport));
+{
+  const add = reversedChronology.inherited.transactions.add;
+  const up = reversedChronology.inherited.transactions.upgrade.deploy;
+  [add.blockHeight, up.blockHeight] = [up.blockHeight, add.blockHeight];
+}
+assert.equal(verifySettlementReport(reversedChronology, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the proposal cannot be added after the candidate upgrade');
+
+const missingHeight = JSON.parse(JSON.stringify(correctedReport));
+delete missingHeight.inherited.transactions.add.blockHeight;
+assert.equal(verifySettlementReport(missingHeight, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a missing recorded block height must fail chronology');
+
 const failedDeploymentReceipt = JSON.parse(JSON.stringify(correctedReport));
 {
   const deploy = failedDeploymentReceipt.fresh.deploy;
@@ -217,6 +251,12 @@ console.log(JSON.stringify({
     'identity-label-swap-fails',
     'installed-code-hash-fails',
     'failed-deployment-receipt-fails',
+    'migrate-method-substitution-fails',
+    'migrate-receiver-substitution-fails',
+    'missing-raw-retries-fail',
+    'raw-summary-mismatch-fails',
+    'reversed-chronology-fails',
+    'missing-block-height-fails',
     'multi-hop-success-passes',
     'multi-hop-migrate-passes',
     'terminal-failure-fails',
