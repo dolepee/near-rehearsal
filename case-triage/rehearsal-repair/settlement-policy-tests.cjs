@@ -103,6 +103,50 @@ unlinkedStart.fresh.deploy.transactionOutcome.receiptIds = [];
 assert.equal(verifySettlementReport(unlinkedStart, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'the initial transaction receiptIds must link the SuccessReceiptId');
 
+const genuineTrace = JSON.parse(JSON.stringify(correctedReport));
+{
+  const t = genuineTrace.inherited.transactions;
+  t.add.blockHeight = 147;
+  t.vote2.blockHeight = 159;
+  t.failedProposal.last_actions_log[t.failedProposal.last_actions_log.length - 1].block_height = '160';
+  t.upgrade.deploy.blockHeight = 167;
+  t.upgrade.migrate.blockHeight = 172;
+  t.upgrade.legacyFinalize.blockHeight = 180;
+}
+assert.equal(verifySettlementReport(genuineTrace, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, true,
+  'the genuine ordered inherited trace must pass');
+
+const wrongFailedProposalId = JSON.parse(JSON.stringify(correctedReport));
+wrongFailedProposalId.inherited.transactions.failedProposal.id = 999;
+assert.equal(verifySettlementReport(wrongFailedProposalId, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the recorded old-code proposal must be the scenario proposal');
+
+const wrongFailedProposalStatus = JSON.parse(JSON.stringify(correctedReport));
+wrongFailedProposalStatus.inherited.transactions.failedProposal.status = 'InProgress';
+assert.equal(verifySettlementReport(wrongFailedProposalStatus, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the recorded old-code proposal must be Failed');
+
+const zeroFailureHeight = JSON.parse(JSON.stringify(correctedReport));
+{
+  const logs = zeroFailureHeight.inherited.transactions.failedProposal.last_actions_log;
+  logs[logs.length - 1].block_height = '0';
+}
+assert.equal(verifySettlementReport(zeroFailureHeight, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'an old-code failure height of zero must fail');
+
+const failureBeforeVote2 = JSON.parse(JSON.stringify(correctedReport));
+{
+  const logs = failureBeforeVote2.inherited.transactions.failedProposal.last_actions_log;
+  logs[logs.length - 1].block_height = String(Number(failureBeforeVote2.inherited.transactions.vote2.blockHeight) - 1);
+}
+assert.equal(verifySettlementReport(failureBeforeVote2, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'old-code failure cannot precede the second approval');
+
+const legacyBeforeMigrate = JSON.parse(JSON.stringify(correctedReport));
+legacyBeforeMigrate.inherited.transactions.upgrade.legacyFinalize.blockHeight = Number(legacyBeforeMigrate.inherited.transactions.upgrade.migrate.blockHeight) - 1;
+assert.equal(verifySettlementReport(legacyBeforeMigrate, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'legacy finalize cannot precede migrate');
+
 const stringFailureHeight = JSON.parse(JSON.stringify(correctedReport));
 {
   const logs = stringFailureHeight.inherited.transactions.failedProposal.last_actions_log;
@@ -318,6 +362,12 @@ console.log(JSON.stringify({
     'installed-code-hash-fails',
     'failed-deployment-receipt-fails',
     'approval-receipts-required',
+    'genuine-ordered-trace-passes',
+    'failed-proposal-id-fails',
+    'failed-proposal-status-fails',
+    'zero-failure-height-fails',
+    'failure-before-vote2-fails',
+    'legacy-before-migrate-fails',
     'string-failure-height-passes',
     'malformed-failure-height-fails',
     'retry-child-failure-fails',

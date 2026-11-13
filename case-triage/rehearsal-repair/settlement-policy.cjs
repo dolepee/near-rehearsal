@@ -224,13 +224,31 @@ function verifyScenario(scenario, mode, context) {
     const legacyHeight = recordedHeight(scenario.transactions?.upgrade?.legacyFinalize?.blockHeight);
     if (addHeight === null || upgradeHeight === null) failFor(false, 'recorded add/upgrade block heights are missing or malformed');
     else if (addHeight >= upgradeHeight) failFor(false, 'proposal was not added before the candidate upgrade');
-    if (vote2Height === null || vote2Height >= upgradeHeight) failFor(false, 'second approval height is missing, malformed or not before the candidate upgrade');
-    if (failureHeight === null || failureHeight >= upgradeHeight) failFor(false, 'recorded old-code failure height is missing, malformed or not before the candidate upgrade');
-    if (legacyHeight === null || legacyHeight < upgradeHeight) failFor(false, 'legacy finalize height is missing, malformed or not after the candidate upgrade');
-    if (migrateHeight === null || migrateHeight < upgradeHeight) failFor(false, 'migrate height is missing, malformed or not after the candidate upgrade');
+    if (vote2Height === null) failFor(false, 'second approval height is missing or malformed');
+    else if (addHeight !== null && addHeight > vote2Height) failFor(false, 'proposal was added after the second approval');
+    if (failureHeight === null) failFor(false, 'recorded old-code failure height is missing or malformed');
+    else if (vote2Height !== null && vote2Height > failureHeight) failFor(false, 'old-code failure was recorded before the second approval');
+    if (failureHeight !== null && upgradeHeight !== null && failureHeight >= upgradeHeight) failFor(false, 'recorded old-code failure was not before the candidate upgrade');
+    if (migrateHeight === null) failFor(false, 'migrate height is missing or malformed');
+    else if (upgradeHeight !== null && upgradeHeight > migrateHeight) failFor(false, 'migrate was not after the candidate upgrade');
+    if (legacyHeight === null) failFor(false, 'legacy finalize height is missing or malformed');
+    else if (migrateHeight !== null && migrateHeight > legacyHeight) failFor(false, 'legacy finalize was before migrate');
+    else if (upgradeHeight !== null && legacyHeight < upgradeHeight) failFor(false, 'legacy finalize was not after the candidate upgrade');
   }
 
+  const recordedProposal = scenario.transactions?.failedProposal;
+  if (!recordedProposal) failFor(false, 'recorded old-code proposal is missing');
+  else {
+    if (String(recordedProposal.id) !== String(scenario.proposalId)) failFor(false, 'recorded old-code proposal is not the scenario proposal');
+    if (recordedProposal.status !== 'Failed') failFor(false, 'recorded old-code proposal is not Failed');
+  }
   const failed = scenario.failedRefund;
+  if (failed?.proposal) {
+    if (String(failed.proposal.id) !== String(scenario.proposalId)) failFor(false, 'post-upgrade proposal identity changed');
+    if (failed.proposal.status !== 'Failed') failFor(false, 'post-upgrade proposal is not Failed');
+    if (JSON.stringify(recordedProposal?.kind) !== JSON.stringify(failed.proposal.kind)) failFor(false, 'proposal kind changed across the upgrade');
+    if (recordedProposal?.description !== failed.proposal.description) failFor(false, 'proposal description changed across the upgrade');
+  } else failFor(false, 'post-upgrade proposal identity is missing');
   if (!failed) failFor(false, 'failed-refund snapshot missing');
   else {
     if (text(failed.lockedAmount) !== BOND.toString()) failFor(false, 'failed refund did not retain the locked debt');
