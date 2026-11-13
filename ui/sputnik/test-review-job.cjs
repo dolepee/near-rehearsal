@@ -89,6 +89,13 @@ const acceptedResult = {
     healthy: {settledTransfer: '0.1 NEAR', settledTransferYocto: '100000000000000000000000', pendingTransfer: '0.1 NEAR', pendingTransferYocto: '100000000000000000000000'},
     checks: {preservedState: true, preservedPolicy: true, preservedProposal: true, authorityRejected: true, healthyControl: true, pendingHealthy: true, accepted: true},
   },
+  mixed: {
+    mode: 'fresh-replay',
+    policy: {sha256: 'a'.repeat(64), files: {mixedPolicy: 'b'.repeat(64)}},
+    reviewer: {ok: true, errors: [], outcomes: {alicePaid: true, bobLiabilityAfterAlice: true, bobTransferPaid: true, bobPaidExactlyOnce: true}},
+    comparison: {legacy: false, candidateMatches: true, policyMatches: true, differences: [], producer: {alicePaid: true}, reviewer: {alicePaid: true}},
+    reportPath: '/tmp/private/mixed.json',
+  },
   resultPath: '/tmp/private/review-result.json',
   boundary: 'Local NEAR Sandbox 2.14 only.',
 };
@@ -108,6 +115,9 @@ async function runAccepted() {
   assert.equal(run.result.summary.firstRecovery.gross, '1 NEAR', 'accepted result carries measured first recovery');
   assert.equal(run.result.summary.firstRecovery.proposerNet, '0.9993 NEAR', 'accepted result carries measured proposer net');
   assert.equal(run.result.summary.retry.gross, '0 NEAR', 'accepted result carries zero retry principal');
+  assert.equal(run.result.mixed.reviewer.ok, true, 'mixed policy is visible in the browser result');
+  assert.equal(run.result.mixed.comparison.legacy, false, 'producer/reviewer comparison is retained');
+  assert.equal(run.result.mixed.reportPath, undefined, 'raw mixed path is not exposed');
   assert.equal(manager.publicRun(run).downloadUrl, `/api/review/runs/${started.id}/download`);
   const downloaded = fs.readFileSync(manager.download(started.id), 'utf8');
   assert.doesNotMatch(downloaded, /\/Users\/|\/tmp\/|\/opt\//);

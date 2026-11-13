@@ -47,6 +47,7 @@
           </label>
         </fieldset>
 
+        <div class="boundary"><strong>Trusted-local source build</strong><p>Source builds run on this machine. Build scripts can read host files and credentials; choose this mode only for source you trust. This is not compiler isolation or an untrusted-code sandbox.</p></div>
         <button id="run-button" class="primary" type="button" disabled>Select a bundle to run</button>
         <div id="runtime-note" class="notice" role="status" aria-live="polite">Checking the local runtime…</div>
         <div class="boundary"><strong>Local evidence only</strong><p>Accepted means the supplied artifact passed the declared local checks. It is not production approval, an audit, or a claim about other contracts.</p></div>
@@ -87,6 +88,12 @@
           <div id="result-banner" class="result-banner"></div>
           <p id="result-copy" class="result-copy"></p>
           <div id="money-grid" class="review-grid money-grid"></div>
+
+          <section class="details panel" id="same-dao-panel" aria-labelledby="same-dao-title" hidden>
+            <div class="section-head"><div><div class="eyebrow">Mixed obligations</div><h3 id="same-dao-title">Same-DAO policy</h3></div><span id="same-dao-badge" class="badge subtle"></span></div>
+            <p id="same-dao-copy" class="small muted"></p>
+            <ul id="same-dao-list" class="checks-list"></ul>
+          </section>
 
           <details class="evidence-details panel" id="identity-details">
             <summary>Technical identity and mode</summary>

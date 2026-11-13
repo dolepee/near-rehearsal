@@ -230,6 +230,32 @@
       card('Retry', s.retry?.gross === '0 NEAR' ? '0 NEAR extra principal' : (s.retry?.gross || '—'), `${s.retry?.gas || '—'} gas · no additional principal.`, s.retry?.gross === '0 NEAR' ? 'good' : 'bad'),
       card('Healthy obligations', healthyTransfer, healthy ? healthyCopy : 'The healthy obligation controls did not all pass.', healthy ? 'good' : 'bad'),
     ].join('');
+    const mixed = result.mixed;
+    const mixedPanel = $('same-dao-panel');
+    if (mixed) {
+      const comparison = mixed.comparison || {};
+      const outcomes = mixed.reviewer?.outcomes || {};
+      const verified = mixed.reviewer?.ok === true;
+      mixedPanel.hidden = false;
+      $('same-dao-badge').className = `badge ${verified ? 'good' : 'bad'}`;
+      $('same-dao-badge').textContent = verified ? 'Policy pass' : 'Policy fail';
+      $('same-dao-copy').textContent = comparison.legacy
+        ? 'Legacy bundle: the producer did not include mixed-obligation evidence. This review ran the current same-DAO policy fresh. Principal outcomes do not claim producer/reviewer equivalence.'
+        : 'Producer and reviewer mixed evidence are both bound to this candidate and the current policy. Principal outcomes match; new receipt IDs and gas costs are allowed.';
+      const outcome = (value) => value === true ? 'yes' : value === false ? 'no' : 'not recorded';
+      const producer = comparison.producer || {};
+      const reviewer = comparison.reviewer || outcomes;
+      $('same-dao-list').innerHTML = [
+        ['Alice bond returned once', outcome(reviewer.alicePaid), comparison.legacy ? 'not applicable' : outcome(producer.alicePaid)],
+        ['Bob liability preserved', outcome(reviewer.bobLiabilityAfterAlice), comparison.legacy ? 'not applicable' : outcome(producer.bobLiabilityAfterAlice)],
+        ['Bob transfer paid', outcome(reviewer.bobTransferPaid), comparison.legacy ? 'not applicable' : outcome(producer.bobTransferPaid)],
+        ['Bob paid exactly once', outcome(reviewer.bobPaidExactlyOnce), comparison.legacy ? 'not applicable' : outcome(producer.bobPaidExactlyOnce)],
+      ].map(([label, reviewerValue, producerValue]) => `<li><span class="check-mark${reviewerValue === 'yes' ? '' : ' bad'}" aria-hidden="true">${reviewerValue === 'yes' ? '✓' : '×'}</span><span>${esc(label)} — reviewer <b>${esc(reviewerValue)}</b>${comparison.legacy ? '' : `; producer <b>${esc(producerValue)}</b>`}</span></li>`).join('');
+      $('same-dao-copy').textContent += ` Policy ${short(mixed.policy?.sha256)}.`;
+      if (comparison.differences?.length) $('same-dao-copy').textContent += ` Differences: ${comparison.differences.join(', ')}.`;
+    } else {
+      mixedPanel.hidden = true;
+    }
     $('review-grid').innerHTML = [
       card('Mode', s.modeLabel || (sourceBuild ? 'Source build' : 'Recorded WASM replay'), sourceBuild ? 'Fresh build from the supplied patch, then local Sandbox replay.' : 'Supplied artifact, no source build and no model call.'),
       card(sourceBuild ? 'Built WASM' : 'Recorded artifact', short(s.candidateWasmSha256 || result.bundle?.candidate?.wasmSha256), sourceBuild ? 'Artifact produced by the build and exercised by the replay.' : 'Exact artifact exercised by the replay.', 'good'),

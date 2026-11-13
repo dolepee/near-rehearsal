@@ -95,7 +95,7 @@
     el('result-note').textContent = run.note || 'See the checker evidence for this run.';
     outcomes(run);
     if (run.report) { el('patch-report').textContent = run.report; el('patch-report').hidden = false; } else el('patch-report').hidden = true;
-    for (const [key,label] of [['bundle','Open reviewer bundle'],['package','Download evidence package'],['status','Download status'],['report','Download report'],['patch','Download submitted diff']]) {
+    for (const [key,label] of [['bundle','Download reviewer bundle'],['package','Download evidence package'],['status','Download status'],['report','Download report'],['patch','Download submitted diff']]) {
       if (!run.downloads?.includes(key)) continue;
       const a = document.createElement('a'); a.className = 'download-button'; a.download = ''; a.href = '/api/patch/runs/'+encodeURIComponent(run.id)+'/'+key; a.textContent = label; el('evidence-links').append(a);
     }

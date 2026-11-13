@@ -207,6 +207,31 @@ function buildEvidence(run) {
   });
 }
 
+function publicMixed(mixed) {
+  if (!mixed) return null;
+  const outcomes = mixed.reviewer?.outcomes || null;
+  return {
+    mode: mixed.mode || null,
+    policy: {
+      sha256: mixed.policy?.sha256 || null,
+      files: mixed.policy?.files || null,
+    },
+    reviewer: {
+      ok: mixed.reviewer?.ok === true,
+      errors: Array.isArray(mixed.reviewer?.errors) ? mixed.reviewer.errors.map(cleanError) : [],
+      outcomes,
+    },
+    comparison: {
+      legacy: mixed.comparison?.legacy === true,
+      candidateMatches: mixed.comparison?.candidateMatches === true,
+      policyMatches: mixed.comparison?.policyMatches === true,
+      differences: Array.isArray(mixed.comparison?.differences) ? mixed.comparison.differences.map(cleanError) : [],
+      producer: mixed.comparison?.producer || null,
+      reviewer: mixed.comparison?.reviewer || null,
+    },
+  };
+}
+
 function publicResult(result, meta) {
   if (!result) return null;
   return {
@@ -234,6 +259,7 @@ function publicResult(result, meta) {
       } : null,
     },
     summary: result.summary || null,
+    mixed: publicMixed(result.mixed),
     boundary: result.boundary || 'Local NEAR Sandbox 2.14 only. No public write, deployment, production upgrade, or claim about other cases.',
   };
 }
