@@ -75,7 +75,7 @@ try {
     for (const mode of ['normal-close', 'timeout']) {
       fs.rmSync(heartbeat, {force: true});
       const limits = boundaryLimits({wallMs: mode === 'timeout' ? 1200 : 3000});
-      const detached = `/bin/sh -c ${quote(`setsid /bin/sh ${quote(writer)} ${quote(heartbeat)} &`)};
+      const detached = `/bin/sh -c ${quote(`setsid /bin/sh ${quote(writer)} ${quote(heartbeat)} &`)}`;
       const script = `${detached}; while [ ! -s ${quote(heartbeat)} ]; do sleep 0.02; done; ${mode === 'timeout' ? 'sleep 30' : 'sleep 0.1'}`;
       const command = `/bin/sh -c ${quote(script)}`;
       const argv = boundaryArgv({
