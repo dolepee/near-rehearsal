@@ -201,6 +201,7 @@ function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance
     outDir: out,
     toolchainEnv: toolchain.env,
     command: manifest.build.command,
+    artifact: buildManifest.build.artifact,
   });
   const build = runSupervised({
     file: prepared.argv.file,
@@ -223,8 +224,10 @@ function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance
     if (build.outputLimit) throw new Error(`candidate build exceeded the bounded output limit; see build.log`);
     throw new Error(`candidate build failed with exit ${build.status ?? 'unavailable'}; see build.log`);
   }
+  if (!fs.existsSync(prepared.artifact)) throw new Error(`candidate build produced no ${buildManifest.build.artifact}`);
   const wasm = path.join(appliedDir, buildManifest.build.artifact);
-  if (!fs.existsSync(wasm)) throw new Error(`candidate build produced no ${buildManifest.build.artifact}`);
+  fs.mkdirSync(path.dirname(wasm), {recursive: true});
+  fs.copyFileSync(prepared.artifact, wasm);
 
   const sandbox = verifySandbox(buildManifest, sandboxDir);
   const replay = run(process.execPath, [ISSUE238], {

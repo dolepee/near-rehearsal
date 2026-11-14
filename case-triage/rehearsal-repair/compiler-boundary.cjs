@@ -141,14 +141,29 @@ function boundaryArgv({adapter, command, cwd, jobDir, readRoots, limits, env = {
 function minimalEnv({cwd, jobDir, toolchainEnv = {}}) {
   const home = path.join(jobDir, 'home');
   const tmp = path.join(jobDir, 'tmp');
+  const cargoHome = path.join(jobDir, 'cargo-home');
+  const rustupHome = path.join(jobDir, 'rustup-home');
   fs.mkdirSync(home, {recursive: true});
   fs.mkdirSync(tmp, {recursive: true});
+  fs.mkdirSync(cargoHome, {recursive: true});
+  fs.mkdirSync(rustupHome, {recursive: true});
+  // Cargo may read its registry cache, but it must never receive the user's
+  // Cargo home: that can contain credentials.toml and unrelated config.
+  const sourceCargo = toolchainEnv.CARGO_HOME;
+  for (const name of ['registry', 'git']) {
+    const source = sourceCargo ? path.join(sourceCargo, name) : null;
+    const target = path.join(cargoHome, name);
+    if (source && fs.existsSync(source) && !fs.existsSync(target)) {
+      try { fs.symlinkSync(source, target, 'dir'); } catch {}
+    }
+  }
   const env = {
-    PATH: [path.dirname(toolchainEnv.CARGO || 'cargo'), '/usr/bin', '/bin', '/usr/local/bin'].filter(Boolean).join(path.delimiter),
+    PATH: [toolchainEnv.CARGO && path.dirname(toolchainEnv.CARGO), '/usr/bin', '/bin', '/usr/local/bin'].filter(Boolean).join(path.delimiter),
     HOME: home,
     TMPDIR: tmp,
-    CARGO_HOME: toolchainEnv.CARGO_HOME || path.join(jobDir, 'cargo-home'),
-    RUSTUP_HOME: toolchainEnv.RUSTUP_HOME || path.join(jobDir, 'rustup-home'),
+    CARGO_HOME: cargoHome,
+    RUSTUP_HOME: rustupHome,
+    CARGO_TARGET_DIR: path.join(jobDir, 'target'),
     CARGO_NET_OFFLINE: 'true',
     RUSTUP_TOOLCHAIN: toolchainEnv.RUSTUP_TOOLCHAIN || '',
     CARGO: toolchainEnv.CARGO || 'cargo',
@@ -161,15 +176,18 @@ function minimalEnv({cwd, jobDir, toolchainEnv = {}}) {
 }
 
 function readRoots({cwd, jobDir, toolchainEnv = {}}) {
+  const toolchainRoot = toolchainEnv.CARGO ? path.dirname(path.dirname(toolchainEnv.CARGO)) : null;
+  const cargoCache = toolchainEnv.CARGO_HOME ? [
+    path.join(toolchainEnv.CARGO_HOME, 'registry'),
+    path.join(toolchainEnv.CARGO_HOME, 'git'),
+  ] : [];
   return uniqueExisting([
     cwd,
     jobDir,
-    '/usr', '/bin', '/sbin', '/lib', '/lib64',
+    '/usr', '/usr/local', '/bin', '/sbin', '/lib', '/lib64',
     '/System', '/Library/Developer/CommandLineTools',
-    toolchainEnv.CARGO_HOME,
-    toolchainEnv.RUSTUP_HOME,
-    toolchainEnv.CARGO && path.dirname(toolchainEnv.CARGO),
-    toolchainEnv.RUSTC && path.dirname(toolchainEnv.RUSTC),
+    toolchainRoot,
+    ...cargoCache,
     toolchainEnv.DEVELOPER_DIR,
     toolchainEnv.SDKROOT,
     path.dirname(process.execPath),
@@ -241,31 +259,34 @@ function probeBoundary({cwd, jobDir, toolchainEnv = {}, platform = process.platf
     const outsideFile = path.join(outsideDir, 'outside.txt');
     const insideFile = path.join(jobDir, 'inside.txt');
     fs.writeFileSync(outsideFile, 'outside-canary');
-    const probeScript = path.join(jobDir, 'probe.cjs');
+    const probeScript = path.join(jobDir, 'probe.sh');
     const resultFile = path.join(jobDir, 'probe-result.json');
     const port = 30000 + (process.pid % 20000);
-    fs.writeFileSync(probeScript, `'use strict';
-const fs=require('node:fs'), net=require('node:net');
-const [outside, inside, out, port] = process.argv.slice(2);
-const result={outsideRead:false,outsideWrite:false,insideWrite:false,envLeak:Boolean(process.env.BOUNDARY_CANARY),network:null};
-try{fs.readFileSync(outside);result.outsideRead=true}catch{}
-try{fs.writeFileSync(outside,'escaped');result.outsideWrite=true}catch{}
-try{fs.writeFileSync(inside,'ok');result.insideWrite=true}catch{}
-const socket=net.connect(Number(port),'127.0.0.1');
-socket.setTimeout(1500);
-socket.on('connect',()=>{result.network='connected';socket.destroy()});
-socket.on('timeout',()=>{result.network='timeout';socket.destroy()});
-socket.on('error',(error)=>{result.network=error.code||'error'});
-socket.on('close',()=>{fs.writeFileSync(out,JSON.stringify(result))});
+    fs.writeFileSync(probeScript, `#!/bin/sh
+outside="$1"; inside="$2"; result="$3"; port="$4"
+outside_read=0; outside_write=0; inside_write=0; env_leak=0; network=probe-unavailable
+if cat "$outside" >/dev/null 2>&1; then outside_read=1; fi
+if (echo escaped > "$outside") >/dev/null 2>&1; then outside_write=1; fi
+if (echo ok > "$inside") >/dev/null 2>&1; then inside_write=1; fi
+if [ -n "\${BOUNDARY_CANARY:-}" ]; then env_leak=1; fi
+if command -v nc >/dev/null 2>&1; then
+  if nc -z -w 1 127.0.0.1 "$port" >/dev/null 2>&1; then network=connected; else network=blocked; fi
+elif [ -x /bin/bash ]; then
+  if /bin/bash -c "exec 3<>/dev/tcp/127.0.0.1/$port" >/dev/null 2>&1; then network=connected; else network=blocked; fi
+fi
+bool() { if [ "$1" = 1 ]; then printf true; else printf false; fi; }
+printf '{\"outsideRead\":%s,\"outsideWrite\":%s,\"insideWrite\":%s,\"envLeak\":%s,\"network\":\"%s\"}\n' "$(bool $outside_read)" "$(bool $outside_write)" "$(bool $inside_write)" "$(bool $env_leak)" "$network" > "$result"
 `);
+    fs.chmodSync(probeScript, 0o700);
     const listener = spawn(process.execPath, ['-e', `const net=require('node:net');const s=net.createServer(c=>c.end());s.listen(${port},'127.0.0.1');setTimeout(()=>process.exit(0),5000);`], {stdio: 'ignore', detached: true});
     const wait = new Int32Array(new SharedArrayBuffer(4));
     Atomics.wait(wait, 0, 0, 250);
     const outsidePositive = spawnSync(process.execPath, ['-e', `const net=require('node:net');const s=net.connect(${port},'127.0.0.1',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),1000);`], {timeout: 3000});
     const readRootsList = uniqueExisting([cwd, jobDir, ...readRoots({cwd, jobDir, toolchainEnv})]);
-    const env = {...minimalEnv({cwd, jobDir, toolchainEnv}), BOUNDARY_CANARY: 'must-not-leak'};
-    const argv = boundaryArgv({adapter, command: `${JSON.stringify(process.execPath)} ${JSON.stringify(probeScript)} ${JSON.stringify(outsideFile)} ${JSON.stringify(insideFile)} ${JSON.stringify(resultFile)} ${port}`, cwd, jobDir, readRoots: readRootsList, limits, env});
-    const run = runSupervised({...argv, cwd, env, jobDir, limits: {...limits, wallMs: Math.min(limits.wallMs, 15000)}});
+    const innerEnv = minimalEnv({cwd, jobDir, toolchainEnv});
+    const outerEnv = {...innerEnv, BOUNDARY_CANARY: 'must-not-leak'};
+    const argv = boundaryArgv({adapter, command: `/bin/sh ${[probeScript, outsideFile, insideFile, resultFile, port].map((value) => `'${String(value).replace(/'/g, `'\\''`)}'`).join(' ')}`, cwd, jobDir, readRoots: readRootsList, limits, env: innerEnv});
+    const run = runSupervised({...argv, cwd, env: outerEnv, jobDir, limits: {...limits, wallMs: Math.min(limits.wallMs, 15000)}});
     listener.kill('SIGKILL');
     let result = null;
     try { result = JSON.parse(fs.readFileSync(resultFile, 'utf8')); } catch {}
@@ -278,6 +299,7 @@ socket.on('close',()=>{fs.writeFileSync(out,JSON.stringify(result))});
       environmentCanaryAbsent: result?.envLeak === false,
       networkDenied: result && result.network !== 'connected',
     };
+    fs.rmSync(outsideDir, {recursive: true, force: true});
     const ok = outsideControl && Object.values(checks).every(Boolean) && run.ok;
     return {ok, code: ok ? null : CODE, reason: ok ? null : 'compiler boundary probe failed', platform, adapter, limits, guarantees: GUARANTEES, checks, run, result};
   } catch (error) {
@@ -285,7 +307,7 @@ socket.on('close',()=>{fs.writeFileSync(out,JSON.stringify(result))});
   }
 }
 
-function prepareBuild({appliedDir, outDir, toolchainEnv, command, platform = process.platform}) {
+function prepareBuild({appliedDir, outDir, toolchainEnv, command, artifact = 'target/wasm32-unknown-unknown/release/sputnikdao2.wasm', platform = process.platform}) {
   const jobDir = path.join(outDir, 'boundary');
   fs.mkdirSync(jobDir, {recursive: true});
   assertNoSymlinkEscape(outDir, appliedDir, 'applied source');
@@ -295,7 +317,7 @@ function prepareBuild({appliedDir, outDir, toolchainEnv, command, platform = pro
   const cwd = appliedDir;
   const readRootsList = uniqueExisting([cwd, jobDir, ...readRoots({cwd, jobDir, toolchainEnv})]);
   const env = minimalEnv({cwd, jobDir, toolchainEnv});
-  return {jobDir, adapter, limits, cwd, readRoots: readRootsList, env, argv: boundaryArgv({adapter, command, cwd, jobDir, readRoots: readRootsList, limits, env})};
+  return {jobDir, adapter, limits, cwd, readRoots: readRootsList, env, artifact: path.join(jobDir, artifact), argv: boundaryArgv({adapter, command, cwd, jobDir, readRoots: readRootsList, limits, env})};
 }
 
 module.exports = {

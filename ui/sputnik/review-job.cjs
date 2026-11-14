@@ -125,13 +125,14 @@ function modeStatus(mode, bundle, env, rust = toolchainState(), boundary = compi
     source = sourceState(env, bundle?.source?.commit || SOURCE_COMMIT);
     if (!source.configured) missing.push('REPAIR_SOURCE_DIR');
     if (!rust.configured) missing.push('Rust 1.86.0 + wasm32-unknown-unknown');
+    if (!boundary.configured) missing.push('compiler boundary');
   }
   return {
     mode,
     label: MODE_LABELS[mode].label,
     detail: MODE_LABELS[mode].detail,
     configured: missing.length === 0,
-    missing: boundary.configured ? [...new Set(missing)] : [...new Set([...missing, 'compiler boundary'])],
+    missing: [...new Set(missing)],
     source: source ? {configured: source.configured, head: source.head, clean: source.clean} : null,
     rust: mode === 'source-build' ? {configured: rust.configured, target: rust.target || null} : null,
     boundary: mode === 'source-build' ? boundary : null,

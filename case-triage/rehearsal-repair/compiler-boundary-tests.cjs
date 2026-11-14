@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {CODE, BoundaryUnavailableError, probeBoundary, boundaryLimits, assertNoSymlinkEscape, prepareBuild, runSupervised} = require('./compiler-boundary.cjs');
+const {CODE, BoundaryUnavailableError, probeBoundary, boundaryLimits, assertNoSymlinkEscape, prepareBuild, runSupervised, minimalEnv} = require('./compiler-boundary.cjs');
 
 assert.throws(() => boundaryLimits({wallMs: 0}), /invalid compiler boundary limit/);
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'compiler-boundary-test-'));
@@ -14,6 +14,11 @@ try {
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'compiler-boundary-outside-test-'));
   assert.throws(() => assertNoSymlinkEscape(root, outside, 'outside'), (error) => error instanceof BoundaryUnavailableError && error.code === CODE);
   fs.rmSync(outside, {recursive: true, force: true});
+
+  const env = minimalEnv({cwd: process.cwd(), jobDir: path.join(root, 'env'), toolchainEnv: {CARGO_HOME: '/host/cargo', RUSTUP_HOME: '/host/rustup'}});
+  assert.equal(env.CARGO_HOME.startsWith(path.join(root, 'env')), true);
+  assert.equal(env.RUSTUP_HOME.startsWith(path.join(root, 'env')), true);
+  assert.equal(Object.hasOwn(env, 'BOUNDARY_CANARY'), false);
 
   const probe = probeBoundary({cwd: process.cwd(), jobDir: path.join(root, 'probe'), toolchainEnv: {}});
   if (probe.ok) {
