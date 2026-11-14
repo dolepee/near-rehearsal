@@ -356,7 +356,8 @@ assert.equal(verifySettlementReport(legacyRepresentationMismatch, {candidateWasm
 
 const bothRetriesSucceed = JSON.parse(JSON.stringify(correctedReport));
 {
-  const retry = bothRetriesSucceed.inherited.transactions.retries[0];
+  const retry = bothRetriesSucceed.inherited.transactions.retries.find(tx => tx.receipts.some(receipt => receipt.status?.Failure && JSON.stringify(receipt.status.Failure).includes('ERR_PROPOSAL_NOT_IN_PROGRESS')));
+  assert(retry, 'fixture must contain an actual guarded retry to mutate');
   const id = retry.transactionOutcome.status.SuccessReceiptId;
   retry.receipts.find((receipt) => receipt.id === id).status = {SuccessValue: ''};
 }
@@ -388,7 +389,8 @@ assert.equal(verifySettlementReport(underPayment, {candidateWasmSha256: correcte
 
 const bothRetriesInFlight = JSON.parse(JSON.stringify(correctedReport));
 {
-  const retry = bothRetriesInFlight.inherited.transactions.retries[1];
+  const retry = bothRetriesInFlight.inherited.transactions.retries.find(tx => tx.receipts.some(receipt => receipt.id === tx.transactionOutcome.status.SuccessReceiptId && Object.prototype.hasOwnProperty.call(receipt.status || {}, 'SuccessValue')));
+  assert(retry, 'fixture must contain an actual successful retry to mutate');
   const id = retry.transactionOutcome.status.SuccessReceiptId;
   retry.receipts.find((receipt) => receipt.id === id).status = {Failure: {ActionError: {kind: 'ERR_PROPOSAL_NOT_IN_PROGRESS'}}};
 }
@@ -435,7 +437,7 @@ const unrelatedUpgrade = JSON.parse(JSON.stringify(correctedReport));
 {
   const deploy = unrelatedUpgrade.inherited.transactions.upgrade.deploy;
   deploy.transaction.receiverId = 'unrelated.test.near';
-  deploy.receipts[0].executorId = 'unrelated.test.near';
+  deploy.receipts.find(receipt => receipt.id === deploy.transactionOutcome.status.SuccessReceiptId).executorId = 'unrelated.test.near';
 }
 assert.equal(verifySettlementReport(unrelatedUpgrade, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'base, upgrade and migrate must target the same inherited DAO');
