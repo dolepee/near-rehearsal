@@ -368,8 +368,8 @@ function verify(report, options = {}) {
       const pendingRetry = pending.retry;
       if (!pendingRetry?.ok || pendingRetry?.value?.finalExecutionStatus !== 'FINAL') {
         fail('second action against the newly paid pending Transfer was not an executed FINAL transaction');
-      } else if (pendingRetry.value.receiptFailure !== true || !hasFailure(pendingRetry.value, report?.accounts?.contract, 'ERR_PROPOSAL_NOT_IN_PROGRESS')) {
-        fail('second action against the newly paid pending Transfer did not fail with the expected terminal-state error');
+      } else if (pendingRetry.value.receiptFailure !== true || !hasFailure(pendingRetry.value, report?.accounts?.contract, 'ERR_PROPOSAL_ALREADY_EXECUTED')) {
+        fail('second action against the newly paid pending Transfer did not fail with the expected ERR_PROPOSAL_ALREADY_EXECUTED terminal-state error');
       }
       const retryAfter = pending.retryAfter;
       const retryDeltas = {
