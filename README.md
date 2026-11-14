@@ -11,9 +11,9 @@ The UI serves four local interfaces. They are not interchangeable:
 | You want to... | Start | Runtime | What it proves |
 | --- | --- | --- | --- |
 | Choose a repair path | `/` | None | A static front door: generate a fresh repair or independently review a supplied one. It does not execute or auto-start either path. |
-| Review a supplied repair without a model account | `/review` | Sandbox **2.14.0**; Rust **1.86.0** only for source-build | A supplied bundle's hashes, candidate identity and declared recovery behavior; either build the supplied patch or replay the recorded WASM |
-| Check a maintainer source patch | `/repair?mode=patch` or `npm run ui:patch` | Sandbox **2.14.0**, Rust **1.86.0**, clean pinned source; **no model account** | The submitted diff, actual built WASM and persisted recovery/preservation checks with a downloadable evidence package |
-| Generate a fresh model repair | `/repair` | Sandbox **2.14.0**, Rust **1.86.0**, configured local model provider | Fresh baseline → generated patch → build → fresh replay → persisted-failure recovery → acceptance → diff and review bundle |
+| Review a supplied repair without a model account | `/review` | Sandbox **2.14.0**; Linux-only Rust **1.86.0** for source-build | A supplied bundle's hashes, candidate identity and declared recovery behavior; either build the supplied patch or replay the recorded WASM |
+| Check a maintainer source patch | `/repair?mode=patch` or `npm run ui:patch` | Sandbox **2.14.0**, Linux-only Rust **1.86.0**, clean pinned source; **no model account** | The submitted diff, actual built WASM and persisted recovery/preservation checks with a downloadable evidence package |
+| Generate a fresh model repair | `/repair` | Sandbox **2.14.0**, Linux-only Rust **1.86.0**, configured local model provider | Fresh baseline → generated patch → build → fresh replay → persisted-failure recovery → acceptance → diff and review bundle |
 | Inspect the older authored comparison | `/compare` (legacy `/index.html`) | Sandbox **2.6.2**, no model account or Rust build | Same frozen inherited state → baseline, supplied candidate and correction → verification/export |
 
 The reviewer quickstart is for a supplied candidate and never calls a model. Fresh generation is a separate producer path. The front door at `/` is navigation only. The authored comparison at `/compare` — with `/index.html` kept as its legacy alias — is an advanced fixture, not a generated repair.
