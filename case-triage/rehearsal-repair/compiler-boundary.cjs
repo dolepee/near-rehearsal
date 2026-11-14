@@ -63,7 +63,7 @@ function adapterFor(platform = process.platform, requested = process.env.COMPILE
     return null;
   }
   if (platform === 'linux') return which('bwrap');
-  if (platform === 'darwin') return which('sandbox-exec');
+  if (platform === 'darwin') return which('codex');
   return null;
 }
 
@@ -117,8 +117,40 @@ function sandboxProfile(jobDir, readRoots, limits) {
   ].join('\n');
 }
 
+function tomlPath(value) {
+  return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+function ensureCodexHome(jobDir, readRoots) {
+  const home = path.join(jobDir, 'codex-home');
+  fs.mkdirSync(home, {recursive: true});
+  const reads = [':minimal', ...readRoots.filter((root) => root !== jobDir)];
+  const filesystem = reads.map((root) => `  ${tomlPath(root)} = "read"`).join('\n');
+  const config = [
+    'default_permissions = "compiler-boundary"',
+    '',
+    '[permissions.compiler-boundary]',
+    'description = "Controller compiler boundary; no host auth, home or general project access."',
+    'extends = ":read-only"',
+    '',
+    '[permissions.compiler-boundary.filesystem]',
+    filesystem,
+    `  ${tomlPath(jobDir)} = "write"`,
+    '',
+    '[permissions.compiler-boundary.network]',
+    'enabled = false',
+    '',
+  ].join('\n');
+  fs.writeFileSync(path.join(home, 'config.toml'), config);
+  return home;
+}
+
 function boundaryArgv({adapter, command, cwd, jobDir, readRoots, limits, env = {}}) {
   const cleanEnv = Object.entries(env).filter(([key]) => key !== 'BOUNDARY_CANARY');
+  if (path.basename(adapter) === 'codex') {
+    const envArgs = Object.entries(env).filter(([key]) => key !== 'BOUNDARY_CANARY').flatMap(([key, value]) => [`${key}=${value}`]);
+    return {file: adapter, args: ['sandbox', '-P', 'compiler-boundary', '-C', cwd, '--', '/usr/bin/env', '-i', ...envArgs, '/bin/sh', '-c', shellCommand(command, limits)]};
+  }
   if (adapter.endsWith('/bwrap') || path.basename(adapter) === 'bwrap') {
     const args = [
       '--unshare-all', '--die-with-parent', '--new-session',
@@ -162,6 +194,7 @@ function minimalEnv({cwd, jobDir, toolchainEnv = {}}) {
     HOME: home,
     TMPDIR: tmp,
     CARGO_HOME: cargoHome,
+    CODEX_HOME: path.join(jobDir, 'codex-home'),
     RUSTUP_HOME: rustupHome,
     CARGO_TARGET_DIR: path.join(jobDir, 'target'),
     CARGO_NET_OFFLINE: 'true',
@@ -284,6 +317,7 @@ printf '{\"outsideRead\":%s,\"outsideWrite\":%s,\"insideWrite\":%s,\"envLeak\":%
     const outsidePositive = spawnSync(process.execPath, ['-e', `const net=require('node:net');const s=net.connect(${port},'127.0.0.1',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),1000);`], {timeout: 3000});
     const readRootsList = uniqueExisting([cwd, jobDir, ...readRoots({cwd, jobDir, toolchainEnv})]);
     const innerEnv = minimalEnv({cwd, jobDir, toolchainEnv});
+    if (path.basename(adapter) === 'codex') ensureCodexHome(jobDir, readRootsList);
     const outerEnv = {...innerEnv, BOUNDARY_CANARY: 'must-not-leak'};
     const argv = boundaryArgv({adapter, command: `/bin/sh ${[probeScript, outsideFile, insideFile, resultFile, port].map((value) => `'${String(value).replace(/'/g, `'\\''`)}'`).join(' ')}`, cwd, jobDir, readRoots: readRootsList, limits, env: innerEnv});
     const run = runSupervised({...argv, cwd, env: outerEnv, jobDir, limits: {...limits, wallMs: Math.min(limits.wallMs, 15000)}});
@@ -317,6 +351,7 @@ function prepareBuild({appliedDir, outDir, toolchainEnv, command, artifact = 'ta
   const cwd = appliedDir;
   const readRootsList = uniqueExisting([cwd, jobDir, ...readRoots({cwd, jobDir, toolchainEnv})]);
   const env = minimalEnv({cwd, jobDir, toolchainEnv});
+  if (path.basename(adapter) === 'codex') ensureCodexHome(jobDir, readRootsList);
   return {jobDir, adapter, limits, cwd, readRoots: readRootsList, env, artifact: path.join(jobDir, artifact), argv: boundaryArgv({adapter, command, cwd, jobDir, readRoots: readRootsList, limits, env})};
 }
 
