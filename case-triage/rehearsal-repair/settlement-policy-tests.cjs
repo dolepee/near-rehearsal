@@ -9,6 +9,11 @@ const read = (name) => JSON.parse(fs.readFileSync(path.join(HERE, 'out', 'audit-
 
 const oldReport = read('settlement-old');
 const correctedReport = read('settlement');
+const approvedCapture = JSON.parse(fs.readFileSync(path.join(HERE, 'out', 'audit-intended', 'approved-targeted', 'successful-action-refund.json'), 'utf8'));
+// The approved branch is captured separately from the whole-suite settlement
+// report. Bind that actual capture into the policy fixture without editing the
+// native report.
+correctedReport.successfulActionRefund = approvedCapture;
 assert.equal(oldReport.schema, 'near-rehearsal/settlement-refund/v2');
 assert.equal(correctedReport.schema, REQUIRED_SCHEMA);
 assert.equal(oldReport.candidate.wasmSha256, '49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923');
@@ -26,6 +31,46 @@ assert.equal(correctedCheck.outcomes.retryDelta, '1000000000000000000000000');
 assert.equal(correctedCheck.outcomes.overlapDelta, '1000000000000000000000000');
 assert.equal(correctedCheck.outcomes.fresh.failedRefundLocked, '1000000000000000000000000', 'the fresh candidate scenario must also retain the debt');
 assert.equal(correctedCheck.outcomes.inherited.failedRefundLocked, '1000000000000000000000000', 'the inherited scenario must retain the debt');
+assert.equal(approvedCapture.dao, approvedCapture.deploy.transaction.receiverId);
+assert.equal(approvedCapture.observedCodeHash, approvedCapture.deploy.codeHash);
+
+const checkApprovedMutation = (label, mutateApproved, expected) => {
+  const value = JSON.parse(JSON.stringify(correctedReport));
+  mutateApproved(value.successfulActionRefund);
+  const checked = verifySettlementReport(value, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+  assert.equal(checked.status, expected, `${label}: ${checked.errors.join('; ')}`);
+};
+for (const missing of [
+  'bond',
+  'before.recipient',
+  'afterApproval.recipient',
+  'beforeRetry.proposer',
+  'beforeRetry.lockedAmount',
+  'beforeRetry.recipient',
+  'afterRetry.proposer',
+  'afterRetry.lockedAmount',
+  'afterRetry.recipient',
+  'afterDuplicate.proposer',
+  'afterDuplicate.lockedAmount',
+  'afterDuplicate.recipient',
+]) {
+  checkApprovedMutation(`missing ${missing}`, (approved) => {
+    const parts = missing.split('.');
+    let cursor = approved;
+    for (const part of parts.slice(0, -1)) cursor = cursor[part];
+    delete cursor[parts[parts.length - 1]];
+  }, 'INCONCLUSIVE');
+}
+checkApprovedMutation('unauthorized transaction root removed', (approved) => {
+  delete approved.unauthorized.value.transactionOutcome;
+}, 'INCONCLUSIVE');
+checkApprovedMutation('approved DAO removed', (approved) => { delete approved.dao; }, 'INCONCLUSIVE');
+checkApprovedMutation('deployment evidence removed', (approved) => { delete approved.deploy; }, 'INCONCLUSIVE');
+checkApprovedMutation('observed code hash removed', (approved) => { delete approved.observedCodeHash; }, 'INCONCLUSIVE');
+checkApprovedMutation('observed code hash mismatched', (approved) => {
+  approved.observedCodeHash = '11111111111111111111111111111111';
+}, 'REJECTED');
+checkApprovedMutation('afterRetry height removed', (approved) => { delete approved.afterRetry.blockHeight; }, 'INCONCLUSIVE');
 
 const missingSeed = JSON.parse(JSON.stringify(correctedReport));
 delete missingSeed.inherited.transactions.seed;
