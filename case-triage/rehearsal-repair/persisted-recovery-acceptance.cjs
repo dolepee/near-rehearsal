@@ -25,6 +25,17 @@ const sha256 = (b) => crypto.createHash('sha256').update(b).digest('hex');
 const sha256File = (file) => sha256(fs.readFileSync(file));
 const stateHash = (state) => sha256(JSON.stringify(state));
 const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const canonicalPolicy = (policy) => {
+  if (!policy || !Array.isArray(policy.roles)) return policy;
+  return {
+    ...policy,
+    roles: policy.roles.map((role) => ({
+      ...role,
+      permissions: Array.isArray(role.permissions) ? role.permissions.slice().sort() : role.permissions,
+    })).sort((left, right) => String(left.name).localeCompare(String(right.name))),
+  };
+};
+const samePolicy = (left, right) => sameJson(canonicalPolicy(left), canonicalPolicy(right));
 const failureText = (status) => JSON.stringify(status || {});
 
 function summaryGas(summary) {
@@ -178,7 +189,7 @@ function verify(report, options = {}) {
 
   // Recompute preservation from raw state and snapshots.
   if (stateHash(frozen?.state) !== stateHash(upgraded?.state)) fail('state changed across code replacement');
-  if (!sameJson(frozen?.policy, upgraded?.policy)) fail('policy changed across code replacement');
+  if (!samePolicy(frozen?.policy, upgraded?.policy)) fail('policy changed across code replacement');
   if (!sameJson(frozen?.proposal, upgraded?.proposal)) fail('proposal changed across code replacement');
   if (String(frozen?.lockedAmount) !== String(upgraded?.lockedAmount)) fail('locked funds changed across code replacement');
   if (upgraded?.codeHash !== candidateCodeHash) fail('candidate code was not applied to the persisted account');
@@ -223,6 +234,15 @@ function verify(report, options = {}) {
   receiptGraphErrors(report?.secondRetry?.final, 'second retry', fail);
   receiptGraphErrors(report?.authority?.unauthorizedUpdateProbe?.value, 'unauthorized update', fail);
   receiptGraphErrors(report?.authority?.unauthorizedFinalizeProbe?.value, 'unauthorized finalize', fail);
+  for (const [label, probe] of [
+    ['post-recovery unauthorized finalize', report?.authority?.postRecoveryUnauthorizedProbe],
+    ['post-retry unauthorized finalize', report?.authority?.postRetryUnauthorizedProbe],
+  ]) {
+    if (!probe) continue;
+    if (!probe.ok || probe.value?.finalExecutionStatus !== 'FINAL') fail(`${label} was not an executed FINAL transaction`);
+    else if (!hasFailure(probe.value, report?.accounts?.contract, 'ERR_PERMISSION_DENIED')) fail(`${label} did not fail with the expected permission error`);
+    receiptGraphErrors(probe.value, label, fail);
+  }
   if (report?.healthyPreservation?.finalizeAttempt?.value) {
     receiptGraphErrors(report.healthyPreservation.finalizeAttempt.value, 'past-settled finalize', fail);
   }
@@ -230,6 +250,7 @@ function verify(report, options = {}) {
   const firstBefore = report?.firstRecovery?.before;
   const firstAfter = report?.firstRecovery?.after;
   if (!sameJson(firstBefore, report?.preRecovery)) fail('first recovery does not start at the pre-recovery snapshot');
+  if (!samePolicy(firstAfter?.policy, firstBefore?.policy)) fail('first recovery changed governance policy');
   if (!sameJson(report?.secondRetry?.before, firstAfter)) fail('second retry does not start at the first-recovery end snapshot');
   const firstFinal = report?.firstRecovery?.final;
   if (firstFinal?.finalExecutionStatus !== 'FINAL') fail('first recovery was not FINAL');
@@ -254,6 +275,7 @@ function verify(report, options = {}) {
   const secondBefore = report?.secondRetry?.before;
   const secondAfter = report?.secondRetry?.after;
   const secondFinal = report?.secondRetry?.final;
+  if (!samePolicy(secondAfter?.policy, secondBefore?.policy)) fail('second retry changed governance policy');
   if (secondFinal?.finalExecutionStatus !== 'FINAL') fail('second retry was not FINAL');
   if (secondFinal?.receiptFailure !== true || !hasFailure(secondFinal, report?.accounts?.failedTarget)) fail('second retry lacks the expected downstream failure receipt');
   if (report?.secondRetry?.proposal?.status !== 'Failed') fail('second retry did not end Failed');

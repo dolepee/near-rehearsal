@@ -131,7 +131,6 @@ function ensureCodexHome(jobDir, readRoots) {
     '',
     '[permissions.compiler-boundary]',
     'description = "Controller compiler boundary; no host auth, home or general project access."',
-    'extends = ":read-only"',
     '',
     '[permissions.compiler-boundary.filesystem]',
     filesystem,
@@ -227,59 +226,136 @@ function readRoots({cwd, jobDir, toolchainEnv = {}}) {
   ]);
 }
 
-const SUPERVISOR = `'use strict';
+const SUPERVISOR = String.raw`'use strict';
 const fs = require('node:fs');
-const {spawn} = require('node:child_process');
+const {spawn, spawnSync} = require('node:child_process');
 const spec = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-let stdout = '', stderr = '', bytes = 0, timedOut = false, outputLimit = false, closed = false;
+const initialPpid = process.ppid;
+let stdout = '', stderr = '', bytes = 0, timedOut = false, outputLimit = false, finished = false, closing = false;
+let timer = null;
+let parentWatch = null;
+let trackTimer = null;
+const tracked = new Set();
 const child = spawn(spec.file, spec.args, {cwd: spec.cwd, env: spec.env, detached: true, stdio: ['ignore', 'pipe', 'pipe']});
-function finish(result) {
-  if (closed) return;
-  closed = true;
+tracked.add(child.pid);
+function writeResult(result) {
   try { fs.writeFileSync(spec.result, JSON.stringify(result)); } catch {}
-  process.stdout.write(JSON.stringify(result));
 }
 function killGroup(signal) {
   try { process.kill(-child.pid, signal); } catch {}
+  for (const pid of tracked) { try { process.kill(pid, signal); } catch {} }
 }
-function stop() {
+function groupAlive() {
+  try { process.kill(-child.pid, 0); return true; } catch {}
+  for (const pid of tracked) { try { process.kill(pid, 0); return true; } catch {} }
+  return false;
+}
+function childPids() {
+  const pids = new Set();
+  try {
+    for (const name of require('node:fs').readdirSync('/proc')) {
+      if (!/^[0-9]+$/.test(name)) continue;
+      try {
+        const stat = require('node:fs').readFileSync('/proc/' + name + '/stat', 'utf8');
+        const close = stat.lastIndexOf(')');
+        const fields = stat.slice(close + 2).split(' ');
+        pids.add({pid: Number(name), ppid: Number(fields[1])});
+      } catch {}
+    }
+  } catch {
+    try {
+      const rows = spawnSync('ps', ['-axo', 'pid=,ppid='], {encoding: 'utf8', timeout: 1000}).stdout || '';
+      for (const row of rows.trim().split('\n')) {
+        const [pid, ppid] = row.trim().split(/\s+/).map(Number);
+        if (pid && ppid) pids.add({pid, ppid});
+      }
+    } catch {}
+  }
+  return pids;
+}
+function trackDescendants() {
+  const all = childPids();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const entry of all) {
+      if (tracked.has(entry.ppid) && !tracked.has(entry.pid)) { tracked.add(entry.pid); changed = true; }
+    }
+  }
+}
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+function finish(result) {
+  if (finished) return;
+  finished = true;
+  if (timer) clearTimeout(timer);
+  if (parentWatch) clearInterval(parentWatch);
+  if (trackTimer) clearInterval(trackTimer);
+  killGroup('SIGKILL');
+  writeResult(result);
+  process.stdout.write(JSON.stringify(result));
+  process.exitCode = result.ok ? 0 : 1;
+}
+async function stop(result) {
+  if (finished || closing) return;
+  closing = true;
   killGroup('SIGTERM');
-  setTimeout(() => killGroup('SIGKILL'), 1500).unref();
+  const termDeadline = Date.now() + 1500;
+  while (groupAlive() && Date.now() < termDeadline) await sleep(50);
+  if (groupAlive()) killGroup('SIGKILL');
+  const killDeadline = Date.now() + 750;
+  while (groupAlive() && Date.now() < killDeadline) await sleep(25);
+  killGroup('SIGKILL');
+  finish(result);
 }
 child.stdout.on('data', (chunk) => {
-  if (bytes + chunk.length > spec.outputBytes) { outputLimit = true; stop(); return; }
+  if (bytes + chunk.length > spec.outputBytes) { outputLimit = true; void stop({ok: false, outputLimit: true, timedOut, stdout, stderr}); return; }
   bytes += chunk.length; stdout += chunk;
 });
 child.stderr.on('data', (chunk) => {
-  if (bytes + chunk.length > spec.outputBytes) { outputLimit = true; stop(); return; }
+  if (bytes + chunk.length > spec.outputBytes) { outputLimit = true; void stop({ok: false, outputLimit: true, timedOut, stdout, stderr}); return; }
   bytes += chunk.length; stderr += chunk;
 });
-child.on('error', (error) => finish({ok: false, error: error.message, timedOut, outputLimit}));
+child.on('error', (error) => { void stop({ok: false, error: error.message, timedOut, outputLimit, stdout, stderr}); });
 child.on('close', (status, signal) => {
-  clearTimeout(timer);
-  killGroup('SIGTERM');
-  finish({ok: !timedOut && !outputLimit && status === 0, status, signal, timedOut, outputLimit, stdout, stderr});
+  void stop({ok: !timedOut && !outputLimit && status === 0, status, signal, timedOut, outputLimit, stdout, stderr});
 });
-const timer = setTimeout(() => { timedOut = true; stop(); }, spec.timeoutMs);
+timer = setTimeout(() => {
+  timedOut = true;
+  void stop({ok: false, timedOut: true, outputLimit, stdout, stderr});
+}, spec.timeoutMs);
+trackTimer = setInterval(trackDescendants, 100);
+parentWatch = setInterval(() => {
+  if (process.ppid !== initialPpid) void stop({ok: false, error: 'supervisor parent exited', timedOut, outputLimit, stdout, stderr});
+}, 250);
+process.on('SIGTERM', () => { void stop({ok: false, error: 'supervisor terminated', timedOut, outputLimit, stdout, stderr}); });
+process.on('SIGINT', () => { void stop({ok: false, error: 'supervisor interrupted', timedOut, outputLimit, stdout, stderr}); });
+process.on('exit', () => { killGroup('SIGKILL'); });
 `;
 function runSupervised({file, args, cwd, env, jobDir, limits}) {
-  const supervisor = path.join(jobDir, '.compiler-boundary-supervisor.cjs');
-  const specPath = path.join(jobDir, '.compiler-boundary-spec.json');
-  const resultPath = path.join(jobDir, '.compiler-boundary-result.json');
-  fs.writeFileSync(supervisor, SUPERVISOR);
-  fs.writeFileSync(specPath, JSON.stringify({file, args, cwd, env, timeoutMs: limits.wallMs, outputBytes: limits.outputBytes, result: resultPath}));
-  const outer = spawnSync(process.execPath, [supervisor, specPath], {
-    cwd: jobDir,
-    env: process.env,
-    encoding: 'utf8',
-    timeout: limits.wallMs + 5000,
-    maxBuffer: limits.outputBytes + 1024 * 1024,
-  });
+  const controlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'compiler-boundary-control-'));
+  fs.chmodSync(controlDir, 0o700);
+  const supervisor = path.join(controlDir, 'supervisor.cjs');
+  const specPath = path.join(controlDir, 'spec.json');
+  const resultPath = path.join(controlDir, 'result.json');
+  fs.writeFileSync(supervisor, SUPERVISOR, {mode: 0o700});
+  fs.writeFileSync(specPath, JSON.stringify({file, args, cwd, env, timeoutMs: limits.wallMs, outputBytes: limits.outputBytes, result: resultPath}), {mode: 0o600});
+  let outer;
   let result = null;
-  try { result = JSON.parse(fs.readFileSync(resultPath, 'utf8')); } catch {
-    result = {ok: false, error: (outer.stderr || outer.stdout || 'compiler boundary supervisor produced no result').trim(), timedOut: outer.error?.code === 'ETIMEDOUT'};
+  try {
+    outer = spawnSync(process.execPath, [supervisor, specPath], {
+      cwd: jobDir,
+      env: process.env,
+      encoding: 'utf8',
+      timeout: limits.wallMs + 5000,
+      maxBuffer: limits.outputBytes + 1024 * 1024,
+    });
+    try { result = JSON.parse(fs.readFileSync(resultPath, 'utf8')); } catch {
+      result = {ok: false, error: (outer.stderr || outer.stdout || 'compiler boundary supervisor produced no result').trim(), timedOut: outer.error?.code === 'ETIMEDOUT'};
+    }
+  } finally {
+    fs.rmSync(controlDir, {recursive: true, force: true});
   }
-  return {...result, supervisorStatus: outer.status, supervisorSignal: outer.signal};
+  return {...result, supervisorStatus: outer?.status ?? null, supervisorSignal: outer?.signal ?? null};
 }
 
 function probeBoundary({cwd, jobDir, toolchainEnv = {}, platform = process.platform, adapter = adapterFor(platform), limits = boundaryLimits()}) {

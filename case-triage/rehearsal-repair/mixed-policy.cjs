@@ -85,6 +85,7 @@ function verifyMixedReport(report, opts = {}) {
     if (transaction.signerId !== signerId) fail(`${label} signer is not the expected actor`);
     if (transaction.receiverId !== receiverId) fail(`${label} receiver is not the DAO`);
     const actions = Array.isArray(transaction.actions) ? transaction.actions : [];
+    if (actions.length !== 1) fail(`${label} has unexpected transaction actions`);
     const call = actions.find((action) => action?.FunctionCall?.method_name === methodName);
     if (!call) {
       fail(`${label} has no expected ${methodName} action`);
@@ -95,13 +96,23 @@ function verifyMixedReport(report, opts = {}) {
           ? JSON.parse(Buffer.from(call.FunctionCall.args, 'base64').toString('utf8'))
           : call.FunctionCall.args;
       } catch { fail(`${label} action args are not valid JSON`); }
-      if (args) {
+      if (!args || typeof args !== 'object' || Array.isArray(args)) {
+        fail(`${label} action args are missing or not an object`);
+      } else {
+        const extra = Object.keys(args).filter((key) => !['id', 'action', 'proposal'].includes(key));
+        if (extra.length) fail(`${label} action args contain unexpected fields: ${extra.join(', ')}`);
         if (String(args.id) !== String(expected.id)) fail(`${label} action targets proposal ${args.id}, expected ${expected.id}`);
         if (args.action !== expected.action) fail(`${label} action is ${args.action}, expected ${expected.action}`);
         if (JSON.stringify(args.proposal) !== JSON.stringify(expected.kind)) fail(`${label} action proposal kind does not match the pinned proposal`);
       }
     }
-    const roots = value.transactionOutcome?.rootReceiptIds || value.transactionOutcome?.receiptIds;
+    const receiptIds = value.transactionOutcome?.receiptIds;
+    const rootReceiptIds = value.transactionOutcome?.rootReceiptIds;
+    if (receiptIds !== undefined && rootReceiptIds !== undefined
+      && JSON.stringify(receiptIds) !== JSON.stringify(rootReceiptIds)) {
+      fail(`${label} receipt root representations disagree`);
+    }
+    const roots = rootReceiptIds !== undefined ? rootReceiptIds : receiptIds;
     if (!Array.isArray(roots) || roots.length === 0) {
       fail(`${label} has no transaction receipt root`);
     } else {

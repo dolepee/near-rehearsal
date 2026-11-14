@@ -47,5 +47,15 @@ mutationMustFail('non-target', (value) => { value.afterUpgrade.proposals.carol.d
 mutationMustFail('unlinked-receipt', (value) => {
   value.bobPayout.attempt.value.receipts.push({id: 'unlinked-zero-gas', tokensBurntYocto: '0', receiptIds: [], status: {SuccessValue: ''}});
 }, 'unlinked receipt');
+mutationMustFail('conflicting-roots', (value) => {
+  value.bobPayout.attempt.value.transactionOutcome.receiptIds = [];
+}, 'conflicting receipt roots');
+mutationMustFail('null-action-args', (value) => {
+  value.bobPayout.attempt.value.transaction.actions[0].FunctionCall.args = Buffer.from('null').toString('base64');
+}, 'null action args');
+mutationMustFail('extra-action', (value) => {
+  value.bobPayout.attempt.value.transaction.actions.push({Transfer: {deposit: '1'}});
+}, 'extra transaction action');
+console.log('mixed-policy: null args, conflicting roots and extra actions reject');
 console.log('mixed-policy: finality, signer, root, action-args, policy, non-target and unlinked-receipt mutations reject');
 console.log('mixed-policy: primary policy rejects old/future-only/clear-all and accepts intended');

@@ -49,13 +49,30 @@ try {
   });
   assert.equal(timeoutRun.timedOut, true);
   assert.equal(timeoutRun.ok, false);
-  const childPid = Number(fs.readFileSync(pidFile, 'utf8'));
-  let alive = true;
-  for (let i = 0; i < 10; i += 1) {
-    try { process.kill(childPid, 0); } catch { alive = false; break; }
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
-  }
-  assert.equal(alive, false);
+  const assertDead = (pid) => {
+    let alive = true;
+    for (let i = 0; i < 20; i += 1) {
+      try { process.kill(pid, 0); } catch { alive = false; break; }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+    }
+    assert.equal(alive, false, `process ${pid} survived supervisor cleanup`);
+  };
+  assertDead(Number(fs.readFileSync(pidFile, 'utf8')));
+
+  const orphanDir = path.join(root, 'orphan');
+  fs.mkdirSync(orphanDir);
+  const orphanPidFile = path.join(orphanDir, 'orphan.pid');
+  const orphanLog = path.join(orphanDir, 'orphan.log');
+  const orphanRun = runSupervised({
+    file: process.execPath,
+    args: ['-e', `const {spawn}=require('node:child_process');const fs=require('node:fs');const fd=fs.openSync(${JSON.stringify(orphanLog)},'a');const c=spawn(process.execPath,['-e','process.on("SIGTERM",()=>{});setTimeout(()=>{},30000)'],{detached:true,stdio:['ignore',fd,fd]});fs.writeFileSync(${JSON.stringify(orphanPidFile)},String(c.pid));c.unref();setTimeout(()=>process.exit(0),300);`],
+    cwd: orphanDir,
+    env: {PATH: process.env.PATH || '/usr/bin:/bin'},
+    jobDir: orphanDir,
+    limits: boundaryLimits({wallMs: 1500}),
+  });
+  assert.equal(orphanRun.ok, true);
+  assertDead(Number(fs.readFileSync(orphanPidFile, 'utf8')));
 } finally {
   fs.rmSync(root, {recursive: true, force: true});
 }
