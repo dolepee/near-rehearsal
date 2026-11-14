@@ -509,6 +509,17 @@ async function runApprovedActionRefund({worker, wasm}) {
   const voter2 = await root.createSubAccount(`${prefix}-voter2`, {initialBalance: parseNEAR('20')});
   const recipient = await root.createSubAccount(`${prefix}-recipient`, {initialBalance: parseNEAR('20')});
   const dao = await root.createSubAccount(`${prefix}-dao`, {initialBalance: parseNEAR('100')});
+  const captureApprovedSnapshot = async () => {
+    const captured = await settle(worker, dao, proposer.accountId, voter.accountId);
+    const blockId = captured.blockHash;
+    const [daoAccount, proposerAccount, recipientAccount] = await Promise.all([
+      worker.provider.viewAccount(dao.accountId, {blockId}),
+      worker.provider.viewAccount(proposer.accountId, {blockId}).catch(() => null),
+      worker.provider.viewAccount(recipient.accountId, {blockId}),
+    ]);
+    return {...captured, dao: dao.accountId, codeHash: daoAccount.code_hash,
+      proposer: proposerAccount?.amount ?? null, recipient: recipientAccount.amount};
+  };
   stage('approved-refund deploy');
   const deploy = await dao.deploy(wasm);
   const deployFinal = summarize(await finalStatus(worker, deploy, root.accountId));
@@ -527,9 +538,10 @@ async function runApprovedActionRefund({worker, wasm}) {
   const add = await proposer.callRaw(dao, 'add_proposal', {proposal: {description: 'approved transfer with deleted proposer', kind}}, {gas: GAS, attachedDeposit: BOND.toString()});
   const addFinal = await withHeight(worker, summarize(await finalStatus(worker, add, proposer.accountId)), 'approved-refund add');
   const id = add.parseResult();
-  const recipientBeforeApproval = await viewAmount(worker, recipient.accountId);
   await proposer.delete(root.accountId);
   await sleep(1800);
+  const beforeApproval = await captureApprovedSnapshot();
+  const recipientBeforeApproval = beforeApproval.recipient;
   stage('approved-refund approve');
   const vote = await voter.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
   const voteFinal = summarize(await finalStatus(worker, vote, voter.accountId));
@@ -537,8 +549,8 @@ async function runApprovedActionRefund({worker, wasm}) {
   const approval = await withHeight(worker, summarize(await finalStatus(worker, vote2, voter2.accountId)), 'approved-refund approval');
   const approvedProposal = await waitProposal(worker, dao, id, 'Approved');
   await sleep(2000);
-  const afterApproval = await settle(worker, dao, proposer.accountId, voter.accountId);
-  const recipientAfterApproval = await viewAmount(worker, recipient.accountId);
+  const afterApproval = await captureApprovedSnapshot();
+  const recipientAfterApproval = afterApproval.recipient;
   fail(approvedProposal.status === 'Approved', `approved-refund proposal is ${approvedProposal.status}, not Approved`);
   fail(BigInt(recipientAfterApproval) - BigInt(recipientBeforeApproval) === TRANSFER, 'approved action did not pay exactly 0.1 NEAR once');
   fail(afterApproval.lockedAmount === BOND.toString(), `approved-refund locked debt is ${afterApproval.lockedAmount}`);
@@ -546,12 +558,12 @@ async function runApprovedActionRefund({worker, wasm}) {
   stage('approved-refund recreate proposer');
   await root.createSubAccount(proposerId, {initialBalance: parseNEAR('10')});
   await sleep(2500);
-  const beforeRetry = await settle(worker, dao, proposer.accountId, voter.accountId);
+  const beforeRetry = await captureApprovedSnapshot();
   const retryTx = await proposer.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
   const retry = await withHeight(worker, summarize(await finalStatus(worker, retryTx, proposer.accountId)), 'approved-refund retry');
   await sleep(2000);
-  const afterRetry = await settle(worker, dao, proposer.accountId, voter.accountId);
-  const recipientAfterRetry = await viewAmount(worker, recipient.accountId);
+  const afterRetry = await captureApprovedSnapshot();
+  const recipientAfterRetry = afterRetry.recipient;
   fail(retry.finalExecutionStatus === 'FINAL', 'approved-refund retry was not FINAL');
   fail(afterRetry.proposal?.status === 'Approved', 'approved-refund retry changed the proposal status');
   fail(BigInt(recipientAfterRetry) === BigInt(recipientAfterApproval), 'approved-refund retry paid the recipient again');
@@ -560,7 +572,7 @@ async function runApprovedActionRefund({worker, wasm}) {
   const duplicateTx = await proposer.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
   const duplicate = await withHeight(worker, summarize(await finalStatus(worker, duplicateTx, proposer.accountId)), 'approved-refund duplicate');
   await sleep(1500);
-  const afterDuplicate = await settle(worker, dao, proposer.accountId, voter.accountId);
+  const afterDuplicate = await captureApprovedSnapshot();
   const duplicateFailure = (duplicate.receipts || []).some((receipt) => JSON.stringify(receipt.status || {}).includes('ERR_PROPOSAL_ALREADY_EXECUTED'));
   fail(duplicateFailure, 'approved-refund duplicate did not fail with ERR_PROPOSAL_ALREADY_EXECUTED');
   const retryGasTotal = BigInt(retry.transactionOutcome?.tokensBurntYocto || 0)
@@ -577,7 +589,7 @@ async function runApprovedActionRefund({worker, wasm}) {
   if (firstUnauthorizedReceipt?.blockHash) {
     await withHeight(worker, firstUnauthorizedReceipt, 'approved-refund unauthorized receipt');
   }
-  const afterUnauthorized = await settle(worker, dao, proposer.accountId, voter.accountId);
+  const afterUnauthorized = await captureApprovedSnapshot();
   fail((unauthorized.receipts || []).some((receipt) => JSON.stringify(receipt.status || {}).includes('on_refund_callback is private')), 'approved-refund unauthorized callback was not denied');
   return {
     schema: 'near-rehearsal/approved-action-refund/v2',
@@ -595,12 +607,12 @@ async function runApprovedActionRefund({worker, wasm}) {
     retry,
     duplicate,
     unauthorized: {ok: false, value: unauthorized},
-    afterUnauthorized: {blockHeight: afterUnauthorized.blockHeight},
-    before: {recipient: recipientBeforeApproval, lockedAmount: afterApproval.lockedAmount},
-    afterApproval: {recipient: recipientAfterApproval, lockedAmount: afterApproval.lockedAmount},
-    beforeRetry: {proposer: beforeRetry.proposer, lockedAmount: beforeRetry.lockedAmount, recipient: recipientAfterApproval},
-    afterRetry: {blockHeight: afterRetry.blockHeight, proposer: afterRetry.proposer, lockedAmount: afterRetry.lockedAmount, recipient: recipientAfterRetry},
-    afterDuplicate: {proposer: afterDuplicate.proposer, lockedAmount: afterDuplicate.lockedAmount, recipient: recipientAfterRetry},
+    afterUnauthorized,
+    before: beforeApproval,
+    afterApproval,
+    beforeRetry,
+    afterRetry,
+    afterDuplicate,
     errors,
     ok: errors.length === 0,
     boundary: 'Local Sandbox approved-action/deleted-proposer refund branch. No live DAO or production funds.',
