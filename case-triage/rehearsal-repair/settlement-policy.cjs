@@ -205,8 +205,13 @@ function verifyDuplicate(scenario, dao, failFor) {
   if (duplicate.transactionHash && legacyHash && duplicate.transactionHash === legacyHash) failFor(false, 'duplicate retry reuses the legacy finalize transaction');
   const afterHeight = recordedHeight(scenario.afterRetry?.blockHeight);
   const duplicateHeight = recordedHeight(duplicate.blockHeight);
+  const afterDuplicateHeight = recordedHeight(scenario.afterDuplicate?.blockHeight);
   if (afterHeight === null || duplicateHeight === null) failFor(false, 'duplicate retry height is missing or malformed');
   else if (duplicateHeight <= afterHeight) failFor(false, 'duplicate retry was not after the settled afterRetry observation');
+  if (afterDuplicateHeight === null) failFor(false, 'post-duplicate observation height is missing or malformed');
+  else if (duplicateHeight !== null && afterDuplicateHeight <= duplicateHeight) {
+    failFor(false, 'duplicate retry was not bounded by a later post-duplicate observation');
+  }
   receiptChain(duplicate, 'duplicate retry', (message) => failFor(false, message), true);
 }
 

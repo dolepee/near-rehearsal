@@ -237,6 +237,27 @@ prematureDuplicate.inherited.transactions.duplicate.blockHeight = prematureDupli
 assert.equal(verifySettlementReport(prematureDuplicate, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'the duplicate retry must be after the settled afterRetry observation');
 
+const unboundedDuplicate = JSON.parse(JSON.stringify(correctedReport));
+for (const key of ['fresh', 'inherited']) {
+  unboundedDuplicate[key].afterDuplicate = JSON.parse(JSON.stringify(unboundedDuplicate[key].afterRetry));
+}
+const unboundedDuplicateCheck = verifySettlementReport(unboundedDuplicate, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(unboundedDuplicateCheck.ok, false,
+  'an afterRetry snapshot relabelled as afterDuplicate must not satisfy the no-double-payment check');
+assert.ok(unboundedDuplicateCheck.errors.some((error) => /post-duplicate observation/.test(error)));
+
+const staleDuplicateObservation = JSON.parse(JSON.stringify(correctedReport));
+for (const key of ['fresh', 'inherited']) {
+  staleDuplicateObservation[key].afterDuplicate.blockHeight = staleDuplicateObservation[key].transactions.duplicate.blockHeight;
+}
+assert.equal(verifySettlementReport(staleDuplicateObservation, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the post-duplicate observation must follow the duplicate execution');
+
+const missingDuplicateObservation = JSON.parse(JSON.stringify(correctedReport));
+delete missingDuplicateObservation.inherited.afterDuplicate.blockHeight;
+assert.equal(verifySettlementReport(missingDuplicateObservation, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the post-duplicate observation needs its measured height');
+
 const duplicateLegacyHash = JSON.parse(JSON.stringify(correctedReport));
 duplicateLegacyHash.inherited.transactions.duplicate.transactionHash = duplicateLegacyHash.inherited.transactions.upgrade.legacyFinalize.transactionHash;
 assert.equal(verifySettlementReport(duplicateLegacyHash, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
@@ -560,6 +581,9 @@ console.log(JSON.stringify({
     'reused-duplicate-fails',
     'missing-duplicate-height-fails',
     'premature-duplicate-fails',
+    'unbounded-duplicate-observation-fails',
+    'stale-duplicate-observation-fails',
+    'missing-duplicate-observation-fails',
     'duplicate-legacy-hash-fails',
     'missing-retry-height-fails',
     'retry-before-window-fails',
