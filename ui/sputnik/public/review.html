@@ -29,7 +29,7 @@
         <p class="hint">Choose the JSON bundle produced by an accepted repair. The server verifies its hashes and identities before it starts the recorded replay.</p>
 
         <label class="field" for="bundle-file"><span>Repair bundle</span>
-          <input id="bundle-file" type="file" accept="application/json,.json" aria-describedby="bundle-help">
+          <input id="bundle-file" type="file" accept="application/json,.json" aria-describedby="bundle-help" aria-errormessage="selection" aria-invalid="false">
         </label>
         <p id="bundle-help" class="hint">JSON only, up to 8 MB. The file stays local to this server.</p>
         <div id="selection" class="selection" role="status" aria-live="polite">No bundle selected.</div>

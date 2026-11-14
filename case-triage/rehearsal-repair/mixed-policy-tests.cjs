@@ -57,6 +57,7 @@ mutationMustFail('extra-action', (value) => {
   value.bobPayout.attempt.value.transaction.actions.push({Transfer: {deposit: '1'}});
 }, 'extra transaction action');
 mutationMustFail('before-recovery-policy', (value) => { value.beforeRecovery.policy.proposal_bond = '2'; }, 'beforeRecovery policy');
+mutationMustFail('missing-alice-recovery-bob-proposal', (value) => { delete value.aliceRecovery.after.proposals.bob; }, 'Alice recovery missing Bob proposal');
 mutationMustFail('before-recovery-locked', (value) => { value.beforeRecovery.lockedAmount = '0'; }, 'beforeRecovery locked');
 mutationMustFail('seed-missing', (value) => { delete value.seed.alice; }, 'missing seed');
 mutationMustFail('seed-payout', (value) => {

@@ -236,13 +236,13 @@
       "policy": {
         "files": {
           "mixedObligation": "fe8109e7b0fdbb3c9971d3409ef9743578ff3c9b5566ab3636631fa865e88ff2",
-          "mixedPolicy": "1e92a5a1c3a419c329c943d247c9ca29cd8dca498040b4a98e36090b13938374",
+          "mixedPolicy": "c29210688d36f2fe5124d6ecf123828cafdbec81ea1acfd9d9387661c6d33608",
           "acceptanceOrchestrator": "637a8794ea7189e96a2098c58284d425ddadcfd85534fb986aa198cd87fb9b02",
           "baseWasm": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578",
           "baseReport": "73b5ef5d3ee19fe1bc165cf7f7d542b4903732c9bf91daae500f66c10a4b922f"
         },
         "policyVersion": "near-rehearsal/acceptance-policy/v3",
-        "sha256": "1f6ff70d0e91353ca6741fa6b9865a889dbfceff7a991a13dec5113dc1c015a1"
+        "sha256": "9972199caa0d345f6b54a38aa3654202beb50975fb0fe8448cb89e0e4fda3ac5"
       },
       "baseline": {
         "label": "Pinned baseline — no repair",
@@ -1300,7 +1300,7 @@
           },
           "handoff": {
             "path": "downloads/238/repair-bundle-intended.json",
-            "sha256": "07cf10b8fb43cbd7fe1f4e254ff0ac7b38bb5ab4fa915b3c1f8a2a35592cb950",
+            "sha256": "86b4d60246a6efd7bc758c54b4d7e37eae6962a5dd9cb36c4af5d523d437dbbe",
             "bytes": 1357980,
             "runId": "settlement-fixed-handoff-2026-11-13",
             "candidateWasmSha256": "3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2",
@@ -2075,13 +2075,13 @@
       "downloads": {
         "evidence": {
           "path": "downloads/238-evidence.zip",
-          "sha256": "7d7304676b331ebb08c625202e1308dc2d01f7f27d76e3b545eda5666de38dda",
-          "bytes": 883774
+          "sha256": "6a2e4940538841697a5b735c96afce16e4d4c3f5aa16c23cd1fad37fc6342656",
+          "bytes": 883878
         },
         "directory": "downloads/238/",
         "handoff": {
           "path": "downloads/238/repair-bundle-intended.json",
-          "sha256": "07cf10b8fb43cbd7fe1f4e254ff0ac7b38bb5ab4fa915b3c1f8a2a35592cb950",
+          "sha256": "86b4d60246a6efd7bc758c54b4d7e37eae6962a5dd9cb36c4af5d523d437dbbe",
           "bytes": 1357980,
           "runId": "settlement-fixed-handoff-2026-11-13",
           "candidateWasmSha256": "3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2",

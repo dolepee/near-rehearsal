@@ -35,7 +35,8 @@ The command reuses the existing engine:
 4. Run the fresh-state replay.
 5. Run the persisted old-code failure and candidate upgrade without `new()`.
 6. Run the independent persisted-recovery acceptance.
-7. Write the status, report and evidence.
+7. Run the mandatory mixed-obligation and settlement stages.
+8. Write the status, report and evidence.
 
 It does not trust a submitted verdict. It does not accept caller labels as
 provenance. It never upgrades a live account.

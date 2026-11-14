@@ -134,9 +134,14 @@ After a successful run, inspect:
 The acceptance checks the first 1 NEAR bond recovery, no additional principal
 on retry, preservation of the already-failed proposal and its locked state,
 rejection of unauthorized update/finalize attempts, an already-paid healthy
-control, and an inherited unpaid Transfer that still pays its declared
-beneficiary exactly once. These are local Sandbox results for the declared
-case, not production authorization.
+control, an inherited unpaid Transfer that still pays its declared beneficiary
+exactly once, and the mandatory mixed-obligation and settlement stages. These
+are local Sandbox results for the declared case, not production authorization.
+
+Recorded mode reuses the persisted recovery summary for its fresh and recovery
+stages and then runs the mixed and settlement stages. Source mode runs the
+separate fresh-state pipeline as well. The modes do not execute identical
+fresh-state coverage; the report names the actual mode and evidence.
 
 ## Failure handling
 

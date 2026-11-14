@@ -5,7 +5,7 @@ Recorded local review material. These files are not a live run and not a mainnet
 - Source: https://github.com/near-daos/sputnik-dao-contract
 - Pinned commit: 5434a59dec23ee0c49df8c8c4350c208a7e75b0b
 - Runtime: Sandbox 2.14.0, protocol 88
-- Policy SHA-256: 1f6ff70d0e91353ca6741fa6b9865a889dbfceff7a991a13dec5113dc1c015a1
+- Policy SHA-256: 9972199caa0d345f6b54a38aa3654202beb50975fb0fe8448cb89e0e4fda3ac5
 - Baseline WASM: 5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578
 - Clear-all candidate: 684eabc429fc691f68aef8baf7f2e226f42ae481e3da4a1f41a54598e302d9b6
 - Intended candidate: 3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2
@@ -23,12 +23,14 @@ npm run review:patch -- --patch <downloaded>/clear-all.patch --source <clean-pin
 
 The recorded report and the candidate/patch hashes are included here. The command
 builds the patch from source and exercises the persisted recovery and same-DAO
-policy; it does not execute a public chain transaction.
+policy; it does not execute a public chain transaction. Full source-build
+prerequisites, compiler-boundary provisioning, and dependency-cache setup are in
+[the canonical local repair setup](https://github.com/dolepee/near-rehearsal/blob/main/docs/local-repair-setup.md#source-and-compiler).
 
 ## Reviewer handoff
 
 The accepted **Intended repair** has a direct [reviewer handoff JSON](repair-bundle-intended.json)
-(SHA-256 `07cf10b8fb43cbd7fe1f4e254ff0ac7b38bb5ab4fa915b3c1f8a2a35592cb950`). It is the existing repair-review bundle,
+(SHA-256 `86b4d60246a6efd7bc758c54b4d7e37eae6962a5dd9cb36c4af5d523d437dbbe`). It is the existing repair-review bundle,
 not a second format; its producer is `null` and the recorded execution remains
 the displayed evidence. Download it, then run the local reviewer. On macOS
 select **Recorded WASM replay**; on Linux use the confined **Source build**. The

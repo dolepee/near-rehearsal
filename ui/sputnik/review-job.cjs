@@ -430,8 +430,14 @@ function createManager(options = {}) {
       const resultPath = path.join(run.outDir, 'review-result.json');
       const result = readJson(resultPath);
       const verdict = result?.acceptancePolicy?.status || result?.status
-        || (result?.summary?.checks?.accepted === true ? 'ACCEPTED' : 'REJECTED');
-      if ((code === 0 || code === 5) && verdict === 'INCONCLUSIVE') {
+        || (result?.summary?.checks?.accepted === true ? 'ACCEPTED' : null);
+      // A child that exits without writing a structured verdict did not run a
+      // contract check. Do not turn that infrastructure state into a rejection.
+      if (!result || !['ACCEPTED', 'REJECTED', 'INCONCLUSIVE'].includes(verdict)) {
+        run.status = 'inconclusive';
+        run.phase = 'inconclusive';
+        run.error = cleanError(`The reviewer did not produce a structured verdict; this is an infrastructure/inconclusive result, not a repair rejection.${code === null ? '' : ` Exit ${code}.`}`);
+      } else if ((code === 0 || code === 5) && verdict === 'INCONCLUSIVE') {
         run.status = 'inconclusive';
         run.phase = 'inconclusive';
         run.result = publicResult(result, {bundle: run.bundle, bundleSha256: run.bundleSha256, finishedAt: run.finishedAt});
@@ -454,7 +460,7 @@ function createManager(options = {}) {
             try { fs.rmSync(path.join(runDir(run.id), name), {force: true}); } catch {}
           }
         }
-      } else {
+      } else if (verdict === 'REJECTED' && (code === 0 || code === 1)) {
         run.status = 'rejected';
         run.phase = 'rejected';
         const detail = run.logs.slice(-4).join(' ').trim();

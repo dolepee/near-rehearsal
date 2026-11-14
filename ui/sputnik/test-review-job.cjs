@@ -179,13 +179,29 @@ async function runMissingFreshEvidence() {
   }
 }
 
+async function runInfrastructureFailure() {
+  const manager = createManager({runsRoot: path.join(tmp, 'infrastructure'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({code: 1, error: 'recorded recovery failed at /tmp/private'})});
+  const started = manager.start(example.bundle, 'recorded-wasm');
+  await manager.get(started.id).done;
+  const run = manager.get(started.id);
+  assert.equal(run.status, 'inconclusive');
+  assert.match(run.error, /infrastructure\/inconclusive/);
+  assert.doesNotMatch(run.error, /\/tmp\/private/);
+  assert.equal(manager.download(started.id), null);
+}
+
 async function runRejected() {
-  const manager = createManager({runsRoot: path.join(tmp, 'rejected'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({code: 1, error: 'recorded recovery failed at /tmp/private'})});
+  const payload = JSON.parse(JSON.stringify(acceptedResult));
+  payload.status = 'REJECTED';
+  payload.accepted = false;
+  payload.summary.checks.accepted = false;
+  payload.acceptancePolicy = {status: 'REJECTED', errors: ['mixed policy rejected the candidate']};
+  const manager = createManager({runsRoot: path.join(tmp, 'rejected'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({payload, code: 1})});
   const started = manager.start(example.bundle, 'recorded-wasm');
   await manager.get(started.id).done;
   const run = manager.get(started.id);
   assert.equal(run.status, 'rejected');
-  assert.doesNotMatch(run.error, /\/tmp\/private/);
+  assert.match(run.error, /did not pass acceptance/);
   assert.equal(manager.download(started.id), null);
 }
 
@@ -301,7 +317,8 @@ function validation() {
     validation();
     await runAccepted();
     await runMissingFreshEvidence();
-    await runRejected();
+    await runInfrastructureFailure();
+  await runRejected();
   await runInconclusive();
     await runActive();
     runRestartRecovery();
