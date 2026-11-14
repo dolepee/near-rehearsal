@@ -306,7 +306,9 @@ function recordedHeight(value) {
 function verifyScenario(scenario, mode, context) {
   const {fail, text, candidateWasmSha256, baseWasmSha256, report} = context;
   if (!scenario) { fail(`${mode} settlement scenario is missing`); return null; }
-  const failFor = (condition, message) => { if (!condition) fail(`${mode}: ${message}`); };
+  const failFor = (condition, message, kind = 'incomplete') => { if (!condition) fail(`${mode}: ${message}`, kind); };
+  const failVerified = (condition, message) => failFor(condition, message, 'verified');
+  const {parseAmount} = context;
 
   if (mode === 'candidate-only') {
     if (scenario.legacy) failFor(false, 'fresh candidate scenario must not claim legacy upgrade evidence');
@@ -387,33 +389,39 @@ function verifyScenario(scenario, mode, context) {
   } else failFor(false, 'post-upgrade proposal identity is missing');
   if (!failed) failFor(false, 'failed-refund snapshot missing');
   else {
-    if (text(failed.lockedAmount) && text(failed.lockedAmount) !== BOND.toString()) failFor(false, 'failed refund did not retain the locked debt');
+    if (text(failed.lockedAmount) && text(failed.lockedAmount) !== BOND.toString()) failVerified(false, 'failed refund did not retain the locked debt');
     if (failed.proposal?.status !== 'Failed') failFor(false, 'failed refund did not leave the proposal Failed');
   }
 
   const before = scenario.beforeRetry;
   const after = scenario.afterRetry;
   let retryDelta = null;
+  const beforeAmount = before ? parseAmount(before.proposer) : null;
+  const afterAmount = after ? parseAmount(after.proposer) : null;
   if (!before || !after) failFor(false, 'retry snapshots missing');
-  else if (!text(before.proposer) || !text(after.proposer)) failFor(false, 'retry proposer amounts missing');
+  else if (beforeAmount === null || afterAmount === null) failFor(false, 'retry proposer amounts missing or malformed');
   else {
-    if (text(before.lockedAmount) !== BOND.toString()) failFor(false, 'retry did not start with the debt still locked');
-    retryDelta = BigInt(after.proposer) - BigInt(before.proposer);
-    if (retryDelta !== BOND) failFor(false, `retry proposer delta is ${retryDelta}, expected exactly one bond`);
-    if (text(after.lockedAmount) !== '0') failFor(false, 'successful retry did not clear the debt');
+    if (text(before.lockedAmount) !== BOND.toString()) failVerified(false, 'retry did not start with the debt still locked');
+    retryDelta = afterAmount - beforeAmount;
+    if (retryDelta !== BOND) failVerified(false, `retry proposer delta is ${retryDelta}, expected exactly one bond`);
+    if (text(after.lockedAmount) !== '0') failVerified(false, 'successful retry did not clear the debt');
   }
 
-  if (!text(scenario.afterDuplicate?.proposer) || !text(scenario.afterDuplicate?.lockedAmount)) {
-    failFor(false, 'afterDuplicate observation amounts missing');
+  if (afterAmount === null) {
+    failFor(false, 'dependent duplicate/unauthorized balances cannot be checked without a valid retry amount');
   } else {
-    if (text(scenario.afterDuplicate.proposer) !== text(after?.proposer)) failFor(false, 'duplicate retry changed the proposer balance');
-    if (text(scenario.afterDuplicate.lockedAmount) !== '0') failFor(false, 'duplicate retry changed the locked debt');
-  }
-  if (!text(scenario.afterUnauthorized?.proposer) || !text(scenario.afterUnauthorized?.lockedAmount)) {
-    failFor(false, 'afterUnauthorized observation amounts missing');
-  } else {
-    if (text(scenario.afterUnauthorized.proposer) !== text(after?.proposer)) failFor(false, 'unauthorized callback changed the proposer balance');
-    if (text(scenario.afterUnauthorized.lockedAmount) !== '0') failFor(false, 'unauthorized callback changed the locked debt');
+    const duplicateAmount = scenario.afterDuplicate ? parseAmount(scenario.afterDuplicate.proposer) : null;
+    const unauthorizedAmount = scenario.afterUnauthorized ? parseAmount(scenario.afterUnauthorized.proposer) : null;
+    if (duplicateAmount === null || !text(scenario.afterDuplicate?.lockedAmount)) failFor(false, 'afterDuplicate observation amounts missing or malformed');
+    else {
+      if (duplicateAmount !== afterAmount) failVerified(false, 'duplicate retry changed the proposer balance');
+      if (text(scenario.afterDuplicate.lockedAmount) !== '0') failVerified(false, 'duplicate retry changed the locked debt');
+    }
+    if (unauthorizedAmount === null || !text(scenario.afterUnauthorized?.lockedAmount)) failFor(false, 'afterUnauthorized observation amounts missing or malformed');
+    else {
+      if (unauthorizedAmount !== afterAmount) failVerified(false, 'unauthorized callback changed the proposer balance');
+      if (text(scenario.afterUnauthorized.lockedAmount) !== '0') failVerified(false, 'unauthorized callback changed the locked debt');
+    }
   }
 
   const unauthorized = scenario.unauthorized;
@@ -448,61 +456,67 @@ function verifyScenario(scenario, mode, context) {
     if (new Set(hashes).size !== 2) failFor(false, 'overlap did not produce two distinct transactions');
     const signers = attempts.map((attempt) => attempt?.signerId).filter(Boolean);
     if (new Set(signers).size !== 2) failFor(false, 'overlap did not produce two distinct signers');
-    if (overlap.delta !== BOND.toString()) failFor(false, 'overlapping retries did not pay exactly one bond');
-    if (text(overlap.lockedAfter) !== '0') failFor(false, 'overlapping retries did not settle the debt');
+    if (overlap.delta !== BOND.toString()) failVerified(false, 'overlapping retries did not pay exactly one bond');
+    if (text(overlap.lockedAfter) !== '0') failVerified(false, 'overlapping retries did not settle the debt');
   }
 
   return {
     retryGuardUnproven: retryProof?.guardUnproven === true,
     coverageErrors: Array.isArray(retryProof?.coverageErrors) ? retryProof.coverageErrors : [],
     failedRefundLocked: text(failed?.lockedAmount),
-    retryDelta: before && after ? (BigInt(after.proposer ?? 0) - BigInt(before.proposer ?? 0)).toString() : null,
-    duplicateDelta: text(scenario.afterDuplicate?.proposer) && text(after?.proposer) ? (BigInt(scenario.afterDuplicate.proposer) - BigInt(after.proposer)).toString() : null,
+    retryDelta: beforeAmount !== null && afterAmount !== null ? (afterAmount - beforeAmount).toString() : null,
+    duplicateDelta: (() => {
+      const duplicateAmount = scenario.afterDuplicate ? parseAmount(scenario.afterDuplicate.proposer) : null;
+      return duplicateAmount !== null && afterAmount !== null ? (duplicateAmount - afterAmount).toString() : null;
+    })(),
     unauthorizedDenied: Boolean(unauthorized && unauthorized.ok !== true),
     overlapDelta: overlap?.delta ?? null,
   };
 }
 
-// Coverage gaps are structural: the evidence needed to exercise a scenario is
-// absent or unreadable. Financial contradictions (a lost debt, an overpayment,
-// an unguarded second payout) are verified failures even when a later stage was
-// skipped, so they must never be classified here. The overlap gate reports its
-// gaps explicitly; everything else is matched on absence wording only.
-function isIncompleteEvidence(message, coverageErrors = []) {
-  if (coverageErrors.some((coverage) => message.endsWith(coverage))) return true;
-  return /missing|no |not produced|not recorded|not linked|not FINAL|unreadable|malformed|incomplete|schema must|does not link|no Success|scenario is missing|not exercised|could not be verified|capture/i.test(message);
-}
-
 function verifySettlementReport(report, opts = {}) {
   const errors = [];
-  const fail = (message) => errors.push(message);
+  const incompleteReasons = [];
+  const verifiedReasons = [];
+  const fail = (message, kind = 'incomplete') => {
+    errors.push(message);
+    if (kind === 'verified') verifiedReasons.push(message);
+    else incompleteReasons.push(message);
+  };
   const text = (value) => (value === null || value === undefined ? '' : String(value));
+  const parseAmount = (value) => {
+    if (typeof value === 'bigint') return value >= 0n ? value : null;
+    if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return BigInt(value);
+    if (typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value)) return BigInt(value);
+    return null;
+  };
   if (report?.schema !== REQUIRED_SCHEMA) fail(`settlement report schema must be ${REQUIRED_SCHEMA}`);
   const candidateWasmSha256 = report?.candidate?.wasmSha256;
-  if (!candidateWasmSha256 || !/^[0-9a-f]{64}$/.test(candidateWasmSha256)) fail('settlement candidate WASM hash missing');
+  const candidateIdentityValid = Boolean(candidateWasmSha256 && /^[0-9a-f]{64}$/.test(candidateWasmSha256));
+  if (!candidateIdentityValid) fail('settlement candidate WASM hash missing');
   const baseWasmSha256 = opts.baseWasmSha256 || DEFAULT_BASE_WASM_SHA256;
-  if (report?.baseWasmSha256 !== baseWasmSha256) fail('settlement base WASM identity is wrong');
-  if (opts.candidateWasmSha256 && candidateWasmSha256 !== opts.candidateWasmSha256) fail('settlement report is for a different candidate WASM');
+  const baseIdentityValid = report?.baseWasmSha256 === baseWasmSha256;
+  if (!baseIdentityValid) fail('settlement base WASM identity is wrong');
+  const requestedCandidateValid = !opts.candidateWasmSha256 || candidateWasmSha256 === opts.candidateWasmSha256;
+  if (!requestedCandidateValid) fail('settlement report is for a different candidate WASM');
+  const identityEstablished = candidateIdentityValid && baseIdentityValid && requestedCandidateValid;
   if (report?.ok !== true || (Array.isArray(report?.errors) && report.errors.length)) {
-    fail(`settlement execution was not clean: ${(report?.errors || []).join('; ') || 'ok is not true'}`);
+    const kind = report?.fresh && report?.inherited ? 'verified' : 'incomplete';
+    fail(`settlement execution was not clean: ${(report?.errors || []).join('; ') || 'ok is not true'}`, kind);
   }
 
-  const context = {fail, text, candidateWasmSha256, baseWasmSha256, report};
+  const context = {fail, text, parseAmount, candidateWasmSha256, baseWasmSha256, report};
   const freshOutcomes = verifyScenario(report?.fresh, 'candidate-only', context);
   const inheritedOutcomes = verifyScenario(report?.inherited, 'legacy-upgrade', context);
 
-  const coverageErrors = [
-    ...(freshOutcomes?.coverageErrors || []),
-    ...(inheritedOutcomes?.coverageErrors || []),
-  ];
-  const incompleteReasons = errors.filter((error) => isIncompleteEvidence(error, coverageErrors));
-  const verifiedReasons = errors.filter((error) => !isIncompleteEvidence(error, coverageErrors));
-  const status = verifiedReasons.length ? 'REJECTED' : (incompleteReasons.length || errors.length ? 'INCONCLUSIVE' : 'ACCEPTED');
+  const attributableVerified = identityEstablished ? verifiedReasons : [];
+  const attributableIncomplete = identityEstablished ? incompleteReasons : [...incompleteReasons, ...verifiedReasons];
+  const status = attributableVerified.length ? 'REJECTED' : (attributableIncomplete.length ? 'INCONCLUSIVE' : 'ACCEPTED');
   return {
     status,
-    verifiedFailure: verifiedReasons.length > 0,
+    verifiedFailure: attributableVerified.length > 0,
     incomplete: status === 'INCONCLUSIVE',
-    reasons: {verified: verifiedReasons, incomplete: incompleteReasons},
+    reasons: {verified: attributableVerified, incomplete: attributableIncomplete},
     ok: status === 'ACCEPTED',
     errors,
     unproven: status === 'INCONCLUSIVE',

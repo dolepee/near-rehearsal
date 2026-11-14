@@ -598,6 +598,30 @@ freshLeak.fresh.legacy = correctedReport.inherited.legacy;
 assert.equal(verifySettlementReport(freshLeak, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'the fresh scenario cannot claim inherited-upgrade evidence');
 
+const missingAfterRetryAmount = JSON.parse(JSON.stringify(correctedReport));
+delete missingAfterRetryAmount.inherited.afterRetry.proposer;
+assert.equal(verifySettlementReport(missingAfterRetryAmount, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const malformedAfterRetryAmount = JSON.parse(JSON.stringify(correctedReport));
+malformedAfterRetryAmount.inherited.afterRetry.proposer = 'not-an-amount';
+assert.equal(verifySettlementReport(malformedAfterRetryAmount, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const missingCandidateIdentity = JSON.parse(JSON.stringify(correctedReport));
+delete missingCandidateIdentity.candidate;
+assert.equal(verifySettlementReport(missingCandidateIdentity, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const wrongCandidateIdentity = JSON.parse(JSON.stringify(correctedReport));
+wrongCandidateIdentity.candidate.wasmSha256 = '0'.repeat(64);
+assert.equal(verifySettlementReport(wrongCandidateIdentity, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const zeroPayment = JSON.parse(JSON.stringify(correctedReport));
+zeroPayment.inherited.afterRetry.proposer = zeroPayment.inherited.beforeRetry.proposer;
+assert.equal(verifySettlementReport(zeroPayment, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
+
+const twoBondPayment = JSON.parse(JSON.stringify(correctedReport));
+twoBondPayment.inherited.afterRetry.proposer = (BigInt(twoBondPayment.inherited.beforeRetry.proposer) + 2n * BigInt(1000000000000000000000000n)).toString();
+assert.equal(verifySettlementReport(twoBondPayment, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
+
 const acceptedGood = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
 assert.equal(acceptedGood.status, 'ACCEPTED');
 assert.equal(acceptedGood.ok, true);
@@ -724,6 +748,12 @@ console.log(JSON.stringify({
     'single-signer-fails',
     'receiptless-fails',
     'fresh-legacy-leak-fails',
+    'status-missing-after-retry-amount-inconclusive',
+    'status-malformed-after-retry-amount-inconclusive',
+    'status-missing-candidate-identity-inconclusive',
+    'status-wrong-candidate-identity-inconclusive',
+    'status-zero-payment-rejected',
+    'status-double-payment-rejected',
     'status-good-accepted',
     'status-lost-debt-rejected',
     'status-missing-inherited-good-fresh-inconclusive',
