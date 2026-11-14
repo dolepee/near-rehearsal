@@ -723,28 +723,33 @@ function verifyUnequalOutcomes(unequal, fail, expectedCandidateSha256 = null) {
     }
   }
 
-  const raw = (value, label) => {
+  let aliceObserved = true;
+  let bobObserved = true;
+  const aliceFail = (message) => { aliceObserved = false; incomplete(message); };
+  const bobFail = (message) => { bobObserved = false; incomplete(message); };
+  const raw = (value, label, mark) => {
     const parsed = amount(value);
-    if (parsed === null) bindingFail(`unequal ${label} is missing or invalid`);
+    if (parsed === null) mark(`unequal ${label} is missing or invalid`);
     return parsed;
   };
-  const beforeProposer = raw(before.proposer, 'Alice before proposer balance');
-  const afterProposer = raw(after.proposer, 'Alice after proposer balance');
-  const bobBeforeProposer = raw(bobBefore.proposer, 'Bob before proposer balance');
-  const bobAfterProposer = raw(bobAfter.proposer, 'Bob after proposer balance');
-  const bobAfterLocked = raw(bobAfter.lockedAmount, 'Bob after locked amount');
-  const bobBeforeLocked = raw(bobBefore.lockedAmount, 'Bob before locked amount');
-  if (!bobBefore.proposal || !bobAfter.proposal) bindingFail('unequal Bob proposal snapshot is incomplete');
+  const beforeProposer = raw(before.proposer, 'Alice before proposer balance', aliceFail);
+  const afterProposer = raw(after.proposer, 'Alice after proposer balance', aliceFail);
+  const bobBeforeProposer = raw(bobBefore.proposer, 'Bob before proposer balance', bobFail);
+  const bobAfterProposer = raw(bobAfter.proposer, 'Bob after proposer balance', bobFail);
+  const bobAfterLocked = raw(bobAfter.lockedAmount, 'Bob after locked amount', bobFail);
+  const bobBeforeLocked = raw(bobBefore.lockedAmount, 'Bob before locked amount', bobFail);
+  if (!bobBefore.proposal || !bobAfter.proposal) bobFail('unequal Bob proposal snapshot is incomplete');
   const delta = beforeProposer !== null && afterProposer !== null ? afterProposer - beforeProposer : null;
   const reportedAliceDelta = amount(unequal.aliceDelta);
-  if (delta === null || reportedAliceDelta === null || reportedAliceDelta !== delta) bindingFail('unequal reported Alice delta is missing or inconsistent with raw balances');
+  if (delta === null || reportedAliceDelta === null || reportedAliceDelta !== delta) aliceFail('unequal reported Alice delta is missing or inconsistent with raw balances');
   const reportedBobLocked = amount(unequal.bobLocked);
-  if (bobAfterLocked === null || reportedBobLocked === null || reportedBobLocked !== bobAfterLocked) bindingFail('unequal reported Bob debt is missing or inconsistent with the raw balance');
-  const classify = bindingValid ? principal : incomplete;
-  if (delta !== null && delta !== 10n ** 24n) classify('unequal Alice refund is not exactly one original bond');
-  if (bobBeforeProposer !== null && bobAfterProposer !== null && bobBeforeProposer !== bobAfterProposer) classify('unequal Bob principal changed');
-  if (bobBefore.proposal && bobAfter.proposal && JSON.stringify(bobBefore.proposal) !== JSON.stringify(bobAfter.proposal)) classify('unequal Bob proposal changed');
-  if (bobBeforeLocked !== null && bobAfterLocked !== null && bobAfterLocked !== 2n * 10n ** 24n) classify('unequal Bob debt is not preserved at two bonds');
+  if (bobAfterLocked === null || reportedBobLocked === null || reportedBobLocked !== bobAfterLocked) bobFail('unequal reported Bob debt is missing or inconsistent with the raw balance');
+  const classifyAlice = bindingValid && aliceObserved ? principal : incomplete;
+  const classifyBob = bindingValid && bobObserved ? principal : incomplete;
+  if (delta !== null && delta !== 10n ** 24n) classifyAlice('unequal Alice refund is not exactly one original bond');
+  if (bobBeforeProposer !== null && bobAfterProposer !== null && bobBeforeProposer !== bobAfterProposer) classifyBob('unequal Bob principal changed');
+  if (bobBefore.proposal && bobAfter.proposal && JSON.stringify(bobBefore.proposal) !== JSON.stringify(bobAfter.proposal)) classifyBob('unequal Bob proposal changed');
+  if (bobBeforeLocked !== null && bobAfterLocked !== null && bobAfterLocked !== 2n * 10n ** 24n) classifyBob('unequal Bob debt is not preserved at two bonds');
   if (amount(unequal.policyBefore?.proposal_bond) !== 10n ** 24n || amount(unequal.policyAfter?.proposal_bond) !== 2n * 10n ** 24n) bindingFail('unequal policy change is not the measured one-to-two transition');
 }
 

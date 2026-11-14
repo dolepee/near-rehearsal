@@ -711,6 +711,21 @@ const unequalOverpayResult = verifySettlementReport(unequalOverpay, {candidateWa
 assert.equal(unequalOverpayResult.status, 'REJECTED', 'a complete unequal over-refund is a verified rejection');
 assert.ok(unequalOverpayResult.reasons.verified.some((error) => /unequal Alice refund|unequal reported Alice/.test(error)));
 
+const aliceOverpayMissingBob = JSON.parse(JSON.stringify(unequalOverpay));
+delete aliceOverpayMissingBob.unequal.bobBefore.proposer;
+delete aliceOverpayMissingBob.unequal.bobAfter.proposer;
+const aliceOverpayMissingBobResult = verifySettlementReport(aliceOverpayMissingBob, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(aliceOverpayMissingBobResult.status, 'REJECTED', 'a complete Alice over-refund survives missing unrelated Bob balances');
+assert.ok(aliceOverpayMissingBobResult.reasons.verified.some((error) => /Alice refund/.test(error)));
+
+const bobDebtLossMissingAlice = JSON.parse(JSON.stringify(correctedReport));
+bobDebtLossMissingAlice.unequal.bobAfter.lockedAmount = '0';
+bobDebtLossMissingAlice.unequal.bobLocked = '0';
+delete bobDebtLossMissingAlice.unequal.after.proposer;
+const bobDebtLossMissingAliceResult = verifySettlementReport(bobDebtLossMissingAlice, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(bobDebtLossMissingAliceResult.status, 'REJECTED', 'a complete Bob debt loss survives a missing unrelated Alice after-balance');
+assert.ok(bobDebtLossMissingAliceResult.reasons.verified.some((error) => /Bob debt/.test(error)));
+
 const missingUnequalAfterProposer = JSON.parse(JSON.stringify(correctedReport));
 delete missingUnequalAfterProposer.unequal.after.proposer;
 assert.equal(verifySettlementReport(missingUnequalAfterProposer, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'a missing unequal after-proposer balance is incomplete, not a rejection');
