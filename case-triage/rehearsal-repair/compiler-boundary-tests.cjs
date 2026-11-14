@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {CODE, BoundaryUnavailableError, probeBoundary, boundaryLimits, assertNoSymlinkEscape, prepareBuild} = require('./compiler-boundary.cjs');
+const {CODE, BoundaryUnavailableError, probeBoundary, boundaryLimits, assertNoSymlinkEscape, prepareBuild, runSupervised} = require('./compiler-boundary.cjs');
 
 assert.throws(() => boundaryLimits({wallMs: 0}), /invalid compiler boundary limit/);
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'compiler-boundary-test-'));
@@ -30,6 +30,27 @@ try {
 
   const unsupported = {platform: 'unsupported', adapter: null};
   assert.throws(() => prepareBuild({appliedDir: inside, outDir: root, toolchainEnv: {}, command: 'true', ...unsupported}), (error) => error instanceof BoundaryUnavailableError && error.code === CODE);
+
+  const timeoutDir = path.join(root, 'timeout');
+  fs.mkdirSync(timeoutDir);
+  const pidFile = path.join(timeoutDir, 'child.pid');
+  const timeoutRun = runSupervised({
+    file: process.execPath,
+    args: ['-e', `const {spawn}=require('node:child_process');const fs=require('node:fs');const c=spawn(process.execPath,['-e','setTimeout(()=>{},30000)']);fs.writeFileSync(${JSON.stringify(pidFile)},String(c.pid));setTimeout(()=>{},30000);`],
+    cwd: timeoutDir,
+    env: {PATH: process.env.PATH || '/usr/bin:/bin'},
+    jobDir: timeoutDir,
+    limits: boundaryLimits({wallMs: 400}),
+  });
+  assert.equal(timeoutRun.timedOut, true);
+  assert.equal(timeoutRun.ok, false);
+  const childPid = Number(fs.readFileSync(pidFile, 'utf8'));
+  let alive = true;
+  for (let i = 0; i < 10; i += 1) {
+    try { process.kill(childPid, 0); } catch { alive = false; break; }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+  }
+  assert.equal(alive, false);
 } finally {
   fs.rmSync(root, {recursive: true, force: true});
 }

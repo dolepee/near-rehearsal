@@ -9,11 +9,12 @@
  */
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const {spawn, spawnSync} = require('node:child_process');
 const {checkBundle} = require('../../scripts/repair-review.cjs');
 const {verifyToolchain} = require('../../case-triage/rehearsal-repair/repair-pipeline.cjs');
-const {CODE, adapterFor} = require('../../case-triage/rehearsal-repair/compiler-boundary.cjs');
+const {CODE, probeBoundary} = require('../../case-triage/rehearsal-repair/compiler-boundary.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const REVIEW = path.join(ROOT, 'scripts/repair-review.cjs');
@@ -84,12 +85,20 @@ function sourceState(env, expected = SOURCE_COMMIT) {
   return {configured: clean, missing: clean ? [] : ['REPAIR_SOURCE_DIR'], head, clean};
 }
 
+let boundaryCache = null;
 function compilerBoundaryState() {
-  const adapter = adapterFor();
-  return adapter ? {configured: true, adapter} : {
-    configured: false, adapter: null, code: CODE,
+  if (boundaryCache && Date.now() - boundaryCache.at < 60_000) return boundaryCache.value;
+  const jobDir = fs.mkdtempSync(path.join(os.tmpdir(), 'review-boundary-'));
+  let probe;
+  try { probe = probeBoundary({cwd: ROOT, jobDir, toolchainEnv: {}}); }
+  finally { fs.rmSync(jobDir, {recursive: true, force: true}); }
+  const value = probe.ok ? {configured: true, adapter: probe.adapter, guarantees: probe.guarantees} : {
+    configured: false, adapter: probe.adapter || null, code: CODE,
     reason: `No enforced compiler launcher is available on ${process.platform}; source-build mode is blocked.`,
+    detail: probe.reason || 'compiler boundary probe failed', guarantees: probe.guarantees,
   };
+  boundaryCache = {at: Date.now(), value};
+  return value;
 }
 
 function toolchainState() {

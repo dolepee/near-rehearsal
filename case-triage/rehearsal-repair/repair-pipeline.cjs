@@ -191,6 +191,7 @@ function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance
     platform: process.platform,
     adapter: probe.adapter,
     limits: probe.limits,
+    guarantees: probe.guarantees,
     probe: {ok: probe.ok, checks: probe.checks, reason: probe.reason},
     build: null,
   }, null, 2) + '\n');

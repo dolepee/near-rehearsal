@@ -18,6 +18,10 @@ const {spawn, spawnSync} = require('node:child_process');
 const crypto = require('node:crypto');
 
 const CODE = 'BUILD_BOUNDARY_UNAVAILABLE';
+const GUARANTEES = Object.freeze({
+  enforced: ['wall-timeout', 'process-group-cleanup', 'cpu-seconds', 'file-size-blocks', 'open-files', 'output-bytes'],
+  notEnforced: ['memory-limit', 'process-count-limit', 'disk-quota'],
+});
 const DEFAULT_LIMITS = Object.freeze({
   wallMs: 10 * 60 * 1000,
   cpuSeconds: 300,
@@ -113,7 +117,8 @@ function sandboxProfile(jobDir, readRoots, limits) {
   ].join('\n');
 }
 
-function boundaryArgv({adapter, command, cwd, jobDir, readRoots, limits}) {
+function boundaryArgv({adapter, command, cwd, jobDir, readRoots, limits, env = {}}) {
+  const cleanEnv = Object.entries(env).filter(([key]) => key !== 'BOUNDARY_CANARY');
   if (adapter.endsWith('/bwrap') || path.basename(adapter) === 'bwrap') {
     const args = [
       '--unshare-all', '--die-with-parent', '--new-session',
@@ -121,12 +126,14 @@ function boundaryArgv({adapter, command, cwd, jobDir, readRoots, limits}) {
       '--chdir', cwd,
     ];
     for (const root of readRoots.filter((value) => value !== jobDir)) args.push('--ro-bind', root, root);
-    args.push('--bind', jobDir, jobDir, '--', '/bin/sh', '-c', shellCommand(command, limits));
+    args.push('--bind', jobDir, jobDir, '--clearenv');
+    for (const [key, value] of cleanEnv) args.push('--setenv', key, value);
+    args.push('--', '/bin/sh', '-c', shellCommand(command, limits));
     return {file: adapter, args};
   }
   if (adapter.endsWith('/sandbox-exec') || path.basename(adapter) === 'sandbox-exec') {
     const profile = sandboxProfile(jobDir, readRoots, limits);
-    return {file: adapter, args: ['-p', profile, '/bin/sh', '-c', shellCommand(command, limits)]};
+    return {file: adapter, args: ['-p', profile, '/usr/bin/env', '-i', ...cleanEnv.flatMap(([key, value]) => [`${key}=${value}`]), '/bin/sh', '-c', shellCommand(command, limits)]};
   }
   throw new BoundaryUnavailableError('no supported compiler launcher is available', {adapter});
 }
@@ -256,8 +263,8 @@ socket.on('close',()=>{fs.writeFileSync(out,JSON.stringify(result))});
     Atomics.wait(wait, 0, 0, 250);
     const outsidePositive = spawnSync(process.execPath, ['-e', `const net=require('node:net');const s=net.connect(${port},'127.0.0.1',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),1000);`], {timeout: 3000});
     const readRootsList = uniqueExisting([cwd, jobDir, ...readRoots({cwd, jobDir, toolchainEnv})]);
-    const argv = boundaryArgv({adapter, command: `${JSON.stringify(process.execPath)} ${JSON.stringify(probeScript)} ${JSON.stringify(outsideFile)} ${JSON.stringify(insideFile)} ${JSON.stringify(resultFile)} ${port}`, cwd, jobDir, readRoots: readRootsList, limits});
     const env = {...minimalEnv({cwd, jobDir, toolchainEnv}), BOUNDARY_CANARY: 'must-not-leak'};
+    const argv = boundaryArgv({adapter, command: `${JSON.stringify(process.execPath)} ${JSON.stringify(probeScript)} ${JSON.stringify(outsideFile)} ${JSON.stringify(insideFile)} ${JSON.stringify(resultFile)} ${port}`, cwd, jobDir, readRoots: readRootsList, limits, env});
     const run = runSupervised({...argv, cwd, env, jobDir, limits: {...limits, wallMs: Math.min(limits.wallMs, 15000)}});
     listener.kill('SIGKILL');
     let result = null;
@@ -272,7 +279,7 @@ socket.on('close',()=>{fs.writeFileSync(out,JSON.stringify(result))});
       networkDenied: result && result.network !== 'connected',
     };
     const ok = outsideControl && Object.values(checks).every(Boolean) && run.ok;
-    return {ok, code: ok ? null : CODE, reason: ok ? null : 'compiler boundary probe failed', platform, adapter, limits, checks, run, result};
+    return {ok, code: ok ? null : CODE, reason: ok ? null : 'compiler boundary probe failed', platform, adapter, limits, guarantees: GUARANTEES, checks, run, result};
   } catch (error) {
     return {ok: false, code: CODE, reason: error.message, platform, adapter, limits};
   }
@@ -288,10 +295,10 @@ function prepareBuild({appliedDir, outDir, toolchainEnv, command, platform = pro
   const cwd = appliedDir;
   const readRootsList = uniqueExisting([cwd, jobDir, ...readRoots({cwd, jobDir, toolchainEnv})]);
   const env = minimalEnv({cwd, jobDir, toolchainEnv});
-  return {jobDir, adapter, limits, cwd, readRoots: readRootsList, env, argv: boundaryArgv({adapter, command, cwd, jobDir, readRoots: readRootsList, limits})};
+  return {jobDir, adapter, limits, cwd, readRoots: readRootsList, env, argv: boundaryArgv({adapter, command, cwd, jobDir, readRoots: readRootsList, limits, env})};
 }
 
 module.exports = {
-  CODE, BoundaryUnavailableError, DEFAULT_LIMITS, adapterFor, boundaryLimits, probeBoundary,
+  CODE, BoundaryUnavailableError, DEFAULT_LIMITS, GUARANTEES, adapterFor, boundaryLimits, probeBoundary,
   prepareBuild, runSupervised, assertNoSymlinkEscape, minimalEnv, readRoots, boundaryArgv, sha256,
 };
