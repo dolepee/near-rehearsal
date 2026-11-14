@@ -741,6 +741,18 @@ const inheritedDebtLossMissingUnequal = JSON.parse(JSON.stringify(inheritedDebtL
 delete inheritedDebtLossMissingUnequal.unequal.transactions.addAlice;
 assert.equal(verifySettlementReport(inheritedDebtLossMissingUnequal, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED', 'inherited debt loss survives missing unequal funding');
 
+const aliceOverpayMissingBobSnapshot = JSON.parse(JSON.stringify(unequalOverpay));
+delete aliceOverpayMissingBobSnapshot.unequal.bobAfter;
+assert.equal(verifySettlementReport(aliceOverpayMissingBobSnapshot, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED', 'complete Alice over-refund survives a missing whole Bob after snapshot');
+
+const inheritedDebtLossMissingDeploy = JSON.parse(JSON.stringify(inheritedDebtLoss));
+delete inheritedDebtLossMissingDeploy.inherited.transactions.upgrade.deploy;
+assert.equal(verifySettlementReport(inheritedDebtLossMissingDeploy, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'inherited debt loss without candidate installation binding is incomplete');
+
+const unequalRecoveryHeightOne = JSON.parse(JSON.stringify(correctedReport));
+unequalRecoveryHeightOne.unequal.transactions.recovery.blockHeight = 1;
+assert.equal(verifySettlementReport(unequalRecoveryHeightOne, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'an impossible unequal recovery height is incomplete');
+
 const missingUnequalAfterProposer = JSON.parse(JSON.stringify(correctedReport));
 delete missingUnequalAfterProposer.unequal.after.proposer;
 assert.equal(verifySettlementReport(missingUnequalAfterProposer, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'a missing unequal after-proposer balance is incomplete, not a rejection');

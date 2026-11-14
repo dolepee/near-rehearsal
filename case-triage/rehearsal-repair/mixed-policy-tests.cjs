@@ -59,6 +59,14 @@ mutationMustFail('extra-action', (value) => {
 mutationMustFail('before-recovery-policy', (value) => { value.beforeRecovery.policy.proposal_bond = '2'; }, 'beforeRecovery policy');
 mutationMustFail('before-recovery-locked', (value) => { value.beforeRecovery.lockedAmount = '0'; }, 'beforeRecovery locked');
 mutationMustFail('seed-missing', (value) => { delete value.seed.alice; }, 'missing seed');
+mutationMustFail('seed-payout', (value) => {
+  const amount = 10n ** 24n;
+  for (const snapshot of [value.beforeRecovery, value.aliceRecovery.after, value.aliceRetry.after, value.bobPayout.after, value.bobRetry.after, value.carolRetry.after]) {
+    snapshot.balances.alice = (BigInt(snapshot.balances.alice) + amount).toString();
+    snapshot.balances.dao = (BigInt(snapshot.balances.dao) - amount).toString();
+    snapshot.contractBalance = (BigInt(snapshot.contractBalance) - amount).toString();
+  }
+}, 'seed payout');
 mutationMustFail('seed-args', (value) => {
   const call = value.seed.bob.transaction.actions[0].FunctionCall;
   call.args = Buffer.from(JSON.stringify({proposal_id: 999, proposer: value.accounts.bob, amount: '1', funding_tx_hash: 'x'})).toString('base64');

@@ -244,6 +244,23 @@ function verifyMixedReport(report, opts = {}) {
     for (const name of ['alice', 'bob', 'carol']) {
       if (!sameJson(beforeRecovery.proposals?.[name], afterUpgrade?.proposals?.[name])) fail(`beforeRecovery changed ${name}`);
     }
+    const seedReports = [report?.seed?.alice, report?.seed?.bob];
+    if (seedReports.some((seed) => !seed || seed.finalExecutionStatus !== 'FINAL' || seed.receiptFailure !== false)) {
+      fail('seed movement cannot be reconciled without successful seed receipts');
+    } else {
+      const seedGas = seedReports.reduce((sum, seed) => {
+        const raw = BigInt(seed.transactionOutcome?.tokensBurntYocto ?? 0) + (seed.receipts || []).reduce((receiptSum, receipt) => receiptSum + BigInt(receipt?.tokensBurntYocto ?? 0), 0n);
+        return sum + raw;
+      }, 0n);
+      const beforeDao = amount(beforeRecovery.balances?.dao, 'beforeRecovery DAO balance', true);
+      const afterDao = amount(afterUpgrade?.balances?.dao, 'afterUpgrade DAO balance', true);
+      if (beforeDao === null || afterDao === null || beforeDao - afterDao !== -seedGas) fail('DAO balance change across seed does not equal the measured seed gas');
+      for (const name of ['alice', 'bob', 'carol', 'aliceRecipient', 'bobRecipient', 'carolRecipient']) {
+        const before = amount(beforeRecovery.balances?.[name], `beforeRecovery ${name} balance`, true);
+        const after = amount(afterUpgrade?.balances?.[name], `afterUpgrade ${name} balance`, true);
+        if (before === null || after === null || before !== after) fail(`${name} balance changed during the seed calls`);
+      }
+    }
   }
   for (const [name, add] of [
     ['alice', report?.alice?.add],
