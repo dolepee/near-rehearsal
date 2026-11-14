@@ -3,9 +3,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {CODE, BoundaryUnavailableError, probeBoundary, boundaryLimits, assertNoSymlinkEscape, prepareBuild, runSupervised, minimalEnv} = require('./compiler-boundary.cjs');
+const {CODE, BoundaryUnavailableError, adapterFor, probeBoundary, boundaryLimits, assertNoSymlinkEscape, prepareBuild, runSupervised, minimalEnv} = require('./compiler-boundary.cjs');
 
 assert.throws(() => boundaryLimits({wallMs: 0}), /invalid compiler boundary limit/);
+assert.equal(adapterFor('darwin'), null, 'macOS source-build must fail closed without descendant teardown');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'compiler-boundary-test-'));
 try {
   const inside = path.join(root, 'inside');

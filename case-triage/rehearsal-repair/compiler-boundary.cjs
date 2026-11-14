@@ -59,11 +59,9 @@ function which(command) {
 function adapterFor(platform = process.platform, requested = process.env.COMPILER_BOUNDARY_ADAPTER || 'auto') {
   if (requested !== 'auto') {
     if (requested === 'bwrap' && platform === 'linux') return which('bwrap');
-    if (requested === 'sandbox-exec' && platform === 'darwin') return which('sandbox-exec');
     return null;
   }
   if (platform === 'linux') return which('bwrap');
-  if (platform === 'darwin') return which('codex');
   return null;
 }
 
