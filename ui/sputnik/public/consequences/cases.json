@@ -1300,8 +1300,8 @@
           },
           "handoff": {
             "path": "downloads/238/repair-bundle-intended.json",
-            "sha256": "d72dc0d3efd339640dcdc31c0eaa332da2766ca6a78a72afa88f17909dbc2900",
-            "bytes": 1376764,
+            "sha256": "0aa94a4d22160b6b547667c3a3c4bcff82e05a79628179cead99dbb7cf9c2144",
+            "bytes": 1396043,
             "runId": "settlement-fixed-handoff-2026-11-14",
             "candidateWasmSha256": "133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d",
             "patchSha256": "9ae060af97dcb7f4ced31d135ac84b0130f274032f17c2acb1a56e43a6ebf3d0",
@@ -2075,14 +2075,14 @@
       "downloads": {
         "evidence": {
           "path": "downloads/238-evidence.zip",
-          "sha256": "af1e320053a7d503858b4e39adc052c5d111e10337d4868edc047ae90178b872",
-          "bytes": 888007
+          "sha256": "6935f3dd8e5fcec16074766a1ab2dbd742a5ebac31741c4014ee5bbf57a69f82",
+          "bytes": 889488
         },
         "directory": "downloads/238/",
         "handoff": {
           "path": "downloads/238/repair-bundle-intended.json",
-          "sha256": "d72dc0d3efd339640dcdc31c0eaa332da2766ca6a78a72afa88f17909dbc2900",
-          "bytes": 1376764,
+          "sha256": "0aa94a4d22160b6b547667c3a3c4bcff82e05a79628179cead99dbb7cf9c2144",
+          "bytes": 1396043,
           "runId": "settlement-fixed-handoff-2026-11-14",
           "candidateWasmSha256": "133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d",
           "patchSha256": "9ae060af97dcb7f4ced31d135ac84b0130f274032f17c2acb1a56e43a6ebf3d0",
