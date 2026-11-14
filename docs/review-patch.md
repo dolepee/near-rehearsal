@@ -54,7 +54,9 @@ provenance. It never upgrades a live account.
 - **BUILD_ERROR** — the candidate was valid input but did not compile. No
   economic result is produced.
 - **INCONCLUSIVE** — a missing runtime or interrupted execution prevented a
-  judgment. Missing results are never converted into success.
+  judgment. Missing results are never converted into success. A settlement
+  report without the mandatory approved-action/failed-refund branch is
+  inconclusive, even when its other scenarios pass.
 
 ## What is supplied versus verified
 

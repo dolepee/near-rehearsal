@@ -138,6 +138,21 @@ control, an inherited unpaid Transfer that still pays its declared beneficiary
 exactly once, and the mandatory mixed-obligation and settlement stages. These
 are local Sandbox results for the declared case, not production authorization.
 
+Settlement evidence uses schema `near-rehearsal/settlement-refund/v3`. In
+addition to the fresh and inherited failed-refund scenarios it must contain a
+freshly executed approved-action/failed-refund branch: a successful Transfer
+whose proposer was deleted before approval, a later refund-only retry by the
+original proposer, a duplicate Finalize, and an unauthorized callback. The
+verifier requires the actual approval, retry and duplicate receipts, separate
+recipient snapshots before approval, after approval, before retry, after retry
+and after the duplicate, and exact proposer principal reconciled with both
+transaction and receipt gas. A report without that coverage is
+`INCONCLUSIVE`; it is never accepted because it omits the branch. On the
+candidate's settled path, the duplicate Finalize must be denied with
+`ERR_PROPOSAL_ALREADY_EXECUTED`; the older
+`ERR_PROPOSAL_NOT_IN_PROGRESS` result remains valid for the legacy
+past-settled control.
+
 Recorded mode reuses the persisted recovery summary for its fresh and recovery
 stages and then runs the mixed and settlement stages. Source mode runs the
 separate fresh-state pipeline as well. The modes do not execute identical
