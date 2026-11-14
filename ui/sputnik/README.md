@@ -167,7 +167,7 @@ An accepted repair offers both the bundle download and a reviewer handoff. Use
 `/review` for the model-free page, or the existing `npm run repair:review` CLI
 with the downloaded `repair-bundle-<run-id>.json`, an absent or empty `--out`
 directory and the explicit `--mode recorded-wasm` (or `--mode source-build`).
-The example remains a recorded model candidate with a fresh Sandbox execution.
+The default example is a recorded accepted repair handoff assembled from the tracked patch, WASM and evidence. It is not a fresh model generation or a demonstration of model provenance, and it still runs through a fresh Sandbox execution. The historical 8 November model fixture is separate and fails the new settlement gate.
 
 ## Outcomes
 
