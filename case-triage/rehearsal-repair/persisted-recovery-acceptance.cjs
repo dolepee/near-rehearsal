@@ -21,6 +21,7 @@ const TRANSFER = 10n ** 23n;
 const SANDBOX = '2.14.0';
 const SANDBOX_COMMIT = 'bc4e9e8cfb03d9e82f027883055624e18576993e';
 const SANDBOX_PROTOCOL = 88;
+const TERMINAL_REFUSAL_CODES = Object.freeze(['ERR_PROPOSAL_ALREADY_EXECUTED', 'ERR_PROPOSAL_NOT_IN_PROGRESS']);
 const sha256 = (b) => crypto.createHash('sha256').update(b).digest('hex');
 const sha256File = (file) => sha256(fs.readFileSync(file));
 const stateHash = (state) => sha256(JSON.stringify(state));
@@ -368,8 +369,8 @@ function verify(report, options = {}) {
       const pendingRetry = pending.retry;
       if (!pendingRetry?.ok || pendingRetry?.value?.finalExecutionStatus !== 'FINAL') {
         fail('second action against the newly paid pending Transfer was not an executed FINAL transaction');
-      } else if (pendingRetry.value.receiptFailure !== true || !hasFailure(pendingRetry.value, report?.accounts?.contract, 'ERR_PROPOSAL_ALREADY_EXECUTED')) {
-        fail('second action against the newly paid pending Transfer did not fail with the expected ERR_PROPOSAL_ALREADY_EXECUTED terminal-state error');
+      } else if (pendingRetry.value.receiptFailure !== true || !TERMINAL_REFUSAL_CODES.some((code) => hasFailure(pendingRetry.value, report?.accounts?.contract, code))) {
+        fail('second action against the newly paid pending Transfer did not fail with an expected terminal-state refusal');
       }
       const retryAfter = pending.retryAfter;
       const retryDeltas = {

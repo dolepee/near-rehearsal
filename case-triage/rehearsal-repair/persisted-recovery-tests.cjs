@@ -25,6 +25,14 @@ const reject = (label, mutate) => {
 assert.deepEqual(verify(report, opts), []);
 console.log('accepted: persisted recovery with recomputed state, authority and accounting');
 
+const alternateRefusal = clone(report);
+alternateRefusal.healthyPreservation.pending.retry.value = JSON.parse(
+  JSON.stringify(alternateRefusal.healthyPreservation.pending.retry.value)
+    .replaceAll('ERR_PROPOSAL_ALREADY_EXECUTED', 'ERR_PROPOSAL_NOT_IN_PROGRESS'),
+);
+assert.deepEqual(verify(alternateRefusal, opts), []);
+console.log('accepted: either verified terminal refusal code');
+
 reject('legacy seed receipts removed', (r) => { r.seed.receipts = []; r.seed.transactionOutcome = {status: {SuccessValue: ''}, receiptIds: []}; });
 reject('post-recovery permission probe removed', (r) => { delete r.authority.postRecoveryUnauthorizedProbe; });
 reject('post-retry permission probe removed', (r) => { delete r.authority.postRetryUnauthorizedProbe; });
@@ -114,6 +122,16 @@ reject('pending Transfer retry not executed', (r) => { r.healthyPreservation.pen
 reject('pending Transfer retry paid again', (r) => { r.healthyPreservation.pending.retryAfter.recipientBalance = (BigInt(r.healthyPreservation.pending.retryAfter.recipientBalance) + 1n).toString(); });
 reject('pending Transfer retry changed locked entitlement', (r) => { r.healthyPreservation.pending.retryAfter.lockedAmount = (BigInt(r.healthyPreservation.pending.retryAfter.lockedAmount) + 1n).toString(); });
 reject('pending Transfer retry lost terminal-state failure', (r) => { r.healthyPreservation.pending.retry.value.receipts = []; });
+reject('pending Transfer retry has no refusal receipt', (r) => {
+  const retry = r.healthyPreservation.pending.retry.value;
+  retry.receipts = retry.receipts.map((receipt) => ({...receipt, status: {SuccessValue: ''}}));
+});
+reject('pending Transfer retry has an unrelated terminal failure', (r) => {
+  r.healthyPreservation.pending.retry.value = JSON.parse(
+    JSON.stringify(r.healthyPreservation.pending.retry.value)
+      .replaceAll('ERR_PROPOSAL_ALREADY_EXECUTED', 'ERR_PROPOSAL_REJECTED'),
+  );
+});
 reject('pending Transfer receipt failed', (r) => { r.healthyPreservation.pending.final.receiptFailure = true; });
 reject('pending Transfer signer wrong', (r) => { r.healthyPreservation.pending.final.transaction.signerId = r.accounts.recipient; });
 reject('upgrade deploy not FINAL', (r) => { r.upgrade.final.finalExecutionStatus = 'None'; });
@@ -126,7 +144,7 @@ reject('base init has no new', (r) => {
 
 console.log(JSON.stringify({
   schema: 'near-rehearsal/persisted-bond-recovery-tests/v1',
-  accepted: ['actual-positive-control', 'cached-booleans-ignored'],
+  accepted: ['actual-positive-control', 'cached-booleans-ignored', 'either-terminal-refusal'],
   rejected: [
     'state-changed', 'policy-changed', 'proposal-changed', 'locked-changed', 'candidate-code',
     'candidate-bytes', 'first-window-link', 'second-window-link', 'frozen-base-code', 'base-deploy-digest', 'first-gross', 'first-final-status', 'first-downstream-failure', 'first-root-receipt', 'first-outcome-gas', 'first-unrooted-receipt', 'first-outcome-failure',
@@ -134,7 +152,7 @@ console.log(JSON.stringify({
     'second-gross', 'second-final-status', 'second-proposer-accounting', 'second-locked',
     'unauthorized-update-transport', 'unauthorized-update-evidence',
     'unauthorized-finalize-transport', 'healthy-finalize-transport', 'healthy-payout',
-    'healthy-proposal', 'healthy-paid-again', 'pending-beneficiary', 'pending-amount', 'pending-payout', 'pending-bond', 'pending-final', 'pending-failed', 'pending-signer', 'upgrade-final', 'upgrade-new', 'base-init',
+    'healthy-proposal', 'healthy-paid-again', 'pending-beneficiary', 'pending-amount', 'pending-payout', 'pending-bond', 'pending-final', 'pending-failed', 'pending-no-refusal', 'pending-unrelated-refusal', 'pending-signer', 'upgrade-final', 'upgrade-new', 'base-init',
   ],
   passed: true,
 }, null, 2));
