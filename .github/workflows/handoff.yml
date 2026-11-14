@@ -148,11 +148,22 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends bubblewrap apparmor-profiles
-          profile=/etc/apparmor.d/bwrap-userns-restrict
-          test -f "$profile"
-          grep -q '^profile bwrap-userns-restrict ' "$profile"
+          sudo apt-get install -y --no-install-recommends bubblewrap apparmor
+          # Ubuntu 24.04 restricts unprivileged user namespaces. bwrap needs a
+          # profile that grants userns; this profile adds no confinement of its
+          # own because the boundary is bwrap's namespaces plus no-new-privs.
+          profile=/etc/apparmor.d/bwrap
+          sudo tee "$profile" >/dev/null <<'PROFILE'
+          abi <abi/4.0>,
+          include <tunables/global>
+
+          profile bwrap /usr/bin/bwrap flags=(unconfined) {
+            userns,
+            include if exists <local/bwrap>
+          }
+          PROFILE
           sudo apparmor_parser -r "$profile"
+          bwrap --unshare-all --die-with-parent --ro-bind / / -- /bin/true
       - name: Verify the compiler boundary probe
         run: node case-triage/rehearsal-repair/boundary-probe.cjs
       - name: Prefetch pinned build dependencies outside the boundary
@@ -322,11 +333,22 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends bubblewrap apparmor-profiles
-          profile=/etc/apparmor.d/bwrap-userns-restrict
-          test -f "$profile"
-          grep -q '^profile bwrap-userns-restrict ' "$profile"
+          sudo apt-get install -y --no-install-recommends bubblewrap apparmor
+          # Ubuntu 24.04 restricts unprivileged user namespaces. bwrap needs a
+          # profile that grants userns; this profile adds no confinement of its
+          # own because the boundary is bwrap's namespaces plus no-new-privs.
+          profile=/etc/apparmor.d/bwrap
+          sudo tee "$profile" >/dev/null <<'PROFILE'
+          abi <abi/4.0>,
+          include <tunables/global>
+
+          profile bwrap /usr/bin/bwrap flags=(unconfined) {
+            userns,
+            include if exists <local/bwrap>
+          }
+          PROFILE
           sudo apparmor_parser -r "$profile"
+          bwrap --unshare-all --die-with-parent --ro-bind / / -- /bin/true
       - name: Verify the compiler boundary probe
         run: node case-triage/rehearsal-repair/boundary-probe.cjs
       - name: Prefetch pinned build dependencies outside the boundary
