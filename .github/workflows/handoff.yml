@@ -166,6 +166,8 @@ jobs:
           bwrap --unshare-all --die-with-parent --ro-bind / / -- /bin/true
       - name: Verify the compiler boundary probe
         run: node case-triage/rehearsal-repair/boundary-probe.cjs
+      - name: Exercise real namespace lifecycle
+        run: node case-triage/rehearsal-repair/compiler-boundary-tests.cjs --require-namespace
       - name: Prefetch pinned build dependencies outside the boundary
         run: |
           set -euo pipefail
@@ -351,6 +353,8 @@ jobs:
           bwrap --unshare-all --die-with-parent --ro-bind / / -- /bin/true
       - name: Verify the compiler boundary probe
         run: node case-triage/rehearsal-repair/boundary-probe.cjs
+      - name: Exercise real namespace lifecycle
+        run: node case-triage/rehearsal-repair/compiler-boundary-tests.cjs --require-namespace
       - name: Prefetch pinned build dependencies outside the boundary
         run: |
           set -euo pipefail
