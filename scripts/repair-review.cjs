@@ -300,7 +300,7 @@ const runAcceptance = (reportPath, wasmPath, basePath, patchPath, sourcePath, ex
   const acceptancePath = path.join(path.dirname(reportPath), 'persisted-recovery-acceptance.json');
   fs.writeFileSync(acceptancePath, `${JSON.stringify(parsed, null, 2)}\n`);
   if (parsed.ok !== true) {
-    return { acceptance: parsed, acceptancePath, rejectedStage: 'acceptance' };
+    return { acceptance: parsed, acceptancePath, rejectedStage: 'acceptance', rejectionErrors: (parsed.errors || []).map((error) => `persisted recovery acceptance failed: ${error}`) };
   }
   if (result.status !== 0) {
     const detail = [result.stdout, result.stderr].filter(Boolean).join('\n').trim();
