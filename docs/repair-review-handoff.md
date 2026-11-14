@@ -15,11 +15,15 @@ For `source-build` (the default):
 - Git checkout of `near-daos/sputnik-dao-contract` at
   `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`.
 - Rust `1.86.0` with the `wasm32-unknown-unknown` target.
+- An enforced supported compiler launcher and the prefetched locked Cargo cache,
+  following [compiler setup](local-repair-setup.md#compiler-boundary-and-dependency-cache).
+  Run `npm run doctor -- --flow repair --mode patch` before source review.
+  A failed boundary probe blocks compilation; it never falls back to host execution.
 - A supplied NEAR Sandbox `2.14.0` binary directory, passed with
   `--sandbox-dir` or `REPAIR_SANDBOX_DIR`. The runtime's version, commit and
   protocol are checked by the existing acceptance code.
 
-For `--mode recorded-wasm`, Rust and the source checkout are not required.
+For `--mode recorded-wasm`, Rust, the source checkout and a compiler launcher are not required. This mode executes supplied bytes; it does not verify that the source builds to those bytes.
 Neither mode downloads a runtime, calls a model, publishes anything or
 upgrades an external contract.
 
