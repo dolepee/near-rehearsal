@@ -2,7 +2,7 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const state = {config: null, selected: null, selectionEpoch: 0, selectionPending: null, mode: null, run: null, runId: null, fresh: false, openEpoch: 0, poll: null, failures: 0, historySignature: null, submitting: false, submitMode: null, connectionLost: false};
-  const terminal = new Set(['accepted', 'rejected', 'interrupted', 'unavailable']);
+  const terminal = new Set(['accepted', 'rejected', 'inconclusive', 'interrupted', 'unavailable']);
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
   const short = (value, n = 14) => value ? `${String(value).slice(0, n)}…${String(value).slice(-6)}` : '—';
   const date = (value) => {
@@ -296,13 +296,16 @@
     show('error-state');
     const disconnected = run.connectionLost === true;
     const unavailable = run.status === 'unavailable';
-    $('error-title').textContent = disconnected ? 'Connection to the review was lost.' : unavailable ? 'Review evidence is unavailable.' : run.status === 'interrupted' ? 'The review was interrupted.' : 'The review did not pass.';
+    const inconclusive = run.status === 'inconclusive';
+    $('error-title').textContent = disconnected ? 'Connection to the review was lost.' : unavailable ? 'Review evidence is unavailable.' : inconclusive ? 'The review was inconclusive.' : run.status === 'interrupted' ? 'The review was interrupted.' : 'The review did not pass.';
     $('error-copy').textContent = disconnected
       ? `The outcome is unknown; the server may still be working. Reconnect to check the same run without starting another. ${run.error || ''}`
-      : run.error || 'No accepted result was produced.';
+      : inconclusive
+        ? `${run.error || 'Required coverage evidence was not proven.'} No accepted result is available.`
+        : run.error || 'No accepted result was produced.';
     $('error-log').textContent = (run.logs || []).slice(-40).join('\n') || 'No runner output was captured.';
     $('retry-button').textContent = disconnected ? 'Reconnect to review' : 'Try another bundle';
-    setStatus(disconnected ? 'Connection lost — status unknown' : unavailable ? 'Evidence unavailable' : run.status === 'interrupted' ? 'Review interrupted' : 'Review not accepted', disconnected || run.status === 'interrupted' ? 'interrupted' : 'rejected');
+    setStatus(disconnected ? 'Connection lost — status unknown' : unavailable ? 'Evidence unavailable' : inconclusive ? 'Review inconclusive — not accepted' : run.status === 'interrupted' ? 'Review interrupted' : 'Review not accepted', disconnected || run.status === 'interrupted' || inconclusive ? 'inconclusive' : 'rejected');
     paintRunButton();
   }
 
@@ -410,7 +413,7 @@
         list.innerHTML = '<p class="muted small">No previous reviews.</p>';
         return;
       }
-      list.innerHTML = runs.map((run) => `<button class="history-item" type="button" data-run="${esc(run.id)}" aria-current="${run.id === state.runId ? 'true' : 'false'}"><b>${esc(run.status === 'accepted' ? 'Accepted' : run.status === 'running' ? 'Running' : 'Not accepted')} · ${esc(short(run.id, 8))}</b><small>${esc(date(run.startedAt))} · ${esc(run.bundle?.source?.commit ? short(run.bundle.source.commit) : 'source unknown')}</small></button>`).join('');
+      list.innerHTML = runs.map((run) => `<button class="history-item" type="button" data-run="${esc(run.id)}" aria-current="${run.id === state.runId ? 'true' : 'false'}"><b>${esc(run.status === 'accepted' ? 'Accepted' : run.status === 'inconclusive' ? 'Inconclusive' : run.status === 'running' ? 'Running' : 'Not accepted')} · ${esc(short(run.id, 8))}</b><small>${esc(date(run.startedAt))} · ${esc(run.bundle?.source?.commit ? short(run.bundle.source.commit) : 'source unknown')}</small></button>`).join('');
       for (const button of list.querySelectorAll('[data-run]')) {
         button.addEventListener('click', () => openRun(button.dataset.run));
       }

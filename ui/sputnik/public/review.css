@@ -46,6 +46,7 @@
 .status-pill.accepted { color: var(--green); border-color: #295d43; }
 .status-pill.active { color: var(--amber); border-color: #5b4b23; }
 .status-pill.rejected { color: var(--red); border-color: #693834; }
+.status-pill.inconclusive { color: var(--amber); border-color: #5b4b23; }
 .status-pill.interrupted { color: var(--amber); border-color: #5b4b23; }
 .top-actions { flex-wrap: wrap; justify-content: end; }
 .nav-link { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; min-height: 44px; display: inline-flex; align-items: center; }

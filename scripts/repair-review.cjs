@@ -596,7 +596,7 @@ const summarize = (report, run) => {
 const render = (result) => {
   const s = result.summary;
   return [
-    `REHEARSAL HANDOFF PASS — ${s.modeLabel}`,
+    `REHEARSAL HANDOFF ${result.acceptancePolicy?.status === 'ACCEPTED' ? 'PASS' : result.acceptancePolicy?.status === 'INCONCLUSIVE' ? 'INCONCLUSIVE' : 'FAIL'} — ${s.modeLabel}`,
     '',
     `Source: ${result.bundle.source.repository} @ ${result.bundle.source.commit}`,
     `Candidate WASM: ${s.candidateWasmSha256}`,
@@ -613,7 +613,7 @@ const render = (result) => {
     `Producer/reviewer principal outcomes: ${result.mixed.comparison.legacy ? 'not comparable (legacy bundle)' : 'match'}`,
     `Reviewer mixed policy: ${result.mixed.policy.sha256}`,
     '',
-    `Acceptance: ${s.checks.accepted ? 'pass' : 'FAIL'}`,
+    `Acceptance: ${result.acceptancePolicy?.status === 'ACCEPTED' ? 'pass' : result.acceptancePolicy?.status === 'INCONCLUSIVE' ? 'INCONCLUSIVE (not accepted)' : 'FAIL'}`,
     `Result: ${result.resultPath}`,
     `Report: ${result.run.reportPath}`,
     `Acceptance receipt: ${result.run.acceptancePath}`,
@@ -655,6 +655,9 @@ const main = () => {
     settlement: settlementAcceptanceStage(settlementRun.checked),
   });
   if (acceptancePolicy.status === 'REJECTED') fail(`${acceptancePolicy.status}: versioned acceptance policy ${acceptancePolicy.policyVersion} failed: ${acceptancePolicy.errors.join('; ')}`);
+  summary.checks.persistedAccepted = summary.checks.accepted;
+  summary.checks.accepted = acceptancePolicy.status === 'ACCEPTED';
+  summary.acceptanceStatus = acceptancePolicy.status;
   const resultPath = path.join(outDir, 'review-result.json');
   const result = {
     schema: 'near-rehearsal/repair-review-handoff/v1',
@@ -673,6 +676,8 @@ const main = () => {
     },
     run,
     summary,
+    status: acceptancePolicy.status,
+    accepted: acceptancePolicy.status === 'ACCEPTED',
     acceptancePolicy,
     mixed: {
       mode: 'fresh-replay',
