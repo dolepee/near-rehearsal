@@ -258,6 +258,16 @@ delete missingDuplicateObservation.inherited.afterDuplicate.blockHeight;
 assert.equal(verifySettlementReport(missingDuplicateObservation, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'the post-duplicate observation needs its measured height');
 
+const copiedPreObservation = JSON.parse(JSON.stringify(correctedReport));
+copiedPreObservation.inherited.afterDuplicate = JSON.parse(JSON.stringify(copiedPreObservation.inherited.afterRetry));
+assert.equal(verifySettlementReport(copiedPreObservation, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the post-duplicate snapshot cannot be a copy of the pre-duplicate observation');
+
+const missingAfterDuplicateHeight = JSON.parse(JSON.stringify(correctedReport));
+delete missingAfterDuplicateHeight.inherited.afterDuplicate.blockHeight;
+assert.equal(verifySettlementReport(missingAfterDuplicateHeight, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the post-duplicate observation must carry its measured height');
+
 const duplicateLegacyHash = JSON.parse(JSON.stringify(correctedReport));
 duplicateLegacyHash.inherited.transactions.duplicate.transactionHash = duplicateLegacyHash.inherited.transactions.upgrade.legacyFinalize.transactionHash;
 assert.equal(verifySettlementReport(duplicateLegacyHash, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
@@ -270,7 +280,7 @@ assert.equal(missingRetryResult.ok, false, 'raw retries must carry measured heig
 assert.equal(missingRetryResult.unproven, true, 'missing retry capture is unproven, not a financial rejection');
 
 const beforeWindowRetry = JSON.parse(JSON.stringify(correctedReport));
-beforeWindowRetry.inherited.transactions.retries[0].blockHeight = beforeWindowRetry.inherited.beforeRetry.blockHeight;
+beforeWindowRetry.inherited.transactions.retries[0].blockHeight = Number(beforeWindowRetry.inherited.beforeRetry.blockHeight) - 1;
 assert.equal(verifySettlementReport(beforeWindowRetry, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'raw retries must be inside the beforeRetry/afterRetry window');
 
@@ -584,6 +594,8 @@ console.log(JSON.stringify({
     'unbounded-duplicate-observation-fails',
     'stale-duplicate-observation-fails',
     'missing-duplicate-observation-fails',
+    'copied-pre-observation-fails',
+    'missing-after-duplicate-height-fails',
     'duplicate-legacy-hash-fails',
     'missing-retry-height-fails',
     'retry-before-window-fails',

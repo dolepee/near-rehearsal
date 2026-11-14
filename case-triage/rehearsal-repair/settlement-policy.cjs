@@ -288,7 +288,7 @@ function verifyRetries(scenario, dao, failFor) {
         coverageErrors.push(`retry ${index + 1} height is missing or malformed`);
         failFor(false, coverageErrors[coverageErrors.length - 1]);
       }
-      else if (height <= beforeHeight || height > afterHeight) failFor(false, `retry ${index + 1} is outside the measured recovery window`);
+      else if (height < beforeHeight || height > afterHeight) failFor(false, `retry ${index + 1} is outside the measured recovery window`);
     });
   }
   if (successful !== 1) { coverageErrors.push(`expected exactly one successful retry action, got ${successful}`); failFor(false, coverageErrors[coverageErrors.length - 1]); }

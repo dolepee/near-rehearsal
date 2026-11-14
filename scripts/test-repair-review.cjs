@@ -46,6 +46,21 @@ assert.equal(coverageVerdict.status, 'INCONCLUSIVE', 'coverage-only reviewer evi
 const financialOnly = settlementAcceptanceStage({ok: false, unproven: false, errors: ['failed refund lost locked debt']});
 assert.equal(financialOnly.evidenceValid, true);
 assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: financialOnly}).status, 'REJECTED');
+const missingRun = interpretSettlementRun({status: 1, stdout: '', stderr: 'capture failed'}, path.join(os.tmpdir(), 'missing-settlement-report.json'), () => ({ok: true}));
+assert.equal(missingRun.checked, null);
+assert.ok(missingRun.unavailable);
+const missingStage = settlementAcceptanceStage(missingRun.checked, missingRun.unavailable);
+assert.equal(missingStage.evidenceValid, false);
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: missingStage}).status, 'INCONCLUSIVE', 'a nonzero child without a report is missing evidence');
+const semanticReport = path.join(os.tmpdir(), `semantic-settlement-${process.pid}.json`);
+fs.writeFileSync(semanticReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v2'}));
+const semanticRun = interpretSettlementRun({status: 1, stdout: '', stderr: 'child exited 1'}, semanticReport, () => ({ok: false, unproven: false, errors: ['verified financial failure']}));
+assert.ok(semanticRun.report, 'a completed report is inspected even when the child exited nonzero');
+const semanticStage = settlementAcceptanceStage(semanticRun.checked, semanticRun.unavailable);
+assert.equal(semanticStage.evidenceValid, true);
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: semanticStage}).status, 'REJECTED');
+fs.rmSync(semanticReport, {force: true});
+
 const combined = settlementAcceptanceStage({ok: false, unproven: true, errors: ['in-flight guard was not exercised', 'failed refund lost locked debt']});
 assert.equal(combined.evidenceValid, false);
 assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: combined}).status, 'INCONCLUSIVE');
@@ -143,7 +158,7 @@ try {
 console.log(JSON.stringify({
   schema: 'near-rehearsal/repair-review-guards/v1',
   ok: true,
-  checks: 30,
+  checks: 34,
   fixture: path.relative(path.join(__dirname, '..'), fixture),
   fixtureSha256: crypto.createHash('sha256').update(fs.readFileSync(fixture)).digest('hex'),
 }, null, 2));
