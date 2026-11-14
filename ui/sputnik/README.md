@@ -144,9 +144,11 @@ PORT=4174 npm run ui:review
 ```
 
 Open `http://127.0.0.1:4174/review`. A newly chosen bundle clears the previous
-one and disables Run until its bytes are read and hashed. The example button loads the checked-in
-`test-fixtures/repair-browser-export-1de7b8c5.json`; a real replay takes several
-minutes under a local Sandbox.
+one and disables Run until its bytes are read and hashed. The example button loads the
+canonical accepted handoff assembled from the tracked candidate, reports and acceptance
+artifacts; a real replay takes several minutes under a local Sandbox. The historical
+`test-fixtures/repair-browser-export-1de7b8c5.json` is retained only for older review tests
+and is not the example served by the UI.
 
 ## Results and handoff
 
