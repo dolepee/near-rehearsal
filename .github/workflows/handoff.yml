@@ -185,6 +185,14 @@ jobs:
           tar --no-same-owner -xzf "$sandbox_dir/near-sandbox.tar.gz" -C "$sandbox_dir"
           chmod +x "$sandbox_dir/Linux-x86_64/near-sandbox"
           echo "REPAIR_SANDBOX_DIR=$sandbox_dir/Linux-x86_64" >> "$GITHUB_ENV"
+      - name: Build the F18 patch checkpoint
+        run: |
+          set -euo pipefail
+          out_dir="$RUNNER_TEMP/f18-build"
+          test ! -e "$out_dir"
+          node case-triage/rehearsal-repair/repair-pipeline.cjs             --patch case-triage/rehearsal-repair/repair.patch             --source "$REPAIR_REVIEW_SOURCE"             --out "$out_dir"             --build-only
+          test -s "$out_dir/sputnikdao2.wasm"
+          test -s "$out_dir/build-only.json"
       - name: Build the settlement-fixed reviewer bundle
         run: |
           set -euo pipefail
@@ -227,6 +235,11 @@ jobs:
           name: repair-review-source-build
           path: |
             ${{ runner.temp }}/settlement-fixed-bundle.json
+            ${{ runner.temp }}/f18-build/sputnikdao2.wasm
+            ${{ runner.temp }}/f18-build/build-only.json
+            ${{ runner.temp }}/f18-build/boundary.json
+            ${{ runner.temp }}/f18-build/build.log
+            ${{ runner.temp }}/f18-build/applied/target/wasm32-unknown-unknown/release/sputnikdao2.wasm
             ${{ runner.temp }}/repair-review.log
             ${{ runner.temp }}/repair-replay.log
             ${{ runner.temp }}/repair-review/review-result.json
