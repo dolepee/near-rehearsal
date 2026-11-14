@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
-const { checkBundle, compareMixed, formatYocto, yoctoNear, preflight, settlementAcceptanceStage } = require('./repair-review.cjs');
+const { checkBundle, compareMixed, formatYocto, yoctoNear, preflight, settlementAcceptanceStage, interpretSettlementRun } = require('./repair-review.cjs');
 const { evaluateCandidate, stageFromChecks } = require('../case-triage/rehearsal-repair/acceptance-orchestrator.cjs');
 const { buildReviewBundle } = require('../case-triage/rehearsal-repair/review-bundle.cjs');
 const { buildHandoffBundle } = require('../case-triage/rehearsal-repair/handoff-bundle.cjs');
@@ -49,6 +49,31 @@ assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFro
 const combined = settlementAcceptanceStage({ok: false, unproven: true, errors: ['in-flight guard was not exercised', 'failed refund lost locked debt']});
 assert.equal(combined.evidenceValid, false);
 assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: combined}).status, 'INCONCLUSIVE');
+
+// A settlement child that dies before writing a report is missing evidence, not a
+// rejection: capture uncertainty must reach the shared classifier as INCONCLUSIVE.
+const capturedFixture = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out', 'audit-intended', 'settlement', 'settlement-refund.json'), 'utf8'));
+const missingGateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'settlement-missing-'));
+const missingReportPath = path.join(missingGateDir, 'settlement-refund.json');
+const captureFailure = interpretSettlementRun({status: 1, stdout: '', stderr: 'Error: fetch failed\n    at Worker.init'}, missingReportPath, () => { throw new Error('no report to verify'); });
+assert.equal(captureFailure.report, null);
+assert.equal(captureFailure.checked, null);
+assert.equal(captureFailure.unavailable.exitCode, 1);
+assert.ok(/no evidence \(exit 1\)/.test(captureFailure.unavailable.message));
+const unavailableStage = settlementAcceptanceStage(captureFailure.checked, captureFailure.unavailable);
+assert.equal(unavailableStage.ok, false);
+assert.equal(unavailableStage.evidenceValid, false, 'an unexecuted settlement gate is not verification evidence');
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: unavailableStage}).status, 'INCONCLUSIVE',
+  'a capture failure must not become a reviewer rejection');
+
+const writtenReportPath = path.join(missingGateDir, 'settlement-refund.json');
+fs.writeFileSync(writtenReportPath, JSON.stringify(capturedFixture));
+const writtenRun = interpretSettlementRun({status: 1, stdout: '', stderr: ''}, writtenReportPath, () => ({ok: false, unproven: false, errors: ['failed refund did not retain the locked debt']}));
+assert.equal(writtenRun.unavailable, null, 'a written report is execution evidence even when the candidate fails');
+const writtenStage = settlementAcceptanceStage(writtenRun.checked, writtenRun.unavailable);
+assert.equal(writtenStage.evidenceValid, true);
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: writtenStage}).status, 'REJECTED',
+  'a written semantic failure remains a verified rejection');
 
 const sameBytes = compareMixed({outcomes, candidate: {wasmSha256: 'a'.repeat(64)}}, {outcomes}, 'a'.repeat(64), 'a'.repeat(64));
 assert.equal(sameBytes.candidateMatches, true);

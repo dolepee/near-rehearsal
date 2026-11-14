@@ -232,13 +232,15 @@ const prepare = (bundle, outDir) => {
   return { inputDir, patchPath, wasmPath, baselinePath, recordedRecoveryPath, sourceIdentity: bundle._sourceIdentity };
 };
 
+const spawnNode = (args) => spawnSync(process.execPath, args, {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 30 * 60 * 1000,
+  maxBuffer: 32 * 1024 * 1024,
+});
+
 const requireCommand = (args, label) => {
-  const result = spawnSync(process.execPath, args, {
-    cwd: ROOT,
-    encoding: 'utf8',
-    timeout: 30 * 60 * 1000,
-    maxBuffer: 32 * 1024 * 1024,
-  });
+  const result = spawnNode(args);
   if (result.error) fail(`${label} could not start: ${result.error.message}`);
   if (result.status !== 0) {
     const detail = [result.stdout, result.stderr].filter(Boolean).join('\n').trim();
@@ -462,26 +464,42 @@ const runMixedGate = (candidateWasm, outDir, sandboxDir) => {
   return {mixedDir, reportPath, report, checked, policy: mixedPolicyIdentity(ROOT), stdout: result.stdout};
 };
 
+// A settlement child writes its report whether the candidate passes or fails the
+// policy; only an infrastructure/capture failure exits without one. That case is
+// missing evidence for the shared classifier (INCONCLUSIVE), never a rejection.
+const interpretSettlementRun = (result, reportPath, verify) => {
+  if (reportPath && fs.existsSync(reportPath)) {
+    const report = readJson(reportPath, 'failed-refund settlement report');
+    return {report, checked: verify(report), unavailable: null};
+  }
+  const detail = [result?.stdout, result?.stderr].filter(Boolean).join('\n').trim();
+  const exit = result?.status === null || result?.status === undefined ? 'not started' : `exit ${result.status}`;
+  const message = `failed-refund settlement gate produced no evidence (${exit})${detail ? `: ${detail.slice(-2000)}` : ''}`;
+  return {report: null, checked: null, unavailable: {exitCode: result?.status ?? null, message}};
+};
+
 const runSettlementGate = (candidateWasm, outDir, sandboxDir) => {
   const settlementDir = path.join(outDir, 'settlement');
-  const result = requireCommand([
+  const reportPath = path.join(settlementDir, 'settlement-refund.json');
+  const result = spawnNode([
     SETTLEMENT,
     '--candidate-wasm', candidateWasm,
     '--base-wasm', BASE_WASM,
     '--out', settlementDir,
     '--sandbox-dir', sandboxDir,
-  ], 'failed-refund settlement gate');
-  const reportPath = path.join(settlementDir, 'settlement-refund.json');
-  const report = readJson(reportPath, 'failed-refund settlement report');
-  const checked = verifySettlementReport(report, {candidateWasmSha256: sha256(fs.readFileSync(candidateWasm)), baseWasmSha256: sha256(fs.readFileSync(BASE_WASM))});
-  return {settlementDir, reportPath, report, checked, stdout: result.stdout};
+  ]);
+  const {report, checked, unavailable} = interpretSettlementRun(result, reportPath, (settlement) => verifySettlementReport(settlement, {candidateWasmSha256: sha256(fs.readFileSync(candidateWasm)), baseWasmSha256: sha256(fs.readFileSync(BASE_WASM))}));
+  return {settlementDir, reportPath, report, checked, unavailable, stdout: result.stdout};
 };
 
-const settlementAcceptanceStage = (checked) => stageFromChecks(
-  checked?.ok === true,
-  checked?.errors || [],
-  {evidenceValid: Boolean(checked) && checked?.unproven !== true},
-);
+const settlementAcceptanceStage = (checked, unavailable = null) => {
+  if (unavailable) return stageFromChecks(false, [unavailable.message], {evidenceValid: false});
+  return stageFromChecks(
+    checked?.ok === true,
+    checked?.errors || [],
+    {evidenceValid: Boolean(checked) && checked?.unproven !== true},
+  );
+};
 
 const compareMixed = (producer, reviewer, reviewerWasmSha256, artifactWasmSha256) => {
   const producerOutcomes = producer?.outcomes || (producer ? verifyMixedReport(producer, {requireBlockPinned: true}).outcomes : null);
@@ -647,12 +665,15 @@ const main = () => {
   if (!mixedReportWasmSha256 || mixedReportWasmSha256 !== reviewerArtifactWasmSha256) fail('reviewer mixed gate did not execute the built/recorded candidate artifact');
   const mixedComparison = compareMixed(checkBundle(bundle).producerMixed, mixedRun.checked, mixedReportWasmSha256, reviewerArtifactWasmSha256);
   const settlementRun = runSettlementGate(run.builtWasm || run.wasmPath, outDir, plan.sandboxDir);
-  if (settlementRun.report.candidate.wasmSha256 !== reviewerArtifactWasmSha256) fail('settlement gate did not execute the built/recorded candidate artifact');
+  const settlementArtifactWasmSha256 = settlementRun.report?.candidate?.wasmSha256;
+  if (settlementArtifactWasmSha256 && settlementArtifactWasmSha256 !== reviewerArtifactWasmSha256) {
+    fail('settlement gate did not execute the built/recorded candidate artifact');
+  }
   const acceptancePolicy = evaluateCandidate({
     fresh: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted/fresh acceptance did not pass'], {evidenceValid: Boolean(summary)}),
     recovery: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted recovery report did not pass acceptance'], {evidenceValid: Boolean(report)}),
     mixed: stageFromChecks(mixedRun.checked.ok === true, mixedRun.checked.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedRun.checked)}),
-    settlement: settlementAcceptanceStage(settlementRun.checked),
+    settlement: settlementAcceptanceStage(settlementRun.checked, settlementRun.unavailable),
   });
   if (acceptancePolicy.status === 'REJECTED') fail(`${acceptancePolicy.status}: versioned acceptance policy ${acceptancePolicy.policyVersion} failed: ${acceptancePolicy.errors.join('; ')}`);
   summary.checks.persistedAccepted = summary.checks.accepted;
@@ -689,8 +710,9 @@ const main = () => {
     settlement: {
       mode: 'fresh-replay',
       reportPath: settlementRun.reportPath,
-      reportSha256: sha256(fs.readFileSync(settlementRun.reportPath)),
+      reportSha256: settlementRun.report ? sha256(fs.readFileSync(settlementRun.reportPath)) : null,
       checked: settlementRun.checked,
+      unavailable: settlementRun.unavailable,
     },
     resultPath,
     boundary: 'Local NEAR Sandbox 2.14 only. No public write, deployment, production upgrade, or claim about other cases.',
@@ -709,4 +731,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { checkBundle, compareMixed, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment, settlementAcceptanceStage };
+module.exports = { checkBundle, compareMixed, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment, settlementAcceptanceStage, interpretSettlementRun };
