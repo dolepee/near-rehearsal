@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
-const { checkBundle, compareMixed, formatYocto, yoctoNear, preflight, settlementAcceptanceStage, interpretSettlementRun } = require('./repair-review.cjs');
+const { checkBundle, compareMixed, formatYocto, yoctoNear, preflight, settlementAcceptanceStage, interpretSettlementRun, writeTypedRejection } = require('./repair-review.cjs');
 const { evaluateCandidate, stageFromChecks } = require('../case-triage/rehearsal-repair/acceptance-orchestrator.cjs');
 const { buildReviewBundle } = require('../case-triage/rehearsal-repair/review-bundle.cjs');
 const { buildHandoffBundle } = require('../case-triage/rehearsal-repair/handoff-bundle.cjs');
@@ -77,7 +77,7 @@ assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFro
 fs.rmSync(truncatedReport, {force: true});
 
 const verifierThrowReport = path.join(os.tmpdir(), `verifier-throw-${process.pid}.json`);
-fs.writeFileSync(verifierThrowReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v2', broken: true}));
+fs.writeFileSync(verifierThrowReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v3', broken: true}));
 const verifierThrowRun = interpretSettlementRun({status: 1, stdout: '', stderr: ''}, verifierThrowReport, () => { throw new Error('malformed report data'); });
 assert.ok(verifierThrowRun.unavailable);
 assert.match(verifierThrowRun.unavailable.message, /could not be verified/);
@@ -85,7 +85,7 @@ assert.equal(settlementAcceptanceStage(verifierThrowRun.checked, verifierThrowRu
 fs.rmSync(verifierThrowReport, {force: true});
 
 const semanticReport = path.join(os.tmpdir(), `semantic-settlement-${process.pid}.json`);
-fs.writeFileSync(semanticReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v2'}));
+fs.writeFileSync(semanticReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v3'}));
 const semanticRun = interpretSettlementRun({status: 1, stdout: '', stderr: 'child exited 1'}, semanticReport, () => ({ok: false, unproven: false, errors: ['verified financial failure']}));
 assert.ok(semanticRun.report, 'a completed report is inspected even when the child exited nonzero');
 const semanticStage = settlementAcceptanceStage(semanticRun.checked, semanticRun.unavailable);
@@ -121,6 +121,28 @@ const writtenStage = settlementAcceptanceStage(writtenRun.checked, writtenRun.un
 assert.equal(writtenStage.evidenceValid, true);
 assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: writtenStage}).status, 'REJECTED',
   'a written semantic failure remains a verified rejection');
+
+// The actual CLI result writer must preserve a verified executed rejection as
+// a typed terminal result, not an untyped exit.
+const rejectionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'repair-rejection-'));
+const rejectionBundlePath = path.join(rejectionDir, 'bundle.json');
+fs.writeFileSync(rejectionBundlePath, JSON.stringify(mixedOriginal));
+const rejectionResult = writeTypedRejection(
+  rejectionBundlePath,
+  mixedOriginal,
+  rejectionDir,
+  {mode: 'recorded-wasm', modeLabel: 'recorded WASM replay', rejectedStage: 'acceptance'},
+  ['persisted recovery acceptance failed: verified economic loss'],
+);
+const writtenRejection = JSON.parse(fs.readFileSync(path.join(rejectionDir, 'review-result.json'), 'utf8'));
+assert.equal(rejectionResult.status, 'REJECTED');
+assert.equal(writtenRejection.status, 'REJECTED');
+assert.equal(writtenRejection.accepted, false);
+assert.equal(writtenRejection.acceptancePolicy.status, 'REJECTED');
+assert.equal(writtenRejection.run.rejectedStage, 'acceptance');
+assert.deepEqual(writtenRejection.acceptancePolicy.errors, ['persisted recovery acceptance failed: verified economic loss']);
+process.exitCode = 0;
+fs.rmSync(rejectionDir, {recursive: true, force: true});
 
 const sameBytes = compareMixed({outcomes, candidate: {wasmSha256: 'a'.repeat(64)}}, {outcomes}, 'a'.repeat(64), 'a'.repeat(64));
 assert.equal(sameBytes.candidateMatches, true);

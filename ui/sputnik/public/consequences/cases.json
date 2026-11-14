@@ -236,13 +236,13 @@
       "policy": {
         "files": {
           "mixedObligation": "fe8109e7b0fdbb3c9971d3409ef9743578ff3c9b5566ab3636631fa865e88ff2",
-          "mixedPolicy": "1e92a5a1c3a419c329c943d247c9ca29cd8dca498040b4a98e36090b13938374",
+          "mixedPolicy": "e743e2d6a9d2486e513bec4532b82b03f090136d9751917d476ecbe1c3c62fd0",
           "acceptanceOrchestrator": "637a8794ea7189e96a2098c58284d425ddadcfd85534fb986aa198cd87fb9b02",
           "baseWasm": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578",
           "baseReport": "73b5ef5d3ee19fe1bc165cf7f7d542b4903732c9bf91daae500f66c10a4b922f"
         },
         "policyVersion": "near-rehearsal/acceptance-policy/v3",
-        "sha256": "1f6ff70d0e91353ca6741fa6b9865a889dbfceff7a991a13dec5113dc1c015a1"
+        "sha256": "84398252f458aa7f0197a75430ea4f4d19d18500ca7b25d65e173451fdf03011"
       },
       "baseline": {
         "label": "Pinned baseline — no repair",
@@ -1275,46 +1275,46 @@
           "errors": [],
           "outcomes": {
             "alicePaid": true,
-            "aliceProposerDelta": "999076299519706200000000",
-            "aliceRetryPayerDelta": "-638428959483400000000",
+            "aliceProposerDelta": "999075139150991700000000",
+            "aliceRetryPayerDelta": "-639288489203200000000",
             "aliceLockedDelta": "-1000000000000000000000000",
             "bobLiabilityAfterAlice": true,
             "bobTransferPaid": true,
             "bobPaidExactlyOnce": true,
             "bobProposerDelta": "1000000000000000000000000",
-            "bobPayerDelta": "-866734937579100000000",
-            "bobRetryPayerDelta": "-229542523204800000000",
-            "carolRetryPayerDelta": "-229595411604000000000",
+            "bobPayerDelta": "-867902052892800000000",
+            "bobRetryPayerDelta": "-235156565284000000000",
+            "carolRetryPayerDelta": "-236175798023900000000",
             "aliceStatusAfterRetry": "Failed",
             "bobStatusAfterRetry": "Approved",
             "carolStatusAfterRetry": "Approved",
             "bobLockedDelta": "-1000000000000000000000000",
             "bobRecipientDelta": "100000000000000000000000",
             "gas": {
-              "aliceRecovery": "923700480293800000000",
-              "aliceRetry": "638428959483400000000",
-              "bobPayout": "866734937579100000000",
-              "bobRetry": "229542523204800000000",
-              "carolRetry": "229595411604000000000"
+              "aliceRecovery": "924860849008300000000",
+              "aliceRetry": "639288489203200000000",
+              "bobPayout": "867902052892800000000",
+              "bobRetry": "235156565284000000000",
+              "carolRetry": "236175798023900000000"
             }
           },
           "handoff": {
             "path": "downloads/238/repair-bundle-intended.json",
-            "sha256": "07cf10b8fb43cbd7fe1f4e254ff0ac7b38bb5ab4fa915b3c1f8a2a35592cb950",
-            "bytes": 1357980,
-            "runId": "settlement-fixed-handoff-2026-11-13",
-            "candidateWasmSha256": "3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2",
-            "patchSha256": "ea59d33f2102ef21d77be277dc4981911cb58d5a12b995a673261bb20a79cdc1",
+            "sha256": "a3e00562397686877dfb424eb320dc5baa18eac82d06ce1383e0dd35b2e88b18",
+            "bytes": 1388796,
+            "runId": "settlement-fixed-handoff-2026-11-14",
+            "candidateWasmSha256": "133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d",
+            "patchSha256": "9ae060af97dcb7f4ced31d135ac84b0130f274032f17c2acb1a56e43a6ebf3d0",
             "sourceCommit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b",
-            "reportSha256": "5558081ef16e2191a4532abb1263e118d84d64e942fb49a7eb5677cf94efbf5d"
+            "reportSha256": "bb649b40b8c50d070d55a31481655e3b7a9cb712a24d8d1f31cd88898f686a67"
           },
           "stages": [
             {
               "id": "beforeUpgrade",
               "label": "Before upgrade",
               "locked": "2000000000000000000000000",
-              "blockHeight": 88,
-              "blockHash": "2wmrvuJT1ba7svHR6YEKhS46ub2XbHynWEZVXTX6N55h",
+              "blockHeight": 71,
+              "blockHash": "EH6oTeVUVQqKaS1RpaCg6oG2ywszueDKuwptitzXcjSG",
               "proposals": {
                 "alice": {
                   "id": 1,
@@ -1344,13 +1344,13 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659294082856010",
+                  "submission_time": "1794680226252355000",
                   "last_actions_log": [
                     {
-                      "block_height": "66"
+                      "block_height": "52"
                     },
                     {
-                      "block_height": "72"
+                      "block_height": "58"
                     }
                   ]
                 },
@@ -1369,10 +1369,10 @@
                   "status": "InProgress",
                   "vote_counts": {},
                   "votes": {},
-                  "submission_time": "1794659305314719313",
+                  "submission_time": "1794680235964401000",
                   "last_actions_log": [
                     {
-                      "block_height": "84"
+                      "block_height": "68"
                     }
                   ]
                 },
@@ -1399,13 +1399,13 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659281031914229",
+                  "submission_time": "1794680215961481000",
                   "last_actions_log": [
                     {
-                      "block_height": "47"
+                      "block_height": "35"
                     },
                     {
-                      "block_height": "53"
+                      "block_height": "41"
                     }
                   ]
                 }
@@ -1424,8 +1424,8 @@
               "id": "afterUpgrade",
               "label": "After upgrade",
               "locked": "2000000000000000000000000",
-              "blockHeight": 101,
-              "blockHash": "8rpoDM9iRZ7NNENNwDibgVzRXjAWFDpqC9M53UEJFeQ3",
+              "blockHeight": 82,
+              "blockHash": "HMGg8xXnQn2ULSd5ww1N31WUAntNzz5M5KKkmtTsFEZD",
               "proposals": {
                 "alice": {
                   "id": 1,
@@ -1455,13 +1455,13 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659294082856010",
+                  "submission_time": "1794680226252355000",
                   "last_actions_log": [
                     {
-                      "block_height": "66"
+                      "block_height": "52"
                     },
                     {
-                      "block_height": "72"
+                      "block_height": "58"
                     }
                   ]
                 },
@@ -1480,10 +1480,10 @@
                   "status": "InProgress",
                   "vote_counts": {},
                   "votes": {},
-                  "submission_time": "1794659305314719313",
+                  "submission_time": "1794680235964401000",
                   "last_actions_log": [
                     {
-                      "block_height": "84"
+                      "block_height": "68"
                     }
                   ]
                 },
@@ -1510,13 +1510,13 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659281031914229",
+                  "submission_time": "1794680215961481000",
                   "last_actions_log": [
                     {
-                      "block_height": "47"
+                      "block_height": "35"
                     },
                     {
-                      "block_height": "53"
+                      "block_height": "41"
                     }
                   ]
                 }
@@ -1528,15 +1528,15 @@
                 "aliceRecipient": "10000000000000000000000000",
                 "bobRecipient": "10000000000000000000000000",
                 "carolRecipient": "10100000000000000000000000",
-                "dao": "101892053138891724000000000"
+                "dao": "101892039535429995000000000"
               }
             },
             {
               "id": "aliceRecovery",
               "label": "Alice recovery",
               "locked": "1000000000000000000000000",
-              "blockHeight": 127,
-              "blockHash": "92yUZgyT4AWrGDYq3uzKUz2inaSWUNEZ27M6PHtHMwhf",
+              "blockHeight": 104,
+              "blockHash": "DN4STxAfsXYsbSjrpn6M5WB3KMKdv27FdJPp6TKueSTF",
               "proposals": {
                 "alice": {
                   "id": 1,
@@ -1566,16 +1566,16 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659294082856010",
+                  "submission_time": "1794680226252355000",
                   "last_actions_log": [
                     {
-                      "block_height": "66"
+                      "block_height": "52"
                     },
                     {
-                      "block_height": "72"
+                      "block_height": "58"
                     },
                     {
-                      "block_height": "119"
+                      "block_height": "97"
                     }
                   ]
                 },
@@ -1594,10 +1594,10 @@
                   "status": "InProgress",
                   "vote_counts": {},
                   "votes": {},
-                  "submission_time": "1794659305314719313",
+                  "submission_time": "1794680235964401000",
                   "last_actions_log": [
                     {
-                      "block_height": "84"
+                      "block_height": "68"
                     }
                   ]
                 },
@@ -1624,33 +1624,33 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659281031914229",
+                  "submission_time": "1794680215961481000",
                   "last_actions_log": [
                     {
-                      "block_height": "47"
+                      "block_height": "35"
                     },
                     {
-                      "block_height": "53"
+                      "block_height": "41"
                     }
                   ]
                 }
               },
               "balances": {
-                "alice": "99997622609143384000000000",
+                "alice": "99997621448774669500000000",
                 "bob": "98999764546485631400000000",
                 "carol": "99999767980029758700000000",
                 "aliceRecipient": "10000000000000000000000000",
                 "bobRecipient": "10000000000000000000000000",
                 "carolRecipient": "10100000000000000000000000",
-                "dao": "100891561138153817800000000"
+                "dao": "100891546883993193600000000"
               }
             },
             {
               "id": "aliceRetry",
               "label": "Alice retry",
               "locked": "1000000000000000000000000",
-              "blockHeight": 137,
-              "blockHash": "423qJZrJfGVF4twjNNjTWwzD6XYgEqWCAzVcbcvhdHff",
+              "blockHeight": 114,
+              "blockHash": "GMofGAWfc9rp17f6LNXejkfG35Mti65NKHpkUFZQZVGN",
               "proposals": {
                 "alice": {
                   "id": 1,
@@ -1680,19 +1680,19 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659294082856010",
+                  "submission_time": "1794680226252355000",
                   "last_actions_log": [
                     {
-                      "block_height": "66"
+                      "block_height": "52"
                     },
                     {
-                      "block_height": "72"
+                      "block_height": "58"
                     },
                     {
-                      "block_height": "119"
+                      "block_height": "97"
                     },
                     {
-                      "block_height": "132"
+                      "block_height": "109"
                     }
                   ]
                 },
@@ -1711,10 +1711,10 @@
                   "status": "InProgress",
                   "vote_counts": {},
                   "votes": {},
-                  "submission_time": "1794659305314719313",
+                  "submission_time": "1794680235964401000",
                   "last_actions_log": [
                     {
-                      "block_height": "84"
+                      "block_height": "68"
                     }
                   ]
                 },
@@ -1741,33 +1741,33 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659281031914229",
+                  "submission_time": "1794680215961481000",
                   "last_actions_log": [
                     {
-                      "block_height": "47"
+                      "block_height": "35"
                     },
                     {
-                      "block_height": "53"
+                      "block_height": "41"
                     }
                   ]
                 }
               },
               "balances": {
-                "alice": "99996984180183900600000000",
+                "alice": "99996982160285466300000000",
                 "bob": "98999764546485631400000000",
                 "carol": "99999767980029758700000000",
                 "aliceRecipient": "10000000000000000000000000",
                 "bobRecipient": "10000000000000000000000000",
                 "carolRecipient": "10100000000000000000000000",
-                "dao": "100891561138153817800000000"
+                "dao": "100891546883993193600000000"
               }
             },
             {
               "id": "bobPayout",
               "label": "Bob payout",
               "locked": "0",
-              "blockHeight": 151,
-              "blockHash": "7aHpJqTLCGmwwaedk38Vwii9Rp7aDCc167gpxKc8fv1q",
+              "blockHeight": 126,
+              "blockHash": "FvL9ojifB9Ery29n9iPRracvJawERa4pwMAzsGKWtgBJ",
               "proposals": {
                 "alice": {
                   "id": 1,
@@ -1797,19 +1797,19 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659294082856010",
+                  "submission_time": "1794680226252355000",
                   "last_actions_log": [
                     {
-                      "block_height": "66"
+                      "block_height": "52"
                     },
                     {
-                      "block_height": "72"
+                      "block_height": "58"
                     },
                     {
-                      "block_height": "119"
+                      "block_height": "97"
                     },
                     {
-                      "block_height": "132"
+                      "block_height": "109"
                     }
                   ]
                 },
@@ -1836,13 +1836,13 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659305314719313",
+                  "submission_time": "1794680235964401000",
                   "last_actions_log": [
                     {
-                      "block_height": "84"
+                      "block_height": "68"
                     },
                     {
-                      "block_height": "143"
+                      "block_height": "119"
                     }
                   ]
                 },
@@ -1869,33 +1869,33 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659281031914229",
+                  "submission_time": "1794680215961481000",
                   "last_actions_log": [
                     {
-                      "block_height": "47"
+                      "block_height": "35"
                     },
                     {
-                      "block_height": "53"
+                      "block_height": "41"
                     }
                   ]
                 }
               },
               "balances": {
-                "alice": "99996117445246321500000000",
+                "alice": "99996114258232573500000000",
                 "bob": "99999764546485631400000000",
                 "carol": "99999767980029758700000000",
                 "aliceRecipient": "10000000000000000000000000",
                 "bobRecipient": "10100000000000000000000000",
                 "carolRecipient": "10100000000000000000000000",
-                "dao": "99791561138153817800000000"
+                "dao": "99791546883993193600000000"
               }
             },
             {
               "id": "bobRetry",
               "label": "Bob retry",
               "locked": "0",
-              "blockHeight": 160,
-              "blockHash": "GQ6UQpEkYeBu6nQb7sH2UxEB2H8iixe5zfcF9A7ALBb5",
+              "blockHeight": 134,
+              "blockHash": "F2iSfvdEtX279htN5FJZ74ayHv2WTkz5aVBM496ai3Xk",
               "proposals": {
                 "bob": {
                   "id": 2,
@@ -1920,13 +1920,13 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659305314719313",
+                  "submission_time": "1794680235964401000",
                   "last_actions_log": [
                     {
-                      "block_height": "84"
+                      "block_height": "68"
                     },
                     {
-                      "block_height": "143"
+                      "block_height": "119"
                     }
                   ]
                 },
@@ -1953,33 +1953,33 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659281031914229",
+                  "submission_time": "1794680215961481000",
                   "last_actions_log": [
                     {
-                      "block_height": "47"
+                      "block_height": "35"
                     },
                     {
-                      "block_height": "53"
+                      "block_height": "41"
                     }
                   ]
                 }
               },
               "balances": {
-                "alice": "99995887902723116700000000",
+                "alice": "99995879101667289500000000",
                 "bob": "99999764546485631400000000",
                 "carol": "99999767980029758700000000",
                 "aliceRecipient": "10000000000000000000000000",
                 "bobRecipient": "10100000000000000000000000",
                 "carolRecipient": "10100000000000000000000000",
-                "dao": "99791561138153817800000000"
+                "dao": "99791546883993193600000000"
               }
             },
             {
               "id": "carolRetry",
               "label": "Carol retry",
               "locked": "0",
-              "blockHeight": 169,
-              "blockHash": "8i6HKKvejA5Z9hNn9raeUP1ezRuePH7HjVrzWT48bGpQ",
+              "blockHeight": 142,
+              "blockHash": "Eq95gDQ7gxKnTRBrEkX52H5X3JWPq2vJkJpyJHKYkyLZ",
               "proposals": {
                 "carol": {
                   "id": 0,
@@ -2004,32 +2004,32 @@
                   "votes": {
                     "alice.test.near": "Approve"
                   },
-                  "submission_time": "1794659281031914229",
+                  "submission_time": "1794680215961481000",
                   "last_actions_log": [
                     {
-                      "block_height": "47"
+                      "block_height": "35"
                     },
                     {
-                      "block_height": "53"
+                      "block_height": "41"
                     }
                   ]
                 }
               },
               "balances": {
-                "alice": "99995658307311512700000000",
+                "alice": "99995642925869265600000000",
                 "bob": "99999764546485631400000000",
                 "carol": "99999767980029758700000000",
                 "aliceRecipient": "10000000000000000000000000",
                 "bobRecipient": "10100000000000000000000000",
                 "carolRecipient": "10100000000000000000000000",
-                "dao": "99791561138153817800000000"
+                "dao": "99791546883993193600000000"
               }
             }
           ],
           "cash": {
             "aliceBondGross": "1000000000000000000000000",
-            "aliceBondNet": "999076299519706200000000",
-            "aliceGas": "923700480293800000000",
+            "aliceBondNet": "999075139150991700000000",
+            "aliceGas": "924860849008300000000",
             "aliceContractDelta": "-1000000000000000000000000",
             "bobTransfer": "100000000000000000000000",
             "bobBondReturned": "1000000000000000000000000",
@@ -2037,18 +2037,18 @@
           },
           "candidate": {
             "wasm": {
-              "sha256": "3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2",
-              "bytes": 538740,
+              "sha256": "133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d",
+              "bytes": 540609,
               "path": "downloads/238/intended.wasm"
             },
             "patch": {
-              "sha256": "ea59d33f2102ef21d77be277dc4981911cb58d5a12b995a673261bb20a79cdc1",
+              "sha256": "9ae060af97dcb7f4ced31d135ac84b0130f274032f17c2acb1a56e43a6ebf3d0",
               "path": "downloads/238/intended.patch"
             },
             "report": {
               "path": "downloads/238/mixed-obligation-intended.json",
-              "sha256": "5558081ef16e2191a4532abb1263e118d84d64e942fb49a7eb5677cf94efbf5d",
-              "bytes": 112427
+              "sha256": "bb649b40b8c50d070d55a31481655e3b7a9cb712a24d8d1f31cd88898f686a67",
+              "bytes": 112334
             }
           },
           "evidence": [
@@ -2075,19 +2075,19 @@
       "downloads": {
         "evidence": {
           "path": "downloads/238-evidence.zip",
-          "sha256": "7d7304676b331ebb08c625202e1308dc2d01f7f27d76e3b545eda5666de38dda",
-          "bytes": 883774
+          "sha256": "9fe7b3dc310bf472e200d9b2c4fddc6d93d509d49a8ce263e43ca44bcae4cc10",
+          "bytes": 889115
         },
         "directory": "downloads/238/",
         "handoff": {
           "path": "downloads/238/repair-bundle-intended.json",
-          "sha256": "07cf10b8fb43cbd7fe1f4e254ff0ac7b38bb5ab4fa915b3c1f8a2a35592cb950",
-          "bytes": 1357980,
-          "runId": "settlement-fixed-handoff-2026-11-13",
-          "candidateWasmSha256": "3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2",
-          "patchSha256": "ea59d33f2102ef21d77be277dc4981911cb58d5a12b995a673261bb20a79cdc1",
+          "sha256": "a3e00562397686877dfb424eb320dc5baa18eac82d06ce1383e0dd35b2e88b18",
+          "bytes": 1388796,
+          "runId": "settlement-fixed-handoff-2026-11-14",
+          "candidateWasmSha256": "133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d",
+          "patchSha256": "9ae060af97dcb7f4ced31d135ac84b0130f274032f17c2acb1a56e43a6ebf3d0",
           "sourceCommit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b",
-          "reportSha256": "5558081ef16e2191a4532abb1263e118d84d64e942fb49a7eb5677cf94efbf5d"
+          "reportSha256": "bb649b40b8c50d070d55a31481655e3b7a9cb712a24d8d1f31cd88898f686a67"
         }
       }
     }

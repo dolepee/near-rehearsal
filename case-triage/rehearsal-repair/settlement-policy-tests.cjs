@@ -9,10 +9,15 @@ const read = (name) => JSON.parse(fs.readFileSync(path.join(HERE, 'out', 'audit-
 
 const oldReport = read('settlement-old');
 const correctedReport = read('settlement');
-assert.equal(oldReport.schema, REQUIRED_SCHEMA);
+const approvedCapture = JSON.parse(fs.readFileSync(path.join(HERE, 'out', 'audit-intended', 'approved-targeted', 'successful-action-refund.json'), 'utf8'));
+// The approved branch is captured separately from the whole-suite settlement
+// report. Bind that actual capture into the policy fixture without editing the
+// native report.
+correctedReport.successfulActionRefund = approvedCapture;
+assert.equal(oldReport.schema, 'near-rehearsal/settlement-refund/v2');
 assert.equal(correctedReport.schema, REQUIRED_SCHEMA);
 assert.equal(oldReport.candidate.wasmSha256, '49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923');
-assert.equal(correctedReport.candidate.wasmSha256, '3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2');
+assert.equal(correctedReport.candidate.wasmSha256, '133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d');
 
 const oldCheck = verifySettlementReport(oldReport, {candidateWasmSha256: oldReport.candidate.wasmSha256});
 const correctedCheck = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
@@ -26,6 +31,188 @@ assert.equal(correctedCheck.outcomes.retryDelta, '1000000000000000000000000');
 assert.equal(correctedCheck.outcomes.overlapDelta, '1000000000000000000000000');
 assert.equal(correctedCheck.outcomes.fresh.failedRefundLocked, '1000000000000000000000000', 'the fresh candidate scenario must also retain the debt');
 assert.equal(correctedCheck.outcomes.inherited.failedRefundLocked, '1000000000000000000000000', 'the inherited scenario must retain the debt');
+assert.equal(approvedCapture.dao, approvedCapture.deploy.transaction.receiverId);
+assert.equal(approvedCapture.observedCodeHash, approvedCapture.deploy.codeHash);
+
+const checkApprovedMutation = (label, mutateApproved, expected) => {
+  const value = JSON.parse(JSON.stringify(correctedReport));
+  mutateApproved(value.successfulActionRefund);
+  const checked = verifySettlementReport(value, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+  assert.equal(checked.status, expected, `${label}: ${checked.errors.join('; ')}`);
+};
+for (const missing of [
+  'bond',
+  'before.recipient',
+  'afterApproval.recipient',
+  'beforeRetry.proposer',
+  'beforeRetry.lockedAmount',
+  'beforeRetry.recipient',
+  'afterRetry.proposer',
+  'afterRetry.lockedAmount',
+  'afterRetry.recipient',
+  'afterDuplicate.proposer',
+  'afterDuplicate.lockedAmount',
+  'afterDuplicate.recipient',
+]) {
+  checkApprovedMutation(`missing ${missing}`, (approved) => {
+    const parts = missing.split('.');
+    let cursor = approved;
+    for (const part of parts.slice(0, -1)) cursor = cursor[part];
+    delete cursor[parts[parts.length - 1]];
+  }, 'INCONCLUSIVE');
+}
+checkApprovedMutation('unauthorized transaction root removed', (approved) => {
+  delete approved.unauthorized.value.transactionOutcome;
+}, 'INCONCLUSIVE');
+checkApprovedMutation('approved DAO removed', (approved) => { delete approved.dao; }, 'INCONCLUSIVE');
+checkApprovedMutation('deployment evidence removed', (approved) => { delete approved.deploy; }, 'INCONCLUSIVE');
+checkApprovedMutation('observed code hash removed', (approved) => { delete approved.observedCodeHash; }, 'INCONCLUSIVE');
+checkApprovedMutation('observed code hash mismatched', (approved) => {
+  approved.observedCodeHash = '11111111111111111111111111111111';
+}, 'REJECTED');
+checkApprovedMutation('afterRetry height removed', (approved) => { delete approved.afterRetry.blockHeight; }, 'INCONCLUSIVE');
+for (const snapshot of ['before', 'afterApproval', 'beforeRetry', 'afterRetry', 'afterDuplicate', 'afterUnauthorized']) {
+  checkApprovedMutation(`${snapshot} belongs to a foreign DAO`, (approved) => {
+    approved[snapshot].dao = 'foreign-dao.test.near';
+  }, 'INCONCLUSIVE');
+}
+checkApprovedMutation('foreign afterRetry with altered locked amount', (approved) => {
+  approved.afterRetry.dao = 'foreign-dao.test.near';
+  approved.afterRetry.lockedAmount = '42';
+}, 'INCONCLUSIVE');
+checkApprovedMutation('retry loss survives missing later metadata', (approved) => {
+  approved.afterRetry.lockedAmount = '42';
+  delete approved.afterUnauthorized.dao;
+}, 'REJECTED');
+checkApprovedMutation('duplicate loss survives missing earlier snapshot', (approved) => {
+  approved.afterDuplicate.proposer = (BigInt(approved.afterDuplicate.proposer) - 1n).toString();
+  delete approved.before.dao;
+}, 'REJECTED');
+checkApprovedMutation('duplicate root disconnected from old failure', (approved) => {
+  const outcome = approved.duplicate.transactionOutcome;
+  approved.duplicate.transactionOutcome = {
+    status: {SuccessReceiptId: 'new-successful-root'},
+    receiptIds: ['new-successful-root'],
+    tokensBurntYocto: outcome.tokensBurntYocto,
+  };
+  approved.duplicate.receipts.push({
+    id: 'new-successful-root',
+    executorId: approved.dao,
+    status: {SuccessValue: ''},
+    receiptIds: [],
+    blockHash: '11111111111111111111111111111111',
+    blockHeight: approved.duplicate.blockHeight,
+  });
+}, 'INCONCLUSIVE');
+checkApprovedMutation('retry height outside its window', (approved) => { approved.retry.blockHeight = 1; }, 'INCONCLUSIVE');
+checkApprovedMutation('receipt completes before its root', (approved) => {
+  approved.approval.receipts[0].blockHeight = approved.approval.blockHeight - 1;
+}, 'INCONCLUSIVE');
+checkApprovedMutation('approval observation after retry start', (approved) => {
+  approved.beforeRetry.blockHeight = approved.afterApproval.blockHeight - 1;
+}, 'INCONCLUSIVE');
+checkApprovedMutation('missing DAO with altered locked amount', (approved) => {
+  delete approved.dao;
+  approved.afterRetry.lockedAmount = '42';
+}, 'INCONCLUSIVE');
+checkApprovedMutation('retry not FINAL with altered locked amount', (approved) => {
+  approved.retry.finalExecutionStatus = 'NONE';
+  approved.afterRetry.lockedAmount = '42';
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate transaction root removed with changed amount', (approved) => {
+  delete approved.duplicate.transactionOutcome;
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate root has empty status', (approved) => {
+  approved.duplicate.receipts[0].status = {};
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate root has unlinked SuccessReceiptId', (approved) => {
+  approved.duplicate.receipts[0].status = {SuccessReceiptId: 'not-a-linked-child'};
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate root replaced while old receipts remain', (approved) => {
+  const old = approved.duplicate.transactionOutcome;
+  approved.duplicate.transactionOutcome = {
+    status: {SuccessReceiptId: 'replacement-root'},
+    receiptIds: ['replacement-root'],
+    tokensBurntYocto: old.tokensBurntYocto,
+  };
+  approved.duplicate.receipts.unshift({
+    id: 'replacement-root',
+    executorId: approved.dao,
+    status: {SuccessValue: ''},
+    receiptIds: [],
+    tokensBurntYocto: '0',
+    blockHash: '11111111111111111111111111111111',
+    blockHeight: approved.duplicate.blockHeight,
+  });
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate root disconnected with changed amount', (approved) => {
+  const root = approved.duplicate.receipts[0];
+  approved.duplicate.transactionOutcome = {
+    status: {SuccessReceiptId: 'unlinked-root'},
+    receiptIds: ['other-root'],
+    tokensBurntYocto: approved.duplicate.transactionOutcome.tokensBurntYocto,
+  };
+  approved.duplicate.receipts.push({
+    id: 'unlinked-root',
+    executorId: approved.dao,
+    status: {SuccessValue: ''},
+    receiptIds: [],
+    blockHash: '11111111111111111111111111111111',
+    blockHeight: approved.duplicate.blockHeight,
+  });
+  root.status = {SuccessValue: ''};
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate root wrong executor with changed amount', (approved) => {
+  approved.duplicate.receipts[0].executorId = 'foreign-dao.test.near';
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'INCONCLUSIVE');
+checkApprovedMutation('valid linked duplicate payment remains rejected', (approved) => {
+  approved.duplicate.receipts[0].status = {SuccessValue: ''};
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'REJECTED');
+checkApprovedMutation('approval child receipt removed', (approved) => {
+  approved.approval.receipts.splice(1, 1);
+}, 'INCONCLUSIVE');
+checkApprovedMutation('retry child receipt removed', (approved) => {
+  approved.retry.receipts.splice(1, 1);
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate signed by approval signer', (approved) => {
+  approved.duplicate.transaction.signerId = approved.approval.transaction.signerId;
+  approved.afterDuplicate.proposer = approved.afterRetry.proposer;
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate signer missing', (approved) => {
+  delete approved.duplicate.transaction.signerId;
+  approved.afterDuplicate.proposer = approved.afterRetry.proposer;
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate signer missing without balance change', (approved) => {
+  delete approved.duplicate.transaction.signerId;
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate signer is approval signer without balance change', (approved) => {
+  approved.duplicate.transaction.signerId = approved.approval.transaction.signerId;
+}, 'INCONCLUSIVE');
+checkApprovedMutation('approval operation not FINAL without balance change', (approved) => {
+  approved.approval.finalExecutionStatus = 'NONE';
+}, 'INCONCLUSIVE');
+checkApprovedMutation('retry operation not FINAL without balance change', (approved) => {
+  approved.retry.finalExecutionStatus = 'NONE';
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate operation not FINAL without balance change', (approved) => {
+  approved.duplicate.finalExecutionStatus = 'NONE';
+}, 'INCONCLUSIVE');
+checkApprovedMutation('retry loss survives invalid approval operation', (approved) => {
+  approved.afterRetry.lockedAmount = '42';
+  approved.approval.finalExecutionStatus = 'NONE';
+}, 'REJECTED');
+checkApprovedMutation('all execution heights missing', (approved) => {
+  delete approved.approval.blockHeight;
+  delete approved.retry.blockHeight;
+  delete approved.duplicate.blockHeight;
+}, 'INCONCLUSIVE');
 
 const missingSeed = JSON.parse(JSON.stringify(correctedReport));
 delete missingSeed.inherited.transactions.seed;

@@ -1,8 +1,7 @@
 diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs
-index 3c41adf..87d4d91 100644
 --- a/sputnikdao2/src/proposals.rs
 +++ b/sputnikdao2/src/proposals.rs
-@@ -336,7 +336,110 @@ impl Contract {
+@@ -336,7 +336,110 @@
          }
      }
  
@@ -114,7 +113,7 @@ index 3c41adf..87d4d91 100644
          if let ProposalKind::BountyDone { .. } = &proposal.kind {
              self.locked_amount = self.locked_amount.saturating_sub(policy.bounty_bond);
              Promise::new(proposal.proposer.clone())
-@@ -344,8 +447,7 @@ impl Contract {
+@@ -344,8 +447,7 @@
                  .detach();
          }
  
@@ -124,7 +123,7 @@ index 3c41adf..87d4d91 100644
      }
  
      /// Executes given proposal and updates the contract's state.
-@@ -466,12 +568,13 @@ impl Contract {
+@@ -466,12 +568,13 @@
                          .on_proposal_callback(proposal_id),
                  )
                  .into(),
@@ -139,7 +138,7 @@ index 3c41adf..87d4d91 100644
          proposal: &mut Proposal,
      ) -> PromiseOrValue<()> {
          let policy = self.policy.get().unwrap().to_policy();
-@@ -486,27 +589,30 @@ impl Contract {
+@@ -486,27 +589,30 @@
              }
          }
          proposal.status = ProposalStatus::Approved;
@@ -174,7 +173,7 @@ index 3c41adf..87d4d91 100644
          }
  
          let proposal_data = proposal;
-@@ -530,6 +636,50 @@ impl Contract {
+@@ -530,6 +636,50 @@
  
  #[near]
  impl Contract {
@@ -225,7 +224,7 @@ index 3c41adf..87d4d91 100644
      /// Add proposal to this DAO.
      #[payable]
      pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {
-@@ -583,6 +733,16 @@ impl Contract {
+@@ -583,6 +733,16 @@
  
          self.proposals
              .insert(&id, &VersionedProposal::Latest(proposal));
@@ -242,7 +241,37 @@ index 3c41adf..87d4d91 100644
          self.last_proposal_id += 1;
          self.locked_amount = self.locked_amount.saturating_add(env::attached_deposit());
          id
-@@ -642,12 +802,12 @@ impl Contract {
+@@ -609,8 +769,28 @@
+         // Check permissions for the given action.
+         let (roles, allowed) =
+             policy.can_execute_action(self.internal_user_info(), &proposal.kind, &action);
+-        assert!(allowed, "ERR_PERMISSION_DENIED");
+         let sender_id = env::predecessor_account_id();
++        // Once a successful business action and its bond refund have settled,
++        // Finalize must never execute that action a second time.
++        if matches!(&action, Action::Finalize)
++            && proposal.status == ProposalStatus::Approved
++            && matches!(
++                Self::read_refund_state(id),
++                Some((Self::REFUND_SETTLED, _, _))
++            ) {
++            env::panic_str("ERR_PROPOSAL_ALREADY_EXECUTED");
++        }
++        // A successfully executed proposal can still owe its proposer a bond
++        // whose transfer failed. Only that original proposer may ask for the
++        // refund-only retry; Finalize must not execute the successful action again.
++        let refund_retry = matches!(&action, Action::Finalize)
++            && proposal.status == ProposalStatus::Approved
++            && proposal.proposer == sender_id
++            && matches!(
++                Self::read_refund_state(id),
++                Some((Self::REFUND_FAILED, _, _))
++            );
++        assert!(allowed || refund_retry, "ERR_PERMISSION_DENIED");
+ 
+         // Verify proposal kind
+         assert!(proposal.kind == input_proposal_kind, "ERR_WRONG_KIND");
+@@ -642,12 +822,12 @@
                          .detach();
                      true
                  } else if proposal.status == ProposalStatus::Removed {
@@ -257,16 +286,51 @@ index 3c41adf..87d4d91 100644
                          .detach();
                      true
                  } else {
-@@ -674,7 +834,7 @@ impl Contract {
-                             .detach();
-                     }
-                     ProposalStatus::Expired => {
+@@ -663,22 +843,27 @@
+             //  - if the number of votes in the group has changed (new members has been added) -
+             //      the proposal can loose it's approved state. In this case new proposal needs to be made, this one can only expire.
+             Action::Finalize => {
+-                proposal.status = policy.proposal_status(
+-                    &proposal,
+-                    policy.roles.iter().map(|r| r.name.clone()).collect(),
+-                    self.total_delegation_amount,
+-                );
+-                match proposal.status {
+-                    ProposalStatus::Approved => {
+-                        self.internal_execute_proposal(&policy, &proposal, id)
+-                            .detach();
+-                    }
+-                    ProposalStatus::Expired => {
 -                        self.internal_reject_proposal(&policy, &proposal, true)
-+                        self.internal_reject_proposal(id, &policy, &proposal, true)
-                             .detach();
+-                            .detach();
+-                    }
+-                    _ => {
+-                        env::panic_str("ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED");
++                if refund_retry {
++                    // Refund-only recovery: the business action already succeeded.
++                    self.internal_return_proposal_bond(id, &proposal).detach();
++                } else {
++                    proposal.status = policy.proposal_status(
++                        &proposal,
++                        policy.roles.iter().map(|r| r.name.clone()).collect(),
++                        self.total_delegation_amount,
++                    );
++                    match proposal.status {
++                        ProposalStatus::Approved => {
++                            self.internal_execute_proposal(&policy, &proposal, id)
++                                .detach();
++                        }
++                        ProposalStatus::Expired => {
++                            self.internal_reject_proposal(id, &policy, &proposal, true)
++                                .detach();
++                        }
++                        _ => {
++                            env::panic_str("ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED");
++                        }
                      }
-                     _ => {
-@@ -712,12 +872,42 @@ impl Contract {
+                 }
+                 true
+@@ -712,12 +897,42 @@
              "ERR_UNEXPECTED_CALLBACK_PROMISES"
          );
          let result = if utils::is_promise_success() {

@@ -1,0 +1,32 @@
+{
+  "schema": "near-rehearsal/build-only/v1",
+  "ok": true,
+  "source": {
+    "path": "/home/runner/work/_temp/sputnik-dao-contract",
+    "commit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b",
+    "appliedFile": "sputnikdao2/src/proposals.rs"
+  },
+  "patch": {
+    "path": "/home/runner/work/near-rehearsal/near-rehearsal/case-triage/rehearsal-repair/repair.patch",
+    "sha256": "9ae060af97dcb7f4ced31d135ac84b0130f274032f17c2acb1a56e43a6ebf3d0"
+  },
+  "appliedSourceSha256": "1e1c693fc2cae3c2ce3159a1e0d79699a6e8085148b5c521cb166acddd74464c",
+  "build": {
+    "rust": "1.86.0",
+    "target": "wasm32-unknown-unknown",
+    "command": "cargo build --target wasm32-unknown-unknown --release --locked -p sputnikdao2"
+  },
+  "wasm": {
+    "path": "/home/runner/work/_temp/f18-build/sputnikdao2.wasm",
+    "sha256": "133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d",
+    "bytes": 540609
+  },
+  "boundary": {
+    "ok": true,
+    "status": 0,
+    "signal": null,
+    "timedOut": false,
+    "outputLimit": false,
+    "supervisorStatus": 0
+  }
+}

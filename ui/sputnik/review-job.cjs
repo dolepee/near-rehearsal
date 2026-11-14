@@ -250,7 +250,7 @@ function buildEvidence(run) {
       ...portableReport(path.join(run.outDir, 'mixed', 'mixed-obligation.json'), wasm, 'near-rehearsal/mixed-obligation/v1'),
       policy,
     },
-    settlement: portableReport(path.join(run.outDir, 'settlement', 'settlement-refund.json'), wasm, 'near-rehearsal/settlement-refund/v2'),
+    settlement: portableReport(path.join(run.outDir, 'settlement', 'settlement-refund.json'), wasm, 'near-rehearsal/settlement-refund/v3'),
   });
 }
 
@@ -262,7 +262,7 @@ function completeStoredEvidence(run, dir) {
     && /^[a-f0-9]{64}$/.test(stored.mixed?.policy?.sha256 || '')
     && stored.mixed?.policy?.sha256 === run.result?.mixed?.policy?.sha256
     && /^[a-f0-9]{64}$/.test(wasm || '')
-    && [[stored.mixed, 'near-rehearsal/mixed-obligation/v1'], [stored.settlement, 'near-rehearsal/settlement-refund/v2']].every(([entry, schema]) => entry?.report?.schema === schema
+    && [[stored.mixed, 'near-rehearsal/mixed-obligation/v1'], [stored.settlement, 'near-rehearsal/settlement-refund/v3']].every(([entry, schema]) => entry?.report?.schema === schema
       && entry.report.candidate?.wasmSha256 === wasm
       && /^[a-f0-9]{64}$/.test(entry.rawReportSha256 || '')
       && entry.exportedReportSha256 === sha256(Buffer.from(json(entry.report))));
@@ -430,8 +430,14 @@ function createManager(options = {}) {
       const resultPath = path.join(run.outDir, 'review-result.json');
       const result = readJson(resultPath);
       const verdict = result?.acceptancePolicy?.status || result?.status
-        || (result?.summary?.checks?.accepted === true ? 'ACCEPTED' : 'REJECTED');
-      if ((code === 0 || code === 5) && verdict === 'INCONCLUSIVE') {
+        || (result?.summary?.checks?.accepted === true ? 'ACCEPTED' : null);
+      // A child that exits without writing a structured verdict did not run a
+      // contract check. Do not turn that infrastructure state into a rejection.
+      if (!result || !['ACCEPTED', 'REJECTED', 'INCONCLUSIVE'].includes(verdict)) {
+        run.status = 'inconclusive';
+        run.phase = 'inconclusive';
+        run.error = cleanError(`The reviewer did not produce a structured verdict; this is an infrastructure/inconclusive result, not a repair rejection.${code === null ? '' : ` Exit ${code}.`}`);
+      } else if ((code === 0 || code === 5) && verdict === 'INCONCLUSIVE') {
         run.status = 'inconclusive';
         run.phase = 'inconclusive';
         run.result = publicResult(result, {bundle: run.bundle, bundleSha256: run.bundleSha256, finishedAt: run.finishedAt});
@@ -454,13 +460,18 @@ function createManager(options = {}) {
             try { fs.rmSync(path.join(runDir(run.id), name), {force: true}); } catch {}
           }
         }
-      } else {
+      } else if (verdict === 'REJECTED' && (code === 0 || code === 1 || code === 2)) {
         run.status = 'rejected';
         run.phase = 'rejected';
         const detail = run.logs.slice(-4).join(' ').trim();
-        run.error = cleanError(result?.summary?.checks?.accepted === false || verdict === 'REJECTED'
-          ? `The recorded replay did not pass acceptance.${detail ? ` ${detail}` : ''}`
-          : `The recorded replay did not produce an accepted result${code === null ? '.' : ` (exit ${code}).`}${detail ? ` ${detail}` : ''}`);
+        run.error = cleanError(`The recorded replay did not pass acceptance.${detail ? ` ${detail}` : ''}`);
+      } else {
+        // Every child that has finished must reach a terminal state. A verdict
+        // paired with an unexpected exit code is not evidence of a genuine
+        // rejection; it is an inconclusive infrastructure mismatch.
+        run.status = 'inconclusive';
+        run.phase = 'inconclusive';
+        run.error = cleanError(`The reviewer returned ${verdict} with unsupported exit ${code === null ? 'null' : code}; this is inconclusive, not a repair rejection.`);
       }
     }
     if (!run.error && code !== 0 && code !== null && run.status === 'rejected') run.error = `The recorded replay exited ${code}.`;
@@ -493,9 +504,9 @@ function createManager(options = {}) {
           detached: !IS_WINDOWS,
         });
       } catch (error) {
-        run.status = 'rejected';
-        run.phase = 'rejected';
-        run.error = cleanError(error.message);
+        run.status = 'inconclusive';
+        run.phase = 'inconclusive';
+        run.error = cleanError(`The reviewer could not be started; this is infrastructure/inconclusive, not a repair rejection. ${error.message}`);
         run.finishedAt = nowIso();
         activeId = activeId === run.id ? null : activeId;
         writeMeta(run);

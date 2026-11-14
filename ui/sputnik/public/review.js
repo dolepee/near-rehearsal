@@ -51,6 +51,7 @@
 
   function renderSelection() {
     const selection = $('selection');
+    $('bundle-file').setAttribute('aria-invalid', 'false');
     if (!state.selected) {
       selection.className = 'selection';
       selection.textContent = state.selectionPending ? `Reading ${state.selectionPending}…` : 'No bundle selected.';
@@ -151,6 +152,7 @@
     const selection = $('selection');
     selection.className = 'selection';
     selection.textContent = message;
+    $('bundle-file').setAttribute('aria-invalid', 'true');
     setRunButton(true, 'Select a bundle to run');
   }
 

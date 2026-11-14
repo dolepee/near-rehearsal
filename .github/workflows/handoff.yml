@@ -185,6 +185,14 @@ jobs:
           tar --no-same-owner -xzf "$sandbox_dir/near-sandbox.tar.gz" -C "$sandbox_dir"
           chmod +x "$sandbox_dir/Linux-x86_64/near-sandbox"
           echo "REPAIR_SANDBOX_DIR=$sandbox_dir/Linux-x86_64" >> "$GITHUB_ENV"
+      - name: Build the F18 patch checkpoint
+        run: |
+          set -euo pipefail
+          out_dir="$RUNNER_TEMP/f18-build"
+          test ! -e "$out_dir"
+          node case-triage/rehearsal-repair/repair-pipeline.cjs             --patch case-triage/rehearsal-repair/repair.patch             --source "$REPAIR_REVIEW_SOURCE"             --out "$out_dir"             --build-only
+          test -s "$out_dir/sputnikdao2.wasm"
+          test -s "$out_dir/build-only.json"
       - name: Build the settlement-fixed reviewer bundle
         run: |
           set -euo pipefail
@@ -227,6 +235,11 @@ jobs:
           name: repair-review-source-build
           path: |
             ${{ runner.temp }}/settlement-fixed-bundle.json
+            ${{ runner.temp }}/f18-build/sputnikdao2.wasm
+            ${{ runner.temp }}/f18-build/build-only.json
+            ${{ runner.temp }}/f18-build/boundary.json
+            ${{ runner.temp }}/f18-build/build.log
+            ${{ runner.temp }}/f18-build/applied/target/wasm32-unknown-unknown/release/sputnikdao2.wasm
             ${{ runner.temp }}/repair-review.log
             ${{ runner.temp }}/repair-replay.log
             ${{ runner.temp }}/repair-review/review-result.json
@@ -306,7 +319,7 @@ jobs:
             --candidate-patch case-triage/rehearsal-repair/mixed-candidates/intended.patch \
             --candidate-identity case-triage/rehearsal-repair/mixed-candidates/intended-identity.json \
             --candidate-source case-triage/rehearsal-repair/mixed-candidates/intended-proposals.rs \
-            --expected-wasm-sha256 3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2 \
+            --expected-wasm-sha256 133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d \
             --out "$RUNNER_TEMP/persisted-recovery"
       - name: Verify persisted recovery
         run: |
@@ -315,9 +328,9 @@ jobs:
             --report "$RUNNER_TEMP/persisted-recovery/persisted-recovery.json" \
             --wasm case-triage/rehearsal-repair/mixed-candidates/intended.wasm \
             --base-wasm case-triage/rehearsal-repair/bundle/artifacts/base.wasm \
-            --expected-wasm-sha256 3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2 \
-            --expected-patch-sha256 ea59d33f2102ef21d77be277dc4981911cb58d5a12b995a673261bb20a79cdc1 \
-            --expected-source-sha256 2cc6f04cca4312ebfe092c2d438c9a570e602abcd81d1d240e34369a6ffcd22e \
+            --expected-wasm-sha256 133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d \
+            --expected-patch-sha256 9ae060af97dcb7f4ced31d135ac84b0130f274032f17c2acb1a56e43a6ebf3d0 \
+            --expected-source-sha256 1e1c693fc2cae3c2ce3159a1e0d79699a6e8085148b5c521cb166acddd74464c \
             --patch case-triage/rehearsal-repair/mixed-candidates/intended.patch \
             --source case-triage/rehearsal-repair/mixed-candidates/intended-proposals.rs
       - name: Upload recovery evidence

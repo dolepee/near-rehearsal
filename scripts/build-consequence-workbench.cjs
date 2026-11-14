@@ -303,7 +303,9 @@ npm run review:patch -- --patch <downloaded>/clear-all.patch --source <clean-pin
 
 The recorded report and the candidate/patch hashes are included here. The command
 builds the patch from source and exercises the persisted recovery and same-DAO
-policy; it does not execute a public chain transaction.
+policy; it does not execute a public chain transaction. Full source-build
+prerequisites, compiler-boundary provisioning, and dependency-cache setup are in
+[the canonical local repair setup](https://github.com/dolepee/near-rehearsal/blob/main/docs/local-repair-setup.md#source-and-compiler).
 
 ## Reviewer handoff
 

@@ -25,9 +25,10 @@ const AUTHORED_BASE = path.join(HERE, 'out', 'issue238-local.json');
 
 function usage() {
   return [
-    'usage: node repair-pipeline.cjs --patch <diff> --source <pinned-tree> --out <dir>',
+    'usage: node repair-pipeline.cjs --patch <diff> --source <pinned-tree> --out <dir> [--build-only]',
     '',
     'Runs controller validation, clean apply, build, Sandbox replay and acceptance.',
+    '--build-only stops after the boundary-confined build and exports the WASM.',
     'The candidate report is written under --out; authored reports are not overwritten.',
   ].join('\n');
 }
@@ -42,6 +43,7 @@ function parseArgs(argv) {
     else if (argv[i] === '--base-report') opts.baseReport = path.resolve(argv[++i]);
     else if (argv[i] === '--provenance') opts.provenance = path.resolve(argv[++i]);
     else if (argv[i] === '--sandbox-dir') opts.sandboxDir = path.resolve(argv[++i]);
+    else if (argv[i] === '--build-only') opts.buildOnly = true;
     else throw new Error(`unknown argument: ${argv[i]}`);
   }
   return opts;
@@ -161,7 +163,7 @@ function verifySandbox(manifest, requestedDir) {
   };
 }
 
-function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance = null, sandboxDir = null} = {}) {
+function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance = null, sandboxDir = null, buildOnly = false} = {}) {
   if (!patch || !source || !out) throw new Error('--patch, --source and --out are required');
   const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
   const buildManifest = JSON.parse(fs.readFileSync(path.join(HERE, 'build-manifest.json'), 'utf8'));
@@ -255,6 +257,23 @@ function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance
   const wasm = path.join(appliedDir, buildManifest.build.artifact);
   fs.mkdirSync(path.dirname(wasm), {recursive: true});
   fs.writeFileSync(wasm, artifactBytes, {mode: 0o600});
+
+  if (buildOnly) {
+    const exported = path.join(out, 'sputnikdao2.wasm');
+    fs.writeFileSync(exported, artifactBytes, {mode: 0o600});
+    const result = {
+      schema: 'near-rehearsal/build-only/v1',
+      ok: true,
+      source: {path: source, commit: manifest.source?.commit || null, appliedFile: allowed[0]},
+      patch: {path: patch, sha256: sha256File(patch)},
+      appliedSourceSha256: sha256File(appliedSource),
+      build: {rust: buildManifest.toolchain?.rust || null, target: buildManifest.toolchain?.target || 'wasm32-unknown-unknown', command: manifest.build.command},
+      wasm: {path: exported, sha256: sha256File(exported), bytes: fs.statSync(exported).size},
+      boundary: JSON.parse(fs.readFileSync(path.join(out, 'boundary.json'), 'utf8')).build,
+    };
+    fs.writeFileSync(path.join(out, 'build-only.json'), `${JSON.stringify(result, null, 2)}\n`);
+    return result;
+  }
 
   const sandbox = verifySandbox(buildManifest, sandboxDir);
   const replay = run(process.execPath, [ISSUE238], {

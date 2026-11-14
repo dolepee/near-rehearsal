@@ -49,7 +49,7 @@
 .status-pill.inconclusive { color: var(--amber); border-color: #5b4b23; }
 .status-pill.interrupted { color: var(--amber); border-color: #5b4b23; }
 .top-actions { flex-wrap: wrap; justify-content: end; }
-.nav-link { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; min-height: 44px; display: inline-flex; align-items: center; }
+.nav-link { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .nav-link:hover, .nav-link:focus-visible { color: var(--text); }
 @media (max-width: 1200px) { .review-layout { grid-template-columns: 340px minmax(0, 1fr); } .review-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 980px) { .review-layout { grid-template-columns: minmax(0, 1fr); } }

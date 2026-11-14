@@ -55,7 +55,7 @@ function fakeSpawn({payload = null, code = 0, error = null, hold = false, freshE
         if (freshEvidence !== 'missing') {
           for (const [folder, name, schema] of [
             ['mixed', 'mixed-obligation.json', 'near-rehearsal/mixed-obligation/v1'],
-            ['settlement', 'settlement-refund.json', 'near-rehearsal/settlement-refund/v2'],
+            ['settlement', 'settlement-refund.json', 'near-rehearsal/settlement-refund/v3'],
           ]) {
             fs.mkdirSync(path.join(out, folder), {recursive: true});
             const evidence = {schema, candidate: {wasmSha256: freshEvidence === 'wrong-candidate' ? '0'.repeat(64) : payload.run?.wasmSha256}, reviewerOnlyReceipt: 'fresh-reviewer-only-receipt', runtime: {binary: '/tmp/private/reviewer-runtime'}};
@@ -179,14 +179,56 @@ async function runMissingFreshEvidence() {
   }
 }
 
+async function runInfrastructureFailure() {
+  const manager = createManager({runsRoot: path.join(tmp, 'infrastructure'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({code: 1, error: 'recorded recovery failed at /tmp/private'})});
+  const started = manager.start(example.bundle, 'recorded-wasm');
+  await manager.get(started.id).done;
+  const run = manager.get(started.id);
+  assert.equal(run.status, 'inconclusive');
+  assert.match(run.error, /infrastructure\/inconclusive/);
+  assert.doesNotMatch(run.error, /\/tmp\/private/);
+  assert.equal(manager.download(started.id), null);
+}
+
 async function runRejected() {
-  const manager = createManager({runsRoot: path.join(tmp, 'rejected'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({code: 1, error: 'recorded recovery failed at /tmp/private'})});
+  const payload = JSON.parse(JSON.stringify(acceptedResult));
+  payload.status = 'REJECTED';
+  payload.accepted = false;
+  payload.summary.checks.accepted = false;
+  payload.acceptancePolicy = {status: 'REJECTED', errors: ['mixed policy rejected the candidate']};
+  const manager = createManager({runsRoot: path.join(tmp, 'rejected'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({payload, code: 1})});
   const started = manager.start(example.bundle, 'recorded-wasm');
   await manager.get(started.id).done;
   const run = manager.get(started.id);
   assert.equal(run.status, 'rejected');
-  assert.doesNotMatch(run.error, /\/tmp\/private/);
+  assert.match(run.error, /did not pass acceptance/);
   assert.equal(manager.download(started.id), null);
+}
+
+async function runTerminalExitMatrix() {
+  const cases = [
+    {label: 'accepted/1', status: 'ACCEPTED', code: 1, expected: 'inconclusive'},
+    {label: 'rejected/2', status: 'REJECTED', code: 2, expected: 'rejected'},
+    {label: 'inconclusive/1', status: 'INCONCLUSIVE', code: 1, expected: 'inconclusive'},
+  ];
+  for (const entry of cases) {
+    const payload = JSON.parse(JSON.stringify(acceptedResult));
+    payload.status = entry.status;
+    payload.accepted = entry.status === 'ACCEPTED';
+    payload.summary.checks.accepted = entry.status === 'ACCEPTED';
+    payload.acceptancePolicy = {status: entry.status, errors: [`${entry.label} fixture`]};
+    const manager = createManager({
+      runsRoot: path.join(tmp, `terminal-${entry.label.replace('/', '-')}`),
+      env: {REPAIR_SANDBOX_DIR: sandboxDir},
+      spawn: fakeSpawn({payload, code: entry.code}),
+    });
+    const started = manager.start(example.bundle, 'recorded-wasm');
+    await manager.get(started.id).done;
+    const run = manager.get(started.id);
+    assert.equal(run.status, entry.expected, `${entry.label} must terminate as ${entry.expected}`);
+    assert.notEqual(run.phase, 'replaying', `${entry.label} left the run replaying`);
+    assert.ok(run.finishedAt, `${entry.label} did not record finishedAt`);
+  }
 }
 
 async function runInconclusive() {
@@ -301,6 +343,8 @@ function validation() {
     validation();
     await runAccepted();
     await runMissingFreshEvidence();
+    await runInfrastructureFailure();
+    await runTerminalExitMatrix();
     await runRejected();
   await runInconclusive();
     await runActive();

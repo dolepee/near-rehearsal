@@ -207,8 +207,13 @@ function fakeSpawn({mixedPath = mixedReport, writeSettlement = true, settlementM
   const mutateSettlement = (kind) => (report) => {
     const changed = JSON.parse(JSON.stringify(report));
     if (kind === 'guard' || kind === 'both') {
-      const retry = changed.inherited.transactions.retries[0];
-      retry.receipts.find((receipt) => receipt.id === retry.transactionOutcome.status.SuccessReceiptId).status = {SuccessValue: ''};
+      // Remove one recorded retry attempt. The financial observations remain,
+      // but the in-flight rejection guard is no longer exercised, so the
+      // evidence is inconclusive rather than a proved rejection.
+      if (!Array.isArray(changed.inherited.overlap?.attempts) || changed.inherited.overlap.attempts.length !== 2) {
+        throw new Error('guard mutation fixture is missing the two retry attempts');
+      }
+      changed.inherited.overlap.attempts.pop();
     }
     if (kind === 'debt' || kind === 'both') changed.inherited.failedRefund.lockedAmount = '0';
     return changed;

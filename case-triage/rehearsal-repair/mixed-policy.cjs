@@ -134,19 +134,28 @@ function verifyMixedReport(report, opts = {}) {
       for (const id of receipts.keys()) if (!seen.has(id)) fail(`${label} has an unlinked receipt ${id}`);
     }
   };
-  const checkProposalIdentity = (snapshot, label) => {
+  const checkProposalIdentity = (snapshot, label, names) => {
     const beforeProposals = before?.proposals;
-    for (const name of ['alice', 'bob', 'carol']) {
+    for (const name of names) {
       const expected = beforeProposals?.[name];
       const actual = snapshot?.proposals?.[name];
-      if (!expected || !actual) continue;
+      if (!expected) { fail(`${label} has no pinned ${name} proposal`); continue; }
+      if (!actual) { fail(`${label} is missing the expected ${name} proposal`); continue; }
       if (!sameJson(proposalIdentity(actual), proposalIdentity(expected))) fail(`${label} changed ${name} proposal identity`);
     }
   };
-  const checkSnapshotPreservation = (snapshot, label) => {
+  const checkSnapshotPreservation = (snapshot, label, names) => {
     if (!snapshot?.policy) fail(`${label} has no policy`);
     else if (!sameJson(canonicalPolicy(snapshot.policy), canonicalPolicy(before?.policy))) fail(`${label} changed governance policy`);
-    checkProposalIdentity(snapshot, label);
+    // Each canonical stage has an intentional proposal set. Requiring names
+    // individually is not enough: a missing or unexpected entry must fail the
+    // whole snapshot, even when the report digest is recomputed.
+    const actualNames = Object.keys(snapshot?.proposals || {}).sort();
+    const expectedNames = [...names].sort();
+    if (JSON.stringify(actualNames) !== JSON.stringify(expectedNames)) {
+      fail(`${label} proposal set is [${actualNames.join(', ')}], expected [${expectedNames.join(', ')}]`);
+    }
+    checkProposalIdentity(snapshot, label, names);
   };
   const gasFromAttempt = (attempt, label) => {
     const value = attempt?.value;
@@ -188,19 +197,19 @@ function verifyMixedReport(report, opts = {}) {
   if (before?.proposals?.bob?.status !== 'InProgress') fail('Bob was not pending before upgrade');
   if (before?.proposals?.carol?.status !== 'Approved') fail('Carol was not already paid');
   const requiredSnapshots = [
-    ['beforeUpgrade', before],
-    ['afterUpgrade', afterUpgrade],
-    ['Alice recovery', report?.aliceRecovery?.after],
-    ['Alice retry', report?.aliceRetry?.after],
-    ['Bob payout', report?.bobPayout?.after],
-    ['Bob retry', report?.bobRetry?.after],
-    ['Carol retry', report?.carolRetry?.after],
+    ['beforeUpgrade', before, ['alice', 'bob', 'carol']],
+    ['afterUpgrade', afterUpgrade, ['alice', 'bob', 'carol']],
+    ['Alice recovery', report?.aliceRecovery?.after, ['alice', 'bob', 'carol']],
+    ['Alice retry', report?.aliceRetry?.after, ['alice', 'bob', 'carol']],
+    ['Bob payout', report?.bobPayout?.after, ['alice', 'bob', 'carol']],
+    ['Bob retry', report?.bobRetry?.after, ['bob', 'carol']],
+    ['Carol retry', report?.carolRetry?.after, ['carol']],
   ];
-  for (const [label, snap] of requiredSnapshots) {
+  for (const [label, snap, names] of requiredSnapshots) {
     for (const name of ['alice', 'bob', 'carol', 'aliceRecipient', 'bobRecipient', 'carolRecipient', 'dao']) {
       amount(snap?.balances?.[name], `${label} ${name} balance`, true);
     }
-    checkSnapshotPreservation(snap, label);
+    checkSnapshotPreservation(snap, label, names);
   }
   if (amount(afterUpgrade?.lockedAmount, 'post-upgrade locked', true) !== expectedBond * 2n) fail('upgrade changed the two locked liabilities');
   for (const name of ['alice', 'bob', 'carol']) {

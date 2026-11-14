@@ -26,8 +26,8 @@ const ARTIFACTS = Object.freeze({
   settlementPath: path.join(REPAIR, 'out', 'audit-intended', 'settlement', 'settlement-refund.json'),
 });
 
-const RUN_ID = 'settlement-fixed-handoff-2026-11-13';
-const CREATED_AT = '2026-11-13T21:15:09.000Z';
+const RUN_ID = 'settlement-fixed-handoff-2026-11-14';
+const CREATED_AT = '2026-11-14T18:33:37.000Z';
 
 // Paths are resolved against the repository so the bundle is reproducible from
 // a clean checkout and CI can build it into a temporary directory.

@@ -35,7 +35,8 @@ The command reuses the existing engine:
 4. Run the fresh-state replay.
 5. Run the persisted old-code failure and candidate upgrade without `new()`.
 6. Run the independent persisted-recovery acceptance.
-7. Write the status, report and evidence.
+7. Run the mandatory mixed-obligation and settlement stages.
+8. Write the status, report and evidence.
 
 It does not trust a submitted verdict. It does not accept caller labels as
 provenance. It never upgrades a live account.
@@ -53,7 +54,9 @@ provenance. It never upgrades a live account.
 - **BUILD_ERROR** — the candidate was valid input but did not compile. No
   economic result is produced.
 - **INCONCLUSIVE** — a missing runtime or interrupted execution prevented a
-  judgment. Missing results are never converted into success.
+  judgment. Missing results are never converted into success. A settlement
+  report without the mandatory approved-action/failed-refund branch is
+  inconclusive, even when its other scenarios pass.
 
 ## What is supplied versus verified
 

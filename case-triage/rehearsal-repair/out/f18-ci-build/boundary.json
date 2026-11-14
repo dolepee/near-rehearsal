@@ -1,0 +1,47 @@
+{
+  "schema": "near-rehearsal/compiler-boundary/v1",
+  "platform": "linux",
+  "adapter": "/usr/bin/bwrap",
+  "limits": {
+    "wallMs": 600000,
+    "cpuSeconds": 300,
+    "fileBlocks": 262144,
+    "openFiles": 1024,
+    "outputBytes": 8388608
+  },
+  "guarantees": {
+    "enforced": [
+      "wall-timeout",
+      "process-group-cleanup",
+      "cpu-seconds",
+      "file-size-blocks",
+      "open-files",
+      "output-bytes"
+    ],
+    "notEnforced": [
+      "memory-limit",
+      "process-count-limit",
+      "disk-quota"
+    ]
+  },
+  "probe": {
+    "ok": true,
+    "checks": {
+      "outsideControl": true,
+      "outsideReadDenied": true,
+      "outsideWriteDenied": true,
+      "insideWriteAllowed": true,
+      "environmentCanaryAbsent": true,
+      "networkDenied": true
+    },
+    "reason": null
+  },
+  "build": {
+    "ok": true,
+    "status": 0,
+    "signal": null,
+    "timedOut": false,
+    "outputLimit": false,
+    "supervisorStatus": 0
+  }
+}

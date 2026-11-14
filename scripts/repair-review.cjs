@@ -271,8 +271,14 @@ const runPersisted = (candidateWasm, outDir, patchPath, sourcePath, identityPath
     '--sandbox-dir', sandboxDir,
   ];
   if (sourcePath) args.push('--candidate-source', sourcePath);
-  requireCommand(args, 'persisted recovery');
-  return path.join(outDir, 'persisted-recovery.json');
+  const reportPath = path.join(outDir, 'persisted-recovery.json');
+  const result = spawnNode(args);
+  if (result.error) fail(`persisted recovery could not start: ${result.error.message}`);
+  if (result.status !== 0 && !fs.existsSync(reportPath)) {
+    const detail = [result.stdout, result.stderr].filter(Boolean).join('\n').trim();
+    fail(`persisted recovery failed (exit ${result.status}):\n${detail.slice(-4000)}`);
+  }
+  return reportPath;
 };
 
 const runAcceptance = (reportPath, wasmPath, basePath, patchPath, sourcePath, expected, sandboxDir) => {
@@ -287,12 +293,19 @@ const runAcceptance = (reportPath, wasmPath, basePath, patchPath, sourcePath, ex
   if (expected?.wasm) args.push('--expected-wasm-sha256', expected.wasm);
   if (expected?.patch) args.push('--expected-patch-sha256', expected.patch);
   if (expected?.source) args.push('--expected-source-sha256', expected.source);
-  const result = requireCommand(args, 'persisted recovery acceptance');
+  const result = spawnNode(args);
   let parsed;
   try { parsed = JSON.parse(result.stdout); } catch { fail('acceptance did not return JSON'); }
-  if (parsed.ok !== true) fail(`persisted recovery acceptance failed: ${(parsed.errors || []).join('; ')}`);
+  if (!parsed || typeof parsed !== 'object') fail('acceptance did not return a structured result');
   const acceptancePath = path.join(path.dirname(reportPath), 'persisted-recovery-acceptance.json');
   fs.writeFileSync(acceptancePath, `${JSON.stringify(parsed, null, 2)}\n`);
+  if (parsed.ok !== true) {
+    return { acceptance: parsed, acceptancePath, rejectedStage: 'acceptance', rejectionErrors: (parsed.errors || []).map((error) => `persisted recovery acceptance failed: ${error}`) };
+  }
+  if (result.status !== 0) {
+    const detail = [result.stdout, result.stderr].filter(Boolean).join('\n').trim();
+    fail(`persisted recovery acceptance exited ${result.status} despite reporting success:\n${detail.slice(-4000)}`);
+  }
   return { acceptance: parsed, acceptancePath };
 };
 
@@ -359,10 +372,28 @@ const runSourceBuild = (bundle, prepared, outDir, opts) => {
     '--base-report', prepared.baselinePath,
     '--sandbox-dir', sandboxDir,
   ];
-  requireCommand(pipeline, 'source build and fresh-state replay');
+  const pipelineResult = spawnNode(pipeline);
   const pipelinePath = path.join(buildDir, 'pipeline.json');
+  if (pipelineResult.error) fail(`source build and fresh-state replay could not start: ${pipelineResult.error.message}`);
+  if (!fs.existsSync(pipelinePath)) {
+    const detail = [pipelineResult.stdout, pipelineResult.stderr].filter(Boolean).join('\n').trim();
+    fail(`source build and fresh-state replay produced no pipeline report (exit ${pipelineResult.status}):\n${detail.slice(-4000)}`);
+  }
   const pipelineReport = readJson(pipelinePath, 'source-build pipeline report');
-  if (pipelineReport.ok !== true) fail('source-build pipeline did not pass');
+  if (pipelineReport.ok !== true) {
+    return {
+      mode: 'source-build',
+      modeLabel: 'source build (new execution from the supplied patch; digest may match the recorded artifact)',
+      sourceDir,
+      sourceHead: head,
+      buildDir,
+      pipelinePath,
+      pipelineReport,
+      rejectedStage: 'fresh-pipeline',
+      rejectionErrors: ['source-build pipeline did not pass'],
+    };
+  }
+  if (pipelineResult.status !== 0) fail(`source-build pipeline exited ${pipelineResult.status} despite reporting success`);
   if (pipelineReport.hashes?.patch !== bundle.candidate.patch.sha256) fail('source-build pipeline patch hash does not match the bundle');
   if (pipelineReport.hashes?.appliedSource !== sourceIdentity.sha256) fail('source-build applied source does not match the candidate identity');
   const builtWasm = path.join(buildDir, 'applied', 'target', 'wasm32-unknown-unknown', 'release', 'sputnikdao2.wasm');
@@ -465,7 +496,8 @@ const runMixedGate = (candidateWasm, outDir, sandboxDir) => {
   const reportPath = path.join(mixedDir, 'mixed-obligation.json');
   const report = readJson(reportPath, 'same-DAO mixed-obligation report');
   const checked = verifyMixedReport(report, {requireBlockPinned: true});
-  if (!checked.ok) fail(`same-DAO mixed-obligation gate failed: ${checked.errors.join('; ')}`);
+  // A policy failure here is economic evidence, not an infrastructure crash.
+  // Keep the report and let the typed acceptance policy classify it.
   return {mixedDir, reportPath, report, checked, policy: mixedPolicyIdentity(ROOT), stdout: result.stdout};
 };
 
@@ -537,7 +569,8 @@ const compareMixed = (producer, reviewer, reviewerWasmSha256, artifactWasmSha256
   const differences = keys.filter((key) => String(producerOutcomes?.[key]) !== String(reviewer.outcomes?.[key]));
   const producerWasmSha256 = producer.candidate?.wasmSha256 || null;
   const candidateMatches = producerWasmSha256 === reviewerWasmSha256;
-  if (differences.length) fail(`producer/reviewer mixed outcomes differ: ${differences.join(', ')}`);
+  // A disagreement is economic evidence, not an infrastructure crash. Return
+  // it so the typed acceptance policy can classify the run as REJECTED.
   return {
     legacy: false,
     candidateMatches,
@@ -635,6 +668,19 @@ const summarize = (report, run) => {
 
 const render = (result) => {
   const s = result.summary;
+  if (!s.firstRecovery) {
+    return [
+      `REHEARSAL HANDOFF FAIL — ${s.modeLabel || result.run.mode}`,
+      '',
+      `Source: ${result.bundle.source.repository} @ ${result.bundle.source.commit}`,
+      `Candidate WASM: ${s.candidateWasmSha256}`,
+      `Stage: ${result.run.rejectedStage || 'unknown'}`,
+      `Reason: ${(result.acceptancePolicy?.errors || []).join('; ')}`,
+      '',
+      'Acceptance: FAIL',
+      `Result: ${result.resultPath}`,
+    ].join('\n');
+  }
   return [
     `REHEARSAL HANDOFF ${result.acceptancePolicy?.status === 'ACCEPTED' ? 'PASS' : result.acceptancePolicy?.status === 'INCONCLUSIVE' ? 'INCONCLUSIVE' : 'FAIL'} — ${s.modeLabel}`,
     '',
@@ -660,6 +706,154 @@ const render = (result) => {
   ].join('\n');
 };
 
+const writeResult = ({bundle, bundlePath, outDir, run, summary, acceptancePolicy, mixed, settlement}) => {
+  const resultPath = path.join(outDir, 'review-result.json');
+  const result = {
+    schema: 'near-rehearsal/repair-review-handoff/v1',
+    createdAt: new Date().toISOString(),
+    bundle: {
+      path: bundlePath,
+      sha256: sha256(fs.readFileSync(bundlePath)),
+      runId: bundle.runId,
+      caseId: bundle.caseId,
+      source: bundle.source,
+      candidate: {
+        patchSha256: bundle.candidate.patch.sha256,
+        wasmSha256: bundle.candidate.wasm.sha256,
+        sourceSha256: bundle._sourceIdentity?.sha256 || bundle.candidate.identity?.source?.sha256 || null,
+      },
+    },
+    run,
+    summary,
+    status: acceptancePolicy.status,
+    accepted: acceptancePolicy.status === 'ACCEPTED',
+    acceptancePolicy,
+    mixed,
+    settlement,
+    resultPath,
+    boundary: 'Local NEAR Sandbox 2.14 only. No public write, deployment, production upgrade, or claim about other cases.',
+  };
+  fs.writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`);
+  console.log(render(result));
+  const exitCode = acceptancePolicy.status === 'REJECTED' ? 2 : acceptancePolicy.status === 'INCONCLUSIVE' ? 5 : 0;
+  if (exitCode) process.exitCode = exitCode;
+  return {result, exitCode};
+};
+
+/* A stage that executed and reported failure is a rejection, not a crash.
+ * Later stages were never reached, so they stay unexecuted and must not turn
+ * the verdict into INCONCLUSIVE.
+ */
+const publishStageRejection = ({bundle, bundlePath, run, outDir}) => {
+  const errors = (run.rejectionErrors && run.rejectionErrors.length ? run.rejectionErrors : [`${run.rejectedStage} did not pass`]);
+  const acceptancePolicy = evaluateCandidate({
+    fresh: {ok: false, errors, status: 'REJECTED', evidenceValid: true},
+    recovery: {ok: false, errors, status: 'REJECTED', evidenceValid: true},
+    mixed: {ok: false, errors: ['mixed stage was not executed because an earlier stage was rejected'], evidenceValid: false},
+    settlement: {ok: false, errors: ['settlement stage was not executed because an earlier stage was rejected'], evidenceValid: false},
+  });
+  const summary = {
+    mode: run.mode,
+    modeLabel: run.modeLabel,
+    candidateWasmSha256: bundle.candidate.wasm.sha256,
+    checks: {accepted: false},
+    acceptanceStatus: acceptancePolicy.status,
+  };
+  return writeResult({
+    bundle,
+    bundlePath,
+    outDir,
+    run,
+    summary,
+    acceptancePolicy,
+    mixed: {mode: 'not-executed', policy: null, reviewer: null, reportPath: null, comparison: null},
+    settlement: {mode: 'not-executed', reportPath: null, reportSha256: null, checked: null, unavailable: null},
+  });
+};
+
+const writeTypedRejection = (bundlePath, bundle, outDir, run, errors) => {
+  const acceptancePolicy = {
+    status: 'REJECTED',
+    policyVersion: POLICY_VERSION,
+    errors,
+    evidenceValid: true,
+  };
+  const summary = {
+    mode: run.mode,
+    modeLabel: run.modeLabel,
+    candidateWasmSha256: bundle.candidate.wasm.sha256,
+    checks: {accepted: false},
+    acceptanceStatus: 'REJECTED',
+  };
+  const {result} = writeResult({
+    bundle,
+    bundlePath,
+    outDir,
+    run,
+    summary,
+    acceptancePolicy,
+    mixed: {mode: 'not-executed', policy: null, reviewer: null, reportPath: null, comparison: null},
+    settlement: {mode: 'not-executed', reportPath: null, reportSha256: null, checked: null, unavailable: null},
+  });
+  process.exitCode = 2;
+  return result;
+};
+
+/* Turn executed gate evidence into one typed, terminal verdict. This is the
+ * only success/rejection writer; both paths use writeResult above.
+ */
+const classifyAndPublish = ({bundle, bundlePath, run, outDir, report, summary, mixedRun, settlementRun}) => {
+  const reviewerArtifactWasmSha256 = run.mode === 'source-build' ? run.builtWasmSha256 : run.wasmSha256;
+  const mixedReportWasmSha256 = mixedRun.report?.candidate?.wasmSha256;
+  const mixedArtifactMismatch = !mixedReportWasmSha256 || mixedReportWasmSha256 !== reviewerArtifactWasmSha256
+    ? 'reviewer mixed gate did not execute the built/recorded candidate artifact'
+    : null;
+  const mixedComparison = mixedArtifactMismatch
+    ? {error: mixedArtifactMismatch}
+    : compareMixed(checkBundle(bundle).producerMixed, mixedRun.checked, mixedReportWasmSha256, reviewerArtifactWasmSha256);
+  const comparisonErrors = (mixedComparison.differences || []).length
+    ? [`producer/reviewer mixed outcomes differ: ${mixedComparison.differences.join(', ')}`]
+    : [];
+  const mixedErrors = mixedArtifactMismatch
+    ? [mixedArtifactMismatch]
+    : [...comparisonErrors, ...(mixedRun.checked.errors || [])];
+  const settlementArtifactWasmSha256 = settlementRun.report?.candidate?.wasmSha256;
+  const settlementMismatch = settlementArtifactWasmSha256 && settlementArtifactWasmSha256 !== reviewerArtifactWasmSha256
+    ? {exitCode: null, message: 'settlement gate did not execute the built/recorded candidate artifact'}
+    : null;
+  const acceptancePolicy = evaluateCandidate({
+    fresh: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted/fresh acceptance did not pass'], {evidenceValid: Boolean(summary)}),
+    recovery: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted recovery report did not pass acceptance'], {evidenceValid: Boolean(report)}),
+    mixed: stageFromChecks(!mixedArtifactMismatch && comparisonErrors.length === 0 && mixedRun.checked.ok === true, mixedErrors, {policyVersion: POLICY_VERSION, evidenceValid: !mixedArtifactMismatch && Boolean(mixedRun.checked)}),
+    settlement: settlementAcceptanceStage(settlementRun.checked, settlementRun.unavailable || settlementMismatch),
+  });
+  summary.checks.persistedAccepted = summary.checks.accepted;
+  summary.checks.accepted = acceptancePolicy.status === 'ACCEPTED';
+  summary.acceptanceStatus = acceptancePolicy.status;
+  return writeResult({
+    bundle,
+    bundlePath,
+    outDir,
+    run,
+    summary,
+    acceptancePolicy,
+    mixed: {
+      mode: 'fresh-replay',
+      policy: mixedRun.policy,
+      reviewer: mixedRun.checked,
+      reportPath: mixedRun.reportPath,
+      comparison: mixedComparison,
+    },
+    settlement: {
+      mode: 'fresh-replay',
+      reportPath: settlementRun.reportPath,
+      reportSha256: settlementRun.report ? sha256(fs.readFileSync(settlementRun.reportPath)) : null,
+      checked: settlementRun.checked,
+      unavailable: settlementRun.unavailable,
+    },
+  });
+};
+
 const main = () => {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) { console.log(help); return; }
@@ -678,70 +872,17 @@ const main = () => {
   const run = opts.mode === 'source-build'
     ? runSourceBuild(bundle, prepared, outDir, opts)
     : runRecorded(bundle, prepared, outDir, opts);
+  if (run.rejectedStage) {
+    const {exitCode} = publishStageRejection({bundle, bundlePath, run, outDir});
+    if (exitCode) process.exitCode = exitCode;
+    return;
+  }
   const report = readJson(run.reportPath, 'persisted recovery report');
   const summary = summarize(report, run);
-  if (!summary.checks.accepted) fail('persisted recovery report did not pass acceptance');
   const mixedRun = runMixedGate(run.builtWasm || run.wasmPath, outDir, plan.sandboxDir);
-  const reviewerArtifactWasmSha256 = run.mode === 'source-build' ? run.builtWasmSha256 : run.wasmSha256;
-  const mixedReportWasmSha256 = mixedRun.report?.candidate?.wasmSha256;
-  if (!mixedReportWasmSha256 || mixedReportWasmSha256 !== reviewerArtifactWasmSha256) fail('reviewer mixed gate did not execute the built/recorded candidate artifact');
-  const mixedComparison = compareMixed(checkBundle(bundle).producerMixed, mixedRun.checked, mixedReportWasmSha256, reviewerArtifactWasmSha256);
   const settlementRun = runSettlementGate(run.builtWasm || run.wasmPath, outDir, plan.sandboxDir);
-  const settlementArtifactWasmSha256 = settlementRun.report?.candidate?.wasmSha256;
-  if (settlementArtifactWasmSha256 && settlementArtifactWasmSha256 !== reviewerArtifactWasmSha256) {
-    fail('settlement gate did not execute the built/recorded candidate artifact');
-  }
-  const acceptancePolicy = evaluateCandidate({
-    fresh: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted/fresh acceptance did not pass'], {evidenceValid: Boolean(summary)}),
-    recovery: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted recovery report did not pass acceptance'], {evidenceValid: Boolean(report)}),
-    mixed: stageFromChecks(mixedRun.checked.ok === true, mixedRun.checked.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedRun.checked)}),
-    settlement: settlementAcceptanceStage(settlementRun.checked, settlementRun.unavailable),
-  });
-  if (acceptancePolicy.status === 'REJECTED') fail(`${acceptancePolicy.status}: versioned acceptance policy ${acceptancePolicy.policyVersion} failed: ${acceptancePolicy.errors.join('; ')}`);
-  summary.checks.persistedAccepted = summary.checks.accepted;
-  summary.checks.accepted = acceptancePolicy.status === 'ACCEPTED';
-  summary.acceptanceStatus = acceptancePolicy.status;
-  const resultPath = path.join(outDir, 'review-result.json');
-  const result = {
-    schema: 'near-rehearsal/repair-review-handoff/v1',
-    createdAt: new Date().toISOString(),
-    bundle: {
-      path: bundlePath,
-      sha256: sha256(fs.readFileSync(bundlePath)),
-      runId: bundle.runId,
-      caseId: bundle.caseId,
-      source: bundle.source,
-      candidate: {
-        patchSha256: bundle.candidate.patch.sha256,
-        wasmSha256: bundle.candidate.wasm.sha256,
-        sourceSha256: prepared.sourceIdentity.sha256,
-      },
-    },
-    run,
-    summary,
-    status: acceptancePolicy.status,
-    accepted: acceptancePolicy.status === 'ACCEPTED',
-    acceptancePolicy,
-    mixed: {
-      mode: 'fresh-replay',
-      policy: mixedRun.policy,
-      reviewer: mixedRun.checked,
-      reportPath: mixedRun.reportPath,
-      comparison: mixedComparison,
-    },
-    settlement: {
-      mode: 'fresh-replay',
-      reportPath: settlementRun.reportPath,
-      reportSha256: settlementRun.report ? sha256(fs.readFileSync(settlementRun.reportPath)) : null,
-      checked: settlementRun.checked,
-      unavailable: settlementRun.unavailable,
-    },
-    resultPath,
-    boundary: 'Local NEAR Sandbox 2.14 only. No public write, deployment, production upgrade, or claim about other cases.',
-  };
-  fs.writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`);
-  console.log(render(result));
-  if (acceptancePolicy.status === 'INCONCLUSIVE') process.exitCode = 5;
+  const {exitCode} = classifyAndPublish({bundle, bundlePath, run, outDir, report, summary, mixedRun, settlementRun});
+  if (exitCode) process.exitCode = exitCode;
 };
 
 if (require.main === module) {
@@ -753,4 +894,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { checkBundle, compareMixed, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment, settlementAcceptanceStage, interpretSettlementRun };
+module.exports = { checkBundle, compareMixed, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment, settlementAcceptanceStage, interpretSettlementRun, writeTypedRejection, publishStageRejection, classifyAndPublish };
