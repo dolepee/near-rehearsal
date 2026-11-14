@@ -60,6 +60,47 @@ try {
   };
   assertDead(Number(fs.readFileSync(pidFile, 'utf8')));
 
+  const linuxAdapter = adapterFor('linux');
+  if (linuxAdapter && path.basename(linuxAdapter) === 'bwrap') {
+    const namespaceDir = path.join(root, 'namespace');
+    fs.mkdirSync(namespaceDir);
+    const namespacePid = path.join(namespaceDir, 'pid');
+    const limits = boundaryLimits({wallMs: 600});
+    const makeArgs = (detachCommand) => boundaryArgv({
+      adapter: linuxAdapter,
+      command: detachCommand,
+      cwd: namespaceDir,
+      jobDir: namespaceDir,
+      readRoots: [namespaceDir, '/usr', '/bin', '/lib', '/lib64'],
+      limits,
+      env: {PATH: '/usr/bin:/bin', HOME: namespaceDir, TMPDIR: namespaceDir},
+    });
+    const normal = runSupervised({
+      ...makeArgs(`setsid /bin/sh -c 'trap "" TERM; sleep 30' & echo $! > ${JSON.stringify(namespacePid)}; sleep 0.2`),
+      cwd: namespaceDir,
+      env: {PATH: '/usr/bin:/bin'},
+      jobDir: namespaceDir,
+      limits,
+      pidNamespace: true,
+      requirePidNamespace: true,
+    });
+    assert.equal(normal.ok, true);
+    const normalPid = Number(fs.readFileSync(namespacePid, 'utf8'));
+    assertDead(normalPid);
+    fs.rmSync(namespacePid, {force: true});
+    const timed = runSupervised({
+      ...makeArgs(`setsid /bin/sh -c 'trap "" TERM; sleep 30' & echo $! > ${JSON.stringify(namespacePid)}; sleep 30`),
+      cwd: namespaceDir,
+      env: {PATH: '/usr/bin:/bin'},
+      jobDir: namespaceDir,
+      limits,
+      pidNamespace: true,
+      requirePidNamespace: true,
+    });
+    assert.equal(timed.timedOut, true);
+    assertDead(Number(fs.readFileSync(namespacePid, 'utf8')));
+  }
+
   assert.throws(() => runSupervised({
     file: process.execPath,
     args: ['-e', 'setTimeout(()=>{},1000)'],
