@@ -240,6 +240,7 @@ function verify(report, options = {}) {
       if (call.args?.funding_tx_hash !== report?.failed?.add?.transactionHash) fail('legacy seed funding hash does not match the add_proposal transaction');
     }
   }
+  receiptGraphErrors(report?.seed, 'legacy seed', fail);
   if (String(report?.seeded?.lockedAmount) !== String(report?.upgraded?.lockedAmount)) fail('legacy seed changed the locked debt');
   if (!sameJson(report?.seeded?.policy, report?.upgraded?.policy)) fail('legacy seed changed policy');
   if (!sameJson(report?.seeded?.proposal, report?.upgraded?.proposal)) fail('legacy seed changed the proposal');
@@ -255,7 +256,7 @@ function verify(report, options = {}) {
     ['post-recovery unauthorized finalize', report?.authority?.postRecoveryUnauthorizedProbe],
     ['post-retry unauthorized finalize', report?.authority?.postRetryUnauthorizedProbe],
   ]) {
-    if (!probe) continue;
+    if (!probe) { fail(`${label} is missing`); continue; }
     if (!probe.ok || probe.value?.finalExecutionStatus !== 'FINAL') fail(`${label} was not an executed FINAL transaction`);
     else if (!hasFailure(probe.value, report?.accounts?.contract, 'ERR_PERMISSION_DENIED')) fail(`${label} did not fail with the expected permission error`);
     receiptGraphErrors(probe.value, label, fail);
