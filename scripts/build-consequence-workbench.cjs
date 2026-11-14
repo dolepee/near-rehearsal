@@ -13,6 +13,8 @@ const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const {verifyMixedReport} = require('../case-triage/rehearsal-repair/mixed-policy.cjs');
 const {mixedPolicyIdentity} = require('../case-triage/rehearsal-repair/mixed-policy-identity.cjs');
+const {buildHandoffBundle} = require('../case-triage/rehearsal-repair/handoff-bundle.cjs');
+const {checkBundle} = require('../scripts/repair-review.cjs');
 const {verifyPacket} = require('../case-triage/sputnik-226/review-packet/packet-model.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -135,7 +137,39 @@ function bindReportIdentity(report, manifest, id, copiedWasm, copiedPatch) {
   }
 }
 
-function candidateData(id, label, manifest, reportPath, copiedPatch, copiedWasm, verified) {
+function buildAcceptedHandoff(manifest, reportPath, policy) {
+  const bundle = buildHandoffBundle();
+  const checked = checkBundle(bundle);
+  const intended = manifest.candidates?.intended;
+  if (!intended) throw new Error('accepted handoff manifest candidate is missing');
+  if (bundle.producer !== null) throw new Error('accepted handoff must declare no model producer');
+  if (bundle.candidate?.wasm?.sha256 !== intended.wasmSha256) throw new Error('accepted handoff WASM does not match the public candidate');
+  if (bundle.candidate?.patch?.sha256 !== intended.patchSha256) throw new Error('accepted handoff patch does not match the public candidate');
+  if (bundle.source?.commit !== manifest.source?.commit) throw new Error('accepted handoff source commit does not match the public source');
+  if (bundle.mixed?.candidateWasmSha256 !== intended.wasmSha256) throw new Error('accepted handoff mixed evidence is for a different candidate');
+  if (bundle.mixed?.reportSha256 !== shaFile(reportPath)) throw new Error('accepted handoff mixed report does not match the displayed report');
+  if (bundle.mixed?.policySha256 !== policy.sha256) throw new Error('accepted handoff mixed policy does not match the public policy');
+  if (bundle.candidate?.identity?.source?.sha256 !== intended.sourceSha256) throw new Error('accepted handoff source hash does not match the public source');
+  if (!checked?.sourceIdentity || checked.sourceIdentity.commit !== manifest.source.commit) throw new Error('accepted handoff reader rejected the source identity');
+  const text = `${JSON.stringify(bundle, null, 2)}\n`;
+  const filename = 'repair-bundle-intended.json';
+  const target = path.join(DOWNLOADS, '238', filename);
+  fs.writeFileSync(target, text);
+  const stable = new Date('2020-01-01T00:00:00.000Z');
+  fs.utimesSync(target, stable, stable);
+  return {
+    path: `downloads/238/${filename}`,
+    sha256: SHA(Buffer.from(text, 'utf8')),
+    bytes: Buffer.byteLength(text),
+    runId: bundle.runId,
+    candidateWasmSha256: bundle.candidate.wasm.sha256,
+    patchSha256: bundle.candidate.patch.sha256,
+    sourceCommit: bundle.source.commit,
+    reportSha256: bundle.mixed.reportSha256,
+  };
+}
+
+function candidateData(id, label, manifest, reportPath, copiedPatch, copiedWasm, verified, handoff = null) {
   const candidate = manifest.candidates?.[id];
   if (!candidate) throw new Error(`candidate ${id} is missing from the manifest`);
   if (!verified?.outcomes) throw new Error(`candidate ${id} has no policy outcomes`);
@@ -153,6 +187,7 @@ function candidateData(id, label, manifest, reportPath, copiedPatch, copiedWasm,
       : 'Alice is refunded, but the aggregate locked ledger drops from 2 NEAR to 0. Bob’s inherited liability disappears before his funded operation, so the repair is rejected.',
     errors: verified.errors,
     outcomes: verified.outcomes,
+    handoff,
     stages,
     cash: {
       aliceBondGross: String(-BigInt(aliceRecovery.contract ?? '0')),
@@ -236,8 +271,9 @@ function build238() {
 
   const baseline = readJson(reportFiles.old);
   const policy = mixedPolicyIdentity(ROOT);
+  const acceptedHandoff = buildAcceptedHandoff(manifest, reportFiles.intended, policy);
   const clear = candidateData('clear-all', 'Clear-all repair', manifest, reportFiles.clearAll, copies['clear-allPatch'], copies['clear-allWasm'], clearVerified);
-  const intended = candidateData('intended', 'Intended repair', manifest, reportFiles.intended, copies.intendedPatch, copies.intendedWasm, intendedVerified);
+  const intended = candidateData('intended', 'Intended repair', manifest, reportFiles.intended, copies.intendedPatch, copies.intendedWasm, intendedVerified, acceptedHandoff);
   const baselineStage = snap(baseline, 'beforeUpgrade', 'Before upgrade');
   const baselineAfter = snap(baseline, 'afterUpgrade', 'After upgrade');
 
@@ -268,6 +304,22 @@ npm run review:patch -- --patch <downloaded>/clear-all.patch --source <clean-pin
 The recorded report and the candidate/patch hashes are included here. The command
 builds the patch from source and exercises the persisted recovery and same-DAO
 policy; it does not execute a public chain transaction.
+
+## Reviewer handoff
+
+The accepted **Intended repair** has a direct [reviewer handoff JSON](repair-bundle-intended.json)
+(SHA-256 \`${acceptedHandoff.sha256}\`). It is the existing repair-review bundle,
+not a second format; its producer is \`null\` and the recorded execution remains
+the displayed evidence. Download it, then run the local reviewer. On macOS
+select **Recorded WASM replay**; on Linux use the confined **Source build**. The
+reviewer exports fresh evidence after its own run.
+
+\`\`\`sh
+npm run repair:review -- --bundle repair-bundle-intended.json --out <new-directory> --mode recorded-wasm --sandbox-dir <sandbox-2.14-directory>
+\`\`\`
+
+Use \`--mode source-build --source <clean-pinned-checkout>\` on a supported Linux
+host. The rejected Clear-all candidate intentionally has no handoff.
 
 ## Files
 
@@ -311,6 +363,7 @@ policy; it does not execute a public chain transaction.
     downloads: {
       evidence: zipDirectory('238', '238-evidence.zip'),
       directory: 'downloads/238/',
+      handoff: acceptedHandoff,
     },
   };
 }
@@ -384,6 +437,24 @@ function assertCaseFiles(data, out = OUT) {
     check(candidate.candidate.wasm.path, candidate.candidate.wasm.sha256, `${candidate.id} WASM`);
     if (candidate.candidate.patch) check(candidate.candidate.patch.path, candidate.candidate.patch.sha256, `${candidate.id} patch`);
     check(candidate.candidate.report.path, candidate.candidate.report.sha256, `${candidate.id} report`);
+    if (candidate.id === 'intended' && (!candidate.handoff || typeof candidate.handoff !== 'object')) {
+      throw new Error(`${candidate.id} accepted candidate is missing its reviewer handoff`);
+    }
+    if (candidate.handoff) {
+      if (candidate.status !== 'ACCEPTED') throw new Error(`${candidate.id} handoff is attached to a non-accepted candidate`);
+      check(candidate.handoff.path, candidate.handoff.sha256, `${candidate.id} reviewer handoff`);
+      const handoffBundle = readJson(path.resolve(out, candidate.handoff.path));
+      const handoffChecked = checkBundle(handoffBundle);
+      if (handoffBundle.producer !== null) throw new Error(`${candidate.id} reviewer handoff has a model producer`);
+      if (handoffBundle.candidate.wasm.sha256 !== candidate.candidate.wasm.sha256) throw new Error(`${candidate.id} reviewer handoff WASM does not match its bundle`);
+      if (handoffBundle.candidate.patch.sha256 !== candidate.candidate.patch.sha256) throw new Error(`${candidate.id} reviewer handoff patch does not match its bundle`);
+      if (handoffBundle.mixed.reportSha256 !== candidate.candidate.report.sha256) throw new Error(`${candidate.id} reviewer handoff report does not match its bundle`);
+      if (handoffChecked.sourceIdentity.commit !== data.cases['238'].source.commit) throw new Error(`${candidate.id} reviewer handoff source does not match its bundle`);
+      if (candidate.handoff.candidateWasmSha256 !== candidate.candidate.wasm.sha256) throw new Error(`${candidate.id} reviewer handoff WASM identity does not match`);
+      if (candidate.handoff.patchSha256 !== candidate.candidate.patch.sha256) throw new Error(`${candidate.id} reviewer handoff patch identity does not match`);
+      if (candidate.handoff.reportSha256 !== candidate.candidate.report.sha256) throw new Error(`${candidate.id} reviewer handoff report identity does not match`);
+      if (candidate.handoff.sourceCommit !== data.cases['238'].source.commit) throw new Error(`${candidate.id} reviewer handoff source identity does not match`);
+    }
   }
   check(data.cases['238'].downloads.evidence.path, data.cases['238'].downloads.evidence.sha256, '#238 evidence zip');
   check(data.cases['226'].packet.href, null, '#226 packet');

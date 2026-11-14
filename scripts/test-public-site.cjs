@@ -32,6 +32,12 @@ try {
     const bytes = fs.readFileSync(path.join(out, 'consequences', entry.path));
     assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), entry.sha256);
   }
+  const accepted = cases.cases['238'].candidates.find((candidate) => candidate.id === 'intended');
+  const rejected = cases.cases['238'].candidates.find((candidate) => candidate.id === 'clear-all');
+  assert.ok(accepted.handoff, 'accepted candidate handoff must be published');
+  assert.equal(rejected.handoff, null, 'rejected candidate must not publish a passing handoff');
+  const handoffBytes = fs.readFileSync(path.join(out, 'consequences', accepted.handoff.path));
+  assert.equal(crypto.createHash('sha256').update(handoffBytes).digest('hex'), accepted.handoff.sha256);
   const png = fs.readFileSync(path.join(out, 'assets/og.png'));
   assert.equal(png.subarray(1, 4).toString(), 'PNG');
   assert.equal(png.readUInt32BE(16), 1200);
