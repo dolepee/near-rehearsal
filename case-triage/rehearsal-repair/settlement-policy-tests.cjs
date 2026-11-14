@@ -103,6 +103,100 @@ unlinkedStart.fresh.deploy.transactionOutcome.receiptIds = [];
 assert.equal(verifySettlementReport(unlinkedStart, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'the initial transaction receiptIds must link the SuccessReceiptId');
 
+const addWrongMethod = JSON.parse(JSON.stringify(correctedReport));
+addWrongMethod.inherited.transactions.add.transaction.actions[0].FunctionCall.method_name = 'get_config';
+assert.equal(verifySettlementReport(addWrongMethod, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'add_proposal must be an add_proposal call');
+
+const addWrongReceiver = JSON.parse(JSON.stringify(correctedReport));
+addWrongReceiver.inherited.transactions.add.transaction.receiverId = 'unrelated.test.near';
+assert.equal(verifySettlementReport(addWrongReceiver, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'add_proposal must target the scenario DAO');
+
+const addWrongSigner = JSON.parse(JSON.stringify(correctedReport));
+addWrongSigner.inherited.transactions.add.transaction.signerId = 'unrelated.test.near';
+assert.equal(verifySettlementReport(addWrongSigner, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'add_proposal signer must be the recorded proposer');
+
+const addWrongBond = JSON.parse(JSON.stringify(correctedReport));
+addWrongBond.inherited.transactions.add.transaction.actions[0].FunctionCall.deposit = '0';
+assert.equal(verifySettlementReport(addWrongBond, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'add_proposal bond must match the recorded bond');
+
+const addWrongArgs = JSON.parse(JSON.stringify(correctedReport));
+{
+  const call = addWrongArgs.inherited.transactions.add.transaction.actions[0].FunctionCall;
+  const args = JSON.parse(Buffer.from(call.args, 'base64').toString('utf8'));
+  args.proposal.kind = {FunctionCall: {receiver_id: 'wrong.test.near', actions: []}};
+  call.args = Buffer.from(JSON.stringify(args)).toString('base64');
+}
+assert.equal(verifySettlementReport(addWrongArgs, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'add_proposal kind must match the recorded proposal');
+
+const addWrongReturnedId = JSON.parse(JSON.stringify(correctedReport));
+{
+  const add = addWrongReturnedId.inherited.transactions.add;
+  add.receipts.find((receipt) => receipt.id === add.transactionOutcome.status.SuccessReceiptId).status.SuccessValue = Buffer.from('1').toString('base64');
+}
+assert.equal(verifySettlementReport(addWrongReturnedId, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'add_proposal must return the scenario proposal id');
+
+const unauthorizedLabelOnly = JSON.parse(JSON.stringify(correctedReport));
+unauthorizedLabelOnly.inherited.transactions.unauthorized = {ok: false};
+assert.equal(verifySettlementReport(unauthorizedLabelOnly, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the duplicated unauthorized representation must be the full record');
+
+const unauthorizedNoAction = JSON.parse(JSON.stringify(correctedReport));
+unauthorizedNoAction.inherited.unauthorized.value.transaction.actions = [];
+assert.equal(verifySettlementReport(unauthorizedNoAction, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the recorded unauthorized callback needs its actual action');
+
+const unauthorizedWrongMethod = JSON.parse(JSON.stringify(correctedReport));
+unauthorizedWrongMethod.inherited.unauthorized.value.transaction.actions[0].FunctionCall.method_name = 'get_config';
+assert.equal(verifySettlementReport(unauthorizedWrongMethod, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the unauthorized callback must call on_refund_callback');
+
+const unauthorizedDaoCaller = JSON.parse(JSON.stringify(correctedReport));
+unauthorizedDaoCaller.inherited.unauthorized.value.transaction.signerId = correctedReport.inherited.deploy.transaction.receiverId;
+assert.equal(verifySettlementReport(unauthorizedDaoCaller, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the unauthorized callback must come from a non-DAO caller');
+
+const unauthorizedStringArgs = JSON.parse(JSON.stringify(correctedReport));
+{
+  const call = unauthorizedStringArgs.inherited.unauthorized.value.transaction.actions[0].FunctionCall;
+  call.args = Buffer.from(JSON.stringify({proposal_id: '0', attempt: 999})).toString('base64');
+}
+assert.equal(verifySettlementReport(unauthorizedStringArgs, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the unauthorized callback proposal_id must be numeric');
+
+const unauthorizedWrongAttempt = JSON.parse(JSON.stringify(correctedReport));
+{
+  const call = unauthorizedWrongAttempt.inherited.unauthorized.value.transaction.actions[0].FunctionCall;
+  call.args = Buffer.from(JSON.stringify({proposal_id: 0, attempt: 998})).toString('base64');
+}
+assert.equal(verifySettlementReport(unauthorizedWrongAttempt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the unauthorized callback attempt must be numeric 999');
+
+const duplicateLabelOnly = JSON.parse(JSON.stringify(correctedReport));
+duplicateLabelOnly.inherited.transactions.duplicate = {finalExecutionStatus: 'FINAL'};
+assert.equal(verifySettlementReport(duplicateLabelOnly, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'a duplicate retry label without its transaction must fail');
+
+const duplicateWrongMethod = JSON.parse(JSON.stringify(correctedReport));
+duplicateWrongMethod.inherited.transactions.duplicate.transaction.actions[0].FunctionCall.method_name = 'get_config';
+assert.equal(verifySettlementReport(duplicateWrongMethod, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'duplicate retry must be act_proposal Finalize');
+
+const duplicateWrongReceiver = JSON.parse(JSON.stringify(correctedReport));
+duplicateWrongReceiver.inherited.transactions.duplicate.transaction.receiverId = 'unrelated.test.near';
+assert.equal(verifySettlementReport(duplicateWrongReceiver, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'duplicate retry must target the scenario DAO');
+
+const duplicateNoReceiptLink = JSON.parse(JSON.stringify(correctedReport));
+duplicateNoReceiptLink.inherited.transactions.duplicate.transactionOutcome.receiptIds = [];
+assert.equal(verifySettlementReport(duplicateNoReceiptLink, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'duplicate retry must link its executed receipts');
+
 const genuineTrace = JSON.parse(JSON.stringify(correctedReport));
 {
   const t = genuineTrace.inherited.transactions;
@@ -407,6 +501,22 @@ console.log(JSON.stringify({
     'failed-deployment-receipt-fails',
     'approval-receipts-required',
     'genuine-ordered-trace-passes',
+    'add-method-substitution-fails',
+    'add-receiver-substitution-fails',
+    'add-signer-substitution-fails',
+    'add-bond-substitution-fails',
+    'add-kind-substitution-fails',
+    'add-returned-id-fails',
+    'unauthorized-label-only-fails',
+    'unauthorized-no-action-fails',
+    'unauthorized-wrong-method-fails',
+    'unauthorized-dao-caller-fails',
+    'unauthorized-string-id-fails',
+    'unauthorized-wrong-attempt-fails',
+    'duplicate-label-only-fails',
+    'duplicate-wrong-method-fails',
+    'duplicate-wrong-receiver-fails',
+    'duplicate-no-receipt-link-fails',
     'legacy-label-only-fails',
     'legacy-wrong-method-fails',
     'legacy-representation-mismatch-fails',

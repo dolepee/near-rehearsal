@@ -132,6 +132,72 @@ function verifyVote(scenario, signer, label, failFor) {
   return true;
 }
 
+function verifyAddProposal(scenario, dao, failFor) {
+  const add = scenario.transactions?.add;
+  if (!add) { failFor(false, 'add_proposal transaction is missing'); return; }
+  if (add.finalExecutionStatus !== 'FINAL') failFor(false, 'add_proposal was not FINAL');
+  if (add.transaction?.receiverId !== dao) failFor(false, 'add_proposal did not target the scenario DAO');
+  const proposal = scenario.transactions?.failedProposal;
+  if (!proposal) { failFor(false, 'recorded proposal is missing for add_proposal binding'); return; }
+  if (add.transaction?.signerId !== proposal.proposer) failFor(false, 'add_proposal signer is not the recorded proposer');
+  const decoded = decodeCall(add, 'add_proposal', (message) => failFor(false, message));
+  if (!decoded) return;
+  if (decoded.call.method_name !== 'add_proposal') failFor(false, 'add_proposal FunctionCall method is wrong');
+  if (decoded.call.deposit !== BOND.toString()) failFor(false, 'add_proposal bond does not match the recorded bond');
+  if (decoded.args?.proposal?.description !== proposal.description) failFor(false, 'add_proposal description does not match the recorded proposal');
+  if (JSON.stringify(decoded.args?.proposal?.kind) !== JSON.stringify(proposal.kind)) failFor(false, 'add_proposal kind does not match the recorded proposal');
+  if (!successfulReceiptChain(add, 'add_proposal', (message) => failFor(false, message))) failFor(false, 'add_proposal action did not execute successfully');
+  const firstId = add.transactionOutcome?.status?.SuccessReceiptId;
+  const first = (add.receipts || []).find((receipt) => receipt.id === firstId);
+  let returnedId = null;
+  try { returnedId = JSON.parse(Buffer.from(first?.status?.SuccessValue || '', 'base64').toString('utf8')); } catch {}
+  if (String(returnedId) !== String(scenario.proposalId)) failFor(false, 'add_proposal returned a different proposal id');
+}
+
+function verifyUnauthorized(scenario, dao, failFor) {
+  const unauthorized = scenario.unauthorized;
+  const value = unauthorized?.value;
+  if (!value) { failFor(false, 'unauthorized callback transaction is missing'); return; }
+  if (JSON.stringify(scenario.transactions?.unauthorized) !== JSON.stringify(unauthorized)) {
+    failFor(false, 'the two unauthorized callback representations are not the same full record');
+  }
+  if (unauthorized.ok !== false) failFor(false, 'unauthorized callback was not recorded as rejected');
+  if (value.finalExecutionStatus !== 'FINAL') failFor(false, 'unauthorized callback was not FINAL');
+  if (value.transaction?.receiverId !== dao) failFor(false, 'unauthorized callback did not target the DAO');
+  if (value.transaction?.signerId === dao) failFor(false, 'unauthorized callback was sent by the DAO itself');
+  const decoded = decodeCall(value, 'unauthorized callback', (message) => failFor(false, message));
+  if (!decoded) return;
+  if (decoded.call.method_name !== 'on_refund_callback') failFor(false, 'unauthorized callback method is wrong');
+  if (typeof decoded.args?.proposal_id !== 'number' || !Number.isInteger(decoded.args.proposal_id) || String(decoded.args.proposal_id) !== String(scenario.proposalId)) {
+    failFor(false, 'unauthorized callback proposal_id is not the numeric scenario proposal');
+  }
+  if (decoded.args?.attempt !== 999) failFor(false, 'unauthorized callback attempt is not numeric 999');
+  const firstId = value.transactionOutcome?.status?.SuccessReceiptId;
+  if (!Array.isArray(value.transactionOutcome?.receiptIds) || !value.transactionOutcome.receiptIds.includes(firstId)) {
+    failFor(false, 'unauthorized callback does not link its first receipt'); return;
+  }
+  const first = (value.receipts || []).find((receipt) => receipt.id === firstId);
+  if (!first) { failFor(false, 'unauthorized callback first receipt is missing'); return; }
+  if (first.executorId !== dao) failFor(false, 'unauthorized callback first receipt was not executed by the DAO');
+  if (!JSON.stringify(first.status || {}).includes('Method on_refund_callback is private')) {
+    failFor(false, 'unauthorized callback was not rejected by the private-method guard');
+  }
+}
+
+function verifyDuplicate(scenario, dao, failFor) {
+  const duplicate = scenario.transactions?.duplicate;
+  if (!duplicate) { failFor(false, 'duplicate retry transaction is missing'); return; }
+  if (duplicate.finalExecutionStatus !== 'FINAL') failFor(false, 'duplicate retry was not FINAL');
+  if (duplicate.transaction?.receiverId !== dao) failFor(false, 'duplicate retry did not target the DAO');
+  const voteSigners = [scenario.transactions?.vote?.transaction?.signerId, scenario.transactions?.vote2?.transaction?.signerId].filter(Boolean);
+  if (!voteSigners.includes(duplicate.transaction?.signerId)) failFor(false, 'duplicate retry was not signed by an approving voter');
+  const decoded = decodeCall(duplicate, 'duplicate retry', (message) => failFor(false, message));
+  if (!decoded) return;
+  if (decoded.call.method_name !== 'act_proposal' || decoded.args?.action !== 'Finalize') failFor(false, 'duplicate retry is not an act_proposal Finalize');
+  if (String(decoded.args?.id) !== String(scenario.proposalId)) failFor(false, 'duplicate retry targets a different proposal');
+  receiptChain(duplicate, 'duplicate retry', (message) => failFor(false, message), true);
+}
+
 function verifyLegacyFinalize(scenario, dao, failFor) {
   const recorded = scenario.legacy?.legacyFinalize;
   const transaction = scenario.transactions?.upgrade?.legacyFinalize;
@@ -257,6 +323,10 @@ function verifyScenario(scenario, mode, context) {
     else if (upgradeHeight !== null && legacyHeight < upgradeHeight) failFor(false, 'legacy finalize was not after the candidate upgrade');
   }
 
+  const operationDao = scenario.deploy?.transaction?.receiverId;
+  verifyAddProposal(scenario, operationDao, failFor);
+  verifyUnauthorized(scenario, operationDao, failFor);
+  verifyDuplicate(scenario, operationDao, failFor);
   const recordedProposal = scenario.transactions?.failedProposal;
   if (!recordedProposal) failFor(false, 'recorded old-code proposal is missing');
   else {
