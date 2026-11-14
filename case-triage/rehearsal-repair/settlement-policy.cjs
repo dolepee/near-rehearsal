@@ -107,15 +107,18 @@ function decodeCall(transaction, label, fail) {
 }
 
 function verifyMigrate(scenario, dao, failFor) {
+  let valid = true;
+  const check = (condition, message) => { if (!condition) { valid = false; failFor(false, message); } };
   const migrate = scenario.transactions?.upgrade?.migrate;
-  if (!migrate) { failFor(false, 'migrate transaction is missing'); return; }
-  if (migrate.finalExecutionStatus !== 'FINAL') failFor(false, 'migrate was not FINAL');
-  if (migrate.transaction?.signerId !== dao || migrate.transaction?.receiverId !== dao) failFor(false, 'migrate was not signed and received by the inherited DAO');
-  const decoded = decodeCall(migrate, 'migrate', (message) => failFor(false, message));
-  if (!decoded) return;
-  if (decoded.call.method_name !== 'migrate') failFor(false, 'migrate FunctionCall method is wrong');
-  if (Object.keys(decoded.args || {}).length !== 0) failFor(false, 'migrate args are not empty');
-  if (!successfulReceiptChain(migrate, 'migrate', (message) => failFor(false, message))) failFor(false, 'migrate receipt chain did not reach success');
+  if (!migrate) { check(false, 'migrate transaction is missing'); return false; }
+  check(migrate.finalExecutionStatus === 'FINAL', 'migrate was not FINAL');
+  check(migrate.transaction?.signerId === dao && migrate.transaction?.receiverId === dao, 'migrate was not signed and received by the inherited DAO');
+  const decoded = decodeCall(migrate, 'migrate', (message) => check(false, message));
+  if (!decoded) return false;
+  check(decoded.call.method_name === 'migrate', 'migrate FunctionCall method is wrong');
+  check(Object.keys(decoded.args || {}).length === 0, 'migrate args are not empty');
+  if (!successfulReceiptChain(migrate, 'migrate', (message) => check(false, message))) { valid = false; }
+  return valid;
 }
 
 function verifyVote(scenario, signer, label, failFor) {
@@ -223,19 +226,22 @@ function verifyDuplicate(scenario, dao, failFor) {
 }
 
 function verifyLegacyFinalize(scenario, dao, failFor) {
+  let valid = true;
+  const check = (condition, message) => { if (!condition) { valid = false; failFor(false, message); } };
   const recorded = scenario.legacy?.legacyFinalize;
   const transaction = scenario.transactions?.upgrade?.legacyFinalize;
-  if (!recorded || !transaction) { failFor(false, 'legacy finalize representations are missing'); return; }
-  if (JSON.stringify(recorded) !== JSON.stringify(transaction)) failFor(false, 'legacy finalize representations are not the same full transaction');
-  if (transaction.finalExecutionStatus !== 'FINAL') failFor(false, 'legacy finalize was not FINAL');
-  if (transaction.transaction?.receiverId !== dao) failFor(false, 'legacy finalize did not target the inherited DAO');
+  if (!recorded || !transaction) { check(false, 'legacy finalize representations are missing'); return false; }
+  check(JSON.stringify(recorded) === JSON.stringify(transaction), 'legacy finalize representations are not the same full transaction');
+  check(transaction.finalExecutionStatus === 'FINAL', 'legacy finalize was not FINAL');
+  check(transaction.transaction?.receiverId === dao, 'legacy finalize did not target the inherited DAO');
   const voteSigners = [scenario.transactions?.vote?.transaction?.signerId, scenario.transactions?.vote2?.transaction?.signerId].filter(Boolean);
-  if (!voteSigners.includes(transaction.transaction?.signerId)) failFor(false, 'legacy finalize was not signed by an approving voter');
-  const decoded = decodeCall(transaction, 'legacy finalize', (message) => failFor(false, message));
-  if (!decoded) return;
-  if (decoded.call.method_name !== 'act_proposal' || decoded.args?.action !== 'Finalize') failFor(false, 'legacy finalize is not an act_proposal Finalize');
-  if (String(decoded.args?.id) !== String(scenario.proposalId)) failFor(false, 'legacy finalize targets a different proposal');
-  if (!successfulReceiptChain(transaction, 'legacy finalize', (message) => failFor(false, message))) failFor(false, 'legacy finalize action did not execute successfully');
+  check(voteSigners.includes(transaction.transaction?.signerId), 'legacy finalize was not signed by an approving voter');
+  const decoded = decodeCall(transaction, 'legacy finalize', (message) => check(false, message));
+  if (!decoded) return false;
+  check(decoded.call.method_name === 'act_proposal' && decoded.args?.action === 'Finalize', 'legacy finalize is not an act_proposal Finalize');
+  check(String(decoded.args?.id) === String(scenario.proposalId), 'legacy finalize targets a different proposal');
+  if (!successfulReceiptChain(transaction, 'legacy finalize', (message) => check(false, message))) { valid = false; }
+  return valid;
 }
 
 function verifyRetries(scenario, dao, failFor) {
@@ -355,8 +361,8 @@ function verifyScenario(scenario, mode, context) {
     const baseCommitted = deploymentCommitment(scenario.deploy, 'inherited base', (message) => failFor(false, message), scenario.deploy?.transaction?.receiverId);
     if (baseCommitted !== baseWasmSha256) failFor(false, 'inherited scenario does not commit to the pinned base WASM');
     if (scenario.deploy?.wasmSha256 !== baseWasmSha256) failFor(false, 'inherited scenario did not deploy the pinned base WASM');
-    verifyMigrate(scenario, scenario.deploy?.transaction?.receiverId, failFor);
-    verifyLegacyFinalize(scenario, scenario.deploy?.transaction?.receiverId, failFor);
+    var migrateValid = verifyMigrate(scenario, scenario.deploy?.transaction?.receiverId, failFor);
+    var legacyFinalizeValid = verifyLegacyFinalize(scenario, scenario.deploy?.transaction?.receiverId, failFor);
     const addHeight = recordedHeight(scenario.transactions?.add?.blockHeight);
     const vote2Height = recordedHeight(scenario.transactions?.vote2?.blockHeight);
     const failedLog = scenario.transactions?.failedProposal?.last_actions_log;
@@ -390,15 +396,16 @@ function verifyScenario(scenario, mode, context) {
     if (recordedProposal.status !== 'Failed') failFor(false, 'recorded old-code proposal is not Failed');
   }
   const freshMode = mode === 'candidate-only';
-  const candidateExecutionValid = retryProof?.executionValid === true && (freshMode
+  const candidateExecutionValid = (freshMode
     ? deploymentCommitment(scenario.deploy, 'fresh candidate', (message) => failFor(false, message)) === candidateWasmSha256
     : (
       deploymentCommitment(scenario.deploy, 'inherited base', (message) => failFor(false, message), scenario.deploy?.transaction?.receiverId) === baseWasmSha256
       && deploymentCommitment(scenario.transactions?.upgrade?.deploy, 'inherited upgrade', (message) => failFor(false, message), scenario.deploy?.transaction?.receiverId) === candidateWasmSha256
-      && scenario.transactions?.upgrade?.migrate?.finalExecutionStatus === 'FINAL'
+      && migrateValid === true
     ));
-  const failedFinalizeValid = scenario.transactions?.failedProposal?.status === 'Failed'
-    && scenario.failedRefund?.proposal?.status === 'Failed';
+  const failedFinalizeValid = freshMode
+    ? (scenario.transactions?.vote2?.finalExecutionStatus === 'FINAL' && scenario.failedRefund?.proposal?.status === 'Failed')
+    : legacyFinalizeValid === true;
   const failedDebtPrereq = candidateExecutionValid && failedFinalizeValid;
   const failed = scenario.failedRefund;
   if (!failed) failFor(false, 'failed-refund snapshot missing');
@@ -425,7 +432,7 @@ function verifyScenario(scenario, mode, context) {
   const afterAmount = after ? parseAmount(after.proposer) : null;
   const beforeLocked = before ? parseAmount(before.lockedAmount) : null;
   const afterLocked = after ? parseAmount(after.lockedAmount) : null;
-  const retryPrereq = retryProof?.executionValid === true && beforeAmount !== null && afterAmount !== null && beforeLocked !== null && afterLocked !== null;
+  const retryPrereq = candidateExecutionValid && retryProof?.executionValid === true && beforeAmount !== null && afterAmount !== null && beforeLocked !== null && afterLocked !== null;
   if (!before || !after) failFor(false, 'retry snapshots missing');
   else if (beforeAmount === null || afterAmount === null) failFor(false, 'retry proposer amounts missing or malformed');
   else {

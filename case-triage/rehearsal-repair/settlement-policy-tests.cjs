@@ -671,6 +671,22 @@ wrongRetryReceiverZero.inherited.transactions.retries[0].transaction.receiverId 
 wrongRetryReceiverZero.inherited.afterRetry.proposer = wrongRetryReceiverZero.inherited.beforeRetry.proposer;
 assert.equal(verifySettlementReport(wrongRetryReceiverZero, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
 
+const missingLegacyFinalizeDebt = JSON.parse(JSON.stringify(correctedReport));
+delete missingLegacyFinalizeDebt.inherited.transactions.upgrade.legacyFinalize;
+missingLegacyFinalizeDebt.inherited.legacy.legacyFinalize = undefined;
+missingLegacyFinalizeDebt.inherited.failedRefund.lockedAmount = '0';
+assert.equal(verifySettlementReport(missingLegacyFinalizeDebt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const wrongUpgradeZeroRetry = JSON.parse(JSON.stringify(correctedReport));
+wrongUpgradeZeroRetry.inherited.transactions.upgrade.deploy.transaction.receiverId = 'other.near';
+wrongUpgradeZeroRetry.inherited.afterRetry.proposer = wrongUpgradeZeroRetry.inherited.beforeRetry.proposer;
+assert.equal(verifySettlementReport(wrongUpgradeZeroRetry, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const missingRetriesWithDebt = JSON.parse(JSON.stringify(correctedReport));
+delete missingRetriesWithDebt.inherited.transactions.retries;
+missingRetriesWithDebt.inherited.failedRefund.lockedAmount = '0';
+assert.equal(verifySettlementReport(missingRetriesWithDebt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
+
 const acceptedGood = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
 assert.equal(acceptedGood.status, 'ACCEPTED');
 assert.equal(acceptedGood.ok, true);
@@ -820,6 +836,9 @@ console.log(JSON.stringify({
     'status-missing-after-duplicate-with-debt-rejected',
     'status-wrong-upgrade-receiver-debt-inconclusive',
     'status-wrong-retry-receiver-zero-inconclusive',
+    'status-missing-legacy-finalize-debt-inconclusive',
+    'status-wrong-upgrade-zero-retry-inconclusive',
+    'status-missing-retries-with-debt-rejected',
     'status-good-accepted',
     'status-lost-debt-rejected',
     'status-missing-inherited-good-fresh-inconclusive',
