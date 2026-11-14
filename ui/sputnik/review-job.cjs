@@ -13,6 +13,7 @@ const path = require('node:path');
 const {spawn, spawnSync} = require('node:child_process');
 const {checkBundle} = require('../../scripts/repair-review.cjs');
 const {verifyToolchain} = require('../../case-triage/rehearsal-repair/repair-pipeline.cjs');
+const {CODE, adapterFor} = require('../../case-triage/rehearsal-repair/compiler-boundary.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const REVIEW = path.join(ROOT, 'scripts/repair-review.cjs');
@@ -83,6 +84,14 @@ function sourceState(env, expected = SOURCE_COMMIT) {
   return {configured: clean, missing: clean ? [] : ['REPAIR_SOURCE_DIR'], head, clean};
 }
 
+function compilerBoundaryState() {
+  const adapter = adapterFor();
+  return adapter ? {configured: true, adapter} : {
+    configured: false, adapter: null, code: CODE,
+    reason: `No enforced compiler launcher is available on ${process.platform}; source-build mode is blocked.`,
+  };
+}
+
 function toolchainState() {
   try {
     const manifest = JSON.parse(fs.readFileSync(BUILD_MANIFEST, 'utf8'));
@@ -97,7 +106,7 @@ function toolchainState() {
   }
 }
 
-function modeStatus(mode, bundle, env, rust = toolchainState()) {
+function modeStatus(mode, bundle, env, rust = toolchainState(), boundary = compilerBoundaryState()) {
   if (!MODE_LABELS[mode]) return {mode, configured: false, missing: ['unknown mode'], label: mode, detail: ''};
   const sandboxDir = resolveSandboxDir(env);
   const missing = [];
@@ -113,22 +122,25 @@ function modeStatus(mode, bundle, env, rust = toolchainState()) {
     label: MODE_LABELS[mode].label,
     detail: MODE_LABELS[mode].detail,
     configured: missing.length === 0,
-    missing: [...new Set(missing)],
+    missing: boundary.configured ? [...new Set(missing)] : [...new Set([...missing, 'compiler boundary'])],
     source: source ? {configured: source.configured, head: source.head, clean: source.clean} : null,
     rust: mode === 'source-build' ? {configured: rust.configured, target: rust.target || null} : null,
+    boundary: mode === 'source-build' ? boundary : null,
   };
 }
 
 function resolveReviewConfig(env = process.env, bundle = null) {
   const rust = toolchainState();
+  const boundary = compilerBoundaryState();
   const modes = {
-    'recorded-wasm': modeStatus('recorded-wasm', bundle, env, rust),
-    'source-build': modeStatus('source-build', bundle, env, rust),
+    'recorded-wasm': modeStatus('recorded-wasm', bundle, env, rust, boundary),
+    'source-build': modeStatus('source-build', bundle, env, rust, boundary),
   };
   const defaultMode = modes['source-build'].configured ? 'source-build' : 'recorded-wasm';
   return {
     configured: modes[defaultMode].configured,
     defaultMode,
+    boundary,
     modes,
     missing: modes[defaultMode].missing,
   };

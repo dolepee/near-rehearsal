@@ -1,0 +1,297 @@
+'use strict';
+/*
+ * Controller-owned compiler boundary.
+ *
+ * A build is only run through an OS-level launcher that has passed a live
+ * filesystem/environment/network probe. There is deliberately no host shell
+ * fallback: an unavailable adapter is a typed BUILD_BOUNDARY_UNAVAILABLE.
+ *
+ * Enforcement is supplied by bubblewrap on Linux or sandbox-exec on macOS.
+ * The adapter is selected by capability and platform, not by assuming that all
+ * Linux hosts are alike. A capable Linux CI host can use bwrap; the current
+ * development container cannot create namespaces and therefore blocks here.
+ */
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const {spawn, spawnSync} = require('node:child_process');
+const crypto = require('node:crypto');
+
+const CODE = 'BUILD_BOUNDARY_UNAVAILABLE';
+const DEFAULT_LIMITS = Object.freeze({
+  wallMs: 10 * 60 * 1000,
+  cpuSeconds: 300,
+  fileBlocks: 262144,
+  openFiles: 1024,
+  outputBytes: 8 * 1024 * 1024,
+});
+
+class BoundaryUnavailableError extends Error {
+  constructor(reason, details = {}) {
+    super(`${CODE}: ${reason}`);
+    this.name = 'BoundaryUnavailableError';
+    this.code = CODE;
+    this.details = {code: CODE, reason, ...details};
+  }
+}
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+function uniqueExisting(paths) {
+  return [...new Set(paths.filter(Boolean).map((value) => path.resolve(value)))]
+    .filter((value) => fs.existsSync(value));
+}
+
+function which(command) {
+  for (const dir of (process.env.PATH || '/usr/bin:/bin').split(path.delimiter)) {
+    const candidate = path.join(dir, command);
+    try { fs.accessSync(candidate, fs.constants.X_OK); return candidate; } catch {}
+  }
+  return null;
+}
+
+function adapterFor(platform = process.platform, requested = process.env.COMPILER_BOUNDARY_ADAPTER || 'auto') {
+  if (requested !== 'auto') {
+    if (requested === 'bwrap' && platform === 'linux') return which('bwrap');
+    if (requested === 'sandbox-exec' && platform === 'darwin') return which('sandbox-exec');
+    return null;
+  }
+  if (platform === 'linux') return which('bwrap');
+  if (platform === 'darwin') return which('sandbox-exec');
+  return null;
+}
+
+function boundaryLimits(overrides = {}) {
+  const limits = {...DEFAULT_LIMITS, ...overrides};
+  for (const [name, value] of Object.entries(limits)) {
+    if (!Number.isSafeInteger(value) || value <= 0) throw new TypeError(`invalid compiler boundary limit ${name}`);
+  }
+  return limits;
+}
+
+function assertNoSymlinkEscape(root, candidate, label) {
+  const realRoot = fs.realpathSync(root);
+  const realCandidate = fs.realpathSync(candidate);
+  const relative = path.relative(realRoot, realCandidate);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new BoundaryUnavailableError(`${label} escapes the disposable job tree`);
+  }
+}
+
+function shellCommand(command, limits) {
+  return [
+    `ulimit -t ${Math.ceil(limits.cpuSeconds)} || exit 97`,
+    `ulimit -f ${Math.ceil(limits.fileBlocks)} || exit 97`,
+    `ulimit -n ${Math.ceil(limits.openFiles)} || exit 97`,
+    `exec ${command}`,
+  ].join('\n');
+}
+
+function escapeProfile(value) {
+  return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function sandboxProfile(jobDir, readRoots, limits) {
+  const reads = readRoots.map((root) => `  (subpath "${escapeProfile(root)}")`).join('\n');
+  return [
+    '(version 1)',
+    '(deny default)',
+    '(allow process*)',
+    '(allow sysctl-read)',
+    '(allow file-read*',
+    reads,
+    '  (literal "/dev/null")',
+    '  (literal "/dev/urandom")',
+    '  (literal "/dev/random"))',
+    '(allow file-write*',
+    `  (subpath "${escapeProfile(jobDir)}")`,
+    '  (literal "/dev/null"))',
+    '(allow file-read-metadata (subpath "/"))',
+    '(deny network*)',
+  ].join('\n');
+}
+
+function boundaryArgv({adapter, command, cwd, jobDir, readRoots, limits}) {
+  if (adapter.endsWith('/bwrap') || path.basename(adapter) === 'bwrap') {
+    const args = [
+      '--unshare-all', '--die-with-parent', '--new-session',
+      '--proc', '/proc', '--dev', '/dev',
+      '--chdir', cwd,
+    ];
+    for (const root of readRoots.filter((value) => value !== jobDir)) args.push('--ro-bind', root, root);
+    args.push('--bind', jobDir, jobDir, '--', '/bin/sh', '-c', shellCommand(command, limits));
+    return {file: adapter, args};
+  }
+  if (adapter.endsWith('/sandbox-exec') || path.basename(adapter) === 'sandbox-exec') {
+    const profile = sandboxProfile(jobDir, readRoots, limits);
+    return {file: adapter, args: ['-p', profile, '/bin/sh', '-c', shellCommand(command, limits)]};
+  }
+  throw new BoundaryUnavailableError('no supported compiler launcher is available', {adapter});
+}
+
+function minimalEnv({cwd, jobDir, toolchainEnv = {}}) {
+  const home = path.join(jobDir, 'home');
+  const tmp = path.join(jobDir, 'tmp');
+  fs.mkdirSync(home, {recursive: true});
+  fs.mkdirSync(tmp, {recursive: true});
+  const env = {
+    PATH: [path.dirname(toolchainEnv.CARGO || 'cargo'), '/usr/bin', '/bin', '/usr/local/bin'].filter(Boolean).join(path.delimiter),
+    HOME: home,
+    TMPDIR: tmp,
+    CARGO_HOME: toolchainEnv.CARGO_HOME || path.join(jobDir, 'cargo-home'),
+    RUSTUP_HOME: toolchainEnv.RUSTUP_HOME || path.join(jobDir, 'rustup-home'),
+    CARGO_NET_OFFLINE: 'true',
+    RUSTUP_TOOLCHAIN: toolchainEnv.RUSTUP_TOOLCHAIN || '',
+    CARGO: toolchainEnv.CARGO || 'cargo',
+    RUSTC: toolchainEnv.RUSTC || 'rustc',
+  };
+  for (const key of ['DEVELOPER_DIR', 'SDKROOT', 'CC', 'CXX', 'LD']) {
+    if (toolchainEnv[key] && !String(toolchainEnv[key]).startsWith(os.homedir())) env[key] = toolchainEnv[key];
+  }
+  return env;
+}
+
+function readRoots({cwd, jobDir, toolchainEnv = {}}) {
+  return uniqueExisting([
+    cwd,
+    jobDir,
+    '/usr', '/bin', '/sbin', '/lib', '/lib64',
+    '/System', '/Library/Developer/CommandLineTools',
+    toolchainEnv.CARGO_HOME,
+    toolchainEnv.RUSTUP_HOME,
+    toolchainEnv.CARGO && path.dirname(toolchainEnv.CARGO),
+    toolchainEnv.RUSTC && path.dirname(toolchainEnv.RUSTC),
+    toolchainEnv.DEVELOPER_DIR,
+    toolchainEnv.SDKROOT,
+    path.dirname(process.execPath),
+  ]);
+}
+
+const SUPERVISOR = `'use strict';
+const fs = require('node:fs');
+const {spawn} = require('node:child_process');
+const spec = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+let stdout = '', stderr = '', bytes = 0, timedOut = false, outputLimit = false, closed = false;
+const child = spawn(spec.file, spec.args, {cwd: spec.cwd, env: spec.env, detached: true, stdio: ['ignore', 'pipe', 'pipe']});
+function finish(result) {
+  if (closed) return;
+  closed = true;
+  try { fs.writeFileSync(spec.result, JSON.stringify(result)); } catch {}
+  process.stdout.write(JSON.stringify(result));
+}
+function killGroup(signal) {
+  try { process.kill(-child.pid, signal); } catch {}
+}
+function stop() {
+  killGroup('SIGTERM');
+  setTimeout(() => killGroup('SIGKILL'), 1500).unref();
+}
+child.stdout.on('data', (chunk) => {
+  if (bytes + chunk.length > spec.outputBytes) { outputLimit = true; stop(); return; }
+  bytes += chunk.length; stdout += chunk;
+});
+child.stderr.on('data', (chunk) => {
+  if (bytes + chunk.length > spec.outputBytes) { outputLimit = true; stop(); return; }
+  bytes += chunk.length; stderr += chunk;
+});
+child.on('error', (error) => finish({ok: false, error: error.message, timedOut, outputLimit}));
+child.on('close', (status, signal) => {
+  clearTimeout(timer);
+  killGroup('SIGTERM');
+  finish({ok: !timedOut && !outputLimit && status === 0, status, signal, timedOut, outputLimit, stdout, stderr});
+});
+const timer = setTimeout(() => { timedOut = true; stop(); }, spec.timeoutMs);
+`;
+function runSupervised({file, args, cwd, env, jobDir, limits}) {
+  const supervisor = path.join(jobDir, '.compiler-boundary-supervisor.cjs');
+  const specPath = path.join(jobDir, '.compiler-boundary-spec.json');
+  const resultPath = path.join(jobDir, '.compiler-boundary-result.json');
+  fs.writeFileSync(supervisor, SUPERVISOR);
+  fs.writeFileSync(specPath, JSON.stringify({file, args, cwd, env, timeoutMs: limits.wallMs, outputBytes: limits.outputBytes, result: resultPath}));
+  const outer = spawnSync(process.execPath, [supervisor, specPath], {
+    cwd: jobDir,
+    env: process.env,
+    encoding: 'utf8',
+    timeout: limits.wallMs + 5000,
+    maxBuffer: limits.outputBytes + 1024 * 1024,
+  });
+  let result = null;
+  try { result = JSON.parse(fs.readFileSync(resultPath, 'utf8')); } catch {
+    result = {ok: false, error: (outer.stderr || outer.stdout || 'compiler boundary supervisor produced no result').trim(), timedOut: outer.error?.code === 'ETIMEDOUT'};
+  }
+  return {...result, supervisorStatus: outer.status, supervisorSignal: outer.signal};
+}
+
+function probeBoundary({cwd, jobDir, toolchainEnv = {}, platform = process.platform, adapter = adapterFor(platform), limits = boundaryLimits()}) {
+  if (!adapter) {
+    return {ok: false, code: CODE, reason: `no enforced compiler launcher available on ${platform}`, platform, adapter: null, limits};
+  }
+  try {
+    fs.mkdirSync(jobDir, {recursive: true});
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'compiler-boundary-outside-'));
+    const outsideFile = path.join(outsideDir, 'outside.txt');
+    const insideFile = path.join(jobDir, 'inside.txt');
+    fs.writeFileSync(outsideFile, 'outside-canary');
+    const probeScript = path.join(jobDir, 'probe.cjs');
+    const resultFile = path.join(jobDir, 'probe-result.json');
+    const port = 30000 + (process.pid % 20000);
+    fs.writeFileSync(probeScript, `'use strict';
+const fs=require('node:fs'), net=require('node:net');
+const [outside, inside, out, port] = process.argv.slice(2);
+const result={outsideRead:false,outsideWrite:false,insideWrite:false,envLeak:Boolean(process.env.BOUNDARY_CANARY),network:null};
+try{fs.readFileSync(outside);result.outsideRead=true}catch{}
+try{fs.writeFileSync(outside,'escaped');result.outsideWrite=true}catch{}
+try{fs.writeFileSync(inside,'ok');result.insideWrite=true}catch{}
+const socket=net.connect(Number(port),'127.0.0.1');
+socket.setTimeout(1500);
+socket.on('connect',()=>{result.network='connected';socket.destroy()});
+socket.on('timeout',()=>{result.network='timeout';socket.destroy()});
+socket.on('error',(error)=>{result.network=error.code||'error'});
+socket.on('close',()=>{fs.writeFileSync(out,JSON.stringify(result))});
+`);
+    const listener = spawn(process.execPath, ['-e', `const net=require('node:net');const s=net.createServer(c=>c.end());s.listen(${port},'127.0.0.1');setTimeout(()=>process.exit(0),5000);`], {stdio: 'ignore', detached: true});
+    const wait = new Int32Array(new SharedArrayBuffer(4));
+    Atomics.wait(wait, 0, 0, 250);
+    const outsidePositive = spawnSync(process.execPath, ['-e', `const net=require('node:net');const s=net.connect(${port},'127.0.0.1',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),1000);`], {timeout: 3000});
+    const readRootsList = uniqueExisting([cwd, jobDir, ...readRoots({cwd, jobDir, toolchainEnv})]);
+    const argv = boundaryArgv({adapter, command: `${JSON.stringify(process.execPath)} ${JSON.stringify(probeScript)} ${JSON.stringify(outsideFile)} ${JSON.stringify(insideFile)} ${JSON.stringify(resultFile)} ${port}`, cwd, jobDir, readRoots: readRootsList, limits});
+    const env = {...minimalEnv({cwd, jobDir, toolchainEnv}), BOUNDARY_CANARY: 'must-not-leak'};
+    const run = runSupervised({...argv, cwd, env, jobDir, limits: {...limits, wallMs: Math.min(limits.wallMs, 15000)}});
+    listener.kill('SIGKILL');
+    let result = null;
+    try { result = JSON.parse(fs.readFileSync(resultFile, 'utf8')); } catch {}
+    const outsideControl = outsidePositive.status === 0;
+    const checks = {
+      outsideControl,
+      outsideReadDenied: result?.outsideRead === false,
+      outsideWriteDenied: result?.outsideWrite === false,
+      insideWriteAllowed: result?.insideWrite === true,
+      environmentCanaryAbsent: result?.envLeak === false,
+      networkDenied: result && result.network !== 'connected',
+    };
+    const ok = outsideControl && Object.values(checks).every(Boolean) && run.ok;
+    return {ok, code: ok ? null : CODE, reason: ok ? null : 'compiler boundary probe failed', platform, adapter, limits, checks, run, result};
+  } catch (error) {
+    return {ok: false, code: CODE, reason: error.message, platform, adapter, limits};
+  }
+}
+
+function prepareBuild({appliedDir, outDir, toolchainEnv, command, platform = process.platform}) {
+  const jobDir = path.join(outDir, 'boundary');
+  fs.mkdirSync(jobDir, {recursive: true});
+  assertNoSymlinkEscape(outDir, appliedDir, 'applied source');
+  const adapter = adapterFor(platform);
+  if (!adapter) throw new BoundaryUnavailableError(`no enforced compiler launcher available on ${platform}`, {platform});
+  const limits = boundaryLimits();
+  const cwd = appliedDir;
+  const readRootsList = uniqueExisting([cwd, jobDir, ...readRoots({cwd, jobDir, toolchainEnv})]);
+  const env = minimalEnv({cwd, jobDir, toolchainEnv});
+  return {jobDir, adapter, limits, cwd, readRoots: readRootsList, env, argv: boundaryArgv({adapter, command, cwd, jobDir, readRoots: readRootsList, limits})};
+}
+
+module.exports = {
+  CODE, BoundaryUnavailableError, DEFAULT_LIMITS, adapterFor, boundaryLimits, probeBoundary,
+  prepareBuild, runSupervised, assertNoSymlinkEscape, minimalEnv, readRoots, boundaryArgv, sha256,
+};
