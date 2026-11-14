@@ -706,9 +706,27 @@ assert.equal(verifySettlementReport(twoBondPayment, {candidateWasmSha256: correc
 
 const unequalOverpay = JSON.parse(JSON.stringify(correctedReport));
 unequalOverpay.unequal.after.proposer = (BigInt(unequalOverpay.unequal.after.proposer) + 10n ** 24n).toString();
+unequalOverpay.unequal.aliceDelta = (BigInt(unequalOverpay.unequal.aliceDelta) + 10n ** 24n).toString();
 const unequalOverpayResult = verifySettlementReport(unequalOverpay, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
 assert.equal(unequalOverpayResult.status, 'REJECTED', 'a complete unequal over-refund is a verified rejection');
 assert.ok(unequalOverpayResult.reasons.verified.some((error) => /unequal Alice refund|unequal reported Alice/.test(error)));
+
+const missingUnequalAfterProposer = JSON.parse(JSON.stringify(correctedReport));
+delete missingUnequalAfterProposer.unequal.after.proposer;
+assert.equal(verifySettlementReport(missingUnequalAfterProposer, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'a missing unequal after-proposer balance is incomplete, not a rejection');
+
+const missingBothBobProposers = JSON.parse(JSON.stringify(correctedReport));
+delete missingBothBobProposers.unequal.bobBefore.proposer;
+delete missingBothBobProposers.unequal.bobAfter.proposer;
+assert.equal(verifySettlementReport(missingBothBobProposers, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'missing Bob raw balances must not become acceptance');
+
+const invalidBobLocked = JSON.parse(JSON.stringify(correctedReport));
+invalidBobLocked.unequal.bobAfter.lockedAmount = 'not-an-amount';
+assert.equal(verifySettlementReport(invalidBobLocked, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'an invalid Bob locked amount is incomplete');
+
+const inconsistentAliceDelta = JSON.parse(JSON.stringify(correctedReport));
+inconsistentAliceDelta.unequal.aliceDelta = (BigInt(inconsistentAliceDelta.unequal.aliceDelta) + 10n ** 24n).toString();
+assert.equal(verifySettlementReport(inconsistentAliceDelta, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'a derived delta that disagrees with raw snapshots is incomplete');
 
 const malformedUnequalFunding = JSON.parse(JSON.stringify(correctedReport));
 delete malformedUnequalFunding.unequal.transactions.addAlice;

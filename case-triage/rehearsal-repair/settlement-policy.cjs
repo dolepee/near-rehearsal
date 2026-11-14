@@ -666,9 +666,8 @@ function verifyUnequalOutcomes(unequal, fail, expectedCandidateSha256 = null) {
   const addBob = unequal.transactions?.addBob;
   const unequalDao = unequal.dao || addAlice?.transaction?.receiverId;
   let bindingValid = true;
-  const requireBinding = (condition, message) => {
-    if (!condition) { incomplete(message); bindingValid = false; }
-  };
+  const bindingFail = (message) => { bindingValid = false; incomplete(message); };
+  const requireBinding = (condition, message) => { if (!condition) bindingFail(message); };
   requireBinding(Boolean(unequalDao), 'unequal DAO identity is missing');
   if (!addAlice || !addBob) {
     incomplete('unequal funding evidence is missing');
@@ -682,7 +681,7 @@ function verifyUnequalOutcomes(unequal, fail, expectedCandidateSha256 = null) {
     requireBinding(beforeSnap?.proposal?.proposer === funding?.transaction?.signerId && afterSnap?.proposal?.proposer === funding?.transaction?.signerId, `unequal ${name} snapshot proposer does not match its funding signer`);
     requireBinding(funding?.transaction?.receiverId === unequalDao, `unequal ${name} funding receiver is not the DAO`);
     requireBinding(funding?.finalExecutionStatus === 'FINAL' && Boolean(funding?.transactionHash), `unequal ${name} funding is not FINAL and identified`);
-    requireBinding(successfulReceiptChain(funding, `unequal ${name} funding`, incomplete), `unequal ${name} funding lacks a linked successful receipt chain`);
+    requireBinding(successfulReceiptChain(funding, `unequal ${name} funding`, bindingFail), `unequal ${name} funding lacks a linked successful receipt chain`);
   }
   const aliceDeposit = (addAlice.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall?.deposit;
   const bobDeposit = (addBob.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall?.deposit;
@@ -691,30 +690,30 @@ function verifyUnequalOutcomes(unequal, fail, expectedCandidateSha256 = null) {
   requireBinding(unequal.baseWasmSha256 === DEFAULT_BASE_WASM_SHA256, 'unequal evidence is not bound to the pinned base artifact');
 
   const baseDeploy = unequal.transactions?.baseDeploy;
-  const baseCommitment = deploymentCommitment(baseDeploy, 'unequal base deploy', incomplete, unequalDao);
+  const baseCommitment = deploymentCommitment(baseDeploy, 'unequal base deploy', bindingFail, unequalDao);
   requireBinding(baseCommitment === unequal.baseWasmSha256, 'unequal base deploy does not bind the pinned base artifact');
   const upgradeDeploy = unequal.transactions?.upgradeDeploy;
   const upgradeMigrate = unequal.transactions?.upgradeMigrate;
-  const upgradeCommitment = deploymentCommitment(upgradeDeploy, 'unequal candidate upgrade', incomplete, unequalDao);
+  const upgradeCommitment = deploymentCommitment(upgradeDeploy, 'unequal candidate upgrade', bindingFail, unequalDao);
   requireBinding(upgradeCommitment === unequal.candidateWasmSha256, 'unequal candidate upgrade does not bind the candidate artifact');
-  requireBinding(upgradeMigrate?.finalExecutionStatus === 'FINAL' && successfulReceiptChain(upgradeMigrate, 'unequal migrate', incomplete), 'unequal migrate was not a successful FINAL transaction');
+  requireBinding(upgradeMigrate?.finalExecutionStatus === 'FINAL' && successfulReceiptChain(upgradeMigrate, 'unequal migrate', bindingFail), 'unequal migrate was not a successful FINAL transaction');
   requireBinding(upgradeMigrate?.transaction?.signerId === unequalDao && upgradeMigrate?.transaction?.receiverId === unequalDao, 'unequal migrate is not a DAO-private call');
-  const migrateCall = soleCall(upgradeMigrate, 'unequal migrate', incomplete);
+  const migrateCall = soleCall(upgradeMigrate, 'unequal migrate', bindingFail);
   requireBinding(migrateCall?.call?.method_name === 'migrate', 'unequal migrate called the wrong method');
   const recovery = unequal.transactions?.recovery;
   requireBinding(recovery?.finalExecutionStatus === 'FINAL', 'unequal Alice recovery was not FINAL');
   requireBinding(recovery?.transaction?.receiverId === unequalDao, 'unequal Alice recovery receiver is not the DAO');
-  const recoveryCall = soleCall(recovery, 'unequal Alice recovery', incomplete);
+  const recoveryCall = soleCall(recovery, 'unequal Alice recovery', bindingFail);
   requireBinding(recoveryCall?.call?.method_name === 'act_proposal' && String(recoveryCall?.args?.id) === String(unequal.ids?.alice) && recoveryCall?.args?.action === 'Finalize', 'unequal Alice recovery does not target the recorded obligation');
-  requireBinding(reachableFailure(recovery, 'missing-target.test.near', 'missing-target', 'unequal Alice recovery', incomplete), 'unequal Alice recovery lacks the expected reachable failure');
+  requireBinding(reachableFailure(recovery, 'missing-target.test.near', 'missing-target', 'unequal Alice recovery', bindingFail), 'unequal Alice recovery lacks the expected reachable failure');
 
   for (const [name, tx, seed, proposalId, proposer, expected] of [
     ['Alice', addAlice, unequal.transactions?.seedAlice, unequal.ids?.alice, addAlice.transaction?.signerId, '1000000000000000000000000'],
     ['Bob', addBob, unequal.transactions?.seedBob, unequal.ids?.bob, addBob.transaction?.signerId, '2000000000000000000000000'],
   ]) {
-    requireBinding(seed?.finalExecutionStatus === 'FINAL' && successfulReceiptChain(seed, `unequal ${name} seed`, incomplete), `unequal ${name} seed lacks a successful FINAL receipt chain`);
+    requireBinding(seed?.finalExecutionStatus === 'FINAL' && successfulReceiptChain(seed, `unequal ${name} seed`, bindingFail), `unequal ${name} seed lacks a successful FINAL receipt chain`);
     requireBinding(seed?.transaction?.signerId === unequalDao && seed?.transaction?.receiverId === unequalDao, `unequal ${name} seed is not a DAO-private call`);
-    const decoded = soleCall(seed, `unequal ${name} seed`, incomplete);
+    const decoded = soleCall(seed, `unequal ${name} seed`, bindingFail);
     requireBinding(decoded?.call?.method_name === 'seed_legacy_proposal_bond', `unequal ${name} seed called the wrong method`);
     if (decoded) {
       requireBinding(String(decoded.args?.proposal_id) === String(proposalId), `unequal ${name} seed targets the wrong proposal`);
@@ -724,15 +723,29 @@ function verifyUnequalOutcomes(unequal, fail, expectedCandidateSha256 = null) {
     }
   }
 
-  const delta = amount(after.proposer) !== null && amount(before.proposer) !== null ? amount(after.proposer) - amount(before.proposer) : null;
+  const raw = (value, label) => {
+    const parsed = amount(value);
+    if (parsed === null) bindingFail(`unequal ${label} is missing or invalid`);
+    return parsed;
+  };
+  const beforeProposer = raw(before.proposer, 'Alice before proposer balance');
+  const afterProposer = raw(after.proposer, 'Alice after proposer balance');
+  const bobBeforeProposer = raw(bobBefore.proposer, 'Bob before proposer balance');
+  const bobAfterProposer = raw(bobAfter.proposer, 'Bob after proposer balance');
+  const bobAfterLocked = raw(bobAfter.lockedAmount, 'Bob after locked amount');
+  const bobBeforeLocked = raw(bobBefore.lockedAmount, 'Bob before locked amount');
+  if (!bobBefore.proposal || !bobAfter.proposal) bindingFail('unequal Bob proposal snapshot is incomplete');
+  const delta = beforeProposer !== null && afterProposer !== null ? afterProposer - beforeProposer : null;
+  const reportedAliceDelta = amount(unequal.aliceDelta);
+  if (delta === null || reportedAliceDelta === null || reportedAliceDelta !== delta) bindingFail('unequal reported Alice delta is missing or inconsistent with raw balances');
+  const reportedBobLocked = amount(unequal.bobLocked);
+  if (bobAfterLocked === null || reportedBobLocked === null || reportedBobLocked !== bobAfterLocked) bindingFail('unequal reported Bob debt is missing or inconsistent with the raw balance');
   const classify = bindingValid ? principal : incomplete;
-  if (delta !== 10n ** 24n) classify('unequal Alice refund is not exactly one original bond');
-  if (String(unequal.aliceDelta) !== (delta === null ? '' : delta.toString())) classify('unequal reported Alice delta does not match the raw snapshots');
-  if (amount(bobBefore.proposer) !== amount(bobAfter.proposer)) classify('unequal Bob principal changed');
-  if (JSON.stringify(bobBefore.proposal) !== JSON.stringify(bobAfter.proposal)) classify('unequal Bob proposal changed');
-  if (amount(bobAfter.lockedAmount) !== 2n * 10n ** 24n) classify('unequal Bob debt is not preserved at two bonds');
-  if (String(unequal.bobLocked) !== String(bobAfter.lockedAmount)) classify('unequal reported Bob debt does not match the raw snapshot');
-  if (amount(unequal.policyBefore?.proposal_bond) !== 10n ** 24n || amount(unequal.policyAfter?.proposal_bond) !== 2n * 10n ** 24n) incomplete('unequal policy change is not the measured one-to-two transition');
+  if (delta !== null && delta !== 10n ** 24n) classify('unequal Alice refund is not exactly one original bond');
+  if (bobBeforeProposer !== null && bobAfterProposer !== null && bobBeforeProposer !== bobAfterProposer) classify('unequal Bob principal changed');
+  if (bobBefore.proposal && bobAfter.proposal && JSON.stringify(bobBefore.proposal) !== JSON.stringify(bobAfter.proposal)) classify('unequal Bob proposal changed');
+  if (bobBeforeLocked !== null && bobAfterLocked !== null && bobAfterLocked !== 2n * 10n ** 24n) classify('unequal Bob debt is not preserved at two bonds');
+  if (amount(unequal.policyBefore?.proposal_bond) !== 10n ** 24n || amount(unequal.policyAfter?.proposal_bond) !== 2n * 10n ** 24n) bindingFail('unequal policy change is not the measured one-to-two transition');
 }
 
 function verifySettlementReport(report, opts = {}) {
