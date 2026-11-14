@@ -222,7 +222,7 @@
     const preserved = checks.preservedState === true && checks.preservedPolicy === true && checks.preservedProposal === true;
     const healthy = checks.healthyControl === true && checks.pendingHealthy === true;
     $('result-copy').textContent = accepted
-      ? 'The accepted result is measured on this run. The original proposal remains Failed while its bond debt is recovered; this is not a re-execution of the failed payment. Gas is reported separately from returned principal.'
+      ? 'The accepted result is measured on this run. Finalize retries the original action, which fails again in this case. The bond is returned once; these checks do not establish that other business effects happen only once. Gas is reported separately from returned principal.'
       : 'The candidate did not pass acceptance. Inspect the checks and the review output before trying another bundle.';
     $('money-grid').innerHTML = [
       card('Frozen bond', frozenBond, 'Locked against the failed proposal. The proposal remains Failed; the debt is recovered, not the failed payment.', 'good'),

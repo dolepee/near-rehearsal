@@ -328,12 +328,12 @@
     });
     case238.hidden = !is238;
     case226.hidden = is238;
+    history.replaceState(null, '', caseId === '226' ? '#case-226' : '#case-238');
   }
 
   tabs.forEach((tab) => {
     tab.addEventListener('click', () => {
       selectTab(tab.dataset.case);
-      history.replaceState(null, '', tab.dataset.case === '226' ? '#case-226' : '#case-238');
     });
     tab.addEventListener('keydown', (event) => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -344,6 +344,11 @@
           : event.key === 'Home' ? 0 : tabs.length - 1;
       selectTab(tabs[next].dataset.case, true);
     });
+  });
+
+  window.addEventListener('hashchange', () => {
+    if (location.hash === '#case-226') selectTab('226');
+    else if (location.hash === '#case-238') selectTab('238');
   });
 
   fetch('cases.json', {cache: 'no-store'})
