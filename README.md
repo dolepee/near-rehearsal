@@ -26,9 +26,9 @@ This is the shortest path for someone who has an accepted repair bundle, or who 
 
 - Node **24** (the reference version in `.nvmrc`) or Node **26**.
 - `npm run setup` in this repository.
-- A NEAR Sandbox **2.14.0** binary directory. The supported archives are **Linux x86_64** and **native macOS arm64**. The directory contains `near-sandbox`; pass the directory, not the executable.
+- A NEAR Sandbox **2.14.0** binary directory. The supported archives are **Linux x86_64** and **native macOS arm64**. The directory contains `near-sandbox`; pass the directory, not the executable. Source builds require Linux x86_64; macOS arm64 is supported only for recorded-WASM replay.
 - **Recorded WASM replay:** no Rust build and no pinned source checkout.
-- **Source build:** additionally a clean checkout of `near-daos/sputnik-dao-contract` at `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`, Rust **1.86.0**, and the `wasm32-unknown-unknown` target.
+- **Source build:** Linux x86_64 only. Additionally a clean checkout of `near-daos/sputnik-dao-contract` at `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`, Rust **1.86.0**, the `wasm32-unknown-unknown` target, `bubblewrap`, and a passing boundary preflight. macOS is recorded-WASM replay only and cannot source-build.
 
 The checksum-verified runtime download and source/compiler commands are in [local repair setup](docs/local-repair-setup.md#sandbox-runtimes). Do not substitute a newer or older Sandbox release; the acceptance path checks the release, commit and protocol.
 
@@ -59,7 +59,7 @@ chmod +x "$REPAIR_RUNTIME/Linux-x86_64/near-sandbox"
 export REPAIR_SANDBOX_DIR="$REPAIR_RUNTIME/Linux-x86_64"
 ```
 
-Native macOS arm64:
+Native macOS arm64 (recorded-WASM replay only):
 
 ```sh
 REPAIR_RUNTIME="$PWD/.local/sandbox-2.14.0"
@@ -72,7 +72,7 @@ tar -xzf "$REPAIR_RUNTIME/archive.tar.gz" -C "$REPAIR_RUNTIME"
 export REPAIR_SANDBOX_DIR="$REPAIR_RUNTIME/Darwin-arm64"
 ```
 
-For source-build, add a clean checkout and compiler target:
+For source-build, add a clean checkout, compiler target and the Linux compiler boundary. Source-build is supported on Linux x86_64 only; macOS must use recorded-WASM replay.
 
 ```sh
 mkdir -p .local
@@ -83,7 +83,18 @@ rustup toolchain install 1.86.0 --profile minimal
 rustup target add wasm32-unknown-unknown --toolchain 1.86.0
 ```
 
-`npm run doctor -- --flow repair` checks the Node, dependency and Sandbox configuration without starting a chain. A source-build review also needs `REPAIR_SOURCE_DIR` and the Rust target above.
+### Compiler boundary for source builds
+
+Source builds execute only through Linux `bubblewrap` with network, mount and PID isolation. There is no host-shell fallback: an unavailable launcher is a typed boundary failure, not a warning. Install `bubblewrap` and follow the repository's exact **Provision the enforced compiler boundary** step in [the handoff workflow](.github/workflows/handoff.yml), including its Ubuntu 24.04 AppArmor profile; do not substitute a generic `bwrap` command. Then run the same preflight as CI:
+
+```sh
+node case-triage/rehearsal-repair/boundary-probe.cjs
+node case-triage/rehearsal-repair/compiler-boundary-tests.cjs --require-namespace
+```
+
+The boundary enforces wall-timeout, process-group cleanup, CPU-seconds, file-size blocks, open files and output-byte limits. It does not claim or enforce a memory limit, process-count limit or disk quota.
+
+`npm run doctor -- --flow repair` checks the Node, dependency and Sandbox configuration without starting a chain. A source-build review also needs `REPAIR_SOURCE_DIR`, the Rust target above and a passing boundary probe.
 
 ### Start the reviewer page
 
@@ -96,9 +107,7 @@ PORT=4174 npm run ui:review
 
 Open **http://127.0.0.1:4174/review**, choose **Load example (recorded candidate)**, select **Recorded WASM replay**, and run it.
 
-For source-build, complete the optional pinned-source and compiler steps above
-before starting the server. If it is already running, stop it and run the same
-start command again after exporting `REPAIR_SOURCE_DIR`.
+For source-build on Linux, complete the pinned-source, compiler and boundary steps above before starting the server. If it is already running, stop it and run the same start command again after exporting `REPAIR_SOURCE_DIR`. macOS uses recorded-WASM replay only.
 
 The page then offers **Source build** and **Recorded WASM replay**. Source-build is the default when its prerequisites are present. Both modes verify the bundle hashes and candidate identities before reserving an output directory. Neither calls a model.
 
@@ -117,8 +126,7 @@ npm run repair:review -- \
   --mode recorded-wasm
 ```
 
-For source-build, first complete the optional source/compiler steps and export
-`REPAIR_SOURCE_DIR` above, then run:
+For source-build on Linux, first complete the source/compiler and boundary steps and export `REPAIR_SOURCE_DIR` above, then run:
 
 ```sh
 npm run repair:review -- \
@@ -204,7 +212,7 @@ node case-triage/sputnik-public-capture/export-helper.cjs replay \
 
 This is the older authored comparison at `/compare`. It is useful for inspecting the frozen-state behaviour and export format, but it is **not** the source-repair product and does not generate a model candidate. `/index.html` is retained as its legacy alias.
 
-The following download is the Linux x86_64 runtime tested by the manual CI job. For native macOS arm64, see [runtime setup](docs/local-repair-setup.md#sandbox-runtimes).
+The following download is the Linux x86_64 runtime tested by the manual CI job. The native comparison is Linux-only; macOS supports recorded-WASM replay, not this manual chain or a source build. See [runtime setup](docs/local-repair-setup.md#sandbox-runtimes).
 
 ```sh
 SANDBOX_DIR="$PWD/.local/sandbox-2.6.2"
@@ -229,12 +237,12 @@ The authored comparison's seeded regression and correction are labelled fixtures
 
 | Flow | Sandbox | Tested chain/build coverage | Build tools | Provider generation |
 | --- | --- | --- | --- | --- |
-| `/review` recorded replay | 2.14.0 | Linux x86_64 CI; native macOS arm64 chain/replay exercised | None beyond Node | None |
-| `/review` source build | 2.14.0 | Linux x86_64 CI; native macOS arm64 build/replay exercised | Rust 1.86.0 + `wasm32-unknown-unknown` | None |
-| `/repair` fresh generation | 2.14.0 | Linux x86_64 CI covers source build/replay; it does not exercise a live model provider | Rust 1.86.0 + `wasm32-unknown-unknown` | Existing Codex login, model and enforced policy; local prerequisite, not CI-proven |
-| `/compare` authored comparison (legacy `/index.html`) | 2.6.2 | Linux x86_64 CI; native macOS arm64 chain/replay exercised | None beyond Node | None |
+| `/review` recorded replay | 2.14.0 | Linux x86_64 CI; native macOS arm64 recorded-WASM replay supported | None beyond Node | None |
+| `/review` source build | 2.14.0 | Linux x86_64 only; `bubblewrap` + network/mount/PID isolation; macOS unsupported | Rust 1.86.0 + `wasm32-unknown-unknown` + `bubblewrap` | None |
+| `/repair` fresh generation | 2.14.0 | Linux x86_64 only; `bubblewrap` + network/mount/PID isolation; no live provider in CI | Rust 1.86.0 + `wasm32-unknown-unknown` + `bubblewrap` | Existing Codex login, model and enforced policy; local prerequisite, not CI-proven |
+| `/compare` authored comparison (legacy `/index.html`) | 2.6.2 | Linux x86_64 CI only; no macOS native chain | None beyond Node | None |
 
-Linux CI proves the source build/replay and manual chain paths. It does **not** prove Linux live model generation; provider availability, entitlement and output quality remain local prerequisites and separate from those CI results. Node 24 is the reference version; Node 26 is also supported for the offline suite and has been exercised natively on macOS arm64. The runtime archives for **Linux-x86_64** and **Darwin-arm64** are distinct and must not be relabelled. This repository does not claim arbitrary Linux arm64 or Docker-emulation support.
+Linux CI proves the source build/replay and manual chain paths. It does **not** prove Linux live model generation; provider availability, entitlement and output quality remain local prerequisites and separate from those CI results. Source builds have no host-shell fallback and never run outside the Linux `bubblewrap` boundary. Node 24 is the reference version; Node 26 is also supported for the offline suite. The runtime archives for **Linux-x86_64** and **Darwin-arm64** are distinct and must not be relabelled. This repository does not claim arbitrary Linux arm64 or Docker-emulation support.
 
 ## Install and run the offline tests
 

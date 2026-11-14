@@ -2,6 +2,8 @@
 
 This page configures the supported source repair. The manual upgrade comparison uses a separate Sandbox version and does not need a model login. Stay on `main`; the old `feat/sputnik-release-review` branch predates the repair interface.
 
+Source repair and source-build review are supported on **Linux x86_64 only**. macOS arm64 supports recorded-WASM replay only; it has no source-build or fresh-repair path.
+
 ## Sandbox runtimes
 
 Use the **directory containing `near-sandbox`**, not the executable path.
@@ -17,20 +19,7 @@ Official archives follow this URL pattern:
 https://s3-us-west-1.amazonaws.com/build.nearprotocol.com/nearcore/<platform>/<version>/near-sandbox.tar.gz
 ```
 
-`Linux-x86_64` and `Darwin-arm64` are distinct archives, not interchangeable. The manual Linux download/checksum is in the root README. A native macOS arm64 Repair download was independently executed and uses this verified archive checksum:
-
-```sh
-REPAIR_RUNTIME="$PWD/.local/sandbox-2.14.0"
-mkdir -p "$REPAIR_RUNTIME"
-curl --fail --location --max-time 300 \
-  https://s3-us-west-1.amazonaws.com/build.nearprotocol.com/nearcore/Darwin-arm64/2.14.0/near-sandbox.tar.gz \
-  --output "$REPAIR_RUNTIME/archive.tar.gz"
-echo "ea53448ef97540c012e5c3d967c74d78292b0465a98cf7027811a936718fe232  $REPAIR_RUNTIME/archive.tar.gz" | shasum -a 256 -c -
-tar -xzf "$REPAIR_RUNTIME/archive.tar.gz" -C "$REPAIR_RUNTIME"
-export REPAIR_SANDBOX_DIR="$REPAIR_RUNTIME/Darwin-arm64"
-"$REPAIR_SANDBOX_DIR/near-sandbox" --version
-npm run doctor -- --flow repair
-```
+`Linux-x86_64` and `Darwin-arm64` are distinct archives, not interchangeable. Source builds use the **Linux-x86_64** archive only.
 
 For native Linux x86_64, the recovery CI job downloads and executes this exact 2.14.0 archive. Use its verified digest before extraction:
 
@@ -47,7 +36,7 @@ export REPAIR_SANDBOX_DIR="$REPAIR_RUNTIME/Linux-x86_64"
 npm run doctor -- --flow repair
 ```
 
-For manual execution on native macOS arm64, acquire the official `Darwin-arm64/2.6.2` archive and set `NEAR_SANDBOX_BIN_PATH` to its extracted directory. For Linux repair, use `Linux-x86_64/2.14.0`. These supplied-runtime paths must pass the release/commit/protocol check; do not relabel an older binary. No claim is made that arbitrary Linux arm64 hosts or Docker emulation work. Runtime downloads can take minutes and depend on network access.
+For macOS arm64, recorded-WASM review may use the official `Darwin-arm64/2.14.0` archive with `REPAIR_SANDBOX_DIR`; this is replay only. Do not set `REPAIR_SOURCE_DIR`, run source-build mode or use `/repair` generation on macOS. The manual `/compare` chain is Linux-only and does not run on macOS. These supplied-runtime paths must pass the release/commit/protocol check; do not relabel an older binary. No claim is made that arbitrary Linux arm64 hosts or Docker emulation work. Runtime downloads can take minutes and depend on network access.
 
 When serving both routes in one process, leave `NEAR_SANDBOX_BIN_PATH` and `NEAR_SANDBOX_BINARY_PATH` pointing at 2.6.2, and set `REPAIR_SANDBOX_DIR` separately to 2.14.0. Repair children select their own runtime. The launcher does not replace the manual runtime globally.
 
@@ -63,6 +52,17 @@ rustup target add wasm32-unknown-unknown --toolchain 1.86.0
 ```
 
 Use the official Rust/rustup installation if `rustup` is not present. The controller discovers the actual Rust 1.86.0 toolchain under `RUSTUP_HOME` or the standard rustup home, and checks cargo/rustc versions. The browser never accepts arbitrary build commands or host source paths.
+
+### Mandatory compiler boundary
+
+Source builds run only through Linux `bubblewrap` with network, mount and PID isolation. There is no host-shell fallback: if the launcher or PID namespace is unavailable, the build is refused before compilation. Install `bubblewrap` and follow the repository's exact **Provision the enforced compiler boundary** step in [the handoff workflow](../.github/workflows/handoff.yml), including its Ubuntu 24.04 AppArmor profile; do not invent a substitute `bwrap` command. Run the same preflight as CI before starting a source build:
+
+```sh
+node case-triage/rehearsal-repair/boundary-probe.cjs
+node case-triage/rehearsal-repair/compiler-boundary-tests.cjs --require-namespace
+```
+
+The boundary enforces wall-timeout, process-group cleanup, CPU-seconds, file-size blocks, open files and output-byte limits. It does not claim or enforce a memory limit, process-count limit or disk quota. Recorded-WASM replay does not require Rust or this source-build boundary.
 
 ## Existing model account and policy
 
