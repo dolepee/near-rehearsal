@@ -218,6 +218,8 @@ function readRoots({cwd, jobDir, toolchainEnv = {}}) {
     jobDir,
     '/usr', '/usr/local', '/bin', '/sbin', '/lib', '/lib64',
     '/System', '/Library/Developer/CommandLineTools',
+    '/etc/alternatives',
+    '/etc/ld.so.cache',
     toolchainRoot,
     ...cargoCache,
     toolchainEnv.DEVELOPER_DIR,
