@@ -21,7 +21,14 @@ const rejects = (label, mutate) => {
   assert.throws(() => checkBundle(bundle), undefined, label);
 };
 
-const mixedOriginal = buildHandoffBundle({runId: 'mixed-policy-guard', createdAt: '2026-11-13T21:15:09.000Z'});
+const repairRoot = path.join(__dirname, '..', 'case-triage', 'rehearsal-repair');
+const identity = JSON.parse(fs.readFileSync(path.join(repairRoot, 'mixed-candidates', 'intended-identity.json'), 'utf8'));
+const freshFixture = JSON.parse(fs.readFileSync(path.join(repairRoot, 'out', 'audit-intended', 'fresh', 'issue238-local.json'), 'utf8'));
+freshFixture.source.wasmSha256 = identity.wasm.sha256;
+const freshTemp = path.join(os.tmpdir(), `repair-review-fresh-${process.pid}.json`);
+fs.writeFileSync(freshTemp, JSON.stringify(freshFixture));
+const mixedOriginal = buildHandoffBundle({runId: 'mixed-policy-guard', createdAt: '2026-11-13T21:15:09.000Z', candidateReportPath: freshTemp});
+fs.rmSync(freshTemp, {force: true});
 assert.doesNotThrow(() => checkBundle(mixedOriginal));
 for (const [label, mutate] of [
   ['fake mixed report', (b) => { b.mixed.reportText = 'not a real mixed report'; b.mixed.reportSha256 = '0'.repeat(64); }],

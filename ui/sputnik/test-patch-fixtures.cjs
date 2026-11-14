@@ -41,7 +41,9 @@ function acceptedEvidence(runDir, root) {
   fs.mkdirSync(evidence, {recursive: true});
   const wasmPath = path.join(applied, 'target', 'wasm32-unknown-unknown', 'release', 'sputnikdao2.wasm');
   copy(path.join(repo, 'ui/sputnik/public/consequences/downloads/238/intended.wasm'), wasmPath);
-  copy(path.join(repair, 'out', 'issue238-local.json'), path.join(pipeline, 'replay', 'issue238-local.json'));
+  const replayReport = JSON.parse(fs.readFileSync(path.join(repair, 'out', 'audit-intended', 'fresh', 'issue238-local.json'), 'utf8'));
+  replayReport.source.wasmSha256 = sha256(fs.readFileSync(wasmPath));
+  fs.writeFileSync(path.join(pipeline, 'replay', 'issue238-local.json'), JSON.stringify(replayReport));
   copy(path.join(repair, 'out', 'audit-intended', 'persisted', 'persisted-recovery.json'), path.join(evidence, 'persisted-recovery.json'));
   copy(path.join(repair, 'out', 'audit-intended', 'persisted', 'persisted-recovery-acceptance.json'), path.join(evidence, 'persisted-recovery-acceptance.json'));
   copy(path.join(repair, 'out', 'mixed-obligation-intended.json'), path.join(evidence, 'mixed-obligation.json'));

@@ -85,6 +85,12 @@ mutate('unequal base deploy removed', (value) => { delete value.unequal.transact
 mutate('unequal candidate upgrade removed', (value) => { delete value.unequal.transactions.upgradeDeploy; });
 mutate('unequal actual recovery removed', (value) => { delete value.unequal.transactions.recovery; });
 mutate('seeded refund failure removed', (value) => { delete value.inherited.legacy.seededRefundFailure; });
+mutate('seeded refund failure precedes seed', (value) => {
+  value.inherited.legacy.seededRefundFailure.final.blockHeight = value.inherited.legacy.seed.blockHeight;
+});
+mutate('seeded refund observation precedes failure', (value) => {
+  value.inherited.legacy.seededRefundFailure.snapshot.blockHeight = value.inherited.legacy.seededRefundFailure.final.blockHeight - 1;
+});
 mutate('seeded refund failure receiver changed', (value) => {
   value.inherited.legacy.seededRefundFailure.final.transaction.receiverId = 'elsewhere.test.near';
 });

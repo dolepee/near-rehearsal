@@ -433,6 +433,13 @@ function verifyLegacySeed(scenario, dao, fail) {
     check(seededCall.args?.action === 'Finalize', 'seeded refund failure action is not Finalize');
   }
   check(seededProposer && reachableFailure(seededFinal, seededProposer, seededProposer, 'seeded refund failure', check), 'seeded refund failure lacks a linked failed transfer to the deleted proposer');
+  const seedHeight = recordedHeight(legacy?.seed?.blockHeight);
+  const failureHeight = recordedHeight(seededFinal?.blockHeight);
+  const observationHeight = recordedHeight(seededFailure?.snapshot?.blockHeight);
+  check(seedHeight !== null && failureHeight !== null && observationHeight !== null, 'seeded refund chronology is missing');
+  if (seedHeight !== null && failureHeight !== null && observationHeight !== null) {
+    check(seedHeight < failureHeight && failureHeight <= observationHeight, 'seeded refund chronology is not seed -> failure -> observation');
+  }
   check(String(seededFailure?.snapshot?.lockedAmount) === String(deposit), 'seeded refund failure did not retain the locked debt');
   check(seededFailure?.snapshot?.proposal?.id === scenario.proposalId && seededFailure?.snapshot?.proposal?.status === 'Failed', 'seeded refund failure changed the original proposal');
   check(seededFailure?.snapshot?.proposer === null || BigInt(seededFailure.snapshot.proposer) === 0n, 'seeded refund failure paid the deleted proposer');
