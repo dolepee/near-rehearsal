@@ -13,7 +13,7 @@ const {spawnSync} = require('node:child_process');
 const {assertCaseFiles, bindReportIdentity, OUT, shaFile} = require('./build-consequence-workbench.cjs');
 const {checkBundle} = require('./repair-review.cjs');
 const {verifyPacket} = require('../case-triage/sputnik-226/review-packet/packet-model.cjs');
-const {validateRepairCandidate, validateUpgrade, bindCandidateSwitch} = require('../ui/sputnik/public/consequences/model.js');
+const {validateRepairCandidate, validateUpgrade, cashNote, bindCandidateSwitch} = require('../ui/sputnik/public/consequences/model.js');
 
 const SHA = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const data = JSON.parse(fs.readFileSync(path.join(OUT, 'cases.json'), 'utf8'));
@@ -29,6 +29,14 @@ assert.equal(data.label, 'Recorded execution');
 assert.deepEqual(repair.candidates.map((candidate) => candidate.id), ['clear-all', 'intended']);
 assert.equal(repair.candidates[0].status, 'REJECTED');
 assert.equal(repair.candidates[1].status, 'ACCEPTED');
+const staleNet = /0\.999[03]/;
+for (const candidate of repair.candidates) {
+  const note = cashNote(candidate);
+  assert.match(note, /displayed net amount/i, `${candidate.id} note points at the displayed net amount`);
+  assert.match(note, /rounded; exact yocto values/i, `${candidate.id} note preserves the exact-yocto caveat`);
+  assert.doesNotMatch(note, staleNet, `${candidate.id} note contains a hardcoded stale net amount`);
+}
+assert.doesNotMatch(fs.readFileSync(path.join(__dirname, '../ui/sputnik/public/consequences/app.js'), 'utf8'), staleNet, 'app copy must not hardcode a candidate net amount');
 assert.equal(repair.candidates[0].handoff, null, 'rejected candidate must not offer a passing handoff');
 assert.ok(repair.candidates[1].handoff, 'accepted candidate must offer the reviewer handoff');
 const acceptedHandoff = JSON.parse(fs.readFileSync(path.resolve(OUT, repair.candidates[1].handoff.path), 'utf8'));

@@ -156,7 +156,7 @@
             <div class="cash-row"><span>Bob bond return</span><b>${nearDelta(candidate.cash.bobBondReturned)}</b></div>
             <div class="cash-row"><span>Bob contract debit</span><b>${nearDelta(candidate.cash.bobContractDelta)}</b></div>
           </div>
-          <p class="cash-note">${bad ? 'Bob did not lose his money. This bad candidate still pays the funded operation; it fails the locked-liability release condition. The +0.9993 figure is Alice’s net proposer change after measured gas, not the gross 1 NEAR bond. Displayed amounts are rounded; exact yocto values are in the recorded report.' : 'This repair pays the same funded operation while preserving Bob’s liability until it is released. The +0.9993 figure is Alice’s net proposer change after measured gas, not the gross 1 NEAR bond. Displayed amounts are rounded; exact yocto values are in the recorded report.'}</p>
+          <p class="cash-note">${model.cashNote(candidate)}</p>
         </aside>
       </div>
 

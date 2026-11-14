@@ -45,6 +45,14 @@
     return {ok: true};
   }
 
+  function cashNote(candidate) {
+    const bad = candidate?.status === 'REJECTED';
+    const prefix = bad
+      ? 'Bob did not lose his money. This bad candidate still pays the funded operation; it fails the locked-liability release condition.'
+      : 'This repair pays the same funded operation while preserving Bob’s liability until it is released.';
+    return `${prefix} The displayed net amount is Alice’s net proposer change after measured gas, not the gross 1 NEAR bond. Displayed amounts are rounded; exact yocto values are in the recorded report.`;
+  }
+
   function validateUpgrade(record) {
     if (!isObject(record)) return {ok: false, reason: 'upgrade record is missing'};
     if (record.status !== 'PASS') return {ok: false, reason: `unknown upgrade status: ${String(record.status)}`};
@@ -72,5 +80,5 @@
     return true;
   }
 
-  return {validateRepairCandidate, validateUpgrade, bindCandidateSwitch};
+  return {validateRepairCandidate, validateUpgrade, cashNote, bindCandidateSwitch};
 });
