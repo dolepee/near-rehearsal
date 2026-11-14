@@ -297,6 +297,41 @@ function missingGateIsInconclusive({acceptanceOk, mixedCheck, settlementCheck}) 
   return !mixedCheck || !settlementCheck;
 }
 
+// Every terminal source-review decision goes through the same four-stage
+// policy. A missing report is represented as an invalid evidence stage, not
+// as an early return: an already verified fresh/recovery/mixed failure still
+// reaches the shared classifier and keeps its REJECTED verdict.
+function reviewPolicyDecision({pipeline, acceptance, mixedCheck, settlementCheck}) {
+  return evaluateCandidate({
+    fresh: stageFromChecks(
+      pipeline?.ok === true && (pipeline?.acceptanceErrors || []).length === 0,
+      pipeline?.acceptanceErrors || [],
+      {evidenceValid: Boolean(pipeline)},
+    ),
+    recovery: stageFromChecks(
+      acceptance?.ok === true,
+      acceptance?.errors || [],
+      {evidenceValid: Boolean(acceptance)},
+    ),
+    mixed: stageFromChecks(
+      mixedCheck?.ok === true,
+      mixedCheck?.errors || [],
+      {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedCheck)},
+    ),
+    settlement: stageFromChecks(
+      settlementCheck?.status === 'ACCEPTED',
+      settlementCheck?.errors || [],
+      {evidenceValid: settlementCheck?.status === 'REJECTED'},
+    ),
+  });
+}
+
+function policyReason(verdict) {
+  if (verdict.status === 'REJECTED') return `versioned acceptance policy ${verdict.policyVersion} failed: ${verdict.errors.join('; ')}`;
+  if (verdict.status === 'INCONCLUSIVE') return `versioned acceptance policy ${verdict.policyVersion} was inconclusive: ${verdict.errors.join('; ')}`;
+  return `All policy ${verdict.policyVersion} source, build, replay, recovery, same-DAO and preservation checks passed.`;
+}
+
 function renderReport(review) {
   const lines = [
     `# Rehearsal patch review — ${review.status}`,
@@ -399,6 +434,8 @@ function runReview(opts) {
   const sourceDir = path.resolve(opts.source);
   const outDir = path.resolve(opts.out);
   const baseReport = path.resolve(opts.baseReport || BASE_REPORT);
+  const runChild = opts.runNode || runNode;
+  const inspectSource = opts.checkSource || checkSource;
   const controller = JSON.parse(fs.readFileSync(CONTROLLER_MANIFEST, 'utf8'));
   const pinnedCommit = controller.source.commit;
   const supplied = {
@@ -449,7 +486,7 @@ function runReview(opts) {
   let checks = [];
 
   try {
-    verified.sourceCommit = checkSource(sourceDir, pinnedCommit);
+    verified.sourceCommit = inspectSource(sourceDir, pinnedCommit);
     verified.sourceClean = true;
   } catch (error) {
     const result = classify('input', {inputError: error.message});
@@ -467,7 +504,7 @@ function runReview(opts) {
       checks = [{id: 'sandbox-runtime', status: 'error', detail: result.reason}];
     } else {
       const pipelineDir = path.join(outDir, 'pipeline');
-      const pipelineResult = runNode([
+      const pipelineResult = runChild([
         PIPELINE,
         '--patch', patchPath,
         '--source', sourceDir,
@@ -527,7 +564,7 @@ function runReview(opts) {
           checks = [{id: 'build-artifacts', status: 'fail', detail: result.reason}];
         } else {
           const persistedDir = path.join(outDir, 'persisted');
-          const persistedResult = runNode([
+          const persistedResult = runChild([
             PERSISTED,
             '--candidate-wasm', wasmPath,
             '--candidate-patch', patchPath,
@@ -542,14 +579,12 @@ function runReview(opts) {
           report = readJson(path.join(persistedDir, 'persisted-recovery.json'));
           if (!report) {
             const result = classify('persisted', {inconclusive: `persisted recovery produced no report: ${(persistedResult.stderr || '').trim().slice(0, 500) || 'no output'}`});
-            status = pipeline.ok === false ? 'REJECTED' : result.status;
-            reason = pipeline.ok === false
-              ? `fresh-state acceptance failed: ${(pipeline.acceptanceErrors || []).join('; ') || 'pipeline did not pass'}`
-              : result.reason;
-            checks = [
-              ...(pipeline.ok === false ? [{id: 'fresh-replay', status: 'fail', detail: reason}] : []),
-              {id: 'persisted-recovery', status: 'error', detail: result.reason},
-            ];
+            acceptanceVerdict = reviewPolicyDecision({pipeline, acceptance: null, mixedCheck, settlementCheck});
+            checks = checksFrom(pipeline, null, null, mixedCheck, settlementCheck);
+            status = acceptanceVerdict.status;
+            reason = acceptanceVerdict.status === 'REJECTED'
+              ? policyReason(acceptanceVerdict)
+              : `${result.reason}; ${policyReason(acceptanceVerdict)}`;
           } else {
             const acceptanceArgs = [
               PERSISTED_ACCEPTANCE,
@@ -563,21 +598,24 @@ function runReview(opts) {
             ];
             const expectedSource = verified.appliedSourceSha256 || pipeline.identity?.source?.sha256;
             if (expectedSource) acceptanceArgs.push('--expected-source-sha256', expectedSource);
-            const acceptanceResult = runNode(acceptanceArgs, {timeout: ACCEPTANCE_TIMEOUT_MS});
+            const acceptanceResult = runChild(acceptanceArgs, {timeout: ACCEPTANCE_TIMEOUT_MS});
             writeLog(path.join(evidenceDir, 'acceptance.log'), acceptanceResult);
             try { acceptance = JSON.parse(acceptanceResult.stdout); } catch { acceptance = null; }
             if (acceptance) fs.writeFileSync(path.join(persistedDir, 'persisted-recovery-acceptance.json'), json(acceptance));
             if (!acceptance) {
               const result = classify('acceptance', {inconclusive: 'persisted acceptance produced no readable JSON'});
-              status = result.status;
-              reason = result.reason;
-              checks = [{id: 'persisted-acceptance', status: 'error', detail: result.reason}];
+              acceptanceVerdict = reviewPolicyDecision({pipeline, acceptance: null, mixedCheck, settlementCheck});
+              checks = checksFrom(pipeline, report, null, mixedCheck, settlementCheck);
+              status = acceptanceVerdict.status;
+              reason = acceptanceVerdict.status === 'REJECTED'
+                ? policyReason(acceptanceVerdict)
+                : `${result.reason}; ${policyReason(acceptanceVerdict)}`;
             } else {
               safeCopy(path.join(persistedDir, 'persisted-recovery-acceptance.json'), path.join(evidenceDir, 'persisted-recovery-acceptance.json'));
               summary = reportSummary(report, acceptance, {mode: 'source-build'});
               if (acceptance.ok === true) {
                 const mixedDir = path.join(outDir, 'mixed');
-                const mixedResult = runNode([
+                const mixedResult = runChild([
                   MIXED,
                   '--candidate-wasm', wasmPath,
                   '--out', mixedDir,
@@ -589,7 +627,7 @@ function runReview(opts) {
                 if (mixed) mixedCheck = verifyMixedReport(mixed, {requireBlockPinned: true});
                 if (mixedCheck?.ok) {
                   const settlementDir = path.join(outDir, 'settlement');
-                  const settlementResult = runNode([
+                  const settlementResult = runChild([
                     SETTLEMENT,
                     '--candidate-wasm', wasmPath,
                     '--base-wasm', BASE_WASM,
@@ -601,36 +639,10 @@ function runReview(opts) {
                   if (settlement) settlementCheck = verifySettlementReport(settlement, {candidateWasmSha256: verified.builtWasmSha256, baseWasmSha256: sha256File(BASE_WASM)});
                 }
               }
-              // A gate that ran and returned a verified failure is a rejection, not a
-              // missing-evidence result. Only an unreported gate leaves the outcome open.
-              if (missingGateIsInconclusive({acceptanceOk: acceptance.ok === true, mixedCheck, settlementCheck})) {
-                status = 'INCONCLUSIVE';
-                reason = 'same-DAO mixed-obligation or failed-refund settlement gate produced no verified report';
-                checks = [
-                  {id: 'persisted-acceptance', status: 'pass', detail: 'persisted acceptance passed'},
-                  {id: 'same-dao-mixed', status: mixedCheck ? 'pass' : 'error', detail: mixedCheck ? 'mixed gate passed' : 'mixed gate missing'},
-                  {id: 'failed-refund-settlement', status: settlementCheck ? 'pass' : 'error', detail: settlementCheck ? 'settlement gate passed' : 'settlement gate missing'},
-                ];
-              } else {
-                checks = checksFrom(pipeline, report, acceptance, mixedCheck, settlementCheck);
-                const verdict = evaluateCandidate({
-                  fresh: stageFromChecks(pipeline.ok === true && (pipeline.acceptanceErrors || []).length === 0, pipeline.acceptanceErrors || [], {evidenceValid: Boolean(pipeline)}),
-                  recovery: stageFromChecks(acceptance.ok === true, acceptance.errors || [], {evidenceValid: Boolean(acceptance)}),
-                  mixed: stageFromChecks(mixedCheck?.ok === true, mixedCheck?.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedCheck)}),
-                  settlement: stageFromChecks(settlementCheck?.status === 'ACCEPTED', settlementCheck?.errors || [], {evidenceValid: settlementCheck?.status === 'REJECTED'}),
-                });
-                acceptanceVerdict = verdict;
-                if (verdict.status === 'REJECTED') {
-                  status = 'REJECTED';
-                  reason = `versioned acceptance policy ${verdict.policyVersion} failed: ${verdict.errors.join('; ')}`;
-                } else if (verdict.status === 'INCONCLUSIVE') {
-                  status = 'INCONCLUSIVE';
-                  reason = `versioned acceptance policy ${verdict.policyVersion} was inconclusive: ${verdict.errors.join('; ')}`;
-                } else {
-                  status = 'ACCEPTED';
-                  reason = `All policy ${verdict.policyVersion} source, build, replay, recovery, same-DAO and preservation checks passed.`;
-                }
-              }
+              checks = checksFrom(pipeline, report, acceptance, mixedCheck, settlementCheck);
+              acceptanceVerdict = reviewPolicyDecision({pipeline, acceptance, mixedCheck, settlementCheck});
+              status = acceptanceVerdict.status;
+              reason = policyReason(acceptanceVerdict);
             }
           }
         }
