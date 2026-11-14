@@ -210,6 +210,8 @@ function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance
     env: prepared.env,
     jobDir: prepared.jobDir,
     limits: prepared.limits,
+    pidNamespace: prepared.pidNamespace,
+    requirePidNamespace: true,
   });
   writeLog(path.join(out, 'build.log'), {status: build.status, stdout: build.stdout, stderr: build.stderr});
   const boundaryRecord = JSON.parse(fs.readFileSync(path.join(out, 'boundary.json'), 'utf8'));

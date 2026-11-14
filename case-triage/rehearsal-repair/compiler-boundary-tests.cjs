@@ -60,21 +60,18 @@ try {
   };
   assertDead(Number(fs.readFileSync(pidFile, 'utf8')));
 
-  const orphanDir = path.join(root, 'orphan');
-  fs.mkdirSync(orphanDir);
-  const orphanPidFile = path.join(orphanDir, 'orphan.pid');
-  const orphanLog = path.join(orphanDir, 'orphan.log');
-  const orphanRun = runSupervised({
+  assert.throws(() => runSupervised({
     file: process.execPath,
-    args: ['-e', `const {spawn}=require('node:child_process');const fs=require('node:fs');const fd=fs.openSync(${JSON.stringify(orphanLog)},'a');const c=spawn(process.execPath,['-e','process.on("SIGTERM",()=>{});setTimeout(()=>{},30000)'],{detached:true,stdio:['ignore',fd,fd]});fs.writeFileSync(${JSON.stringify(orphanPidFile)},String(c.pid));c.unref();setTimeout(()=>process.exit(0),300);`],
-    cwd: orphanDir,
+    args: ['-e', 'setTimeout(()=>{},1000)'],
+    cwd: timeoutDir,
     env: {PATH: process.env.PATH || '/usr/bin:/bin'},
-    jobDir: orphanDir,
-    limits: boundaryLimits({wallMs: 1500}),
-  });
-  assert.equal(orphanRun.ok, true);
-  assertDead(Number(fs.readFileSync(orphanPidFile, 'utf8')));
+    jobDir: timeoutDir,
+    limits: boundaryLimits({wallMs: 200}),
+    requirePidNamespace: true,
+    pidNamespace: false,
+  }), (error) => error instanceof BoundaryUnavailableError && /descendant teardown/.test(error.message));
+
 } finally {
   fs.rmSync(root, {recursive: true, force: true});
 }
-console.log('compiler-boundary: probe, path-escape rejection, typed unavailable result and no-fallback checks passed');
+console.log('compiler-boundary: probe, path-escape rejection, typed unavailable, fail-closed non-namespace launcher and no-fallback checks passed');
