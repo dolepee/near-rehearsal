@@ -895,7 +895,7 @@ function verifySettlementReport(report, opts = {}) {
       approvedFail(value && value.finalExecutionStatus === 'FINAL', `${name} execution is missing or not FINAL`);
       approvedFail(value && value.transaction && value.transaction.receiverId, `${name} transaction identity is missing`);
     }
-    for (const [name, value] of [['before', before], ['afterApproval', afterApproval], ['beforeRetry', beforeRetry], ['afterRetry', afterRetry], ['afterDuplicate', afterDuplicate]]) {
+    for (const [name, value] of [['before', before], ['afterApproval', afterApproval], ['beforeRetry', beforeRetry], ['afterRetry', afterRetry], ['afterDuplicate', afterDuplicate], ['afterUnauthorized', approved.afterUnauthorized]]) {
       approvedFail(value !== null && typeof value === 'object', `${name} snapshot is missing`);
       if (value && typeof value === 'object') {
         approvedFail(typeof value.dao === 'string' && value.dao.length > 0, `${name} snapshot DAO is missing`);
