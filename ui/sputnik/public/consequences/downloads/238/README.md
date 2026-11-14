@@ -30,7 +30,7 @@ prerequisites, compiler-boundary provisioning, and dependency-cache setup are in
 ## Reviewer handoff
 
 The accepted **Intended repair** has a direct [reviewer handoff JSON](repair-bundle-intended.json)
-(SHA-256 `3dd92dd5a36e68bb066773b52724a9a4ec631d8f7f6f8bae295eaa98dd8cbc56`). It is the existing repair-review bundle,
+(SHA-256 `eef53602d317e3a7fae73a4ba1d967adda758270b4f5aa4eb59bedfd04e0fa66`). It is the existing repair-review bundle,
 not a second format; its producer is `null` and the recorded execution remains
 the displayed evidence. Download it, then run the local reviewer. On macOS
 select **Recorded WASM replay**; on Linux use the confined **Source build**. The
