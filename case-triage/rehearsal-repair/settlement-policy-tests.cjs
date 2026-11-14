@@ -704,6 +704,22 @@ const twoBondPayment = JSON.parse(JSON.stringify(correctedReport));
 twoBondPayment.inherited.afterRetry.proposer = (BigInt(twoBondPayment.inherited.beforeRetry.proposer) + 2n * BigInt(1000000000000000000000000n)).toString();
 assert.equal(verifySettlementReport(twoBondPayment, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
 
+const unequalOverpay = JSON.parse(JSON.stringify(correctedReport));
+unequalOverpay.unequal.after.proposer = (BigInt(unequalOverpay.unequal.after.proposer) + 10n ** 24n).toString();
+const unequalOverpayResult = verifySettlementReport(unequalOverpay, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(unequalOverpayResult.status, 'REJECTED', 'a complete unequal over-refund is a verified rejection');
+assert.ok(unequalOverpayResult.reasons.verified.some((error) => /unequal Alice refund|unequal reported Alice/.test(error)));
+
+const malformedUnequalFunding = JSON.parse(JSON.stringify(correctedReport));
+delete malformedUnequalFunding.unequal.transactions.addAlice;
+const malformedUnequalFundingResult = verifySettlementReport(malformedUnequalFunding, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(malformedUnequalFundingResult.status, 'INCONCLUSIVE', 'malformed unequal funding alone must be inconclusive, not a throw or rejection');
+assert.equal(malformedUnequalFundingResult.verifiedFailure, false);
+
+const knownRejectMissingUnequal = JSON.parse(JSON.stringify(twoBondPayment));
+delete knownRejectMissingUnequal.unequal.transactions.addBob;
+assert.equal(verifySettlementReport(knownRejectMissingUnequal, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED', 'a known fresh/inherited rejection survives missing unequal funding');
+
 const malformedFailedLocked = JSON.parse(JSON.stringify(correctedReport));
 malformedFailedLocked.inherited.failedRefund.lockedAmount = 'not-an-amount';
 assert.equal(verifySettlementReport(malformedFailedLocked, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
