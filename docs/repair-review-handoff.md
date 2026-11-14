@@ -80,7 +80,7 @@ npm run repair:review -- \
 ```
 
 The checked-in `test-fixtures/repair-browser-export-1de7b8c5.json` is the
-8 November recorded model candidate. It predates the failed-refund settlement
+historical 8 November model fixture. It predates the failed-refund settlement
 policy and is rejected at that gate, so it is kept as a historical record and a
 negative control rather than as the accepted example. `handoff-bundle.cjs`
 assembles the settlement-fixed candidate from the tracked artifacts of the

@@ -108,7 +108,7 @@ Stay in the repository root and the same shell where you exported
 PORT=4174 npm run ui:review
 ```
 
-Open **http://127.0.0.1:4174/review**, choose **Load example (recorded candidate)**, select **Recorded WASM replay**, and run it.
+Open **http://127.0.0.1:4174/review**, choose **Load example (accepted handoff)**, select **Recorded WASM replay**, and run it.
 
 For source-build, complete the optional pinned-source and compiler steps above
 before starting the server. If it is already running, stop it and run the same
@@ -116,7 +116,7 @@ start command again after exporting `REPAIR_SOURCE_DIR`.
 
 On a supported Linux source-build host the page offers **Source build** and **Recorded WASM replay**. On native macOS, source build is unavailable; use recorded replay. Source-build is the default when its prerequisites are present. Both modes verify the bundle hashes and candidate identities before reserving an output directory. Neither calls a model.
 
-The checked-in example is a **recorded model candidate**, not a new model run and not an authored control. The page still performs a fresh local Sandbox execution. A successful result is a review of the supplied candidate and its declared case; it is not a claim that the model generated anything during the review.
+The default example is a **recorded accepted repair handoff**, assembled from the tracked patch, WASM and evidence of the accepted source run. Its producer is `null`: it is not a fresh model generation and does not demonstrate model provenance. The page still performs a fresh local Sandbox execution. A successful result reviews the supplied handoff and its declared case.
 
 ### Review from the command line
 
@@ -147,7 +147,7 @@ npm run repair:review -- \
 ```
 
 The checked-in `test-fixtures/repair-browser-export-1de7b8c5.json` is the
-8 November recorded model candidate. It predates the failed-refund settlement
+historical 8 November model fixture. It predates the failed-refund settlement
 policy and is now rejected at that gate: it returns the bond but drops the
 locked liability and pays no retry. It is kept as the historical record and as
 a negative control, so use the rebuilt bundle for an accepted handoff.
