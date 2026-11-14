@@ -109,6 +109,10 @@ jobs:
           node ui/sputnik/test-repair-history.cjs
           node ui/sputnik/test-repair-ui.cjs
           node ui/sputnik/test-repair-recovery-integration.cjs
+          node ui/sputnik/test-review-job.cjs
+          node ui/sputnik/test-review-cli-result.cjs
+          node scripts/test-repair-review.cjs
+          node scripts/test-review-patch-exit.cjs
 
   repair-review-source-build:
     name: Source-build repair handoff
@@ -444,6 +448,45 @@ jobs:
           if(r.mixed.comparison.legacy) throw new Error('primary export was treated as legacy');
           if(r.mixed.comparison.differences.length) throw new Error('producer/reviewer outcomes differ');
           NODE
+      - name: A producer/reviewer disagreement must be a typed rejection
+        run: |
+          set -euo pipefail
+          ulimit -n 65535
+          bundle="$RUNNER_TEMP/primary-review-bundle.json"
+          crossed="$RUNNER_TEMP/crossed-review-bundle.json"
+          node - "$bundle" "$crossed" <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const [source, target] = process.argv.slice(2);
+          const bundle = JSON.parse(fs.readFileSync(source, 'utf8'));
+          const producer = JSON.parse(bundle.mixed.reportText);
+          const verified = require(process.cwd() + '/case-triage/rehearsal-repair/mixed-policy.cjs')
+            .verifyMixedReport(producer, {requireBlockPinned: true});
+          if (!verified.ok) throw new Error('the exported producer report does not satisfy the shared policy');
+          producer.outcomes = {...verified.outcomes, bobPaidExactlyOnce: !verified.outcomes.bobPaidExactlyOnce};
+          const text = JSON.stringify(producer);
+          bundle.mixed.reportText = text;
+          bundle.mixed.reportSha256 = crypto.createHash('sha256').update(Buffer.from(text, 'utf8')).digest('hex');
+          fs.writeFileSync(target, JSON.stringify(bundle, null, 2));
+          console.log('crossed producer outcomes for the rejection replay');
+          NODE
+          out="$RUNNER_TEMP/primary-crossed"
+          set +e
+          node scripts/repair-review.cjs --bundle "$crossed" --out "$out" --mode recorded-wasm --sandbox-dir "$REPAIR_SANDBOX_DIR"
+          code=$?
+          set -e
+          test "$code" = 2
+          node - "$out" <<'NODE'
+          const fs = require('fs');
+          const r = JSON.parse(fs.readFileSync(process.argv[2] + '/review-result.json', 'utf8'));
+          if (r.status !== 'REJECTED') throw new Error('crossed producer outcomes were not rejected: ' + r.status);
+          if (r.accepted !== false) throw new Error('a rejected review reported accepted');
+          if (r.acceptancePolicy.status !== 'REJECTED') throw new Error('the typed verdict disagrees with the summary status');
+          const detail = r.acceptancePolicy.errors.join(' ');
+          if (!/producer\/reviewer mixed outcomes differ/.test(detail)) throw new Error('the rejection does not name the disagreement: ' + detail);
+          console.log('real CLI: crossed producer outcomes -> typed REJECTED with exit 2');
+          NODE
+          test -s "$out/review-result.json"
       - name: Upload primary gate evidence
         if: always()
         uses: actions/upload-artifact@v4
