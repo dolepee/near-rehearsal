@@ -10,7 +10,7 @@ const BOND = 10n ** 24n;
 const TRANSFER = 10n ** 23n;
 const FIXTURE = path.join(__dirname, 'out', 'issue238-local.json');
 const fixture = (() => { try { return JSON.parse(fs.readFileSync(FIXTURE, 'utf8')); } catch { return null; } })();
-const fixtureBond = (() => { try { return BigInt(fixture.failed.bondDeclaredYocto); } catch { return BOND; } })();
+const fixtureBond = (() => { try { return BigInt(fixture.failed.bondDeclaredYocto); } catch { return null; } })();
 const fixtureTransfer = (() => { try { return BigInt(fixture.healthy.transferDeclaredYocto); } catch { return TRANSFER; } })();
 const SOURCE = '5434a59dec23ee0c49df8c8c4350c208a7e75b0b';
 const BASE_WASM = '5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578';
@@ -37,8 +37,12 @@ const strictAmount = (value, label, fail, {nonNegative = false} = {}) => {
 function verifyMixedReport(report, opts = {}) {
   const errors = [];
   const fail = (message) => errors.push(message);
-  const expectedBond = opts.expectedBond ? BigInt(opts.expectedBond) : fixtureBond;
+  let expectedBond = opts.expectedBond ? BigInt(opts.expectedBond) : fixtureBond;
   const expectedTransfer = opts.expectedTransfer ? BigInt(opts.expectedTransfer) : fixtureTransfer;
+  if (expectedBond === null) {
+    fail('no trusted original per-obligation bond; refusing an ambiguous legacy principal');
+    expectedBond = 0n;
+  }
   const amount = (value, label, nonNegative = false) => strictAmount(value, label, fail, {nonNegative});
   const delta = (after, before, key, label) => {
     const a = amount(after?.[key], `${label} after`);
