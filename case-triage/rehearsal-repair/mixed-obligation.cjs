@@ -251,6 +251,16 @@ async function addProposal(worker, proposer, dao, kind, description) {
   }
 }
 
+async function seedLegacy(worker, dao, proposalId, proposer, fundingTxHash) {
+  const tx = await dao.callRaw(dao, 'seed_legacy_proposal_bond', {
+    proposal_id: proposalId,
+    proposer,
+    amount: BOND.toString(),
+    funding_tx_hash: fundingTxHash,
+  }, {gas: GAS});
+  return summarize(await finalStatus(worker, tx, dao.accountId));
+}
+
 async function vote(worker, voter, dao, id, kind) {
   try {
     const tx = await voter.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
@@ -357,6 +367,15 @@ async function runMixed(worker, candidateWasm) {
     {label: 'carol', id: carolAdd.id},
   ]);
 
+  const aliceSeed = await seedLegacy(worker, dao, aliceAdd.id, accounts.alice.accountId, aliceAdd.add.transactionHash);
+  const bobSeed = await seedLegacy(worker, dao, bobAdd.id, accounts.bob.accountId, bobAdd.add.transactionHash);
+  if (aliceSeed.receiptFailure || bobSeed.receiptFailure) throw new Error('legacy seed failed');
+  const beforeRecovery = await snapshot(worker, dao, allAccounts, [
+    {label: 'alice', id: aliceAdd.id},
+    {label: 'bob', id: bobAdd.id},
+    {label: 'carol', id: carolAdd.id},
+  ]);
+
   stage('aliceRecovery');
   const aliceRecovery = await attempt('alice recovery', async () => {
     const tx = await accounts.alice.callRaw(dao, 'act_proposal', {id: aliceAdd.id, action: 'Finalize', proposal: aliceKind}, {gas: GAS});
@@ -401,7 +420,7 @@ async function runMixed(worker, candidateWasm) {
   const delta = (after, before, key) => (BigInt(after?.[key] ?? 0) - BigInt(before?.[key] ?? 0)).toString();
   const aliceRecoveryDeltas = {};
   // Use the pre-recovery snapshot for Alice, not the post-recovery snapshot.
-  const ar = afterUpgrade;
+  const ar = beforeRecovery;
   aliceRecoveryDeltas.contract = delta(aliceAfter, ar, 'contractBalance');
   aliceRecoveryDeltas.recipient = (BigInt(aliceAfter.balances.aliceRecipient) - BigInt(ar.balances.aliceRecipient)).toString();
   aliceRecoveryDeltas.proposer = (BigInt(aliceAfter.balances.alice) - BigInt(ar.balances.alice)).toString();
@@ -463,6 +482,8 @@ async function runMixed(worker, candidateWasm) {
     beforeUpgrade: before,
     upgrade,
     afterUpgrade,
+    seed: {alice: aliceSeed, bob: bobSeed},
+    beforeRecovery,
     aliceRecovery: {
       attempt: aliceRecovery,
       after: aliceAfter,

@@ -1,6 +1,6 @@
 {
   "schema": "near-rehearsal/mixed-obligation/v1",
-  "generatedAt": "2026-11-14T06:22:41.588Z",
+  "generatedAt": "2026-11-14T12:29:30.202Z",
   "caseId": "sputnik-238-same-dao-mixed",
   "source": {
     "repository": "https://github.com/near-daos/sputnik-dao-contract",
@@ -10,9 +10,9 @@
     "baseWasmHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm"
   },
   "candidate": {
-    "wasmSha256": "158f0f0e0a98b3df11fb86828aa72bc0edbe4e992f5db0ab8f86f012eb754f7d",
-    "wasmHash": "2TA5rC2KnPVsrtLUVyo47oAsH431PWMavVhhBTvT91P2",
-    "wasmBytes": 533144
+    "wasmSha256": "3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2",
+    "wasmHash": "53CuZPSrdED3gL4KcNPcE3dqomZMFNmqrCfGXfEmfQQZ",
+    "wasmBytes": 538740
   },
   "accounts": {
     "contract": "dao.test.near",
@@ -24,18 +24,18 @@
     "carolRecipient": "carol-recipient.test.near"
   },
   "deploy": {
-    "transactionHash": "3W22FR1QGVtPHjeNi6BwrDSvdahbFL2mPtZueucr8KRx",
+    "transactionHash": "ABC6jvxbp9cTXZHCkpxzarGB6oVMnpG8cuaRekPhfRiW",
     "finalExecutionStatus": "FINAL",
     "succeeded": true,
     "receiptFailure": false,
     "transactionOutcome": {
       "status": {
-        "SuccessReceiptId": "J5j6Gu4cXijq8K9CSGCR5G1YrPcaR8Vf7xGTCdL9QjLG"
+        "SuccessReceiptId": "BFf5JbbeYwcA4j33DU7SDWDV8YV4ZyWqfSAB82e3mxfC"
       },
       "gasBurntUnits": "3894483106355",
       "tokensBurntYocto": "389448310635500000000",
       "rootReceiptIds": [
-        "J5j6Gu4cXijq8K9CSGCR5G1YrPcaR8Vf7xGTCdL9QjLG"
+        "BFf5JbbeYwcA4j33DU7SDWDV8YV4ZyWqfSAB82e3mxfC"
       ]
     },
     "transactionTokensBurntYocto": "389448310635500000000",
@@ -43,9 +43,9 @@
     "gasBurntYocto": "3832347233723500000000",
     "receipts": [
       {
-        "id": "J5j6Gu4cXijq8K9CSGCR5G1YrPcaR8Vf7xGTCdL9QjLG",
+        "id": "BFf5JbbeYwcA4j33DU7SDWDV8YV4ZyWqfSAB82e3mxfC",
         "receiptIds": [
-          "DY8CzRCPxDn8UXLt9AtjYJUC2wgzn1kyLYAcc1v8Wdq5"
+          "6hRn471UhgsvE5MehznEb7SCkBLsFJJhTaiT7RKWtnu2"
         ],
         "executorId": "dao.test.near",
         "status": {
@@ -56,7 +56,7 @@
         "logs": []
       },
       {
-        "id": "DY8CzRCPxDn8UXLt9AtjYJUC2wgzn1kyLYAcc1v8Wdq5",
+        "id": "6hRn471UhgsvE5MehznEb7SCkBLsFJJhTaiT7RKWtnu2",
         "receiptIds": [],
         "executorId": "dao.test.near",
         "status": {
@@ -80,18 +80,18 @@
     }
   },
   "init": {
-    "transactionHash": "57cxposvhEmVbGnGeVFn64sFyEkm5YxfVp3HUKkudogs",
+    "transactionHash": "9dLTJp9ByFyyzAnoQ3AoCmawYE7pdXy4cSmK1fqfxRN4",
     "finalExecutionStatus": "FINAL",
     "succeeded": true,
     "receiptFailure": false,
     "transactionOutcome": {
       "status": {
-        "SuccessReceiptId": "AVAGyGRCREn2eUKoQAfs9ZSoyqV9sfH5woid1WxvF4t6"
+        "SuccessReceiptId": "8aevfYs9grP3vxeDU2AxkA7UEzeSTYWt4qmzK5MDScvZ"
       },
       "gasBurntUnits": "314735220100",
       "tokensBurntYocto": "31473522010000000000",
       "rootReceiptIds": [
-        "AVAGyGRCREn2eUKoQAfs9ZSoyqV9sfH5woid1WxvF4t6"
+        "8aevfYs9grP3vxeDU2AxkA7UEzeSTYWt4qmzK5MDScvZ"
       ]
     },
     "transactionTokensBurntYocto": "31473522010000000000",
@@ -99,9 +99,9 @@
     "gasBurntYocto": "234331433896300000000",
     "receipts": [
       {
-        "id": "AVAGyGRCREn2eUKoQAfs9ZSoyqV9sfH5woid1WxvF4t6",
+        "id": "8aevfYs9grP3vxeDU2AxkA7UEzeSTYWt4qmzK5MDScvZ",
         "receiptIds": [
-          "9CLximRK6d6haSD3ddgUZhQ8oUQYm6AxjsGXpa5hg5dx"
+          "Fc2UEBM5JmAKNqohdnQFxAyKhLK23NVRgp2cL9tZQCGv"
         ],
         "executorId": "dao.test.near",
         "status": {
@@ -114,7 +114,7 @@
         ]
       },
       {
-        "id": "9CLximRK6d6haSD3ddgUZhQ8oUQYm6AxjsGXpa5hg5dx",
+        "id": "Fc2UEBM5JmAKNqohdnQFxAyKhLK23NVRgp2cL9tZQCGv",
         "receiptIds": [],
         "executorId": "test.near",
         "status": {
@@ -143,18 +143,18 @@
   "carol": {
     "proposalId": 0,
     "add": {
-      "transactionHash": "BJuRge8HsXzBssvpaSi7tdBhUpAufjK5fXTfaJ6fxPRX",
+      "transactionHash": "2Po1JiitrUbHa6rvqg8dbzFdXCx13an5LYQ8UvEiju4e",
       "finalExecutionStatus": "FINAL",
       "succeeded": true,
       "receiptFailure": false,
       "transactionOutcome": {
         "status": {
-          "SuccessReceiptId": "6DKtBHQrEptqw97a4pXGjbPQhgVZriHWttNkz6avpsEL"
+          "SuccessReceiptId": "BnHZXLWfmWdG3P3qpWS7KF2gT3xnyQTd9UMb1fHr72SR"
         },
         "gasBurntUnits": "316928670990",
         "tokensBurntYocto": "31692867099000000000",
         "rootReceiptIds": [
-          "6DKtBHQrEptqw97a4pXGjbPQhgVZriHWttNkz6avpsEL"
+          "BnHZXLWfmWdG3P3qpWS7KF2gT3xnyQTd9UMb1fHr72SR"
         ]
       },
       "transactionTokensBurntYocto": "31692867099000000000",
@@ -162,9 +162,9 @@
       "gasBurntYocto": "232019970241300000000",
       "receipts": [
         {
-          "id": "6DKtBHQrEptqw97a4pXGjbPQhgVZriHWttNkz6avpsEL",
+          "id": "BnHZXLWfmWdG3P3qpWS7KF2gT3xnyQTd9UMb1fHr72SR",
           "receiptIds": [
-            "GcTKGxwCbtMmNTYGdEJwaqRGwppBViHhKQocREnQzD2o"
+            "GcyqyGWXuZANYuptUF1vdgDTGRwU2D4opHc93pWv75Rx"
           ],
           "executorId": "dao.test.near",
           "status": {
@@ -175,7 +175,7 @@
           "logs": []
         },
         {
-          "id": "GcTKGxwCbtMmNTYGdEJwaqRGwppBViHhKQocREnQzD2o",
+          "id": "GcyqyGWXuZANYuptUF1vdgDTGRwU2D4opHc93pWv75Rx",
           "receiptIds": [],
           "executorId": "carol.test.near",
           "status": {
@@ -202,8 +202,8 @@
       }
     },
     "after": {
-      "blockHeight": 62,
-      "blockHash": "CQGBD3m93AQbffVQ8EEccrkQ8EE98ENuTXYdQVrkU7y8",
+      "blockHeight": 60,
+      "blockHash": "52KmVvZGNaGWX9rMiawPsPUMrodqGmabAydB8inZZyNo",
       "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
       "state": [
         {
@@ -216,7 +216,7 @@
         },
         {
           "key": "AwAAAAAAAAAA",
-          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPwVcH8Y1ecYAgAAADAAAAAAAAAANgAAAAAAAAA="
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPXiw4ob6ecYAgAAAC8AAAAAAAAANQAAAAAAAAA="
         },
         {
           "key": "RkFDVE9SWQ==",
@@ -224,14 +224,14 @@
         },
         {
           "key": "U1RBVEU=",
-          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAQAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcCAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAADAAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjYAAAAAAAAA"
+          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAQAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcCAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAA"
         },
         {
           "key": "U1RBVEVWRVJTSU9O",
           "value": "AQ=="
         }
       ],
-      "stateHash": "393a4c9cd063ae4452c55d5dedc6e90fe237635a58c976296fc26b3f992b8d96",
+      "stateHash": "53c81381d97398de81c43d664d66cc3890b4da6b6a42ae08ee0f99cd9aeb414e",
       "policy": {
         "roles": [
           {
@@ -296,13 +296,13 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637277724415484",
+          "submission_time": "1794659281031914229",
           "last_actions_log": [
             {
-              "block_height": "48"
+              "block_height": "47"
             },
             {
-              "block_height": "54"
+              "block_height": "53"
             }
           ]
         }
@@ -326,18 +326,18 @@
   "alice": {
     "proposalId": 1,
     "add": {
-      "transactionHash": "JDwTYz2GV7ZDm3ayaGR22VmxGhzrd2LbAGbkwCeTtBvF",
+      "transactionHash": "F11QzrEnkSz3rRUfGUAU3iD79DU3HWvhTwL6VWxhMQJR",
       "finalExecutionStatus": "FINAL",
       "succeeded": true,
       "receiptFailure": false,
       "transactionOutcome": {
         "status": {
-          "SuccessReceiptId": "EYBfKgQf242FBoQYce8dsYtiSp6VLkRqkN2vBcRU8kr2"
+          "SuccessReceiptId": "4bJS6Y3aDnPrcQcNDg65bEwekBgNkEq2ew1wX99TAvmf"
         },
         "gasBurntUnits": "318073080150",
         "tokensBurntYocto": "31807308015000000000",
         "rootReceiptIds": [
-          "EYBfKgQf242FBoQYce8dsYtiSp6VLkRqkN2vBcRU8kr2"
+          "4bJS6Y3aDnPrcQcNDg65bEwekBgNkEq2ew1wX99TAvmf"
         ]
       },
       "transactionTokensBurntYocto": "31807308015000000000",
@@ -345,9 +345,9 @@
       "gasBurntYocto": "235540422687700000000",
       "receipts": [
         {
-          "id": "EYBfKgQf242FBoQYce8dsYtiSp6VLkRqkN2vBcRU8kr2",
+          "id": "4bJS6Y3aDnPrcQcNDg65bEwekBgNkEq2ew1wX99TAvmf",
           "receiptIds": [
-            "EwyEMAmbmijeTXgEFoA57SxBZGFFr9jFn4pB4kip1cQk"
+            "5VPKKWmeQcTarJJi7vLaVQpMWLbXdfaXMDu2o5eWB7yS"
           ],
           "executorId": "dao.test.near",
           "status": {
@@ -358,7 +358,7 @@
           "logs": []
         },
         {
-          "id": "EwyEMAmbmijeTXgEFoA57SxBZGFFr9jFn4pB4kip1cQk",
+          "id": "5VPKKWmeQcTarJJi7vLaVQpMWLbXdfaXMDu2o5eWB7yS",
           "receiptIds": [],
           "executorId": "alice.test.near",
           "status": {
@@ -385,8 +385,8 @@
       }
     },
     "failed": {
-      "blockHeight": 80,
-      "blockHash": "9DoRHJDFMT5pP5MgZv9jNaKokzgm7ZL1rWJfnUBWD3uJ",
+      "blockHeight": 79,
+      "blockHash": "8235LN1h36fPvSwxLohv4YxFxLasjJbfWWLx9RfMDh3D",
       "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
       "state": [
         {
@@ -399,11 +399,11 @@
         },
         {
           "key": "AwAAAAAAAAAA",
-          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPwVcH8Y1ecYAgAAADAAAAAAAAAANgAAAAAAAAA="
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPXiw4ob6ecYAgAAAC8AAAAAAAAANQAAAAAAAAA="
         },
         {
           "key": "AwEAAAAAAAAA",
-          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyALad73wb1ecYAgAAAEMAAAAAAAAASQAAAAAAAAA="
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAEp0qZQe6ecYAgAAAEIAAAAAAAAASAAAAAAAAAA="
         },
         {
           "key": "RkFDVE9SWQ==",
@@ -411,14 +411,14 @@
         },
         {
           "key": "U1RBVEU=",
-          "value": "AQAAAAABAAAAAQAAAKHtzM4bwtMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAgAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcEAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAADAAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjYAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEMAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkkAAAAAAAAA"
+          "value": "AQAAAAABAAAAAQAAAKHtzM4bwtMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAgAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcEAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAA"
         },
         {
           "key": "U1RBVEVWRVJTSU9O",
           "value": "AQ=="
         }
       ],
-      "stateHash": "e7dc498302332b7ab9bde7159ba348851214638592d763ed8a3c6bb6fdd38e4f",
+      "stateHash": "b4313939a93458c16ea2f93d6f731665f8d5c702c510609ecf263cf938fd344f",
       "policy": {
         "roles": [
           {
@@ -488,13 +488,13 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637290567343542",
+          "submission_time": "1794659294082856010",
           "last_actions_log": [
             {
-              "block_height": "67"
+              "block_height": "66"
             },
             {
-              "block_height": "73"
+              "block_height": "72"
             }
           ]
         }
@@ -518,18 +518,18 @@
   "bob": {
     "proposalId": 2,
     "add": {
-      "transactionHash": "9k1n7rdkJtFHAed5c7c5p4iBLsbjhBvscNFEcPq246VR",
+      "transactionHash": "9VpNR5y4s11L3AaM95ytJsnbjmwX9Ek67TvGUug2KLyy",
       "finalExecutionStatus": "FINAL",
       "succeeded": true,
       "receiptFailure": false,
       "transactionOutcome": {
         "status": {
-          "SuccessReceiptId": "CWsi9zs3QwPTJGo4a6SrFJEq9LwwZNgYCSVw7ZvsQuDb"
+          "SuccessReceiptId": "EdVvFvvi4xB5YQQjWNfmGqNfso8bjQVqn3VchU5yDHs7"
         },
         "gasBurntUnits": "316880987275",
         "tokensBurntYocto": "31688098727500000000",
         "rootReceiptIds": [
-          "CWsi9zs3QwPTJGo4a6SrFJEq9LwwZNgYCSVw7ZvsQuDb"
+          "EdVvFvvi4xB5YQQjWNfmGqNfso8bjQVqn3VchU5yDHs7"
         ]
       },
       "transactionTokensBurntYocto": "31688098727500000000",
@@ -537,9 +537,9 @@
       "gasBurntYocto": "235453514368600000000",
       "receipts": [
         {
-          "id": "CWsi9zs3QwPTJGo4a6SrFJEq9LwwZNgYCSVw7ZvsQuDb",
+          "id": "EdVvFvvi4xB5YQQjWNfmGqNfso8bjQVqn3VchU5yDHs7",
           "receiptIds": [
-            "2rxUXJVzjnBRgmgJQR18y4MZr4eZWGqCovPcAmZVdaf5"
+            "AqMTZhpSuoXFDr6htdW5r7WeTYGS4S4Hg6n8dyDGLuA6"
           ],
           "executorId": "dao.test.near",
           "status": {
@@ -550,7 +550,7 @@
           "logs": []
         },
         {
-          "id": "2rxUXJVzjnBRgmgJQR18y4MZr4eZWGqCovPcAmZVdaf5",
+          "id": "AqMTZhpSuoXFDr6htdW5r7WeTYGS4S4Hg6n8dyDGLuA6",
           "receiptIds": [],
           "executorId": "bob.test.near",
           "status": {
@@ -578,8 +578,8 @@
     }
   },
   "beforeUpgrade": {
-    "blockHeight": 89,
-    "blockHash": "7qQxrXdEs7MhbgbKDQ6JGBpJmmxVtubJQfb8Y6yqN9fe",
+    "blockHeight": 88,
+    "blockHash": "2wmrvuJT1ba7svHR6YEKhS46ub2XbHynWEZVXTX6N55h",
     "codeHash": "74poc4ikfTRgzo8oWnFdQzg3gPtsu4VYcL1z5p653nMm",
     "state": [
       {
@@ -592,15 +592,15 @@
       },
       {
         "key": "AwAAAAAAAAAA",
-        "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPwVcH8Y1ecYAgAAADAAAAAAAAAANgAAAAAAAAA="
+        "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPXiw4ob6ecYAgAAAC8AAAAAAAAANQAAAAAAAAA="
       },
       {
         "key": "AwEAAAAAAAAA",
-        "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyALad73wb1ecYAgAAAEMAAAAAAAAASQAAAAAAAAA="
+        "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAEp0qZQe6ecYAgAAAEIAAAAAAAAASAAAAAAAAAA="
       },
       {
         "key": "AwIAAAAAAAAA",
-        "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAtwAvMR7V5xgBAAAAVQAAAAAAAAA="
+        "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAURYiMiHp5xgBAAAAVAAAAAAAAAA="
       },
       {
         "key": "RkFDVE9SWQ==",
@@ -608,14 +608,14 @@
       },
       {
         "key": "U1RBVEU=",
-        "value": "AQAAAAABAAAAAQAAAELbmZ03hKcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcFAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAADAAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjYAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEMAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkkAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABVAAAAAAAAAA=="
+        "value": "AQAAAAABAAAAAQAAAELbmZ03hKcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcFAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA=="
       },
       {
         "key": "U1RBVEVWRVJTSU9O",
         "value": "AQ=="
       }
     ],
-    "stateHash": "20e57d83a147f66b4bc01da970239ad842c9f78f654b6457e4cf92840f9f1fa4",
+    "stateHash": "3c11a94e911b1f6fc445c375762275301baafd8e0eab183b242b976526069b96",
     "policy": {
       "roles": [
         {
@@ -685,13 +685,13 @@
         "votes": {
           "alice.test.near": "Approve"
         },
-        "submission_time": "1794637290567343542",
+        "submission_time": "1794659294082856010",
         "last_actions_log": [
           {
-            "block_height": "67"
+            "block_height": "66"
           },
           {
-            "block_height": "73"
+            "block_height": "72"
           }
         ]
       },
@@ -710,10 +710,10 @@
         "status": "InProgress",
         "vote_counts": {},
         "votes": {},
-        "submission_time": "1794637302181331127",
+        "submission_time": "1794659305314719313",
         "last_actions_log": [
           {
-            "block_height": "85"
+            "block_height": "84"
           }
         ]
       },
@@ -740,13 +740,13 @@
         "votes": {
           "alice.test.near": "Approve"
         },
-        "submission_time": "1794637277724415484",
+        "submission_time": "1794659281031914229",
         "last_actions_log": [
           {
-            "block_height": "48"
+            "block_height": "47"
           },
           {
-            "block_height": "54"
+            "block_height": "53"
           }
         ]
       }
@@ -769,39 +769,39 @@
   "upgrade": {
     "method": "account-key deploy + private migrate",
     "deploy": {
-      "transactionHash": "D8dCpgcAAhD6nUkAzcQUxeNnuDk6GZWiMUDJntCVKmRA",
+      "transactionHash": "6WKrRn7S7dxpetzeFteEhVrCFdU6oSLhoyFV4gj3FNEX",
       "finalExecutionStatus": "FINAL",
       "succeeded": true,
       "receiptFailure": false,
       "transactionOutcome": {
         "status": {
-          "SuccessReceiptId": "4EsGT86T2mHHYTX2qxGshYCRudnfWqXqz93vFFaTDYf5"
+          "SuccessReceiptId": "AdpTpT5TTx5j6ou6KHxxFSwitCXsskgsn5biCCRYb2HV"
         },
-        "gasBurntUnits": "3925134788856",
-        "tokensBurntYocto": "392513478885600000000",
+        "gasBurntUnits": "3963260331260",
+        "tokensBurntYocto": "396326033126000000000",
         "rootReceiptIds": [
-          "4EsGT86T2mHHYTX2qxGshYCRudnfWqXqz93vFFaTDYf5"
+          "AdpTpT5TTx5j6ou6KHxxFSwitCXsskgsn5biCCRYb2HV"
         ]
       },
-      "transactionTokensBurntYocto": "392513478885600000000",
-      "receiptTokensBurntYocto": "3471950290593600000000",
-      "gasBurntYocto": "3864463769479200000000",
+      "transactionTokensBurntYocto": "396326033126000000000",
+      "receiptTokensBurntYocto": "3508085310056000000000",
+      "gasBurntYocto": "3904411343182000000000",
       "receipts": [
         {
-          "id": "4EsGT86T2mHHYTX2qxGshYCRudnfWqXqz93vFFaTDYf5",
+          "id": "AdpTpT5TTx5j6ou6KHxxFSwitCXsskgsn5biCCRYb2HV",
           "receiptIds": [
-            "E6TEhJSZ2BWeEuXt2hfzuEeBp4Go5ZS5ardcgqLakwiy"
+            "61RKwRoWCeEfz5x6oSrYgn1kpY8BWubyZeMK6Hrxrw8C"
           ],
           "executorId": "dao.test.near",
           "status": {
             "SuccessValue": ""
           },
-          "gasBurntUnits": "34719502905936",
-          "tokensBurntYocto": "3471950290593600000000",
+          "gasBurntUnits": "35080853100560",
+          "tokensBurntYocto": "3508085310056000000000",
           "logs": []
         },
         {
-          "id": "E6TEhJSZ2BWeEuXt2hfzuEeBp4Go5ZS5ardcgqLakwiy",
+          "id": "61RKwRoWCeEfz5x6oSrYgn1kpY8BWubyZeMK6Hrxrw8C",
           "receiptIds": [],
           "executorId": "dao.test.near",
           "status": {
@@ -818,46 +818,46 @@
         "actions": [
           {
             "DeployContract": {
-              "code": "FY8PDgqYs98R+4aCiqcrwO2+TpkvXbCrj4bwEut1T30="
+              "code": "O/9fJqPyo3ou/SsygrzXONV4/MGKt1eZso0Su/QYdOI="
             }
           }
         ]
       }
     },
     "migrate": {
-      "transactionHash": "3u1xgMNTNxDha2YJ1qVDZcZzw45oiZy5xM78gvoc5iaW",
+      "transactionHash": "2eWdGksgxoTTexxEzdNgBHBP5mxVg9mtX3XBdNoERvqz",
       "finalExecutionStatus": "FINAL",
       "succeeded": true,
       "receiptFailure": false,
       "transactionOutcome": {
         "status": {
-          "SuccessReceiptId": "35zqiNuGoExfrQSKff3mcWnmPoqgRtc66zh2v1QaE7b4"
+          "SuccessReceiptId": "DMHjHhCXx5tBHcA8cU4zYSMRJtonVay8VpcNxH8iXNxY"
         },
         "gasBurntUnits": "308079623406",
         "tokensBurntYocto": "30807962340600000000",
         "rootReceiptIds": [
-          "35zqiNuGoExfrQSKff3mcWnmPoqgRtc66zh2v1QaE7b4"
+          "DMHjHhCXx5tBHcA8cU4zYSMRJtonVay8VpcNxH8iXNxY"
         ]
       },
       "transactionTokensBurntYocto": "30807962340600000000",
-      "receiptTokensBurntYocto": "178684999547900000000",
-      "gasBurntYocto": "209492961888500000000",
+      "receiptTokensBurntYocto": "179294569029900000000",
+      "gasBurntYocto": "210102531370500000000",
       "receipts": [
         {
-          "id": "35zqiNuGoExfrQSKff3mcWnmPoqgRtc66zh2v1QaE7b4",
+          "id": "DMHjHhCXx5tBHcA8cU4zYSMRJtonVay8VpcNxH8iXNxY",
           "receiptIds": [
-            "CqUZo4QKJMA4iTicGgsGFQkcmAHUCxSkvDgSZudMKpEM"
+            "Cw2EQFhq33s83JbcA5fDdmFUmqRAtwdshGzeM8PFTWmS"
           ],
           "executorId": "dao.test.near",
           "status": {
             "SuccessValue": ""
           },
-          "gasBurntUnits": "1786849995479",
-          "tokensBurntYocto": "178684999547900000000",
+          "gasBurntUnits": "1792945690299",
+          "tokensBurntYocto": "179294569029900000000",
           "logs": []
         },
         {
-          "id": "CqUZo4QKJMA4iTicGgsGFQkcmAHUCxSkvDgSZudMKpEM",
+          "id": "Cw2EQFhq33s83JbcA5fDdmFUmqRAtwdshGzeM8PFTWmS",
           "receiptIds": [],
           "executorId": "dao.test.near",
           "status": {
@@ -886,9 +886,9 @@
     "receiptFailure": false
   },
   "afterUpgrade": {
-    "blockHeight": 102,
-    "blockHash": "A6d4RtHhRbVCjpVHec8ZviFQvGnc9EEx84wk9LVVC1hM",
-    "codeHash": "2TA5rC2KnPVsrtLUVyo47oAsH431PWMavVhhBTvT91P2",
+    "blockHeight": 101,
+    "blockHash": "8rpoDM9iRZ7NNENNwDibgVzRXjAWFDpqC9M53UEJFeQ3",
+    "codeHash": "53CuZPSrdED3gL4KcNPcE3dqomZMFNmqrCfGXfEmfQQZ",
     "state": [
       {
         "key": "AA==",
@@ -900,15 +900,15 @@
       },
       {
         "key": "AwAAAAAAAAAA",
-        "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPwVcH8Y1ecYAgAAADAAAAAAAAAANgAAAAAAAAA="
+        "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPXiw4ob6ecYAgAAAC8AAAAAAAAANQAAAAAAAAA="
       },
       {
         "key": "AwEAAAAAAAAA",
-        "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyALad73wb1ecYAgAAAEMAAAAAAAAASQAAAAAAAAA="
+        "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAEp0qZQe6ecYAgAAAEIAAAAAAAAASAAAAAAAAAA="
       },
       {
         "key": "AwIAAAAAAAAA",
-        "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAtwAvMR7V5xgBAAAAVQAAAAAAAAA="
+        "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAURYiMiHp5xgBAAAAVAAAAAAAAAA="
       },
       {
         "key": "RkFDVE9SWQ==",
@@ -916,14 +916,14 @@
       },
       {
         "key": "U1RBVEU=",
-        "value": "AQAAAAABAAAAAQAAAELbmZ03hKcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcFAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAADAAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjYAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEMAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkkAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABVAAAAAAAAAA=="
+        "value": "AQAAAAABAAAAAQAAAELbmZ03hKcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcFAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA=="
       },
       {
         "key": "U1RBVEVWRVJTSU9O",
         "value": "AQ=="
       }
     ],
-    "stateHash": "20e57d83a147f66b4bc01da970239ad842c9f78f654b6457e4cf92840f9f1fa4",
+    "stateHash": "3c11a94e911b1f6fc445c375762275301baafd8e0eab183b242b976526069b96",
     "policy": {
       "roles": [
         {
@@ -993,13 +993,13 @@
         "votes": {
           "alice.test.near": "Approve"
         },
-        "submission_time": "1794637290567343542",
+        "submission_time": "1794659294082856010",
         "last_actions_log": [
           {
-            "block_height": "67"
+            "block_height": "66"
           },
           {
-            "block_height": "73"
+            "block_height": "72"
           }
         ]
       },
@@ -1018,10 +1018,10 @@
         "status": "InProgress",
         "vote_counts": {},
         "votes": {},
-        "submission_time": "1794637302181331127",
+        "submission_time": "1794659305314719313",
         "last_actions_log": [
           {
-            "block_height": "85"
+            "block_height": "84"
           }
         ]
       },
@@ -1048,21 +1048,21 @@
         "votes": {
           "alice.test.near": "Approve"
         },
-        "submission_time": "1794637277724415484",
+        "submission_time": "1794659281031914229",
         "last_actions_log": [
           {
-            "block_height": "48"
+            "block_height": "47"
           },
           {
-            "block_height": "54"
+            "block_height": "53"
           }
         ]
       }
     },
-    "contractBalance": "101892093696034908800000000",
-    "storageUsage": 534854,
-    "availableAmount": "94543553696034908800000000",
-    "lockedStorageAmount": "5348540000000000000000000",
+    "contractBalance": "101892053138891724000000000",
+    "storageUsage": 540450,
+    "availableAmount": "94487553138891724000000000",
+    "lockedStorageAmount": "5404500000000000000000000",
     "lockedAmount": "2000000000000000000000000",
     "balances": {
       "alice": "98998546309623677800000000",
@@ -1071,7 +1071,332 @@
       "aliceRecipient": "10000000000000000000000000",
       "bobRecipient": "10000000000000000000000000",
       "carolRecipient": "10100000000000000000000000",
-      "dao": "101892093696034908800000000"
+      "dao": "101892053138891724000000000"
+    }
+  },
+  "seed": {
+    "alice": {
+      "transactionHash": "9TqU1d42V4Qho4BhCqJCJ7VpToPfBguJAssaSziN7xpx",
+      "finalExecutionStatus": "FINAL",
+      "succeeded": true,
+      "receiptFailure": false,
+      "transactionOutcome": {
+        "status": {
+          "SuccessReceiptId": "DFyWsoJJr1gz41yKxNtZbQYyYN2XyDwqnEvZJyeXXwfT"
+        },
+        "gasBurntUnits": "308446316582",
+        "tokensBurntYocto": "30844631658200000000",
+        "rootReceiptIds": [
+          "DFyWsoJJr1gz41yKxNtZbQYyYN2XyDwqnEvZJyeXXwfT"
+        ]
+      },
+      "transactionTokensBurntYocto": "30844631658200000000",
+      "receiptTokensBurntYocto": "215818566457700000000",
+      "gasBurntYocto": "246663198115900000000",
+      "receipts": [
+        {
+          "id": "DFyWsoJJr1gz41yKxNtZbQYyYN2XyDwqnEvZJyeXXwfT",
+          "receiptIds": [
+            "wBgwWzohMWXBAoqdFNzhkvERKDzP5iymJnwhCDnxNkJ"
+          ],
+          "executorId": "dao.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "2158185664577",
+          "tokensBurntYocto": "215818566457700000000",
+          "logs": []
+        },
+        {
+          "id": "wBgwWzohMWXBAoqdFNzhkvERKDzP5iymJnwhCDnxNkJ",
+          "receiptIds": [],
+          "executorId": "dao.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "logs": []
+        }
+      ],
+      "transaction": {
+        "signerId": "dao.test.near",
+        "receiverId": "dao.test.near",
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJwcm9wb3NhbF9pZCI6MSwicHJvcG9zZXIiOiJhbGljZS50ZXN0Lm5lYXIiLCJhbW91bnQiOiIxMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwiZnVuZGluZ190eF9oYXNoIjoiRjExUXpyRW5rU3ozclJVZkdVQVUzaUQ3OURVM0hXdmhUd0w2Vld4aE1RSlIifQ==",
+              "deposit": "0",
+              "gas": 300000000000000,
+              "method_name": "seed_legacy_proposal_bond"
+            }
+          }
+        ]
+      }
+    },
+    "bob": {
+      "transactionHash": "AZUy93pwn4iqNq3upNKE9aAzBTVgrCUkAjmpB4tShS6M",
+      "finalExecutionStatus": "FINAL",
+      "succeeded": true,
+      "receiptFailure": false,
+      "transactionOutcome": {
+        "status": {
+          "SuccessReceiptId": "8AAXtgKTXxXRo6o32bEJMrvogQH556YTHnUKTWg5Askc"
+        },
+        "gasBurntUnits": "308441844714",
+        "tokensBurntYocto": "30844184471400000000",
+        "rootReceiptIds": [
+          "8AAXtgKTXxXRo6o32bEJMrvogQH556YTHnUKTWg5Askc"
+        ]
+      },
+      "transactionTokensBurntYocto": "30844184471400000000",
+      "receiptTokensBurntYocto": "214493355318900000000",
+      "gasBurntYocto": "245337539790300000000",
+      "receipts": [
+        {
+          "id": "8AAXtgKTXxXRo6o32bEJMrvogQH556YTHnUKTWg5Askc",
+          "receiptIds": [
+            "FSjpbr5McKLFdFYnXGPVEvKthBqA9hJqSCMNDckpdBxd"
+          ],
+          "executorId": "dao.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "2144933553189",
+          "tokensBurntYocto": "214493355318900000000",
+          "logs": []
+        },
+        {
+          "id": "FSjpbr5McKLFdFYnXGPVEvKthBqA9hJqSCMNDckpdBxd",
+          "receiptIds": [],
+          "executorId": "dao.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "gasBurntUnits": "223182562500",
+          "tokensBurntYocto": "0",
+          "logs": []
+        }
+      ],
+      "transaction": {
+        "signerId": "dao.test.near",
+        "receiverId": "dao.test.near",
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJwcm9wb3NhbF9pZCI6MiwicHJvcG9zZXIiOiJib2IudGVzdC5uZWFyIiwiYW1vdW50IjoiMTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCIsImZ1bmRpbmdfdHhfaGFzaCI6IjlWcE5SNXk0czExTDNBYU05NXl0SnNuYmptd1g5RWs2N1R2R1V1ZzJLTHl5In0=",
+              "deposit": "0",
+              "gas": 300000000000000,
+              "method_name": "seed_legacy_proposal_bond"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "beforeRecovery": {
+    "blockHeight": 114,
+    "blockHash": "3e1x5fpmz7H9nckmbGqEyg7XKkKhfKD2nHZdzBkvrPGA",
+    "codeHash": "53CuZPSrdED3gL4KcNPcE3dqomZMFNmqrCfGXfEmfQQZ",
+    "state": [
+      {
+        "key": "AA==",
+        "value": "GQAAAG1peGVkLW9ibGlnYXRpb24tcmVjb3ZlcnkiAAAAYm91bmRlZCBzYW1lLURBTyBtaXhlZCBvYmxpZ2F0aW9ucwAAAAA="
+      },
+      {
+        "key": "AQ==",
+        "value": "AQIAAAADAAAAYWxsAAEAAAANAAAAKjpBZGRQcm9wb3NhbAAAAAAHAAAAY291bmNpbAIBAAAADwAAAGFsaWNlLnRlc3QubmVhcgUAAAANAAAAKjpBZGRQcm9wb3NhbAoAAAAqOkZpbmFsaXplDQAAACo6Vm90ZUFwcHJvdmUMAAAAKjpWb3RlUmVqZWN0DAAAACo6Vm90ZVJlbW92ZQAAAAABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAIAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAAAAKfkPJgIAAAAAoe3MzhvC0wAAAAAAAAAAT5GUTgAA"
+      },
+      {
+        "key": "AwAAAAAAAAAA",
+        "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPXiw4ob6ecYAgAAAC8AAAAAAAAANQAAAAAAAAA="
+      },
+      {
+        "key": "AwEAAAAAAAAA",
+        "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAEp0qZQe6ecYAgAAAEIAAAAAAAAASAAAAAAAAAA="
+      },
+      {
+        "key": "AwIAAAAAAAAA",
+        "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAURYiMiHp5xgBAAAAVAAAAAAAAAA="
+      },
+      {
+        "key": "bGVnYWN5X3Byb3Bvc2FsX2JvbmRfcHJvdmVuYW5jZToBAAAAAAAAAA==",
+        "value": "RjExUXpyRW5rU3ozclJVZkdVQVUzaUQ3OURVM0hXdmhUd0w2Vld4aE1RSlIAAACh7czOG8LTAAAAAAAA"
+      },
+      {
+        "key": "bGVnYWN5X3Byb3Bvc2FsX2JvbmRfcHJvdmVuYW5jZToCAAAAAAAAAA==",
+        "value": "OVZwTlI1eTRzMTFMM0FhTTk1eXRKc25iam13WDlFazY3VHZHVXVnMktMeXkAAACh7czOG8LTAAAAAAAA"
+      },
+      {
+        "key": "cHJvcG9zYWxfYm9uZDoBAAAAAAAAAA==",
+        "value": "AAAAoe3MzhvC0wAAAAAAAA=="
+      },
+      {
+        "key": "cHJvcG9zYWxfYm9uZDoCAAAAAAAAAA==",
+        "value": "AAAAoe3MzhvC0wAAAAAAAA=="
+      },
+      {
+        "key": "RkFDVE9SWQ==",
+        "value": "CQAAAHRlc3QubmVhcgE="
+      },
+      {
+        "key": "U1RBVEU=",
+        "value": "AQAAAAABAAAAAQAAAELbmZ03hKcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcFAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA=="
+      },
+      {
+        "key": "U1RBVEVWRVJTSU9O",
+        "value": "AQ=="
+      }
+    ],
+    "stateHash": "82c88e4538eb9d21535c5d939229b6d2fb07ef68406ab1df706b4f777530629c",
+    "policy": {
+      "roles": [
+        {
+          "name": "all",
+          "kind": "Everyone",
+          "permissions": [
+            "*:AddProposal"
+          ],
+          "vote_policy": {}
+        },
+        {
+          "name": "council",
+          "kind": {
+            "Group": [
+              "alice.test.near"
+            ]
+          },
+          "permissions": [
+            "*:AddProposal",
+            "*:VoteApprove",
+            "*:VoteReject",
+            "*:Finalize",
+            "*:VoteRemove"
+          ],
+          "vote_policy": {}
+        }
+      ],
+      "default_vote_policy": {
+        "weight_kind": "RoleWeight",
+        "quorum": "0",
+        "threshold": [
+          1,
+          2
+        ]
+      },
+      "proposal_bond": "1000000000000000000000000",
+      "proposal_period": "604800000000000",
+      "bounty_bond": "1000000000000000000000000",
+      "bounty_forgiveness_period": "86400000000000"
+    },
+    "proposals": {
+      "alice": {
+        "id": 1,
+        "proposer": "alice.test.near",
+        "description": "alice failed async",
+        "kind": {
+          "FunctionCall": {
+            "receiver_id": "missing-target.test.near",
+            "actions": [
+              {
+                "method_name": "ping",
+                "args": "",
+                "deposit": "0",
+                "gas": "20000000000000"
+              }
+            ]
+          }
+        },
+        "status": "Failed",
+        "vote_counts": {
+          "council": [
+            "1",
+            "0",
+            "0"
+          ]
+        },
+        "votes": {
+          "alice.test.near": "Approve"
+        },
+        "submission_time": "1794659294082856010",
+        "last_actions_log": [
+          {
+            "block_height": "66"
+          },
+          {
+            "block_height": "72"
+          }
+        ]
+      },
+      "bob": {
+        "id": 2,
+        "proposer": "bob.test.near",
+        "description": "bob healthy pending",
+        "kind": {
+          "Transfer": {
+            "token_id": "",
+            "receiver_id": "bob-recipient.test.near",
+            "amount": "100000000000000000000000",
+            "msg": null
+          }
+        },
+        "status": "InProgress",
+        "vote_counts": {},
+        "votes": {},
+        "submission_time": "1794659305314719313",
+        "last_actions_log": [
+          {
+            "block_height": "84"
+          }
+        ]
+      },
+      "carol": {
+        "id": 0,
+        "proposer": "carol.test.near",
+        "description": "carol already paid",
+        "kind": {
+          "Transfer": {
+            "token_id": "",
+            "receiver_id": "carol-recipient.test.near",
+            "amount": "100000000000000000000000",
+            "msg": null
+          }
+        },
+        "status": "Approved",
+        "vote_counts": {
+          "council": [
+            "1",
+            "0",
+            "0"
+          ]
+        },
+        "votes": {
+          "alice.test.near": "Approve"
+        },
+        "submission_time": "1794659281031914229",
+        "last_actions_log": [
+          {
+            "block_height": "47"
+          },
+          {
+            "block_height": "53"
+          }
+        ]
+      }
+    },
+    "contractBalance": "101891561138153817800000000",
+    "storageUsage": 540886,
+    "availableAmount": "94482701138153817800000000",
+    "lockedStorageAmount": "5408860000000000000000000",
+    "lockedAmount": "2000000000000000000000000",
+    "balances": {
+      "alice": "98998546309623677800000000",
+      "bob": "98999764546485631400000000",
+      "carol": "99999767980029758700000000",
+      "aliceRecipient": "10000000000000000000000000",
+      "bobRecipient": "10000000000000000000000000",
+      "carolRecipient": "10100000000000000000000000",
+      "dao": "101891561138153817800000000"
     }
   },
   "aliceRecovery": {
@@ -1080,43 +1405,43 @@
       "ok": true,
       "executed": true,
       "value": {
-        "transactionHash": "Fe3Y2PGVVGP4vok5Hwk1ZaPKhAgV6YHz1czQqVtBVY2m",
+        "transactionHash": "6B3eNATS3Yknwi4D7hdZNzThngryP1qB9ygvX4HUqkj8",
         "finalExecutionStatus": "FINAL",
         "succeeded": true,
         "receiptFailure": true,
         "transactionOutcome": {
           "status": {
-            "SuccessReceiptId": "BDUGGKKcgqhmXE58N8TTzSgZvf3zMsokUHgeJ8S1aMLZ"
+            "SuccessReceiptId": "CKyfdQKzH1rXwRzELxjdU9gwGFx4Wpqztw3hRVdQZ1YE"
           },
           "gasBurntUnits": "317262456995",
           "tokensBurntYocto": "31726245699500000000",
           "rootReceiptIds": [
-            "BDUGGKKcgqhmXE58N8TTzSgZvf3zMsokUHgeJ8S1aMLZ"
+            "CKyfdQKzH1rXwRzELxjdU9gwGFx4Wpqztw3hRVdQZ1YE"
           ]
         },
         "transactionTokensBurntYocto": "31726245699500000000",
-        "receiptTokensBurntYocto": "899949889732700000000",
-        "gasBurntYocto": "931676135432200000000",
+        "receiptTokensBurntYocto": "891974234594300000000",
+        "gasBurntYocto": "923700480293800000000",
         "receipts": [
           {
-            "id": "BDUGGKKcgqhmXE58N8TTzSgZvf3zMsokUHgeJ8S1aMLZ",
+            "id": "CKyfdQKzH1rXwRzELxjdU9gwGFx4Wpqztw3hRVdQZ1YE",
             "receiptIds": [
-              "7VS7WumcpqQ5cvDqEsXDiMcArXVXEZfouarBVjeC6Xjh",
-              "7HxVU1UxKsVYUPaofLJz6GPd9GxPkFJg3qMJ5rXqdUHD",
-              "EVhEydowmRRony3t4LyKnUqSE1w1v8TCXWj4sAh5iWAK"
+              "FAzZxFyGti3E8MZi2vYCGsXiYrdt3PGfF3GPgCWQT6Tn",
+              "2kP9xde2e3bK3rMEumFUWUKtNNDRacuwQP4yFEC5u2Hk",
+              "Hmd4zYEfaLLgMgik9CRcXbffmGqguN4XP3eaXKRpzjow"
             ],
             "executorId": "dao.test.near",
             "status": {
               "SuccessValue": ""
             },
-            "gasBurntUnits": "2988469387716",
-            "tokensBurntYocto": "298846938771600000000",
+            "gasBurntUnits": "2994565082536",
+            "tokensBurntYocto": "299456508253600000000",
             "logs": []
           },
           {
-            "id": "7VS7WumcpqQ5cvDqEsXDiMcArXVXEZfouarBVjeC6Xjh",
+            "id": "FAzZxFyGti3E8MZi2vYCGsXiYrdt3PGfF3GPgCWQT6Tn",
             "receiptIds": [
-              "Dhx8TmPTnyhm1dfBWAnRuKyyjpwvWJsxAF4TBEgwxXk6"
+              "4jC1SGJRg6TWrJt5T5VjcJbwxo6HUWYewBLiQpDMyHAV"
             ],
             "executorId": "missing-target.test.near",
             "status": {
@@ -1136,7 +1461,7 @@
             "logs": []
           },
           {
-            "id": "Dhx8TmPTnyhm1dfBWAnRuKyyjpwvWJsxAF4TBEgwxXk6",
+            "id": "4jC1SGJRg6TWrJt5T5VjcJbwxo6HUWYewBLiQpDMyHAV",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -1147,24 +1472,24 @@
             "logs": []
           },
           {
-            "id": "7HxVU1UxKsVYUPaofLJz6GPd9GxPkFJg3qMJ5rXqdUHD",
+            "id": "2kP9xde2e3bK3rMEumFUWUKtNNDRacuwQP4yFEC5u2Hk",
             "receiptIds": [
-              "3awC7PrpHzAJW484oeTGJt2MDQHTfRgDU4zqNBGhUArd",
-              "2Kymw3DFXffuhLNJUPpsRuHthU9YmArqe8jttvZn9kaF",
-              "xim9R5vETR2YDx21BHqwoukyrfZCwMBvbJTNsFwG7uG"
+              "GJ5qdE82a7LVyeqgr4nymuNpCZdN8LF9J9yckhZWLzXr",
+              "Hn9J4DVDN37rMoQUBW3CRibs9dzppqeLLmRLi9uALgLe",
+              "D89v8pWRSnYHmP4WomY7LqJTii6TNp61NSRpPvh4YmZR"
             ],
             "executorId": "dao.test.near",
             "status": {
-              "SuccessReceiptId": "2Kymw3DFXffuhLNJUPpsRuHthU9YmArqe8jttvZn9kaF"
+              "SuccessReceiptId": "Hn9J4DVDN37rMoQUBW3CRibs9dzppqeLLmRLi9uALgLe"
             },
-            "gasBurntUnits": "2989356254681",
-            "tokensBurntYocto": "298935625468100000000",
+            "gasBurntUnits": "2892848313657",
+            "tokensBurntYocto": "289284831365700000000",
             "logs": []
           },
           {
-            "id": "3awC7PrpHzAJW484oeTGJt2MDQHTfRgDU4zqNBGhUArd",
+            "id": "GJ5qdE82a7LVyeqgr4nymuNpCZdN8LF9J9yckhZWLzXr",
             "receiptIds": [
-              "57ekDFcbEnMRZ8pfVo37Aw839dMeuB5WRyuyGkVTKWVH"
+              "GvPHy8PBiBQ7a75iSstTgXJMg4J1txQnGdmh4psD7LgT"
             ],
             "executorId": "alice.test.near",
             "status": {
@@ -1175,7 +1500,7 @@
             "logs": []
           },
           {
-            "id": "57ekDFcbEnMRZ8pfVo37Aw839dMeuB5WRyuyGkVTKWVH",
+            "id": "GvPHy8PBiBQ7a75iSstTgXJMg4J1txQnGdmh4psD7LgT",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -1186,20 +1511,20 @@
             "logs": []
           },
           {
-            "id": "2Kymw3DFXffuhLNJUPpsRuHthU9YmArqe8jttvZn9kaF",
+            "id": "Hn9J4DVDN37rMoQUBW3CRibs9dzppqeLLmRLi9uALgLe",
             "receiptIds": [
-              "67y2Pc9k2Z7T3cCy77CqUN3cm5c2kH17o7LyjUm9ALnk"
+              "3iZokU7avYY4aAcweg6PTVA58Lff1VPngQo9RDGVQwsp"
             ],
             "executorId": "dao.test.near",
             "status": {
               "SuccessValue": "bnVsbA=="
             },
-            "gasBurntUnits": "1910422248694",
-            "tokensBurntYocto": "191042224869400000000",
+            "gasBurntUnits": "1921077943514",
+            "tokensBurntYocto": "192107794351400000000",
             "logs": []
           },
           {
-            "id": "67y2Pc9k2Z7T3cCy77CqUN3cm5c2kH17o7LyjUm9ALnk",
+            "id": "3iZokU7avYY4aAcweg6PTVA58Lff1VPngQo9RDGVQwsp",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -1210,7 +1535,7 @@
             "logs": []
           },
           {
-            "id": "xim9R5vETR2YDx21BHqwoukyrfZCwMBvbJTNsFwG7uG",
+            "id": "D89v8pWRSnYHmP4WomY7LqJTii6TNp61NSRpPvh4YmZR",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -1221,7 +1546,7 @@
             "logs": []
           },
           {
-            "id": "EVhEydowmRRony3t4LyKnUqSE1w1v8TCXWj4sAh5iWAK",
+            "id": "Hmd4zYEfaLLgMgik9CRcXbffmGqguN4XP3eaXKRpzjow",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -1249,9 +1574,9 @@
       }
     },
     "after": {
-      "blockHeight": 118,
-      "blockHash": "9HNY9zemueVFFaAZyttXkHwBs5dhkR1DiKZNa2v7z8ew",
-      "codeHash": "2TA5rC2KnPVsrtLUVyo47oAsH431PWMavVhhBTvT91P2",
+      "blockHeight": 127,
+      "blockHash": "92yUZgyT4AWrGDYq3uzKUz2inaSWUNEZ27M6PHtHMwhf",
+      "codeHash": "53CuZPSrdED3gL4KcNPcE3dqomZMFNmqrCfGXfEmfQQZ",
       "state": [
         {
           "key": "AA==",
@@ -1263,34 +1588,50 @@
         },
         {
           "key": "AwAAAAAAAAAA",
-          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPwVcH8Y1ecYAgAAADAAAAAAAAAANgAAAAAAAAA="
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPXiw4ob6ecYAgAAAC8AAAAAAAAANQAAAAAAAAA="
         },
         {
           "key": "AwEAAAAAAAAA",
-          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyALad73wb1ecYAwAAAEMAAAAAAAAASQAAAAAAAABuAAAAAAAAAA=="
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAEp0qZQe6ecYAwAAAEIAAAAAAAAASAAAAAAAAAB3AAAAAAAAAA=="
         },
         {
           "key": "AwIAAAAAAAAA",
-          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAtwAvMR7V5xgBAAAAVQAAAAAAAAA="
+          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAURYiMiHp5xgBAAAAVAAAAAAAAAA="
+        },
+        {
+          "key": "bGVnYWN5X3Byb3Bvc2FsX2JvbmRfcHJvdmVuYW5jZToBAAAAAAAAAA==",
+          "value": "RjExUXpyRW5rU3ozclJVZkdVQVUzaUQ3OURVM0hXdmhUd0w2Vld4aE1RSlIAAACh7czOG8LTAAAAAAAA"
+        },
+        {
+          "key": "bGVnYWN5X3Byb3Bvc2FsX2JvbmRfcHJvdmVuYW5jZToCAAAAAAAAAA==",
+          "value": "OVZwTlI1eTRzMTFMM0FhTTk1eXRKc25iam13WDlFazY3VHZHVXVnMktMeXkAAACh7czOG8LTAAAAAAAA"
         },
         {
           "key": "cHJvcG9zYWxfcmVmdW5kOgEAAAAAAAAA",
           "value": "AgEAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAA=="
         },
         {
+          "key": "cHJvcG9zYWxfYm9uZDoBAAAAAAAAAA==",
+          "value": "AAAAoe3MzhvC0wAAAAAAAA=="
+        },
+        {
+          "key": "cHJvcG9zYWxfYm9uZDoCAAAAAAAAAA==",
+          "value": "AAAAoe3MzhvC0wAAAAAAAA=="
+        },
+        {
           "key": "RkFDVE9SWQ==",
           "value": "CQAAAHRlc3QubmVhcgE="
         },
         {
           "key": "U1RBVEU=",
-          "value": "AQAAAAABAAAAAQAAAKHtzM4bwtMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcGAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAADAAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjYAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEMAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkkAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABVAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAVuAAAAAAAAAA=="
+          "value": "AQAAAAABAAAAAQAAAKHtzM4bwtMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcGAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV3AAAAAAAAAA=="
         },
         {
           "key": "U1RBVEVWRVJTSU9O",
           "value": "AQ=="
         }
       ],
-      "stateHash": "b9649db44281746092bfc66c66431f5cde629a8c992823d9ed33a8e57f4536fb",
+      "stateHash": "38ed6474609ba6bf2b4299d70a41843a7ea77015bb127f054611bd18478b13a9",
       "policy": {
         "roles": [
           {
@@ -1360,16 +1701,16 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637290567343542",
+          "submission_time": "1794659294082856010",
           "last_actions_log": [
             {
-              "block_height": "67"
+              "block_height": "66"
             },
             {
-              "block_height": "73"
+              "block_height": "72"
             },
             {
-              "block_height": "110"
+              "block_height": "119"
             }
           ]
         },
@@ -1388,10 +1729,10 @@
           "status": "InProgress",
           "vote_counts": {},
           "votes": {},
-          "submission_time": "1794637302181331127",
+          "submission_time": "1794659305314719313",
           "last_actions_log": [
             {
-              "block_height": "85"
+              "block_height": "84"
             }
           ]
         },
@@ -1418,43 +1759,43 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637277724415484",
+          "submission_time": "1794659281031914229",
           "last_actions_log": [
             {
-              "block_height": "48"
+              "block_height": "47"
             },
             {
-              "block_height": "54"
+              "block_height": "53"
             }
           ]
         }
       },
-      "contractBalance": "100892093696034908800000000",
-      "storageUsage": 534987,
-      "availableAmount": "94542223696034908800000000",
-      "lockedStorageAmount": "5349870000000000000000000",
+      "contractBalance": "100891561138153817800000000",
+      "storageUsage": 541019,
+      "availableAmount": "94481371138153817800000000",
+      "lockedStorageAmount": "5410190000000000000000000",
       "lockedAmount": "1000000000000000000000000",
       "balances": {
-        "alice": "99997614633488245600000000",
+        "alice": "99997622609143384000000000",
         "bob": "98999764546485631400000000",
         "carol": "99999767980029758700000000",
         "aliceRecipient": "10000000000000000000000000",
         "bobRecipient": "10000000000000000000000000",
         "carolRecipient": "10100000000000000000000000",
-        "dao": "100892093696034908800000000"
+        "dao": "100891561138153817800000000"
       }
     },
     "deltas": {
       "contract": "-1000000000000000000000000",
       "recipient": "0",
-      "proposer": "999068323864567800000000",
+      "proposer": "999076299519706200000000",
       "locked": "-1000000000000000000000000"
     },
-    "gasBurntYocto": "931676135432200000000",
+    "gasBurntYocto": "923700480293800000000",
     "before": {
-      "blockHeight": 102,
-      "blockHash": "A6d4RtHhRbVCjpVHec8ZviFQvGnc9EEx84wk9LVVC1hM",
-      "codeHash": "2TA5rC2KnPVsrtLUVyo47oAsH431PWMavVhhBTvT91P2",
+      "blockHeight": 101,
+      "blockHash": "8rpoDM9iRZ7NNENNwDibgVzRXjAWFDpqC9M53UEJFeQ3",
+      "codeHash": "53CuZPSrdED3gL4KcNPcE3dqomZMFNmqrCfGXfEmfQQZ",
       "state": [
         {
           "key": "AA==",
@@ -1466,15 +1807,15 @@
         },
         {
           "key": "AwAAAAAAAAAA",
-          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPwVcH8Y1ecYAgAAADAAAAAAAAAANgAAAAAAAAA="
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPXiw4ob6ecYAgAAAC8AAAAAAAAANQAAAAAAAAA="
         },
         {
           "key": "AwEAAAAAAAAA",
-          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyALad73wb1ecYAgAAAEMAAAAAAAAASQAAAAAAAAA="
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAEp0qZQe6ecYAgAAAEIAAAAAAAAASAAAAAAAAAA="
         },
         {
           "key": "AwIAAAAAAAAA",
-          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAtwAvMR7V5xgBAAAAVQAAAAAAAAA="
+          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAURYiMiHp5xgBAAAAVAAAAAAAAAA="
         },
         {
           "key": "RkFDVE9SWQ==",
@@ -1482,14 +1823,14 @@
         },
         {
           "key": "U1RBVEU=",
-          "value": "AQAAAAABAAAAAQAAAELbmZ03hKcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcFAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAADAAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjYAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEMAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkkAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABVAAAAAAAAAA=="
+          "value": "AQAAAAABAAAAAQAAAELbmZ03hKcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcFAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA=="
         },
         {
           "key": "U1RBVEVWRVJTSU9O",
           "value": "AQ=="
         }
       ],
-      "stateHash": "20e57d83a147f66b4bc01da970239ad842c9f78f654b6457e4cf92840f9f1fa4",
+      "stateHash": "3c11a94e911b1f6fc445c375762275301baafd8e0eab183b242b976526069b96",
       "policy": {
         "roles": [
           {
@@ -1559,13 +1900,13 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637290567343542",
+          "submission_time": "1794659294082856010",
           "last_actions_log": [
             {
-              "block_height": "67"
+              "block_height": "66"
             },
             {
-              "block_height": "73"
+              "block_height": "72"
             }
           ]
         },
@@ -1584,10 +1925,10 @@
           "status": "InProgress",
           "vote_counts": {},
           "votes": {},
-          "submission_time": "1794637302181331127",
+          "submission_time": "1794659305314719313",
           "last_actions_log": [
             {
-              "block_height": "85"
+              "block_height": "84"
             }
           ]
         },
@@ -1614,21 +1955,21 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637277724415484",
+          "submission_time": "1794659281031914229",
           "last_actions_log": [
             {
-              "block_height": "48"
+              "block_height": "47"
             },
             {
-              "block_height": "54"
+              "block_height": "53"
             }
           ]
         }
       },
-      "contractBalance": "101892093696034908800000000",
-      "storageUsage": 534854,
-      "availableAmount": "94543553696034908800000000",
-      "lockedStorageAmount": "5348540000000000000000000",
+      "contractBalance": "101892053138891724000000000",
+      "storageUsage": 540450,
+      "availableAmount": "94487553138891724000000000",
+      "lockedStorageAmount": "5404500000000000000000000",
       "lockedAmount": "2000000000000000000000000",
       "balances": {
         "alice": "98998546309623677800000000",
@@ -1637,7 +1978,7 @@
         "aliceRecipient": "10000000000000000000000000",
         "bobRecipient": "10000000000000000000000000",
         "carolRecipient": "10100000000000000000000000",
-        "dao": "101892093696034908800000000"
+        "dao": "101892053138891724000000000"
       }
     }
   },
@@ -1647,43 +1988,43 @@
       "ok": true,
       "executed": true,
       "value": {
-        "transactionHash": "4eftWKnNdmHApQfaZxqz4y9upq4RhcwTr8qU5upGya9Z",
+        "transactionHash": "5AdA6eTxj3ZPQiLDNuLEwSUr6wzTAXXk3G1Tm2gXxUbd",
         "finalExecutionStatus": "FINAL",
         "succeeded": true,
         "receiptFailure": true,
         "transactionOutcome": {
           "status": {
-            "SuccessReceiptId": "7EFVc5Jxb58kBbB8SzjMAPLzDXtv7sWbgHvHqSjmtmoB"
+            "SuccessReceiptId": "52ztuXZJx8iY8rmjnaQRnTWC9pciL5SbvZZAWuswess2"
           },
           "gasBurntUnits": "317262456995",
           "tokensBurntYocto": "31726245699500000000",
           "rootReceiptIds": [
-            "7EFVc5Jxb58kBbB8SzjMAPLzDXtv7sWbgHvHqSjmtmoB"
+            "52ztuXZJx8iY8rmjnaQRnTWC9pciL5SbvZZAWuswess2"
           ]
         },
         "transactionTokensBurntYocto": "31726245699500000000",
-        "receiptTokensBurntYocto": "615977286318300000000",
-        "gasBurntYocto": "647703532017800000000",
+        "receiptTokensBurntYocto": "606702713783900000000",
+        "gasBurntYocto": "638428959483400000000",
         "receipts": [
           {
-            "id": "7EFVc5Jxb58kBbB8SzjMAPLzDXtv7sWbgHvHqSjmtmoB",
+            "id": "52ztuXZJx8iY8rmjnaQRnTWC9pciL5SbvZZAWuswess2",
             "receiptIds": [
-              "CEs1b3RUjkH787bPXeqvMTXyMeuVSdUwiqAxixd3kqSR",
-              "99BxEXbvQYLyb3k6MqA6emABsBL63eYqjK7WF9utmJhe",
-              "GAsRKUhyYVVyeYDwQj56c9Jqu7pV4kEQcS339QUWobWf"
+              "E3ijZyz8fvqCKRQi33tQmMgCnDcrLBgZSptSKBFo64nZ",
+              "CPBkK6XFesRY1sFJMbejQzn6or3GYPftWHMaM1LMdxUk",
+              "AHmyg19fTVRZ1DZVzuLdJZkdFjkdMojPJkvGo1qkNV7S"
             ],
             "executorId": "dao.test.near",
             "status": {
               "SuccessValue": ""
             },
-            "gasBurntUnits": "2997150922540",
-            "tokensBurntYocto": "299715092254000000000",
+            "gasBurntUnits": "3003246617360",
+            "tokensBurntYocto": "300324661736000000000",
             "logs": []
           },
           {
-            "id": "CEs1b3RUjkH787bPXeqvMTXyMeuVSdUwiqAxixd3kqSR",
+            "id": "E3ijZyz8fvqCKRQi33tQmMgCnDcrLBgZSptSKBFo64nZ",
             "receiptIds": [
-              "24mxQ3S9MARKsXpcSuyYXzEfPyCAgNRXwESMF8WSgGEW"
+              "92NNmUju8VEt8kNzx99DGpQEB23XZ6a8T9A9UjPSzABp"
             ],
             "executorId": "missing-target.test.near",
             "status": {
@@ -1703,7 +2044,7 @@
             "logs": []
           },
           {
-            "id": "24mxQ3S9MARKsXpcSuyYXzEfPyCAgNRXwESMF8WSgGEW",
+            "id": "92NNmUju8VEt8kNzx99DGpQEB23XZ6a8T9A9UjPSzABp",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -1714,20 +2055,20 @@
             "logs": []
           },
           {
-            "id": "99BxEXbvQYLyb3k6MqA6emABsBL63eYqjK7WF9utmJhe",
+            "id": "CPBkK6XFesRY1sFJMbejQzn6or3GYPftWHMaM1LMdxUk",
             "receiptIds": [
-              "7xEunEJQBzhch3snd1c9u4f2s4Nm5BNg8YpfdGcnh5c8"
+              "AvSCh9gn4egYMymxQYVxQHQZZsDX9X1kFxDpFXXZpA6i"
             ],
             "executorId": "dao.test.near",
             "status": {
               "SuccessValue": "bnVsbA=="
             },
-            "gasBurntUnits": "2274553496907",
-            "tokensBurntYocto": "227455349690700000000",
+            "gasBurntUnits": "2175712076743",
+            "tokensBurntYocto": "217571207674300000000",
             "logs": []
           },
           {
-            "id": "7xEunEJQBzhch3snd1c9u4f2s4Nm5BNg8YpfdGcnh5c8",
+            "id": "AvSCh9gn4egYMymxQYVxQHQZZsDX9X1kFxDpFXXZpA6i",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -1738,7 +2079,7 @@
             "logs": []
           },
           {
-            "id": "GAsRKUhyYVVyeYDwQj56c9Jqu7pV4kEQcS339QUWobWf",
+            "id": "AHmyg19fTVRZ1DZVzuLdJZkdFjkdMojPJkvGo1qkNV7S",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -1766,9 +2107,9 @@
       }
     },
     "after": {
-      "blockHeight": 129,
-      "blockHash": "Ga1dWvS9pgX8oyvEvPy17qzDESWmkeoqG1kAkP3kPdM6",
-      "codeHash": "2TA5rC2KnPVsrtLUVyo47oAsH431PWMavVhhBTvT91P2",
+      "blockHeight": 137,
+      "blockHash": "423qJZrJfGVF4twjNNjTWwzD6XYgEqWCAzVcbcvhdHff",
+      "codeHash": "53CuZPSrdED3gL4KcNPcE3dqomZMFNmqrCfGXfEmfQQZ",
       "state": [
         {
           "key": "AA==",
@@ -1780,19 +2121,35 @@
         },
         {
           "key": "AwAAAAAAAAAA",
-          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPwVcH8Y1ecYAgAAADAAAAAAAAAANgAAAAAAAAA="
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPXiw4ob6ecYAgAAAC8AAAAAAAAANQAAAAAAAAA="
         },
         {
           "key": "AwEAAAAAAAAA",
-          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyALad73wb1ecYBAAAAEMAAAAAAAAASQAAAAAAAABuAAAAAAAAAHsAAAAAAAAA"
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAEp0qZQe6ecYBAAAAEIAAAAAAAAASAAAAAAAAAB3AAAAAAAAAIQAAAAAAAAA"
         },
         {
           "key": "AwIAAAAAAAAA",
-          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAtwAvMR7V5xgBAAAAVQAAAAAAAAA="
+          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAAAAAAAAAAAAURYiMiHp5xgBAAAAVAAAAAAAAAA="
+        },
+        {
+          "key": "bGVnYWN5X3Byb3Bvc2FsX2JvbmRfcHJvdmVuYW5jZToBAAAAAAAAAA==",
+          "value": "RjExUXpyRW5rU3ozclJVZkdVQVUzaUQ3OURVM0hXdmhUd0w2Vld4aE1RSlIAAACh7czOG8LTAAAAAAAA"
+        },
+        {
+          "key": "bGVnYWN5X3Byb3Bvc2FsX2JvbmRfcHJvdmVuYW5jZToCAAAAAAAAAA==",
+          "value": "OVZwTlI1eTRzMTFMM0FhTTk1eXRKc25iam13WDlFazY3VHZHVXVnMktMeXkAAACh7czOG8LTAAAAAAAA"
         },
         {
           "key": "cHJvcG9zYWxfcmVmdW5kOgEAAAAAAAAA",
           "value": "AgEAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAA=="
+        },
+        {
+          "key": "cHJvcG9zYWxfYm9uZDoBAAAAAAAAAA==",
+          "value": "AAAAoe3MzhvC0wAAAAAAAA=="
+        },
+        {
+          "key": "cHJvcG9zYWxfYm9uZDoCAAAAAAAAAA==",
+          "value": "AAAAoe3MzhvC0wAAAAAAAA=="
         },
         {
           "key": "RkFDVE9SWQ==",
@@ -1800,14 +2157,14 @@
         },
         {
           "key": "U1RBVEU=",
-          "value": "AQAAAAABAAAAAQAAAKHtzM4bwtMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcHAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAADAAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjYAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEMAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkkAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABVAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAVuAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV7AAAAAAAAAA=="
+          "value": "AQAAAAABAAAAAQAAAKHtzM4bwtMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcHAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV3AAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAWEAAAAAAAAAA=="
         },
         {
           "key": "U1RBVEVWRVJTSU9O",
           "value": "AQ=="
         }
       ],
-      "stateHash": "4251cdf3cfe0a473446e0411a59a5322eb44f40cede8e528372e4991862990f1",
+      "stateHash": "01cafebaf1fff7c305bc8e1a9941748ab49cfd4d577cedac75707efa61e61eb8",
       "policy": {
         "roles": [
           {
@@ -1877,19 +2234,19 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637290567343542",
+          "submission_time": "1794659294082856010",
           "last_actions_log": [
             {
-              "block_height": "67"
+              "block_height": "66"
             },
             {
-              "block_height": "73"
+              "block_height": "72"
             },
             {
-              "block_height": "110"
+              "block_height": "119"
             },
             {
-              "block_height": "123"
+              "block_height": "132"
             }
           ]
         },
@@ -1908,10 +2265,10 @@
           "status": "InProgress",
           "vote_counts": {},
           "votes": {},
-          "submission_time": "1794637302181331127",
+          "submission_time": "1794659305314719313",
           "last_actions_log": [
             {
-              "block_height": "85"
+              "block_height": "84"
             }
           ]
         },
@@ -1938,39 +2295,39 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637277724415484",
+          "submission_time": "1794659281031914229",
           "last_actions_log": [
             {
-              "block_height": "48"
+              "block_height": "47"
             },
             {
-              "block_height": "54"
+              "block_height": "53"
             }
           ]
         }
       },
-      "contractBalance": "100892093696034908800000000",
-      "storageUsage": 535031,
-      "availableAmount": "94541783696034908800000000",
-      "lockedStorageAmount": "5350310000000000000000000",
+      "contractBalance": "100891561138153817800000000",
+      "storageUsage": 541063,
+      "availableAmount": "94480931138153817800000000",
+      "lockedStorageAmount": "5410630000000000000000000",
       "lockedAmount": "1000000000000000000000000",
       "balances": {
-        "alice": "99996966929956227800000000",
+        "alice": "99996984180183900600000000",
         "bob": "98999764546485631400000000",
         "carol": "99999767980029758700000000",
         "aliceRecipient": "10000000000000000000000000",
         "bobRecipient": "10000000000000000000000000",
         "carolRecipient": "10100000000000000000000000",
-        "dao": "100892093696034908800000000"
+        "dao": "100891561138153817800000000"
       }
     },
     "deltas": {
       "contract": "0",
-      "proposer": "-647703532017800000000",
+      "proposer": "-638428959483400000000",
       "recipient": "0",
       "locked": "0"
     },
-    "gasBurntYocto": "647703532017800000000"
+    "gasBurntYocto": "638428959483400000000"
   },
   "bobPayout": {
     "attempt": {
@@ -1978,43 +2335,43 @@
       "ok": true,
       "executed": true,
       "value": {
-        "transactionHash": "JA8iPkQLUSM6ngvshfQHYUEPHTYNjkZuwroAZtpksidU",
+        "transactionHash": "G41fJP5jcgooxLgL3J667WRStV3G3n6pC3vnB4v8oxph",
         "finalExecutionStatus": "FINAL",
         "succeeded": true,
         "receiptFailure": false,
         "transactionOutcome": {
           "status": {
-            "SuccessReceiptId": "3b7uMZvY2SyW9qHh7ypwX6n58qRLuTDCc6UDzZMkDZYV"
+            "SuccessReceiptId": "AYxyxLPYz5mpAhKLYsUw8vQGoEQ1LfagjarUDB4Tkqhe"
           },
           "gasBurntUnits": "316165731550",
           "tokensBurntYocto": "31616573155000000000",
           "rootReceiptIds": [
-            "3b7uMZvY2SyW9qHh7ypwX6n58qRLuTDCc6UDzZMkDZYV"
+            "AYxyxLPYz5mpAhKLYsUw8vQGoEQ1LfagjarUDB4Tkqhe"
           ]
         },
         "transactionTokensBurntYocto": "31616573155000000000",
-        "receiptTokensBurntYocto": "831485737779000000000",
-        "gasBurntYocto": "863102310934000000000",
+        "receiptTokensBurntYocto": "835118364424100000000",
+        "gasBurntYocto": "866734937579100000000",
         "receipts": [
           {
-            "id": "3b7uMZvY2SyW9qHh7ypwX6n58qRLuTDCc6UDzZMkDZYV",
+            "id": "AYxyxLPYz5mpAhKLYsUw8vQGoEQ1LfagjarUDB4Tkqhe",
             "receiptIds": [
-              "BG6DDBzzdKPexbtieFHajLCkiWsh2X7Xjijvt1BW7V6Z",
-              "6Dvzt5XGMBAJNSdtqzXMSUYY5qR1L2zoos2dEvhegDWc",
-              "CyJGx11e7G9Ej1uCikkGsqHSnJXcxNVyUDxrBEUuxRsB"
+              "G84yo2gZU567ND4BcUQXt1KowFW8Cnu9SCAzUFT1EsU5",
+              "7ozucN5EXw9NEBpwQ6pK4tPevxFHNK9X3oHVEe8TJdRR",
+              "EpBxKnZxJuENNfHJtFrTgAtYqKNsRDL1zdxBujTpdWbU"
             ],
             "executorId": "dao.test.near",
             "status": {
               "SuccessValue": ""
             },
-            "gasBurntUnits": "2939927644348",
-            "tokensBurntYocto": "293992764434800000000",
+            "gasBurntUnits": "2946023339168",
+            "tokensBurntYocto": "294602333916800000000",
             "logs": []
           },
           {
-            "id": "BG6DDBzzdKPexbtieFHajLCkiWsh2X7Xjijvt1BW7V6Z",
+            "id": "G84yo2gZU567ND4BcUQXt1KowFW8Cnu9SCAzUFT1EsU5",
             "receiptIds": [
-              "EmgsyPpo9TEvNjGvQSfWzXx259ueTymSuqHJAHpYZjLq"
+              "7nfJPfECPWNWdZsLSJf7rX3CzNGhXeEQ5zncN6EjDswC"
             ],
             "executorId": "bob-recipient.test.near",
             "status": {
@@ -2025,7 +2382,7 @@
             "logs": []
           },
           {
-            "id": "EmgsyPpo9TEvNjGvQSfWzXx259ueTymSuqHJAHpYZjLq",
+            "id": "7nfJPfECPWNWdZsLSJf7rX3CzNGhXeEQ5zncN6EjDswC",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -2036,24 +2393,24 @@
             "logs": []
           },
           {
-            "id": "6Dvzt5XGMBAJNSdtqzXMSUYY5qR1L2zoos2dEvhegDWc",
+            "id": "7ozucN5EXw9NEBpwQ6pK4tPevxFHNK9X3oHVEe8TJdRR",
             "receiptIds": [
-              "J7Eb39KMzDQ3pQgnGTSh2Vr7L3m17Pv9AKWJBLZMbqrf",
-              "BmzJP8vZ9nZdu3wnd89Zo8kn8Fbbi4C6KnkCDxLLs8wG",
-              "6qncTRwzsuh88PWpqCCV2QFNnKN2R1QPUaxfRcxFtkPU"
+              "AGxCPZC9hxHn7Wmc43yYD6CuUnNnotAZGpR37jykk73D",
+              "BEf4LrQsmnx7udDbPwvJyHpNz3e124BNcZuyEM18X4ce",
+              "CSWXBUza62QU51VumqxdoPqiJAHrymdEZhDUzPQuqTqw"
             ],
             "executorId": "dao.test.near",
             "status": {
-              "SuccessReceiptId": "BmzJP8vZ9nZdu3wnd89Zo8kn8Fbbi4C6KnkCDxLLs8wG"
+              "SuccessReceiptId": "BEf4LrQsmnx7udDbPwvJyHpNz3e124BNcZuyEM18X4ce"
             },
-            "gasBurntUnits": "2998743884164",
-            "tokensBurntYocto": "299874388416400000000",
+            "gasBurntUnits": "3018318760975",
+            "tokensBurntYocto": "301831876097500000000",
             "logs": []
           },
           {
-            "id": "J7Eb39KMzDQ3pQgnGTSh2Vr7L3m17Pv9AKWJBLZMbqrf",
+            "id": "AGxCPZC9hxHn7Wmc43yYD6CuUnNnotAZGpR37jykk73D",
             "receiptIds": [
-              "7tCbHfsydHGmNXzBMnTw7VNCG15sufSFmtLPpHmabcNt"
+              "4z1rsJ5oGuUaiXwwJ47NbuZDBE2USTi5XzkTcEjEEZqr"
             ],
             "executorId": "bob.test.near",
             "status": {
@@ -2064,7 +2421,7 @@
             "logs": []
           },
           {
-            "id": "7tCbHfsydHGmNXzBMnTw7VNCG15sufSFmtLPpHmabcNt",
+            "id": "4z1rsJ5oGuUaiXwwJ47NbuZDBE2USTi5XzkTcEjEEZqr",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -2075,20 +2432,20 @@
             "logs": []
           },
           {
-            "id": "BmzJP8vZ9nZdu3wnd89Zo8kn8Fbbi4C6KnkCDxLLs8wG",
+            "id": "BEf4LrQsmnx7udDbPwvJyHpNz3e124BNcZuyEM18X4ce",
             "receiptIds": [
-              "zjWoFffZf5G46QzzH2KsFgkG3H1F59eoduXt3AjFp62"
+              "DuboycTjbM21o7pmgFbwMFurFV2XB63RoNYgekpGNezR"
             ],
             "executorId": "dao.test.near",
             "status": {
               "SuccessValue": "bnVsbA=="
             },
-            "gasBurntUnits": "1929820724278",
-            "tokensBurntYocto": "192982072427800000000",
+            "gasBurntUnits": "1940476419098",
+            "tokensBurntYocto": "194047641909800000000",
             "logs": []
           },
           {
-            "id": "zjWoFffZf5G46QzzH2KsFgkG3H1F59eoduXt3AjFp62",
+            "id": "DuboycTjbM21o7pmgFbwMFurFV2XB63RoNYgekpGNezR",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -2099,7 +2456,7 @@
             "logs": []
           },
           {
-            "id": "6qncTRwzsuh88PWpqCCV2QFNnKN2R1QPUaxfRcxFtkPU",
+            "id": "CSWXBUza62QU51VumqxdoPqiJAHrymdEZhDUzPQuqTqw",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -2110,7 +2467,7 @@
             "logs": []
           },
           {
-            "id": "CyJGx11e7G9Ej1uCikkGsqHSnJXcxNVyUDxrBEUuxRsB",
+            "id": "EpBxKnZxJuENNfHJtFrTgAtYqKNsRDL1zdxBujTpdWbU",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -2138,9 +2495,9 @@
       }
     },
     "after": {
-      "blockHeight": 143,
-      "blockHash": "EajWUMuPJf2wqRg3RpEMeNBrrVbpBdQnkMss5K8TzsqA",
-      "codeHash": "2TA5rC2KnPVsrtLUVyo47oAsH431PWMavVhhBTvT91P2",
+      "blockHeight": 151,
+      "blockHash": "7aHpJqTLCGmwwaedk38Vwii9Rp7aDCc167gpxKc8fv1q",
+      "codeHash": "53CuZPSrdED3gL4KcNPcE3dqomZMFNmqrCfGXfEmfQQZ",
       "state": [
         {
           "key": "AA==",
@@ -2152,15 +2509,23 @@
         },
         {
           "key": "AwAAAAAAAAAA",
-          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPwVcH8Y1ecYAgAAADAAAAAAAAAANgAAAAAAAAA="
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPXiw4ob6ecYAgAAAC8AAAAAAAAANQAAAAAAAAA="
         },
         {
           "key": "AwEAAAAAAAAA",
-          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyALad73wb1ecYBAAAAEMAAAAAAAAASQAAAAAAAABuAAAAAAAAAHsAAAAAAAAA"
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAEp0qZQe6ecYBAAAAEIAAAAAAAAASAAAAAAAAAB3AAAAAAAAAIQAAAAAAAAA"
         },
         {
           "key": "AwIAAAAAAAAA",
-          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyALcALzEe1ecYAgAAAFUAAAAAAAAAhgAAAAAAAAA="
+          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAFEWIjIh6ecYAgAAAFQAAAAAAAAAjwAAAAAAAAA="
+        },
+        {
+          "key": "bGVnYWN5X3Byb3Bvc2FsX2JvbmRfcHJvdmVuYW5jZToBAAAAAAAAAA==",
+          "value": "RjExUXpyRW5rU3ozclJVZkdVQVUzaUQ3OURVM0hXdmhUd0w2Vld4aE1RSlIAAACh7czOG8LTAAAAAAAA"
+        },
+        {
+          "key": "bGVnYWN5X3Byb3Bvc2FsX2JvbmRfcHJvdmVuYW5jZToCAAAAAAAAAA==",
+          "value": "OVZwTlI1eTRzMTFMM0FhTTk1eXRKc25iam13WDlFazY3VHZHVXVnMktMeXkAAACh7czOG8LTAAAAAAAA"
         },
         {
           "key": "cHJvcG9zYWxfcmVmdW5kOgEAAAAAAAAA",
@@ -2171,19 +2536,27 @@
           "value": "AgEAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAA=="
         },
         {
+          "key": "cHJvcG9zYWxfYm9uZDoBAAAAAAAAAA==",
+          "value": "AAAAoe3MzhvC0wAAAAAAAA=="
+        },
+        {
+          "key": "cHJvcG9zYWxfYm9uZDoCAAAAAAAAAA==",
+          "value": "AAAAoe3MzhvC0wAAAAAAAA=="
+        },
+        {
           "key": "RkFDVE9SWQ==",
           "value": "CQAAAHRlc3QubmVhcgE="
         },
         {
           "key": "U1RBVEU=",
-          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcIAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAADAAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjYAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEMAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkkAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABVAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAVuAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV7AAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXICAAAAAAAAAAKGAAAAAAAAAA=="
+          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcIAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV3AAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAWEAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXICAAAAAAAAAAKPAAAAAAAAAA=="
         },
         {
           "key": "U1RBVEVWRVJTSU9O",
           "value": "AQ=="
         }
       ],
-      "stateHash": "bf3bd9bed93fbaf1db864a107bccc72b40cf0ad12d09d8a23dc732e61939d192",
+      "stateHash": "94d03739cf89060efd7907564b910f8b3fa06da9c20cc2f7116dc7d29f974af1",
       "policy": {
         "roles": [
           {
@@ -2253,19 +2626,19 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637290567343542",
+          "submission_time": "1794659294082856010",
           "last_actions_log": [
             {
-              "block_height": "67"
+              "block_height": "66"
             },
             {
-              "block_height": "73"
+              "block_height": "72"
             },
             {
-              "block_height": "110"
+              "block_height": "119"
             },
             {
-              "block_height": "123"
+              "block_height": "132"
             }
           ]
         },
@@ -2292,13 +2665,13 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637302181331127",
+          "submission_time": "1794659305314719313",
           "last_actions_log": [
             {
-              "block_height": "85"
+              "block_height": "84"
             },
             {
-              "block_height": "134"
+              "block_height": "143"
             }
           ]
         },
@@ -2325,30 +2698,30 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637277724415484",
+          "submission_time": "1794659281031914229",
           "last_actions_log": [
             {
-              "block_height": "48"
+              "block_height": "47"
             },
             {
-              "block_height": "54"
+              "block_height": "53"
             }
           ]
         }
       },
-      "contractBalance": "99792093696034908800000000",
-      "storageUsage": 535243,
-      "availableAmount": "94439663696034908800000000",
-      "lockedStorageAmount": "5352430000000000000000000",
+      "contractBalance": "99791561138153817800000000",
+      "storageUsage": 541275,
+      "availableAmount": "94378811138153817800000000",
+      "lockedStorageAmount": "5412750000000000000000000",
       "lockedAmount": "0",
       "balances": {
-        "alice": "99996103827645293800000000",
+        "alice": "99996117445246321500000000",
         "bob": "99999764546485631400000000",
         "carol": "99999767980029758700000000",
         "aliceRecipient": "10000000000000000000000000",
         "bobRecipient": "10100000000000000000000000",
         "carolRecipient": "10100000000000000000000000",
-        "dao": "99792093696034908800000000"
+        "dao": "99791561138153817800000000"
       }
     },
     "deltas": {
@@ -2357,7 +2730,7 @@
       "recipient": "100000000000000000000000",
       "locked": "-1000000000000000000000000"
     },
-    "gasBurntYocto": "863102310934000000000"
+    "gasBurntYocto": "866734937579100000000"
   },
   "bobRetry": {
     "attempt": {
@@ -2365,28 +2738,28 @@
       "ok": true,
       "executed": true,
       "value": {
-        "transactionHash": "7RxeGM1etV1MkmC3SAR7daCbYUjenfuyTJYSfRBDrHrE",
+        "transactionHash": "88uWqQBq4wJeV8EfjsnV137myTydWSTY1iFp1qjAYK11",
         "finalExecutionStatus": "FINAL",
         "succeeded": true,
         "receiptFailure": true,
         "transactionOutcome": {
           "status": {
-            "SuccessReceiptId": "48hsGSGxrHdEzbU6WLvZkLnneNE2R7ppzFeBa1VrYTnL"
+            "SuccessReceiptId": "2f4wC86fkttDc5EWy4xrsxun79tEvG5B4PZ3ZA3Bur5a"
           },
           "gasBurntUnits": "316022680405",
           "tokensBurntYocto": "31602268040500000000",
           "rootReceiptIds": [
-            "48hsGSGxrHdEzbU6WLvZkLnneNE2R7ppzFeBa1VrYTnL"
+            "2f4wC86fkttDc5EWy4xrsxun79tEvG5B4PZ3ZA3Bur5a"
           ]
         },
         "transactionTokensBurntYocto": "31602268040500000000",
-        "receiptTokensBurntYocto": "197330685682300000000",
-        "gasBurntYocto": "228932953722800000000",
+        "receiptTokensBurntYocto": "197940255164300000000",
+        "gasBurntYocto": "229542523204800000000",
         "receipts": [
           {
-            "id": "48hsGSGxrHdEzbU6WLvZkLnneNE2R7ppzFeBa1VrYTnL",
+            "id": "2f4wC86fkttDc5EWy4xrsxun79tEvG5B4PZ3ZA3Bur5a",
             "receiptIds": [
-              "5zWFpg9YL4jYHjhikjbutwWJ4DRPxu7qQV77i66iqmLf"
+              "6mkvrQYdN3U6WAxyntxHDkAro27cnMv9Bb19osRnTXMw"
             ],
             "executorId": "dao.test.near",
             "status": {
@@ -2401,12 +2774,12 @@
                 }
               }
             },
-            "gasBurntUnits": "1973306856823",
-            "tokensBurntYocto": "197330685682300000000",
+            "gasBurntUnits": "1979402551643",
+            "tokensBurntYocto": "197940255164300000000",
             "logs": []
           },
           {
-            "id": "5zWFpg9YL4jYHjhikjbutwWJ4DRPxu7qQV77i66iqmLf",
+            "id": "6mkvrQYdN3U6WAxyntxHDkAro27cnMv9Bb19osRnTXMw",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -2434,9 +2807,9 @@
       }
     },
     "after": {
-      "blockHeight": 152,
-      "blockHash": "ErFTuiKxdj385qHHruuzgWLDn546Dri994AYkSG1eR6V",
-      "codeHash": "2TA5rC2KnPVsrtLUVyo47oAsH431PWMavVhhBTvT91P2",
+      "blockHeight": 160,
+      "blockHash": "GQ6UQpEkYeBu6nQb7sH2UxEB2H8iixe5zfcF9A7ALBb5",
+      "codeHash": "53CuZPSrdED3gL4KcNPcE3dqomZMFNmqrCfGXfEmfQQZ",
       "state": [
         {
           "key": "AA==",
@@ -2448,15 +2821,23 @@
         },
         {
           "key": "AwAAAAAAAAAA",
-          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPwVcH8Y1ecYAgAAADAAAAAAAAAANgAAAAAAAAA="
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPXiw4ob6ecYAgAAAC8AAAAAAAAANQAAAAAAAAA="
         },
         {
           "key": "AwEAAAAAAAAA",
-          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyALad73wb1ecYBAAAAEMAAAAAAAAASQAAAAAAAABuAAAAAAAAAHsAAAAAAAAA"
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAEp0qZQe6ecYBAAAAEIAAAAAAAAASAAAAAAAAAB3AAAAAAAAAIQAAAAAAAAA"
         },
         {
           "key": "AwIAAAAAAAAA",
-          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyALcALzEe1ecYAgAAAFUAAAAAAAAAhgAAAAAAAAA="
+          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAFEWIjIh6ecYAgAAAFQAAAAAAAAAjwAAAAAAAAA="
+        },
+        {
+          "key": "bGVnYWN5X3Byb3Bvc2FsX2JvbmRfcHJvdmVuYW5jZToBAAAAAAAAAA==",
+          "value": "RjExUXpyRW5rU3ozclJVZkdVQVUzaUQ3OURVM0hXdmhUd0w2Vld4aE1RSlIAAACh7czOG8LTAAAAAAAA"
+        },
+        {
+          "key": "bGVnYWN5X3Byb3Bvc2FsX2JvbmRfcHJvdmVuYW5jZToCAAAAAAAAAA==",
+          "value": "OVZwTlI1eTRzMTFMM0FhTTk1eXRKc25iam13WDlFazY3VHZHVXVnMktMeXkAAACh7czOG8LTAAAAAAAA"
         },
         {
           "key": "cHJvcG9zYWxfcmVmdW5kOgEAAAAAAAAA",
@@ -2467,19 +2848,27 @@
           "value": "AgEAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAA=="
         },
         {
+          "key": "cHJvcG9zYWxfYm9uZDoBAAAAAAAAAA==",
+          "value": "AAAAoe3MzhvC0wAAAAAAAA=="
+        },
+        {
+          "key": "cHJvcG9zYWxfYm9uZDoCAAAAAAAAAA==",
+          "value": "AAAAoe3MzhvC0wAAAAAAAA=="
+        },
+        {
           "key": "RkFDVE9SWQ==",
           "value": "CQAAAHRlc3QubmVhcgE="
         },
         {
           "key": "U1RBVEU=",
-          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcIAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAADAAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjYAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEMAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkkAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABVAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAVuAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV7AAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXICAAAAAAAAAAKGAAAAAAAAAA=="
+          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcIAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV3AAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAWEAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXICAAAAAAAAAAKPAAAAAAAAAA=="
         },
         {
           "key": "U1RBVEVWRVJTSU9O",
           "value": "AQ=="
         }
       ],
-      "stateHash": "bf3bd9bed93fbaf1db864a107bccc72b40cf0ad12d09d8a23dc732e61939d192",
+      "stateHash": "94d03739cf89060efd7907564b910f8b3fa06da9c20cc2f7116dc7d29f974af1",
       "policy": {
         "roles": [
           {
@@ -2544,13 +2933,13 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637302181331127",
+          "submission_time": "1794659305314719313",
           "last_actions_log": [
             {
-              "block_height": "85"
+              "block_height": "84"
             },
             {
-              "block_height": "134"
+              "block_height": "143"
             }
           ]
         },
@@ -2577,39 +2966,39 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637277724415484",
+          "submission_time": "1794659281031914229",
           "last_actions_log": [
             {
-              "block_height": "48"
+              "block_height": "47"
             },
             {
-              "block_height": "54"
+              "block_height": "53"
             }
           ]
         }
       },
-      "contractBalance": "99792093696034908800000000",
-      "storageUsage": 535243,
-      "availableAmount": "94439663696034908800000000",
-      "lockedStorageAmount": "5352430000000000000000000",
+      "contractBalance": "99791561138153817800000000",
+      "storageUsage": 541275,
+      "availableAmount": "94378811138153817800000000",
+      "lockedStorageAmount": "5412750000000000000000000",
       "lockedAmount": "0",
       "balances": {
-        "alice": "99995874894691571000000000",
+        "alice": "99995887902723116700000000",
         "bob": "99999764546485631400000000",
         "carol": "99999767980029758700000000",
         "aliceRecipient": "10000000000000000000000000",
         "bobRecipient": "10100000000000000000000000",
         "carolRecipient": "10100000000000000000000000",
-        "dao": "99792093696034908800000000"
+        "dao": "99791561138153817800000000"
       }
     },
     "deltas": {
       "contract": "0",
-      "proposer": "-228932953722800000000",
+      "proposer": "-229542523204800000000",
       "recipient": "0",
       "locked": "0"
     },
-    "gasBurntYocto": "228932953722800000000"
+    "gasBurntYocto": "229542523204800000000"
   },
   "carolRetry": {
     "attempt": {
@@ -2617,28 +3006,28 @@
       "ok": true,
       "executed": true,
       "value": {
-        "transactionHash": "AvGE2Hfm273oW4hrWkDgaYn9JmPFysAPtzm1Yo7wLEAM",
+        "transactionHash": "CXs8zcfB23LrrAMSioqBf2ur2hFCVwVM1A1LLp5jiFta",
         "finalExecutionStatus": "FINAL",
         "succeeded": true,
         "receiptFailure": true,
         "transactionOutcome": {
           "status": {
-            "SuccessReceiptId": "CRqGmRJodyTd5FZfhL34qMm7iy6kic9o643QiHdLrBFt"
+            "SuccessReceiptId": "FVv1t5cHngpATYyNyKLhF6zgvnby725hCXbqCqvWu3QB"
           },
           "gasBurntUnits": "316118047835",
           "tokensBurntYocto": "31611804783500000000",
           "rootReceiptIds": [
-            "CRqGmRJodyTd5FZfhL34qMm7iy6kic9o643QiHdLrBFt"
+            "FVv1t5cHngpATYyNyKLhF6zgvnby725hCXbqCqvWu3QB"
           ]
         },
         "transactionTokensBurntYocto": "31611804783500000000",
-        "receiptTokensBurntYocto": "197374037338500000000",
-        "gasBurntYocto": "228985842122000000000",
+        "receiptTokensBurntYocto": "197983606820500000000",
+        "gasBurntYocto": "229595411604000000000",
         "receipts": [
           {
-            "id": "CRqGmRJodyTd5FZfhL34qMm7iy6kic9o643QiHdLrBFt",
+            "id": "FVv1t5cHngpATYyNyKLhF6zgvnby725hCXbqCqvWu3QB",
             "receiptIds": [
-              "9heqrD28DNPJH62aeZ13to377vuGNNAShiqNRJ5dqszH"
+              "4PXvtovXPk9kHM3vs3nuUETfSUdEbmfidqZMp996yY2Z"
             ],
             "executorId": "dao.test.near",
             "status": {
@@ -2653,12 +3042,12 @@
                 }
               }
             },
-            "gasBurntUnits": "1973740373385",
-            "tokensBurntYocto": "197374037338500000000",
+            "gasBurntUnits": "1979836068205",
+            "tokensBurntYocto": "197983606820500000000",
             "logs": []
           },
           {
-            "id": "9heqrD28DNPJH62aeZ13to377vuGNNAShiqNRJ5dqszH",
+            "id": "4PXvtovXPk9kHM3vs3nuUETfSUdEbmfidqZMp996yY2Z",
             "receiptIds": [],
             "executorId": "alice.test.near",
             "status": {
@@ -2686,9 +3075,9 @@
       }
     },
     "after": {
-      "blockHeight": 160,
-      "blockHash": "H5jcJ5WD1g4AqAsBMveDXMeaqJqokroBYyNLdsMEEsZv",
-      "codeHash": "2TA5rC2KnPVsrtLUVyo47oAsH431PWMavVhhBTvT91P2",
+      "blockHeight": 169,
+      "blockHash": "8i6HKKvejA5Z9hNn9raeUP1ezRuePH7HjVrzWT48bGpQ",
+      "codeHash": "53CuZPSrdED3gL4KcNPcE3dqomZMFNmqrCfGXfEmfQQZ",
       "state": [
         {
           "key": "AA==",
@@ -2700,15 +3089,23 @@
         },
         {
           "key": "AwAAAAAAAAAA",
-          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPwVcH8Y1ecYAgAAADAAAAAAAAAANgAAAAAAAAA="
+          "value": "AQ8AAABjYXJvbC50ZXN0Lm5lYXISAAAAY2Fyb2wgYWxyZWFkeSBwYWlkBwAAAAAZAAAAY2Fyb2wtcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAPXiw4ob6ecYAgAAAC8AAAAAAAAANQAAAAAAAAA="
         },
         {
           "key": "AwEAAAAAAAAA",
-          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyALad73wb1ecYBAAAAEMAAAAAAAAASQAAAAAAAABuAAAAAAAAAHsAAAAAAAAA"
+          "value": "AQ8AAABhbGljZS50ZXN0Lm5lYXISAAAAYWxpY2UgZmFpbGVkIGFzeW5jBBgAAABtaXNzaW5nLXRhcmdldC50ZXN0Lm5lYXIBAAAABAAAAHBpbmcAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAABgEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAEp0qZQe6ecYBAAAAEIAAAAAAAAASAAAAAAAAAB3AAAAAAAAAIQAAAAAAAAA"
         },
         {
           "key": "AwIAAAAAAAAA",
-          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyALcALzEe1ecYAgAAAFUAAAAAAAAAhgAAAAAAAAA="
+          "value": "AQ0AAABib2IudGVzdC5uZWFyEwAAAGJvYiBoZWFsdGh5IHBlbmRpbmcHAAAAABcAAABib2ItcmVjaXBpZW50LnRlc3QubmVhcgAAgPZK4ccCLRUAAAAAAAAAAQEAAAAHAAAAY291bmNpbAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAPAAAAYWxpY2UudGVzdC5uZWFyAFEWIjIh6ecYAgAAAFQAAAAAAAAAjwAAAAAAAAA="
+        },
+        {
+          "key": "bGVnYWN5X3Byb3Bvc2FsX2JvbmRfcHJvdmVuYW5jZToBAAAAAAAAAA==",
+          "value": "RjExUXpyRW5rU3ozclJVZkdVQVUzaUQ3OURVM0hXdmhUd0w2Vld4aE1RSlIAAACh7czOG8LTAAAAAAAA"
+        },
+        {
+          "key": "bGVnYWN5X3Byb3Bvc2FsX2JvbmRfcHJvdmVuYW5jZToCAAAAAAAAAA==",
+          "value": "OVZwTlI1eTRzMTFMM0FhTTk1eXRKc25iam13WDlFazY3VHZHVXVnMktMeXkAAACh7czOG8LTAAAAAAAA"
         },
         {
           "key": "cHJvcG9zYWxfcmVmdW5kOgEAAAAAAAAA",
@@ -2719,19 +3116,27 @@
           "value": "AgEAAAAAAAAAAAAAoe3MzhvC0wAAAAAAAA=="
         },
         {
+          "key": "cHJvcG9zYWxfYm9uZDoBAAAAAAAAAA==",
+          "value": "AAAAoe3MzhvC0wAAAAAAAA=="
+        },
+        {
+          "key": "cHJvcG9zYWxfYm9uZDoCAAAAAAAAAA==",
+          "value": "AAAAoe3MzhvC0wAAAAAAAA=="
+        },
+        {
           "key": "RkFDVE9SWQ==",
           "value": "CQAAAHRlc3QubmVhcgE="
         },
         {
           "key": "U1RBVEU=",
-          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcIAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAADAAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjYAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEMAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkkAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABVAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAVuAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV7AAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXICAAAAAAAAAAKGAAAAAAAAAA=="
+          "value": "AQAAAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAwAAAAAAAAABAAAAAwAAAAAAAAAAAQAAAAQBAAAABQEAAAAGAQAAAAcIAAAADwAAAGNhcm9sLnRlc3QubmVhcgAAAAAAAAAAAC8AAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgAAAAAAAAAAAjUAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAEIAAAAAAAAADwAAAGFsaWNlLnRlc3QubmVhcgEAAAAAAAAAAkgAAAAAAAAADQAAAGJvYi50ZXN0Lm5lYXICAAAAAAAAAABUAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAV3AAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXIBAAAAAAAAAAWEAAAAAAAAAA8AAABhbGljZS50ZXN0Lm5lYXICAAAAAAAAAAKPAAAAAAAAAA=="
         },
         {
           "key": "U1RBVEVWRVJTSU9O",
           "value": "AQ=="
         }
       ],
-      "stateHash": "bf3bd9bed93fbaf1db864a107bccc72b40cf0ad12d09d8a23dc732e61939d192",
+      "stateHash": "94d03739cf89060efd7907564b910f8b3fa06da9c20cc2f7116dc7d29f974af1",
       "policy": {
         "roles": [
           {
@@ -2796,39 +3201,39 @@
           "votes": {
             "alice.test.near": "Approve"
           },
-          "submission_time": "1794637277724415484",
+          "submission_time": "1794659281031914229",
           "last_actions_log": [
             {
-              "block_height": "48"
+              "block_height": "47"
             },
             {
-              "block_height": "54"
+              "block_height": "53"
             }
           ]
         }
       },
-      "contractBalance": "99792093696034908800000000",
-      "storageUsage": 535243,
-      "availableAmount": "94439663696034908800000000",
-      "lockedStorageAmount": "5352430000000000000000000",
+      "contractBalance": "99791561138153817800000000",
+      "storageUsage": 541275,
+      "availableAmount": "94378811138153817800000000",
+      "lockedStorageAmount": "5412750000000000000000000",
       "lockedAmount": "0",
       "balances": {
-        "alice": "99995645908849449000000000",
+        "alice": "99995658307311512700000000",
         "bob": "99999764546485631400000000",
         "carol": "99999767980029758700000000",
         "aliceRecipient": "10000000000000000000000000",
         "bobRecipient": "10100000000000000000000000",
         "carolRecipient": "10100000000000000000000000",
-        "dao": "99792093696034908800000000"
+        "dao": "99791561138153817800000000"
       }
     },
     "deltas": {
       "contract": "0",
-      "proposer": "-228985842122000000000",
+      "proposer": "-229595411604000000000",
       "recipient": "0",
       "locked": "0"
     },
-    "gasBurntYocto": "228985842122000000000"
+    "gasBurntYocto": "229595411604000000000"
   },
   "checks": {
     "beforeLockedTwoBonds": true,

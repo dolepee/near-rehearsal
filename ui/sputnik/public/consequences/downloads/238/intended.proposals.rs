@@ -378,38 +378,44 @@ impl Contract {
         env::storage_write(&Self::refund_state_key(proposal_id), &value);
     }
 
-    fn proposal_bond_amount(proposal_id: u64, policy: &Policy) -> NearToken {
-        let value = env::storage_read(&Self::proposal_bond_key(proposal_id))
-            // Legacy proposals predate per-proposal amounts. The current
-            // policy amount is only a bounded fallback; a changed policy makes
-            // the historical principal ambiguous and must be resolved by the
-            // caller's trusted migration input before recovery is claimed.
-            .unwrap_or_else(|| policy.proposal_bond.as_yoctonear().to_le_bytes().to_vec());
+    fn legacy_bond_provenance_key(proposal_id: u64) -> Vec<u8> {
+        let mut key = b"legacy_proposal_bond_provenance:".to_vec();
+        key.extend_from_slice(&proposal_id.to_le_bytes());
+        key
+    }
+
+    fn proposal_bond_amount(proposal_id: u64) -> Option<u128> {
+        let value = env::storage_read(&Self::proposal_bond_key(proposal_id))?;
         if value.len() != 16 {
             env::panic_str("ERR_INVALID_PROPOSAL_BOND");
         }
-        NearToken::from_yoctonear(u128::from_le_bytes(value.try_into().unwrap()))
+        Some(u128::from_le_bytes(value.try_into().unwrap()))
     }
 
     fn internal_return_proposal_bond(
         &mut self,
         proposal_id: u64,
-        policy: &Policy,
         proposal: &Proposal,
     ) -> PromiseOrValue<()> {
-        let policy_bond = Self::proposal_bond_amount(proposal_id, policy);
-        let (status, attempt, recorded_bond) = Self::read_refund_state(proposal_id).unwrap_or((
-            Self::REFUND_OPEN,
-            0,
-            policy_bond.as_yoctonear(),
-        ));
+        let Some(amount) = Self::proposal_bond_amount(proposal_id) else {
+            log!(
+                "Refusing refund for proposal {} without a trusted legacy principal",
+                proposal_id
+            );
+            return PromiseOrValue::Value(());
+        };
+        if amount == 0 {
+            return PromiseOrValue::Value(());
+        }
+        let (status, attempt, recorded_bond) =
+            Self::read_refund_state(proposal_id).unwrap_or((Self::REFUND_OPEN, 0, amount));
         let bond = if recorded_bond == 0 {
-            policy_bond.as_yoctonear()
+            amount
         } else {
             recorded_bond
         };
-        if bond == 0 {
-            return PromiseOrValue::Value(());
+        if bond != amount {
+            env::panic_str("ERR_PROPOSAL_BOND_MISMATCH");
         }
         match status {
             Self::REFUND_SETTLED | Self::REFUND_IN_FLIGHT => return PromiseOrValue::Value(()),
@@ -441,7 +447,7 @@ impl Contract {
                 .detach();
         }
 
-        self.internal_return_proposal_bond(proposal_id, policy, proposal)
+        self.internal_return_proposal_bond(proposal_id, proposal)
     }
 
     /// Executes given proposal and updates the contract's state.
@@ -592,8 +598,7 @@ impl Contract {
         proposal: &mut Proposal,
     ) -> PromiseOrValue<()> {
         proposal.status = ProposalStatus::Failed;
-        let policy = self.policy.get().unwrap().to_policy();
-        self.internal_return_proposal_bond(proposal_id, &policy, proposal)
+        self.internal_return_proposal_bond(proposal_id, proposal)
     }
 
     /// Process rejecting proposal.
@@ -631,6 +636,50 @@ impl Contract {
 
 #[near]
 impl Contract {
+    /// Trusted migration input for a proposal created before per-proposal
+    /// principal was recorded. This is a bounded, one-time seed: it never
+    /// changes locked debt or governance, and it refuses a second seed.
+    #[private]
+    pub fn seed_legacy_proposal_bond(
+        &mut self,
+        proposal_id: u64,
+        proposer: AccountId,
+        amount: U128,
+        funding_tx_hash: String,
+    ) {
+        let amount = amount.0;
+        assert!(amount > 0, "ERR_INVALID_LEGACY_BOND");
+        assert!(
+            (43..=44).contains(&funding_tx_hash.len())
+                && funding_tx_hash
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() && !b"0OIl".contains(&byte)),
+            "ERR_INVALID_FUNDING_TX_HASH"
+        );
+        let proposal: Proposal = self
+            .proposals
+            .get(&proposal_id)
+            .expect("ERR_NO_PROPOSAL")
+            .into();
+        assert_eq!(
+            proposal.proposer, proposer,
+            "ERR_LEGACY_BOND_PROPOSAL_MISMATCH"
+        );
+        assert!(
+            env::storage_read(&Self::proposal_bond_key(proposal_id)).is_none(),
+            "ERR_LEGACY_BOND_ALREADY_RECORDED"
+        );
+        assert!(
+            env::storage_read(&Self::refund_state_key(proposal_id)).is_none(),
+            "ERR_LEGACY_REFUND_ALREADY_STARTED"
+        );
+        env::storage_write(&Self::proposal_bond_key(proposal_id), &amount.to_le_bytes());
+        let mut provenance = Vec::with_capacity(80);
+        provenance.extend_from_slice(funding_tx_hash.as_bytes());
+        provenance.extend_from_slice(&amount.to_le_bytes());
+        env::storage_write(&Self::legacy_bond_provenance_key(proposal_id), &provenance);
+    }
+
     /// Add proposal to this DAO.
     #[payable]
     pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {

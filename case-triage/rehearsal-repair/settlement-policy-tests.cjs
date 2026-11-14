@@ -12,7 +12,7 @@ const correctedReport = read('settlement');
 assert.equal(oldReport.schema, REQUIRED_SCHEMA);
 assert.equal(correctedReport.schema, REQUIRED_SCHEMA);
 assert.equal(oldReport.candidate.wasmSha256, '49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923');
-assert.equal(correctedReport.candidate.wasmSha256, '158f0f0e0a98b3df11fb86828aa72bc0edbe4e992f5db0ab8f86f012eb754f7d');
+assert.equal(correctedReport.candidate.wasmSha256, '3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2');
 
 const oldCheck = verifySettlementReport(oldReport, {candidateWasmSha256: oldReport.candidate.wasmSha256});
 const correctedCheck = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
@@ -26,6 +26,68 @@ assert.equal(correctedCheck.outcomes.retryDelta, '1000000000000000000000000');
 assert.equal(correctedCheck.outcomes.overlapDelta, '1000000000000000000000000');
 assert.equal(correctedCheck.outcomes.fresh.failedRefundLocked, '1000000000000000000000000', 'the fresh candidate scenario must also retain the debt');
 assert.equal(correctedCheck.outcomes.inherited.failedRefundLocked, '1000000000000000000000000', 'the inherited scenario must retain the debt');
+
+const missingSeed = JSON.parse(JSON.stringify(correctedReport));
+delete missingSeed.inherited.transactions.seed;
+delete missingSeed.inherited.legacy.seed;
+delete missingSeed.inherited.legacy.seedArgs;
+delete missingSeed.inherited.legacy.afterMissingSeed;
+delete missingSeed.inherited.legacy.beforeSeedProbe;
+delete missingSeed.inherited.legacy.afterSeedProbe;
+delete missingSeed.inherited.legacy.unauthorizedSeed;
+delete missingSeed.inherited.legacy.duplicateSeed;
+const missingSeedCheck = verifySettlementReport(missingSeed, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(missingSeedCheck.ok, false, 'missing trusted legacy input must not be accepted');
+assert.ok(missingSeedCheck.errors.some((error) => /legacy principal seed|trusted legacy/i.test(error)));
+
+const mutate = (label, fn) => {
+  const value = JSON.parse(JSON.stringify(correctedReport));
+  fn(value);
+  const checked = verifySettlementReport(value, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+  assert.equal(checked.ok, false, label);
+};
+mutate('seed receipt evidence removed', (value) => {
+  delete value.inherited.transactions.seed.receipts;
+  delete value.inherited.transactions.seed.transactionOutcome;
+});
+mutate('unauthorized seed forged as success with unlinked private log', (value) => {
+  const probe = value.inherited.legacy.unauthorizedSeed;
+  probe.rejected = true;
+  probe.value = {
+    finalExecutionStatus: 'FINAL',
+    transaction: probe.value.transaction,
+    transactionOutcome: {status: {SuccessReceiptId: 'root'}, receiptIds: ['root']},
+    receipts: [
+      {id: 'root', executorId: value.inherited.deploy.transaction.receiverId, status: {SuccessValue: ''}, receiptIds: []},
+      {id: 'unlinked', executorId: value.inherited.deploy.transaction.receiverId, status: {SuccessValue: ''}, logs: ['Method seed_legacy_proposal_bond is private']},
+    ],
+  };
+});
+mutate('unauthorized seed signer replaced by the DAO', (value) => {
+  const dao = value.inherited.deploy.transaction.receiverId;
+  const probe = value.inherited.legacy.unauthorizedSeed;
+  probe.signer = dao;
+  probe.value.transaction.signerId = dao;
+});
+mutate('duplicate seed signer changed away from the DAO', (value) => {
+  const probe = value.inherited.legacy.duplicateSeed;
+  probe.signer = value.inherited.transactions.add.transaction.signerId;
+  probe.value.transaction.signerId = probe.signer;
+});
+mutate('unequal Alice seed receipt chain removed', (value) => {
+  delete value.unequal.transactions.seedAlice.receipts;
+  delete value.unequal.transactions.seedAlice.transactionOutcome;
+});
+mutate('unequal Bob seed call method changed', (value) => {
+  value.unequal.transactions.seedBob.transaction.actions[0].FunctionCall.method_name = 'migrate';
+});
+mutate('unequal base deploy removed', (value) => { delete value.unequal.transactions.baseDeploy; });
+mutate('unequal candidate upgrade removed', (value) => { delete value.unequal.transactions.upgradeDeploy; });
+mutate('unequal actual recovery removed', (value) => { delete value.unequal.transactions.recovery; });
+mutate('seeded refund failure removed', (value) => { delete value.inherited.legacy.seededRefundFailure; });
+mutate('unequal case removed', (value) => { delete value.unequal; });
+mutate('unequal reported delta changed', (value) => { value.unequal.aliceDelta = '2000000000000000000000000'; });
+mutate('unequal policy differs by one yocto', (value) => { value.unequal.policyAfter.proposal_bond = '2000000000000000000000001'; });
 
 const labelSwap = JSON.parse(JSON.stringify(correctedReport));
 const forged = '1'.repeat(64);

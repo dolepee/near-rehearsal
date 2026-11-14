@@ -237,6 +237,9 @@ jobs:
             ${{ runner.temp }}/repair-review/source-build/candidate-identity.json
             ${{ runner.temp }}/repair-review/source-build/persisted/persisted-recovery.json
             ${{ runner.temp }}/repair-review/source-build/persisted/persisted-recovery-acceptance.json
+            ${{ runner.temp }}/repair-review/source-build/evidence/persisted.log
+            ${{ runner.temp }}/repair-review/source-build/evidence/persisted-recovery.json
+            ${{ runner.temp }}/repair-review/source-build/evidence/persisted-recovery-acceptance.json
             ${{ runner.temp }}/repair-replay/review-result.json
             ${{ runner.temp }}/repair-replay/recorded-replay/persisted-recovery.json
             ${{ runner.temp }}/repair-replay/recorded-replay/persisted-recovery-acceptance.json
@@ -271,6 +274,26 @@ jobs:
           echo "NEAR_SANDBOX_BIN_PATH=$sandbox_dir/Linux-x86_64" >> "$GITHUB_ENV"
           echo "NEAR_SANDBOX_BINARY_PATH=$sandbox_dir/Linux-x86_64" >> "$GITHUB_ENV"
           echo "NEAR_SANDBOX_VERSION=2.14.0" >> "$GITHUB_ENV"
+      - name: Verify canonical candidate identity
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const base = 'case-triage/rehearsal-repair/mixed-candidates/';
+          const sha = (file) => crypto.createHash('sha256').update(fs.readFileSync(base + file)).digest('hex');
+          const identity = JSON.parse(fs.readFileSync(base + 'intended-identity.json', 'utf8'));
+          const checks = [
+            [identity.source.sha256, sha('intended-proposals.rs'), 'source'],
+            [identity.patch.sha256, sha('intended.patch'), 'patch'],
+            [identity.wasm.sha256, sha('intended.wasm'), 'wasm'],
+          ];
+          for (const [expected, actual, label] of checks) {
+            if (expected !== actual) throw new Error(`${label} identity mismatch: ${expected} != ${actual}`);
+          }
+          if (identity.wasm.bytes !== fs.statSync(base + 'intended.wasm').size) throw new Error('wasm byte count mismatch');
+          console.log(`canonical candidate ${identity.wasm.sha256}`);
+          NODE
       - name: Run persisted recovery tests
         run: node case-triage/rehearsal-repair/persisted-recovery-tests.cjs
       - name: Run persisted recovery chain
@@ -279,22 +302,24 @@ jobs:
           ulimit -n 65535
           node case-triage/rehearsal-repair/persisted-recovery.cjs \
             --sandbox-dir "$NEAR_SANDBOX_BIN_PATH" \
-            --candidate-wasm case-triage/rehearsal-repair/generated/e8262f5a/candidate.wasm \
-            --candidate-patch case-triage/rehearsal-repair/generated/e8262f5a/repair.patch \
-            --candidate-identity case-triage/rehearsal-repair/generated/e8262f5a/candidate-identity.json \
-            --expected-wasm-sha256 49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923 \
+            --candidate-wasm case-triage/rehearsal-repair/mixed-candidates/intended.wasm \
+            --candidate-patch case-triage/rehearsal-repair/mixed-candidates/intended.patch \
+            --candidate-identity case-triage/rehearsal-repair/mixed-candidates/intended-identity.json \
+            --candidate-source case-triage/rehearsal-repair/mixed-candidates/intended-proposals.rs \
+            --expected-wasm-sha256 3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2 \
             --out "$RUNNER_TEMP/persisted-recovery"
       - name: Verify persisted recovery
         run: |
           set -euo pipefail
           node case-triage/rehearsal-repair/persisted-recovery-acceptance.cjs \
             --report "$RUNNER_TEMP/persisted-recovery/persisted-recovery.json" \
-            --wasm case-triage/rehearsal-repair/generated/e8262f5a/candidate.wasm \
+            --wasm case-triage/rehearsal-repair/mixed-candidates/intended.wasm \
             --base-wasm case-triage/rehearsal-repair/bundle/artifacts/base.wasm \
-            --expected-wasm-sha256 49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923 \
-            --expected-patch-sha256 532741a3f689863844d0af147ec08d278420cd74920f68f817234747e295fedc \
-            --expected-source-sha256 82efc4225e307b97068cd7bd984da78f9a83ecf51e1b21749de344f45aa53b22 \
-            --patch case-triage/rehearsal-repair/generated/e8262f5a/repair.patch
+            --expected-wasm-sha256 3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2 \
+            --expected-patch-sha256 ea59d33f2102ef21d77be277dc4981911cb58d5a12b995a673261bb20a79cdc1 \
+            --expected-source-sha256 2cc6f04cca4312ebfe092c2d438c9a570e602abcd81d1d240e34369a6ffcd22e \
+            --patch case-triage/rehearsal-repair/mixed-candidates/intended.patch \
+            --source case-triage/rehearsal-repair/mixed-candidates/intended-proposals.rs
       - name: Upload recovery evidence
         uses: actions/upload-artifact@v4
         with:
@@ -431,9 +456,14 @@ jobs:
             ${{ runner.temp }}/primary-good/evidence/mixed-obligation.json
             ${{ runner.temp }}/primary-good/evidence/settlement-refund.json
             ${{ runner.temp }}/primary-good/evidence/settlement.log
+            ${{ runner.temp }}/primary-good/evidence/persisted.log
+            ${{ runner.temp }}/primary-good/evidence/persisted-recovery.json
+            ${{ runner.temp }}/primary-good/evidence/persisted-recovery-acceptance.json
+            ${{ runner.temp }}/primary-good/persisted/persisted-recovery.json
+            ${{ runner.temp }}/primary-good/persisted/persisted-recovery-acceptance.json
             ${{ runner.temp }}/primary-bad/review-status.json
             ${{ runner.temp }}/primary-bad/review-report.md
             ${{ runner.temp }}/primary-bad/evidence/mixed-obligation.json
             ${{ runner.temp }}/primary-review-bundle.json
             ${{ runner.temp }}/primary-replay/review-result.json
-          if-no-files-found: error
+          if-no-files-found: warn

@@ -361,6 +361,20 @@ async function runRecovery(worker, candidateWasm) {
   if (upgradeFinal.receiptFailure) throw new Error('account deploy/migrate receipt failed; refusing to call that recovery');
   await waitCode(worker, base.dao, candidateHash);
   const upgraded = await snapshot(worker, base.dao, base.proposer, base.recipient, failed.proposalId);
+  // The candidate requires an explicit trusted historical principal for a
+  // legacy proposal. The measured add_proposal deposit is bound to the DAO,
+  // proposal, proposer and funding transaction; the current policy is not a
+  // historical source.
+  const seedTx = await base.dao.callRaw(base.dao, 'seed_legacy_proposal_bond', {
+    proposal_id: failed.proposalId,
+    proposer: base.proposer.accountId,
+    amount: BOND.toString(),
+    funding_tx_hash: failed.add.transactionHash,
+  }, {gas: GAS});
+  const seedFinal = await finalStatus(worker, seedTx, base.dao.accountId);
+  const seed = summarize(seedFinal);
+  if (seed.receiptFailure) throw new Error('legacy seed failed; refusing to recover an unproven principal');
+  const seeded = await snapshot(worker, base.dao, base.proposer, base.recipient, failed.proposalId);
 
   const unauthorizedFinalize = await attempt('unauthorized finalize', async () => {
     const tx = await base.recipient.callRaw(base.dao, 'act_proposal', {id: failed.proposalId, action: 'Finalize', proposal: kind}, {gas: GAS});
@@ -472,6 +486,8 @@ async function runRecovery(worker, candidateWasm) {
       frozen,
     },
     upgraded,
+    seed,
+    seeded,
     preservation: {
       state: upgraded.stateHash === frozen.stateHash,
       policy: JSON.stringify(upgraded.policy) === JSON.stringify(frozen.policy),
@@ -557,6 +573,15 @@ async function runHealthyPreservation(worker, candidateWasm) {
   await waitCode(worker, base.dao, candidateHash);
   const afterUpgrade = await snapshot(worker, base.dao, base.proposer, base.recipient, proposalId);
   const pendingAfterUpgrade = await snapshot(worker, base.dao, base.proposer, base.recipient, pendingId);
+  const pendingSeedTx = await base.dao.callRaw(base.dao, 'seed_legacy_proposal_bond', {
+    proposal_id: pendingId,
+    proposer: base.proposer.accountId,
+    amount: BOND.toString(),
+    funding_tx_hash: summarize(pendingAddFinal).transactionHash,
+  }, {gas: GAS});
+  const pendingSeedFinal = await finalStatus(worker, pendingSeedTx, base.dao.accountId);
+  const pendingSeed = summarize(pendingSeedFinal);
+  if (pendingSeed.receiptFailure) throw new Error('inherited pending seed failed');
   const finalizeAttempt = await attempt('finalize past-settled proposal', async () => {
     const tx = await base.proposer.callRaw(base.dao, 'act_proposal', {id: proposalId, action: 'Finalize', proposal: kind}, {gas: GAS});
     return summarize(await finalStatus(worker, tx, base.proposer.accountId));
@@ -600,6 +625,7 @@ async function runHealthyPreservation(worker, candidateWasm) {
     pending: {
       proposalId: pendingId,
       add: summarize(pendingAddFinal),
+      seed: pendingSeed,
       before: pendingBefore,
       afterUpgrade: pendingAfterUpgrade,
       beforePayout: pendingBeforePayout,

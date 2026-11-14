@@ -236,10 +236,40 @@ function verifyMixedReport(report, opts = {}) {
 
   const ar = report?.aliceRecovery?.after;
   const alice = report?.aliceRecovery;
-  const aliceContract = delta(ar, afterUpgrade, 'contractBalance', 'Alice recovery contract');
-  const aliceLocked = delta(ar, afterUpgrade, 'lockedAmount', 'Alice recovery locked');
-  const aliceRecipient = balanceDelta(ar, afterUpgrade, 'aliceRecipient', 'Alice recovery');
-  const aliceProposer = balanceDelta(ar, afterUpgrade, 'alice', 'Alice recovery');
+  const beforeRecovery = report?.beforeRecovery;
+  if (beforeRecovery) {
+    if (beforeRecovery.codeHash !== afterUpgrade?.codeHash) fail('beforeRecovery changed the candidate code');
+    if (!sameJson(beforeRecovery.policy, afterUpgrade?.policy)) fail('beforeRecovery changed governance policy');
+    if (String(beforeRecovery.lockedAmount) !== String(afterUpgrade?.lockedAmount)) fail('beforeRecovery changed the locked liabilities');
+    for (const name of ['alice', 'bob', 'carol']) {
+      if (!sameJson(beforeRecovery.proposals?.[name], afterUpgrade?.proposals?.[name])) fail(`beforeRecovery changed ${name}`);
+    }
+  }
+  for (const [name, add] of [
+    ['alice', report?.alice?.add],
+    ['bob', report?.bob?.add],
+  ]) {
+    const seed = report?.seed?.[name];
+    if (!seed && !beforeRecovery) continue;
+    if (!seed) { fail(`${name} seed call is missing`); continue; }
+    if (seed.finalExecutionStatus !== 'FINAL' || seed.receiptFailure !== false) fail(`${name} seed was not a successful FINAL transaction`);
+    if (seed.transaction?.signerId !== report?.accounts?.contract || seed.transaction?.receiverId !== report?.accounts?.contract) fail(`${name} seed is not a DAO-private call`);
+    const action = (seed.transaction?.actions || [])[0]?.FunctionCall;
+    let args = null;
+    try { args = JSON.parse(Buffer.from(action?.args || '', 'base64').toString('utf8')); } catch {}
+    if (action?.method_name !== 'seed_legacy_proposal_bond' || !args) fail(`${name} seed call is malformed`);
+    else {
+      if (String(args.proposal_id) !== String(report?.[name]?.proposalId)) fail(`${name} seed targets a different proposal`);
+      if (args.proposer !== add?.transaction?.signerId) fail(`${name} seed proposer does not match funding`);
+      if (String(args.amount) !== String(expectedBond)) fail(`${name} seed amount is not the measured bond`);
+      if (args.funding_tx_hash !== add?.transactionHash) fail(`${name} seed funding hash does not match funding`);
+    }
+  }
+  const recoveryStart = beforeRecovery || afterUpgrade;
+  const aliceContract = delta(ar, recoveryStart, 'contractBalance', 'Alice recovery contract');
+  const aliceLocked = delta(ar, recoveryStart, 'lockedAmount', 'Alice recovery locked');
+  const aliceRecipient = balanceDelta(ar, recoveryStart, 'aliceRecipient', 'Alice recovery');
+  const aliceProposer = balanceDelta(ar, recoveryStart, 'alice', 'Alice recovery');
   const alicePaid = alice?.attempt?.ok === true && alice?.attempt?.value?.receiptFailure === true
     && alice?.attempt?.value?.finalExecutionStatus === 'FINAL'
     && ar?.proposals?.alice?.status === 'Failed' && aliceContract === -expectedBond && aliceRecipient === 0n;
@@ -249,7 +279,7 @@ function verifyMixedReport(report, opts = {}) {
   if (alice?.deltas?.proposer && amount(alice.deltas.proposer, 'Alice recovery reported proposer') !== aliceProposer) fail('Alice proposer delta does not match snapshot balances');
   if (aliceLocked !== -expectedBond) fail('Alice recovery did not release exactly one locked bond');
   if (amount(ar?.lockedAmount, 'Alice recovery locked balance', true) < expectedBond) fail('Bob liability disappeared after Alice recovery');
-  unchanged(ar, afterUpgrade, ['bob', 'carol', 'aliceRecipient', 'bobRecipient', 'carolRecipient'], 'Alice recovery');
+  unchanged(ar, recoveryStart, ['bob', 'carol', 'aliceRecipient', 'bobRecipient', 'carolRecipient'], 'Alice recovery');
 
   const aliceRetryAfter = report?.aliceRetry?.after;
   const aliceRetry = report?.aliceRetry;

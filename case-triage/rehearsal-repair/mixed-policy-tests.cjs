@@ -56,6 +56,13 @@ mutationMustFail('null-action-args', (value) => {
 mutationMustFail('extra-action', (value) => {
   value.bobPayout.attempt.value.transaction.actions.push({Transfer: {deposit: '1'}});
 }, 'extra transaction action');
+mutationMustFail('before-recovery-policy', (value) => { value.beforeRecovery.policy.proposal_bond = '2'; }, 'beforeRecovery policy');
+mutationMustFail('before-recovery-locked', (value) => { value.beforeRecovery.lockedAmount = '0'; }, 'beforeRecovery locked');
+mutationMustFail('seed-missing', (value) => { delete value.seed.alice; }, 'missing seed');
+mutationMustFail('seed-args', (value) => {
+  const call = value.seed.bob.transaction.actions[0].FunctionCall;
+  call.args = Buffer.from(JSON.stringify({proposal_id: 999, proposer: value.accounts.bob, amount: '1', funding_tx_hash: 'x'})).toString('base64');
+}, 'seed args');
 console.log('mixed-policy: null args, conflicting roots and extra actions reject');
 console.log('mixed-policy: finality, signer, root, action-args, policy, non-target and unlinked-receipt mutations reject');
 console.log('mixed-policy: primary policy rejects old/future-only/clear-all and accepts intended');

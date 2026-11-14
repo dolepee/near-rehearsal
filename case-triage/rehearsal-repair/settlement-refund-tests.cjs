@@ -215,6 +215,18 @@ async function settle(worker, dao, proposerId, voter, proposalId = 0) {
   return snapshot(worker, dao, proposerId, voter, proposalId);
 }
 
+async function captureSeedFailure(worker, account, dao, args, label, needle) {
+  try {
+    const tx = await account.callRaw(dao, 'seed_legacy_proposal_bond', args, {gas: GAS});
+    const value = await withHeight(worker, summarize(await finalStatus(worker, tx, account.accountId)), label);
+    const rejected = value.finalExecutionStatus === 'FINAL'
+      && JSON.stringify({receipts: value.receipts || [], outcome: value.transactionOutcome || {}}).includes(needle);
+    return {ok: true, executed: true, rejected, needle, signer: account.accountId, value};
+  } catch (error) {
+    return {ok: false, executed: false, rejected: false, needle, signer: account.accountId, error: String(error?.message || error)};
+  }
+}
+
 async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   const errors = [];
   const label = (name) => `${tag}: ${name}`;
@@ -244,6 +256,10 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   const id = add.parseResult();
   let upgrade = null;
   let deleteFinal = null;
+  let seedFinal = null;
+  let afterMissingSeed = null;
+  let seededRefundFailure = null;
+  let seedArgs = null;
 
   if (!baseWasm) {
     stage(`${tag} delete proposer before the failed action`);
@@ -274,25 +290,88 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
       await sleep(250);
     }
     fail(installed, 'candidate code was not installed on the inherited DAO');
-    upgrade = {deploy: upgradeDeployFinal, migrate: migrateFinal, codeHash, candidateWasmSha256: sha256(wasm)};
     stage(`${tag} delete proposer after the upgrade`);
     const deleted = await proposer.delete(root.accountId);
     deleteFinal = {transactionHash: deleted?.transactionReceipt?.hash || null, transactionOutcome: {status: 'DeleteAccount submitted'}};
-    stage(`${tag} legacy finalize while the proposer is deleted`);
+    stage(`${tag} legacy finalize without a trusted principal`);
     const legacyFinalize = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
     const legacyFinalizeFinal = await withHeight(worker, summarize(await finalStatus(worker, legacyFinalize, voter.accountId)), 'legacy finalize');
     await waitProposal(worker, dao, id, 'Failed');
-    upgrade.legacyFinalize = legacyFinalizeFinal;
+    afterMissingSeed = await settle(worker, dao, proposer.accountId, voter.accountId);
+    fail(afterMissingSeed.lockedAmount === BOND.toString(), `missing legacy principal changed locked debt to ${afterMissingSeed.lockedAmount}`);
+    fail(afterMissingSeed.proposer === null || BigInt(afterMissingSeed.proposer) === 0n, 'missing legacy principal paid the proposer');
+    upgrade = {deploy: upgradeDeployFinal, migrate: migrateFinal, codeHash, candidateWasmSha256: sha256(wasm), legacyFinalize: legacyFinalizeFinal};
+    stage(`${tag} seed the measured original principal`);
+    const addCall = (addFinal.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall;
+    const measuredBond = addCall ? BigInt(addCall.deposit) : null;
+    fail(measuredBond === BOND, `add_proposal deposit ${measuredBond} does not match the measured bond`);
+    seedArgs = {
+      proposal_id: id,
+      proposer: proposer.accountId,
+      amount: measuredBond === null ? '' : measuredBond.toString(),
+      funding_tx_hash: addFinal.transactionHash,
+    };
+    const seed = await dao.callRaw(dao, 'seed_legacy_proposal_bond', seedArgs, {gas: GAS});
+    seedFinal = await withHeight(worker, summarize(await finalStatus(worker, seed, dao.accountId)), 'legacy principal seed');
+    upgrade.seed = seedFinal;
+    upgrade.seedArgs = seedArgs;
+    stage(`${tag} change policy after funding`);
+    const oldPolicy = await viewJson(worker, dao.accountId, 'get_policy');
+    const changedPolicy = {...oldPolicy, proposal_bond: (BOND * 2n).toString(), bounty_bond: (BOND * 2n).toString()};
+    const changeKind = {ChangePolicy: {policy: changedPolicy}};
+    const changeAdd = await voter.callRaw(dao, 'add_proposal', {proposal: {description: 'post-funding policy change', kind: changeKind}}, {gas: GAS, attachedDeposit: BOND.toString()});
+    const changeAddFinal = await withHeight(worker, summarize(await finalStatus(worker, changeAdd, voter.accountId)), 'policy change add');
+    const changeId = changeAdd.parseResult();
+    const changeVote = await voter.callRaw(dao, 'act_proposal', {id: changeId, action: 'VoteApprove', proposal: changeKind}, {gas: GAS});
+    await finalStatus(worker, changeVote, voter.accountId);
+    const changeVote2 = await voter2.callRaw(dao, 'act_proposal', {id: changeId, action: 'VoteApprove', proposal: changeKind}, {gas: GAS});
+    const changeVoteFinal = await withHeight(worker, summarize(await finalStatus(worker, changeVote2, voter2.accountId)), 'policy change vote');
+    const policyAfter = await viewJson(worker, dao.accountId, 'get_policy');
+    fail(String(policyAfter.proposal_bond) === (BOND * 2n).toString(), 'post-funding policy change did not apply');
+    upgrade.policyChange = {add: changeAddFinal, vote: changeVoteFinal, id: changeId, policy: policyAfter};
+
+    // With the proposer still deleted, the trusted seed is present but the
+    // refund transfer itself must fail and the debt must remain locked. This
+    // is a real seeded refund failure, not the earlier missing-seed refusal.
+    stage(`${tag} seeded finalize while proposer is still deleted`);
+    const seededFailureTx = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
+    const seededFailureFinal = await withHeight(worker, summarize(await finalStatus(worker, seededFailureTx, voter.accountId)), 'seeded refund failure');
+    await waitProposal(worker, dao, id, 'Failed');
+    seededRefundFailure = await settle(worker, dao, proposer.accountId, voter.accountId);
+    fail(seededRefundFailure.lockedAmount === BOND.toString(), `seeded refund failure changed locked debt to ${seededRefundFailure.lockedAmount}`);
+    fail(seededRefundFailure.proposal.status === 'Failed', `seeded refund failure changed proposal to ${seededRefundFailure.proposal.status}`);
+    const seededFailureReceipt = (seededFailureFinal.receipts || []).some((receipt) => receipt?.status?.Failure && receipt.executorId === seedArgs.proposer);
+    fail(seededFailureReceipt, 'seeded refund failure did not produce a failed transfer receipt');
+    upgrade.seededRefundFailure = {final: seededFailureFinal, snapshot: seededRefundFailure};
+  }
+
+  stage(`${tag} recreate proposer`);
+  await root.createSubAccount(proposerId, {initialBalance: parseNEAR('10')});
+  const recreatedBalance = await viewAmount(worker, proposer.accountId);
+  stage(`${tag} recreated balance ${recreatedBalance}`);
+
+  if (baseWasm) {
+    const beforeSeedProbe = await snapshot(worker, dao, proposer.accountId, voter.accountId);
+    const unauthorizedSeed = await captureSeedFailure(worker, voter, dao, {...seedArgs, amount: (BOND * 2n).toString()}, 'unauthorized legacy seed', 'Method seed_legacy_proposal_bond is private');
+    const duplicateSeed = await captureSeedFailure(worker, dao, dao, {...seedArgs, amount: (BOND * 3n).toString()}, 'duplicate legacy seed', 'ERR_LEGACY_BOND_ALREADY_RECORDED');
+    const afterSeedProbe = await snapshot(worker, dao, proposer.accountId, voter.accountId);
+    for (const [label, probe] of [['unauthorized seed', unauthorizedSeed], ['duplicate seed', duplicateSeed]]) {
+      fail(probe.executed === true, `${label} did not execute a FINAL transaction`);
+      fail(probe.rejected === true, `${label} did not fail with its expected private/duplicate error`);
+    }
+    fail(beforeSeedProbe.lockedAmount === BOND.toString(), 'seed probes did not start with the original debt');
+    fail(afterSeedProbe.lockedAmount === beforeSeedProbe.lockedAmount, 'seed probes changed the locked debt');
+    fail(afterSeedProbe.proposer === beforeSeedProbe.proposer, 'seed probes changed the proposer principal');
+    upgrade.beforeSeedProbe = beforeSeedProbe;
+    upgrade.afterSeedProbe = afterSeedProbe;
+    upgrade.unauthorizedSeed = unauthorizedSeed;
+    upgrade.duplicateSeed = duplicateSeed;
   }
 
   const failedRefund = await settle(worker, dao, proposer.accountId, voter.accountId);
   fail(failedRefund.lockedAmount === BOND.toString(), `locked liability after failed refund is ${failedRefund.lockedAmount}, expected ${BOND}`);
   fail(failedRefund.proposal.status === 'Failed', `proposal after failed refund is ${failedRefund.proposal.status}`);
 
-  stage(`${tag} recreate proposer`);
-  await root.createSubAccount(proposerId, {initialBalance: parseNEAR('10')});
-  const recreatedBalance = await viewAmount(worker, proposer.accountId);
-  stage(`${tag} recreated balance ${recreatedBalance}`);
   const beforeRetry = await snapshot(worker, dao, proposer.accountId, voter.accountId);
   stage(`${tag} concurrent retry`);
   // Two independently signed council transactions. Both approve the original
@@ -367,13 +446,22 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   return {
     proposalId: id,
     deploy: {...deployFinal, codeHash: deployedCodeHash, wasmSha256: sha256(deployedBytes)},
-    transactions: {deploy: deployFinal, init: initFinal, add: addFinal, upgrade, delete: deleteFinal, vote: voteFinal, vote2: vote2Final, failedProposal, retries: retryFinals, retry: retryFinal, unauthorized, duplicate: duplicateFinal},
+    transactions: {deploy: deployFinal, init: initFinal, add: addFinal, upgrade, seed: seedFinal, delete: deleteFinal, vote: voteFinal, vote2: vote2Final, failedProposal, retries: retryFinals, retry: retryFinal, unauthorized, duplicate: duplicateFinal},
     legacy: baseWasm ? {
       baseWasmSha256: sha256(baseWasm),
       candidateWasmSha256: sha256(wasm),
       upgradeCodeHash: upgrade?.codeHash || null,
       proposalCreatedBeforeUpgrade: true,
       legacyFinalize: upgrade?.legacyFinalize || null,
+      seed: upgrade?.seed || null,
+      afterMissingSeed,
+      seededRefundFailure: upgrade?.seededRefundFailure || null,
+      unauthorizedSeed: upgrade?.unauthorizedSeed || null,
+      duplicateSeed: upgrade?.duplicateSeed || null,
+      seedArgs: upgrade?.seedArgs || null,
+      beforeSeedProbe: upgrade?.beforeSeedProbe || null,
+      afterSeedProbe: upgrade?.afterSeedProbe || null,
+      policyChange: upgrade?.policyChange || null,
     } : null,
     unauthorized,
     unauthorizedArgs,
@@ -396,6 +484,7 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
       lockedAfter: afterRetry.lockedAmount,
     },
     failedRefund,
+    seededRefundFailure,
     beforeRetry,
     afterRetry,
     afterUnauthorized,
@@ -406,6 +495,68 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   };
 }
 
+
+async function runUnequalLegacyScenario({worker, wasm, baseWasm}) {
+  const errors = [];
+  const fail = (condition, message) => { if (!condition) errors.push(message); };
+  const root = worker.rootAccount;
+  const alice = await root.createSubAccount('unequal-alice', {initialBalance: parseNEAR('20')});
+  const bob = await root.createSubAccount('unequal-bob', {initialBalance: parseNEAR('20')});
+  const voter = await root.createSubAccount('unequal-voter', {initialBalance: parseNEAR('20')});
+  const voter2 = await root.createSubAccount('unequal-voter2', {initialBalance: parseNEAR('20')});
+  const dao = await root.createSubAccount('unequal-dao', {initialBalance: parseNEAR('100')});
+  const missingKind = {FunctionCall: {receiver_id: 'missing-target.test.near', actions: [{method_name: 'ping', args: '', deposit: '0', gas: ACTION_GAS.toString()}]}};
+  const bobKind = {Transfer: {token_id: '', receiver_id: 'missing-bob-target.test.near', amount: (BOND * 2n).toString(), msg: null}};
+  const baseDeploy = await dao.deploy(baseWasm);
+  const baseDeployFinal = summarize(await finalStatus(worker, baseDeploy, root.accountId));
+  baseDeployFinal.wasmSha256 = sha256(baseWasm);
+  baseDeployFinal.codeHash = hashContract(baseWasm);
+  const baseInit = await root.callRaw(dao, 'new', {config: {name: 'unequal legacy', purpose: 'bounded unequal obligations', metadata: ''}, policy: [voter.accountId, voter2.accountId]}, {gas: GAS});
+  const baseInitFinal = summarize(await finalStatus(worker, baseInit, root.accountId));
+  const addA = await alice.callRaw(dao, 'add_proposal', {proposal: {description: 'legacy one near', kind: missingKind}}, {gas: GAS, attachedDeposit: BOND.toString()});
+  const addAFinal = await withHeight(worker, summarize(await finalStatus(worker, addA, alice.accountId)), 'unequal add one');
+  const idA = addA.parseResult();
+  for (const account of [voter, voter2]) await finalStatus(worker, await account.callRaw(dao, 'act_proposal', {id: idA, action: 'VoteApprove', proposal: missingKind}, {gas: GAS}), account.accountId);
+  await waitProposal(worker, dao, idA, 'Failed');
+  const policy0 = await viewJson(worker, dao.accountId, 'get_policy');
+  const changedPolicy = {...policy0, proposal_bond: (BOND * 2n).toString(), bounty_bond: (BOND * 2n).toString()};
+  const changeKind = {ChangePolicy: {policy: changedPolicy}};
+  const changeAdd = await voter.callRaw(dao, 'add_proposal', {proposal: {description: 'raise bond to two', kind: changeKind}}, {gas: GAS, attachedDeposit: BOND.toString()});
+  await finalStatus(worker, changeAdd, voter.accountId);
+  const changeId = changeAdd.parseResult();
+  for (const account of [voter, voter2]) await finalStatus(worker, await account.callRaw(dao, 'act_proposal', {id: changeId, action: 'VoteApprove', proposal: changeKind}, {gas: GAS}), account.accountId);
+  await waitProposal(worker, dao, changeId, 'Approved');
+  const policy1 = await viewJson(worker, dao.accountId, 'get_policy');
+  fail(String(policy1.proposal_bond) === (BOND * 2n).toString(), 'unequal policy change did not apply');
+  const addB = await bob.callRaw(dao, 'add_proposal', {proposal: {description: 'legacy two near transfer', kind: bobKind}}, {gas: GAS, attachedDeposit: (BOND * 2n).toString()});
+  const addBFinal = await withHeight(worker, summarize(await finalStatus(worker, addB, bob.accountId)), 'unequal add two');
+  const idB = addB.parseResult();
+  for (const account of [voter, voter2]) await finalStatus(worker, await account.callRaw(dao, 'act_proposal', {id: idB, action: 'VoteApprove', proposal: bobKind}, {gas: GAS}), account.accountId);
+  await waitProposal(worker, dao, idB, 'Failed');
+  const upgradeDeploy = await dao.deploy(wasm);
+  const upgradeDeployFinal = summarize(await finalStatus(worker, upgradeDeploy, dao.accountId));
+  upgradeDeployFinal.wasmSha256 = sha256(wasm);
+  upgradeDeployFinal.codeHash = hashContract(wasm);
+  const upgradeMigrate = await dao.callRaw(dao, 'migrate', {}, {gas: GAS});
+  const upgradeMigrateFinal = summarize(await finalStatus(worker, upgradeMigrate, dao.accountId));
+  const seedATx = await dao.callRaw(dao, 'seed_legacy_proposal_bond', {proposal_id: idA, proposer: alice.accountId, amount: BOND.toString(), funding_tx_hash: addAFinal.transactionHash}, {gas: GAS});
+  const seedAFinal = await finalStatus(worker, seedATx, dao.accountId);
+  const seedBTx = await dao.callRaw(dao, 'seed_legacy_proposal_bond', {proposal_id: idB, proposer: bob.accountId, amount: (BOND * 2n).toString(), funding_tx_hash: addBFinal.transactionHash}, {gas: GAS});
+  const seedBFinal = await finalStatus(worker, seedBTx, dao.accountId);
+  const before = await snapshot(worker, dao, alice.accountId, voter.accountId, idA);
+  const beforeBob = await snapshot(worker, dao, bob.accountId, voter.accountId, idB);
+  const recovery = await voter.callRaw(dao, 'act_proposal', {id: idA, action: 'Finalize', proposal: missingKind}, {gas: GAS});
+  const recoveryFinal = summarize(await finalStatus(worker, recovery, voter.accountId));
+  await settle(worker, dao, alice.accountId, voter.accountId, idA);
+  const after = await snapshot(worker, dao, alice.accountId, voter.accountId, idA);
+  const afterBob = await snapshot(worker, dao, bob.accountId, voter.accountId, idB);
+  const delta = BigInt(after.proposer ?? 0) - BigInt(before.proposer ?? 0);
+  fail(delta === BOND, `unequal Alice paid ${delta}, expected one bond`);
+  fail(afterBob.proposer === beforeBob.proposer, 'unequal Bob balance changed');
+  fail(JSON.stringify(afterBob.proposal) === JSON.stringify(beforeBob.proposal), 'unequal Bob proposal changed');
+  fail(BigInt(afterBob.lockedAmount) === BOND * 2n, `unequal Bob debt is ${afterBob.lockedAmount}, expected two bonds`);
+  return {ok: errors.length === 0, errors, dao: dao.accountId, candidateWasmSha256: sha256(wasm), baseWasmSha256: sha256(baseWasm), ids: {alice: idA, bob: idB}, aliceDelta: delta.toString(), bobLocked: afterBob.lockedAmount, before, after, bobBefore: beforeBob, bobAfter: afterBob, transactions: {baseDeploy: baseDeployFinal, baseInit: baseInitFinal, upgradeDeploy: upgradeDeployFinal, upgradeMigrate: upgradeMigrateFinal, addAlice: addAFinal, addBob: addBFinal, change: await summarize(await finalStatus(worker, changeAdd, voter.accountId)), seedAlice: summarize(seedAFinal), seedBob: summarize(seedBFinal), recovery: recoveryFinal}, policyBefore: policy0, policyAfter: policy1};
+}
 
 async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
   const errors = [];
@@ -580,11 +731,33 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
       if (!report.ok) process.exitCode = 1;
       return;
     }
+    if (process.env.ONLY_INHERITED === '1') {
+      const inherited = await runScenario({worker, tag: 'inherited', prefix: 'inherited', wasm, baseWasm});
+      const report = {schema: 'near-rehearsal/settlement-refund/v2', generatedAt: new Date().toISOString(), candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length}, baseWasmSha256: sha256(baseWasm), runtime: rt, inherited, errors: inherited.errors.map((error) => `inherited: ${error}`), ok: inherited.ok};
+      fs.mkdirSync(opts.out, {recursive: true});
+      fs.writeFileSync(path.join(opts.out, 'settlement-refund.json'), json(report));
+      console.log(json({ok: report.ok, errors: report.errors}));
+      if (!report.ok) process.exitCode = 1;
+      return;
+    }
+    if (process.env.ONLY_UNEQUAL === '1') {
+      const unequal = await runUnequalLegacyScenario({worker, wasm, baseWasm});
+      const report = {schema: 'near-rehearsal/settlement-refund/v2', generatedAt: new Date().toISOString(), candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length}, baseWasmSha256: sha256(baseWasm), runtime: rt, unequal, errors: unequal.errors.map((error) => `unequal: ${error}`), ok: unequal.ok};
+      fs.mkdirSync(opts.out, {recursive: true});
+      fs.writeFileSync(path.join(opts.out, 'settlement-refund.json'), json(report));
+      console.log(json({ok: report.ok, errors: report.errors, unequal}));
+      if (!report.ok) process.exitCode = 1;
+      return;
+    }
     const fresh = await runScenario({worker, tag: 'fresh', prefix: 'fresh', wasm, baseWasm: null});
     const inherited = await runScenario({worker, tag: 'inherited', prefix: 'inherited', wasm, baseWasm});
+    const unequal = process.env.SKIP_UNEQUAL === '1'
+      ? {ok: true, errors: [], skipped: true}
+      : await runUnequalLegacyScenario({worker, wasm, baseWasm});
     const errors = [
       ...fresh.errors.map((error) => `fresh: ${error}`),
       ...inherited.errors.map((error) => `inherited: ${error}`),
+      ...unequal.errors.map((error) => `unequal: ${error}`),
     ];
     const report = {
       schema: 'near-rehearsal/settlement-refund/v2',
@@ -595,8 +768,9 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
       runtime: rt,
       fresh: {...fresh, mode: 'candidate-only'},
       inherited: {...inherited, mode: 'legacy-upgrade'},
+      unequal,
       errors,
-      ok: fresh.ok && inherited.ok,
+      ok: fresh.ok && inherited.ok && unequal.ok,
       boundary: 'Local Sandbox settlement regression. No live DAO, production funds, deployment or universal recovery claim.',
     };
     fs.mkdirSync(opts.out, {recursive: true});
@@ -606,6 +780,7 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
       errors,
       fresh: {locked: fresh.failedRefund?.lockedAmount, delta: fresh.deltas?.retryProposer, finalLocked: fresh.afterDuplicate?.lockedAmount},
       inherited: {locked: inherited.failedRefund?.lockedAmount, delta: inherited.deltas?.retryProposer, finalLocked: inherited.afterDuplicate?.lockedAmount},
+      unequal: {ok: unequal.ok, deltas: unequal.deltas, locked: unequal.locked},
     }));
     if (!report.ok) process.exitCode = 1;
   } finally {
