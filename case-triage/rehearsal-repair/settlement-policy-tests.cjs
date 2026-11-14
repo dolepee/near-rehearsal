@@ -785,6 +785,14 @@ for (const mode of ['fresh', 'inherited']) {
   }
 }
 
+for (const mode of ['fresh', 'inherited']) {
+  const beforeReceipt = structuredClone(correctedReport);
+  const call = beforeReceipt[mode].unauthorized.value;
+  const first = call.receipts.find(r => r.id === call.transactionOutcome.status.SuccessReceiptId);
+  beforeReceipt[mode].afterUnauthorized.blockHeight = first.blockHeight;
+  assert.equal(verifySettlementReport(beforeReceipt).status, 'INCONCLUSIVE', `${mode}: the observation must follow linked receipt execution`);
+}
+
 const acceptedGood = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
 assert.equal(acceptedGood.status, 'ACCEPTED');
 assert.equal(acceptedGood.ok, true);

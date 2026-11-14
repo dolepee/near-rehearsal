@@ -202,11 +202,16 @@ function verifyUnauthorized(scenario, dao, failFor) {
   const beforeHeight = recordedHeight(scenario.afterRetry?.blockHeight);
   const operationHeight = recordedHeight(value.blockHeight);
   const observedHeight = recordedHeight(scenario.afterUnauthorized?.blockHeight);
+  const receiptHeight = recordedHeight(first.blockHeight);
+  verifyFailure(typeof first.blockHash === 'string' && first.blockHash.length > 0 && receiptHeight !== null,
+    'unauthorized callback linked execution receipt has no measured block');
   verifyFailure(beforeHeight !== null && operationHeight !== null && observedHeight !== null,
     'unauthorized callback execution or observation height is missing or malformed');
   if (beforeHeight !== null && operationHeight !== null) verifyFailure(beforeHeight < operationHeight,
     'unauthorized callback was not after the retry observation');
-  if (operationHeight !== null && observedHeight !== null) verifyFailure(operationHeight < observedHeight,
+  if (operationHeight !== null && receiptHeight !== null) verifyFailure(operationHeight <= receiptHeight,
+    'unauthorized callback receipt precedes its root transaction');
+  if (receiptHeight !== null && observedHeight !== null) verifyFailure(receiptHeight < observedHeight,
     'unauthorized callback was not bounded by a later observation');
   return valid;
 }
