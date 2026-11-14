@@ -39,6 +39,7 @@ function parseArgs(argv) {
     else if (argv[i] === '--base-wasm') opts.baseWasm = path.resolve(argv[++i]);
     else if (argv[i] === '--out') opts.out = path.resolve(argv[++i]);
     else if (argv[i] === '--sandbox-dir') opts.sandboxDir = path.resolve(argv[++i]);
+    else if (argv[i] === '--mode') opts.mode = argv[++i];
     else throw new Error(`unknown argument ${argv[i]}`);
   }
   if (!opts.wasm || !opts.out) throw new Error('--wasm and --out are required');
@@ -133,8 +134,17 @@ function summarize(final) {
   };
 }
 
+async function viewCallRetry(worker, id, method, args = {}, blockId = null) {
+  let last;
+  for (let i = 0; i < 8; i += 1) {
+    try { return await worker.provider.viewCall(id, method, args, blockId ? {blockId} : {finality: 'final'}); }
+    catch (error) { last = error; await sleep(300); }
+  }
+  throw last;
+}
+
 async function viewJson(worker, id, method, args = {}, blockId = null) {
-  const result = await worker.provider.viewCall(id, method, args, blockId ? {blockId} : {finality: 'final'});
+  const result = await viewCallRetry(worker, id, method, args, blockId);
   if (!result || !Array.isArray(result.result)) throw new Error(`${method} returned no result`);
   return JSON.parse(Buffer.from(result.result).toString('utf8'));
 }
@@ -152,8 +162,8 @@ async function snapshot(worker, dao, proposerId, voter, proposalId = 0) {
   const block = await worker.provider.sendJsonRpc('block', {finality: 'final'});
   const blockId = block?.header?.hash;
   const account = await worker.provider.viewAccount(dao.accountId, {blockId});
-  const available = await worker.provider.viewCall(dao.accountId, 'get_available_amount', {}, {blockId});
-  const lockedStorage = await worker.provider.viewCall(dao.accountId, 'get_locked_storage_amount', {}, {blockId});
+  const available = await viewCallRetry(worker, dao.accountId, 'get_available_amount', {}, blockId);
+  const lockedStorage = await viewCallRetry(worker, dao.accountId, 'get_locked_storage_amount', {}, blockId);
   const proposal = await viewJson(worker, dao.accountId, 'get_proposal', {id: proposalId}, blockId);
   const balance = BigInt(account.amount);
   return {
@@ -450,6 +460,7 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
   const proposal = await viewJson(worker, dao.accountId, 'get_proposal', {id: proposalId});
   const bountyDoneKind = {BountyDone: {bounty_id: 0, receiver_id: proposer.accountId}};
   fail(proposal.status === 'InProgress', `BountyDone proposal status after creation is ${proposal.status}`);
+  const beforeVote = failPath ? null : await snapshot(worker, dao, proposer.accountId, voter.accountId, proposalId);
 
   let deleteFinal = null;
   if (failPath) {
@@ -466,37 +477,29 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
     const failed = await settle(worker, dao, proposer.accountId, voter.accountId, proposalId);
     fail(failedProposal.status === 'Failed', `proposal after failed BountyDone is ${failedProposal.status}`);
     fail(failed.lockedAmount === (BOND * 2n).toString(), `failed BountyDone retained ${failed.lockedAmount} locked, expected ${BOND * 2n}`);
-    stage(`${tag} recreate proposer and retry`);
+    stage(`${tag} recreate proposer; retry is blocked by the upstream claim lifecycle`);
     await root.createSubAccount(workerId, {initialBalance: parseNEAR('10')});
     const beforeRetry = await snapshot(worker, dao, proposer.accountId, voter.accountId, proposalId);
     const retry = await voter.callRaw(dao, 'act_proposal', {id: proposalId, action: 'Finalize', proposal: bountyDoneKind}, {gas: GAS});
     const retryFinal = summarize(await finalStatus(worker, retry, voter.accountId));
-    await waitProposal(worker, dao, proposalId, 'Approved');
+    const retryStatus = JSON.stringify({transaction: retryFinal.transactionOutcome?.status || {}, receipts: (retryFinal.receipts || []).map((receipt) => receipt.status)});
+    fail(retryStatus.includes('ERR_NO_BOUNTY_CLAIMS'), `BountyDone retry did not expose the upstream ERR_NO_BOUNTY_CLAIMS limitation: ${retryStatus}`);
     const afterRetry = await settle(worker, dao, proposer.accountId, voter.accountId, proposalId);
     const retryDelta = BigInt(afterRetry.proposer ?? 0) - BigInt(beforeRetry.proposer ?? 0);
-    fail(retryDelta === expectedSettlement, `retry proposer delta is ${retryDelta}, expected ${expectedSettlement}`);
-    fail(afterRetry.lockedAmount === '0', `locked liability after successful retry is ${afterRetry.lockedAmount}`);
-    stage(`${tag} duplicate retry`);
-    let duplicateFinal = null;
-    try {
-      const duplicate = await voter.callRaw(dao, 'act_proposal', {id: proposalId, action: 'Finalize', proposal: bountyDoneKind}, {gas: GAS});
-      duplicateFinal = summarize(await finalStatus(worker, duplicate, voter.accountId));
-    } catch (error) {
-      duplicateFinal = {transactionHash: null, finalExecutionStatus: 'rejected', error: String(error?.message || error)};
-    }
-    const afterDuplicate = await settle(worker, dao, proposer.accountId, voter.accountId, proposalId);
-    const duplicateDelta = BigInt(afterDuplicate.proposer ?? 0) - BigInt(afterRetry.proposer ?? 0);
-    fail(duplicateDelta === 0n, `duplicate retry paid ${duplicateDelta}`);
-    fail(afterDuplicate.lockedAmount === '0', `duplicate retry changed locked amount to ${afterDuplicate.lockedAmount}`);
+    fail(retryDelta === 0n, `blocked BountyDone retry changed proposer balance by ${retryDelta}`);
+    fail(afterRetry.lockedAmount === (BOND * 2n).toString(), `blocked BountyDone retry changed locked debt to ${afterRetry.lockedAmount}`);
+    fail(afterRetry.proposal.status === 'Failed', `blocked BountyDone retry changed proposal status to ${afterRetry.proposal.status}`);
     return {
       proposalId,
       deploy: {...deployFinal, codeHash: hashContract(wasm), wasmSha256: sha256(wasm)},
-      transactions: {deploy: deployFinal, init: initFinal, addBounty: addBountyFinal, claim: claimFinal, done: doneFinal, delete: deleteFinal, vote: voteFinal, retry: retryFinal, duplicate: duplicateFinal},
+      transactions: {deploy: deployFinal, init: initFinal, addBounty: addBountyFinal, claim: claimFinal, done: doneFinal, delete: deleteFinal, vote: voteFinal, retry: retryFinal},
       failed,
       beforeRetry,
       afterRetry,
-      afterDuplicate,
-      deltas: {retryProposer: retryDelta.toString(), duplicateProposer: duplicateDelta.toString()},
+      retryUnsupported: true,
+      retryLimitation: 'Upstream internal_execute_bounty_payout removes the claim before its asynchronous payout; after the failed payout the proposal can be finalized but the claim is gone. Recovered debt remains locked, and this PR does not change bounties.rs or claim semantics.',
+      retryStatus,
+      deltas: {retryProposer: retryDelta.toString()},
       errors,
       ok: errors.length === 0,
     };
@@ -504,13 +507,29 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
 
   await waitProposal(worker, dao, proposalId, 'Approved');
   const settled = await settle(worker, dao, proposer.accountId, voter.accountId, proposalId);
+  const settledDelta = BigInt(settled.proposer ?? 0) - BigInt(beforeVote.proposer ?? 0);
+  fail(settledDelta === expectedSettlement, `successful bounty delta is ${settledDelta}, expected ${expectedSettlement}`);
   fail(settled.lockedAmount === '0', `successful bounty control retained ${settled.lockedAmount} locked`);
   fail(settled.proposal.status === 'Approved', `successful bounty control status is ${settled.proposal.status}`);
+  const transferEvidence = (voteFinal.receipts || []).find((receipt) => (
+    receipt.executorId === proposer.accountId
+    && receipt.status
+    && Object.prototype.hasOwnProperty.call(receipt.status, 'SuccessValue')
+  ));
+  fail(voteFinal.finalExecutionStatus === 'FINAL', `successful bounty vote is ${voteFinal.finalExecutionStatus}, not FINAL`);
+  fail(Boolean(transferEvidence), 'successful bounty vote has no linked successful transfer receipt to the receiver');
   return {
     proposalId,
     deploy: {...deployFinal, codeHash: hashContract(wasm), wasmSha256: sha256(wasm)},
     transactions: {deploy: deployFinal, init: initFinal, addBounty: addBountyFinal, claim: claimFinal, done: doneFinal, vote: voteFinal},
+    beforeVote,
     settled,
+    successDelta: settledDelta.toString(),
+    successEvidence: {
+      transactionHash: voteFinal.transactionHash,
+      finalExecutionStatus: voteFinal.finalExecutionStatus,
+      receipt: transferEvidence || null,
+    },
     errors,
     ok: errors.length === 0,
   };
@@ -525,18 +544,47 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
   const wasm = fs.readFileSync(opts.wasm);
   const baseWasm = opts.baseWasm ? fs.readFileSync(opts.baseWasm) : null;
   if (!baseWasm) throw new Error('--base-wasm is required: accepted settlement evidence must cover both the fresh candidate and the inherited pinned-base proposal');
+  const mode = opts.mode || 'settlement';
+  if (!['settlement', 'bounty'].includes(mode)) throw new Error('--mode must be settlement or bounty');
   const worker = await Worker.init({network: 'sandbox'});
   try {
     assertLocal(worker);
+    if (mode === 'bounty') {
+      const bountyFailure = await runBountyDoneScenario({worker, tag: 'bounty-failure', prefix: 'bounty-failure', wasm, failPath: true});
+      const bountySuccess = await runBountyDoneScenario({worker, tag: 'bounty-success', prefix: 'bounty-success', wasm, failPath: false});
+      const errors = [
+        ...bountyFailure.errors.map((error) => `bounty-failure: ${error}`),
+        ...bountySuccess.errors.map((error) => `bounty-success: ${error}`),
+      ];
+      const report = {
+        schema: 'near-rehearsal/bounty-done/v1',
+        generatedAt: new Date().toISOString(),
+        source: {repository: 'https://github.com/near-daos/sputnik-dao-contract', commit: '5434a59dec23ee0c49df8c8c4350c208a7e75b0b'},
+        candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length},
+        baseWasmSha256: sha256(baseWasm),
+        runtime: rt,
+        failure: bountyFailure,
+        success: bountySuccess,
+        errors,
+        ok: bountyFailure.ok && bountySuccess.ok,
+        boundary: 'Local Sandbox BountyDone regression. No live DAO, production funds, deployment or universal recovery claim. Retry is explicitly unsupported upstream because the claim is removed before the asynchronous payout.',
+      };
+      fs.mkdirSync(opts.out, {recursive: true});
+      fs.writeFileSync(path.join(opts.out, 'bounty-done.json'), json(report));
+      console.log(json({
+        ok: report.ok,
+        errors,
+        failure: {locked: bountyFailure.failed?.lockedAmount, delta: bountyFailure.deltas?.retryProposer, finalLocked: bountyFailure.afterRetry?.lockedAmount, retryStatus: bountyFailure.retryStatus},
+        success: {delta: bountySuccess.successDelta, locked: bountySuccess.settled?.lockedAmount, receipt: bountySuccess.successEvidence?.receipt?.id || null, finalExecutionStatus: bountySuccess.successEvidence?.finalExecutionStatus},
+      }));
+      if (!report.ok) process.exitCode = 1;
+      return;
+    }
     const fresh = await runScenario({worker, tag: 'fresh', prefix: 'fresh', wasm, baseWasm: null});
     const inherited = await runScenario({worker, tag: 'inherited', prefix: 'inherited', wasm, baseWasm});
-    const bountyFailure = await runBountyDoneScenario({worker, tag: 'bounty-failure', prefix: 'bounty-failure', wasm, failPath: true});
-    const bountySuccess = await runBountyDoneScenario({worker, tag: 'bounty-success', prefix: 'bounty-success', wasm, failPath: false});
     const errors = [
       ...fresh.errors.map((error) => `fresh: ${error}`),
       ...inherited.errors.map((error) => `inherited: ${error}`),
-      ...bountyFailure.errors.map((error) => `bounty-failure: ${error}`),
-      ...bountySuccess.errors.map((error) => `bounty-success: ${error}`),
     ];
     const report = {
       schema: 'near-rehearsal/settlement-refund/v2',
@@ -547,9 +595,8 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
       runtime: rt,
       fresh: {...fresh, mode: 'candidate-only'},
       inherited: {...inherited, mode: 'legacy-upgrade'},
-      bountyDone: {failure: bountyFailure, success: bountySuccess},
       errors,
-      ok: fresh.ok && inherited.ok && bountyFailure.ok && bountySuccess.ok,
+      ok: fresh.ok && inherited.ok,
       boundary: 'Local Sandbox settlement regression. No live DAO, production funds, deployment or universal recovery claim.',
     };
     fs.mkdirSync(opts.out, {recursive: true});
@@ -559,8 +606,6 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
       errors,
       fresh: {locked: fresh.failedRefund?.lockedAmount, delta: fresh.deltas?.retryProposer, finalLocked: fresh.afterDuplicate?.lockedAmount},
       inherited: {locked: inherited.failedRefund?.lockedAmount, delta: inherited.deltas?.retryProposer, finalLocked: inherited.afterDuplicate?.lockedAmount},
-      bountyFailure: {locked: bountyFailure.failed?.lockedAmount, delta: bountyFailure.deltas?.retryProposer, finalLocked: bountyFailure.afterDuplicate?.lockedAmount},
-      bountySuccess: {locked: bountySuccess.settled?.lockedAmount},
     }));
     if (!report.ok) process.exitCode = 1;
   } finally {

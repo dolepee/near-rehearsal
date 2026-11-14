@@ -1,0 +1,1358 @@
+{
+  "schema": "near-rehearsal/bounty-done/v1",
+  "generatedAt": "2026-11-14T06:37:46.085Z",
+  "source": {
+    "repository": "https://github.com/near-daos/sputnik-dao-contract",
+    "commit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b"
+  },
+  "candidate": {
+    "wasmSha256": "158f0f0e0a98b3df11fb86828aa72bc0edbe4e992f5db0ab8f86f012eb754f7d",
+    "wasmBytes": 533144
+  },
+  "baseWasmSha256": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578",
+  "runtime": {
+    "version": "2.14.0",
+    "commit": "bc4e9e8cfb03d9e82f027883055624e18576993e",
+    "protocol": 88,
+    "binary": "/workspace/tools/near-sandbox-2.14-wrapper/near-sandbox",
+    "versionOutput": "neard (release 2.14.0) (build 2.14.0) (commit bc4e9e8cfb03d9e82f027883055624e18576993e) (rustc 1.95.0) (min_protocol 84) (protocol 88) (db 51)\nfeatures: [default, dump_test_contract, json_rpc, near_dump_test_contract, rosetta_rpc, sandbox]\n\n<jemalloc>: MADV_DONTNEED does not work (memset will be used instead)\n<jemalloc>: (This is the expected behaviour if you are running under QEMU)"
+  },
+  "failure": {
+    "proposalId": 1,
+    "deploy": {
+      "transactionHash": "4ix4R1Tcca5THUaKmnWytNmUSnHXy28NrERJXhrLQWFx",
+      "blockHash": "9J5zVsrPTxPEY5PpXUmn15vSmjScJzDzE9BFRSmNZKCt",
+      "blockHeight": null,
+      "finalExecutionStatus": "FINAL",
+      "transactionOutcome": {
+        "status": {
+          "SuccessReceiptId": "971uUM2Qw1pwoFFhM8U41bXZpVNLeMdXBkcX2NanRuqB"
+        },
+        "tokensBurntYocto": "392513478885600000000",
+        "receiptIds": [
+          "971uUM2Qw1pwoFFhM8U41bXZpVNLeMdXBkcX2NanRuqB"
+        ]
+      },
+      "receipts": [
+        {
+          "id": "971uUM2Qw1pwoFFhM8U41bXZpVNLeMdXBkcX2NanRuqB",
+          "blockHash": "9J5zVsrPTxPEY5PpXUmn15vSmjScJzDzE9BFRSmNZKCt",
+          "receiptIds": [
+            "FFt7rsLuJvTAX8deGMGL485VCShjRyoNcC2z5nMQEr2c"
+          ],
+          "executorId": "bounty-failure-dao.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": [],
+          "tokensBurntYocto": "3471950290593600000000"
+        },
+        {
+          "id": "FFt7rsLuJvTAX8deGMGL485VCShjRyoNcC2z5nMQEr2c",
+          "blockHash": "HyjzkhdtLGFtsMc5oJm2fPynNo8DfaZJHThvLaBJSxDW",
+          "receiptIds": [],
+          "executorId": "bounty-failure-dao.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": [],
+          "tokensBurntYocto": "0"
+        }
+      ],
+      "transaction": {
+        "signerId": "bounty-failure-dao.test.near",
+        "receiverId": "bounty-failure-dao.test.near",
+        "actions": [
+          {
+            "DeployContract": {
+              "code": "FY8PDgqYs98R+4aCiqcrwO2+TpkvXbCrj4bwEut1T30="
+            }
+          }
+        ]
+      },
+      "codeHash": "2TA5rC2KnPVsrtLUVyo47oAsH431PWMavVhhBTvT91P2",
+      "wasmSha256": "158f0f0e0a98b3df11fb86828aa72bc0edbe4e992f5db0ab8f86f012eb754f7d"
+    },
+    "transactions": {
+      "deploy": {
+        "transactionHash": "4ix4R1Tcca5THUaKmnWytNmUSnHXy28NrERJXhrLQWFx",
+        "blockHash": "9J5zVsrPTxPEY5PpXUmn15vSmjScJzDzE9BFRSmNZKCt",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "971uUM2Qw1pwoFFhM8U41bXZpVNLeMdXBkcX2NanRuqB"
+          },
+          "tokensBurntYocto": "392513478885600000000",
+          "receiptIds": [
+            "971uUM2Qw1pwoFFhM8U41bXZpVNLeMdXBkcX2NanRuqB"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "971uUM2Qw1pwoFFhM8U41bXZpVNLeMdXBkcX2NanRuqB",
+            "blockHash": "9J5zVsrPTxPEY5PpXUmn15vSmjScJzDzE9BFRSmNZKCt",
+            "receiptIds": [
+              "FFt7rsLuJvTAX8deGMGL485VCShjRyoNcC2z5nMQEr2c"
+            ],
+            "executorId": "bounty-failure-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "3471950290593600000000"
+          },
+          {
+            "id": "FFt7rsLuJvTAX8deGMGL485VCShjRyoNcC2z5nMQEr2c",
+            "blockHash": "HyjzkhdtLGFtsMc5oJm2fPynNo8DfaZJHThvLaBJSxDW",
+            "receiptIds": [],
+            "executorId": "bounty-failure-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "bounty-failure-dao.test.near",
+          "receiverId": "bounty-failure-dao.test.near",
+          "actions": [
+            {
+              "DeployContract": {
+                "code": "FY8PDgqYs98R+4aCiqcrwO2+TpkvXbCrj4bwEut1T30="
+              }
+            }
+          ]
+        }
+      },
+      "init": {
+        "transactionHash": "8uWnpqJ2LKJ47onTSYjymz3gXwLWGKZj8bq8WkvAZ2Fn",
+        "blockHash": "H5P3QAFySwp2GAaYrkiTz1TLSjNEwNr9hbfZUgGhRtc7",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "4J8XKRduqceM7uMgSkHCV2PoFthu94Hvhhnz4Wfqf49A"
+          },
+          "tokensBurntYocto": "31478290381500000000",
+          "receiptIds": [
+            "4J8XKRduqceM7uMgSkHCV2PoFthu94Hvhhnz4Wfqf49A"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "4J8XKRduqceM7uMgSkHCV2PoFthu94Hvhhnz4Wfqf49A",
+            "blockHash": "ARuUsTkH3ekxB29ctFwaFLEEiZg9zjYUrVjAwYvUC4js",
+            "receiptIds": [
+              "DUEkwvhgqgmjxeq1HR19RnZSepuuK1EGUGqKp5T26Nic"
+            ],
+            "executorId": "bounty-failure-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [
+              "Contract state version: V2"
+            ],
+            "tokensBurntYocto": "203404959007200000000"
+          },
+          {
+            "id": "DUEkwvhgqgmjxeq1HR19RnZSepuuK1EGUGqKp5T26Nic",
+            "blockHash": "CEp2fFN3FSHkX6XqkFGAMP7QLZT9ZZz3AxyFPAs1htte",
+            "receiptIds": [],
+            "executorId": "test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "test.near",
+          "receiverId": "bounty-failure-dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJjb25maWciOnsibmFtZSI6ImJvdW50eSBib3VudHktZmFpbHVyZSIsInB1cnBvc2UiOiJmYWlsZWQgQm91bnR5RG9uZSBwYXlvdXQiLCJtZXRhZGF0YSI6IiJ9LCJwb2xpY3kiOlsiYm91bnR5LWZhaWx1cmUtdm90ZXIudGVzdC5uZWFyIl19",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "new"
+              }
+            }
+          ]
+        }
+      },
+      "addBounty": {
+        "transactionHash": "7mVJW8fi1tgBECG8D3ui8WSz1kzZPkx3qkUpheuAHnAX",
+        "blockHash": "6mRLAZfGHQ1JVpyqrkBqYZJMSE2ozwdmKYDM68draxGK",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "EfjnvvKjyq6aWtscCkprqaodBk2f2qwwvTNV4t2ehNF1"
+          },
+          "tokensBurntYocto": "31807308015000000000",
+          "receiptIds": [
+            "EfjnvvKjyq6aWtscCkprqaodBk2f2qwwvTNV4t2ehNF1"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "EfjnvvKjyq6aWtscCkprqaodBk2f2qwwvTNV4t2ehNF1",
+            "blockHash": "5VLhF4oARseeUtEMMqGmvoNGQ3nGZcbBYYaDhzaMtgoH",
+            "receiptIds": [
+              "DyWvmwHFheHPS7WbNn4V9veAJ4c8TozDzWnTwSfPU7gS"
+            ],
+            "executorId": "bounty-failure-dao.test.near",
+            "status": {
+              "SuccessValue": "MA=="
+            },
+            "logs": [],
+            "tokensBurntYocto": "218583739065600000000"
+          },
+          {
+            "id": "DyWvmwHFheHPS7WbNn4V9veAJ4c8TozDzWnTwSfPU7gS",
+            "blockHash": "8ARRxD8o5dn1ucV24g21dGwkfBuvqRFobNUBQhMUifxF",
+            "receiptIds": [],
+            "executorId": "bounty-failure-worker.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "bounty-failure-worker.test.near",
+          "receiverId": "bounty-failure-dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJwcm9wb3NhbCI6eyJkZXNjcmlwdGlvbiI6ImNyZWF0ZSBib3VudHkiLCJraW5kIjp7IkFkZEJvdW50eSI6eyJib3VudHkiOnsiZGVzY3JpcHRpb24iOiJib3VuZGVkIGJvdW50eSIsInRva2VuIjoiIiwiYW1vdW50IjoiMzAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCIsInRpbWVzIjoxLCJtYXhfZGVhZGxpbmUiOiIxMDAwMDAwMDAwMDAwIn19fX19",
+                "deposit": "1000000000000000000000000",
+                "gas": 300000000000000,
+                "method_name": "add_proposal"
+              }
+            }
+          ]
+        }
+      },
+      "claim": {
+        "transactionHash": "5KeVvoFnKWxpyojD63V9ut8A2r2BdFFrWwQQydErifVE",
+        "blockHash": "3KEWHjSrDfByCkqQKbzm5Dr7dRqwY8keLWZeTa3HTU55",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "3KpUwzDSB6iv3bbKsExr2Cu59E3JRmEPip2pz8SSNAML"
+          },
+          "tokensBurntYocto": "31030063460500000000",
+          "receiptIds": [
+            "3KpUwzDSB6iv3bbKsExr2Cu59E3JRmEPip2pz8SSNAML"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "3KpUwzDSB6iv3bbKsExr2Cu59E3JRmEPip2pz8SSNAML",
+            "blockHash": "65AeEuFHdmDqhsyGT3PAwuqAFBNtXU1D5hoG5ssaELUg",
+            "receiptIds": [
+              "3gwaTJVyP46KE42xjZg7BgMgsnwZcWYw7iUyjNLWTvyY"
+            ],
+            "executorId": "bounty-failure-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "219704961757400000000"
+          },
+          {
+            "id": "3gwaTJVyP46KE42xjZg7BgMgsnwZcWYw7iUyjNLWTvyY",
+            "blockHash": "6WtBwfRrpcbMFQF5n9jsiqW7sckZ22WcHyKnAivoBUkv",
+            "receiptIds": [],
+            "executorId": "bounty-failure-worker.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "bounty-failure-worker.test.near",
+          "receiverId": "bounty-failure-dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MCwiZGVhZGxpbmUiOiIxMDAwMDAwMDAwMDAwIn0=",
+                "deposit": "1000000000000000000000000",
+                "gas": 300000000000000,
+                "method_name": "bounty_claim"
+              }
+            }
+          ]
+        }
+      },
+      "done": {
+        "transactionHash": "3dy2Mmwr7tocqNf1TLMbJNQccQFf6UTdwX4mvr63KCuP",
+        "blockHash": "CRHo7w7aHyVhtbKgndUtjivRgdWg6NGRStqts7DQY3h5",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "AWk2gKHEn4nzyqki3R5C8DVi5tWcm1xx8rbrVZTdKRf7"
+          },
+          "tokensBurntYocto": "31139736005000000000",
+          "receiptIds": [
+            "AWk2gKHEn4nzyqki3R5C8DVi5tWcm1xx8rbrVZTdKRf7"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "AWk2gKHEn4nzyqki3R5C8DVi5tWcm1xx8rbrVZTdKRf7",
+            "blockHash": "79SfNPf9uGeCobqNZa8pExdubwg7qHchp5GGrmrW1TcY",
+            "receiptIds": [
+              "8iTriebVLCfyYQiVZyVdXrjKFTohs7mTkLqRVwm3Pqf3"
+            ],
+            "executorId": "bounty-failure-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "237390723218100000000"
+          },
+          {
+            "id": "8iTriebVLCfyYQiVZyVdXrjKFTohs7mTkLqRVwm3Pqf3",
+            "blockHash": "ByQBw8BGUgzd8PcJDcGnf9j7Xrcct1ZzXayXCPikWCCS",
+            "receiptIds": [],
+            "executorId": "bounty-failure-worker.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "bounty-failure-worker.test.near",
+          "receiverId": "bounty-failure-dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MCwiYWNjb3VudF9pZCI6bnVsbCwiZGVzY3JpcHRpb24iOiJib3VuZGVkIGRlbGl2ZXJ5In0=",
+                "deposit": "1000000000000000000000000",
+                "gas": 300000000000000,
+                "method_name": "bounty_done"
+              }
+            }
+          ]
+        }
+      },
+      "delete": {
+        "transactionHash": "9cJ8cfb97CJw2aGx7HSaYouBm1YjvuptEnTP9o2v4oqc",
+        "transactionOutcome": {
+          "status": "DeleteAccount submitted"
+        }
+      },
+      "vote": {
+        "transactionHash": "B9WfGzeJw9p1RPApqQhs9S3zss6JR6dQm1fuWqswk3YV",
+        "blockHash": "G4RQraFsxXEF1xvTeWeU92CoUjBz5Fw9jMZ9tsC8GAVf",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "5z2wByrPRwSs2capg1pnttFhmJr5f3XG69D7bzwGGKcn"
+          },
+          "tokensBurntYocto": "31440143409500000000",
+          "receiptIds": [
+            "5z2wByrPRwSs2capg1pnttFhmJr5f3XG69D7bzwGGKcn"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "5z2wByrPRwSs2capg1pnttFhmJr5f3XG69D7bzwGGKcn",
+            "blockHash": "ANRVUH1TdwfGkMbD2rUygLP5PLeUSRnwB53RA9i2WnfL",
+            "receiptIds": [
+              "kmPmx59ns8aPMGCo31v1E4LAcDkEMw15jArMEfNj7xc",
+              "ExJBaAZMHyubaX9qBCAq3vCMVTYxpPzpaZccdbADW7Qi",
+              "ExiaxexaGzQPZMpDGJkzZfJYwNgsmtbzZzeCb5JiGRN5"
+            ],
+            "executorId": "bounty-failure-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "333708998916400000000"
+          },
+          {
+            "id": "kmPmx59ns8aPMGCo31v1E4LAcDkEMw15jArMEfNj7xc",
+            "blockHash": "TYbmJ7DYqMCJrthc72VnvHqyZcKBDRMvZkmNZkkNpgx",
+            "receiptIds": [
+              "2ZLxcVqybLn3sds4oK9e7bzgeB2yhErQtQF1Gt5AjBJK",
+              "GK9CZCuiSYYJXaWLeWVam6eoa9LKmvNdrQLz9vouDe9d"
+            ],
+            "executorId": "bounty-failure-worker.test.near",
+            "status": {
+              "Failure": {
+                "ActionError": {
+                  "index": 0,
+                  "kind": {
+                    "AccountDoesNotExist": {
+                      "account_id": "bounty-failure-worker.test.near"
+                    }
+                  }
+                }
+              }
+            },
+            "logs": [],
+            "tokensBurntYocto": "22318256250000000000"
+          },
+          {
+            "id": "2ZLxcVqybLn3sds4oK9e7bzgeB2yhErQtQF1Gt5AjBJK",
+            "blockHash": "7WcggFJzVXSj483mysdJRMd45GxZ3YiiT9sc1GRH7R5s",
+            "receiptIds": [],
+            "executorId": "bounty-failure-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          },
+          {
+            "id": "GK9CZCuiSYYJXaWLeWVam6eoa9LKmvNdrQLz9vouDe9d",
+            "blockHash": "7WcggFJzVXSj483mysdJRMd45GxZ3YiiT9sc1GRH7R5s",
+            "receiptIds": [],
+            "executorId": "bounty-failure-voter.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          },
+          {
+            "id": "ExJBaAZMHyubaX9qBCAq3vCMVTYxpPzpaZccdbADW7Qi",
+            "blockHash": "7WcggFJzVXSj483mysdJRMd45GxZ3YiiT9sc1GRH7R5s",
+            "receiptIds": [
+              "B7LM1tM4XPk1UYsqK3VnbSz9LyqGWrZgs8uwaiqwEhBT",
+              "5vFv4BwYENAaEg3gMtNSHwvU8sT3NvzGJGB3EunQS7DJ",
+              "8Vho3boHTXGyVqfSth3VAm8GPd92w5euPpXqB7gbUiyr"
+            ],
+            "executorId": "bounty-failure-dao.test.near",
+            "status": {
+              "SuccessReceiptId": "5vFv4BwYENAaEg3gMtNSHwvU8sT3NvzGJGB3EunQS7DJ"
+            },
+            "logs": [],
+            "tokensBurntYocto": "302519346188400000000"
+          },
+          {
+            "id": "B7LM1tM4XPk1UYsqK3VnbSz9LyqGWrZgs8uwaiqwEhBT",
+            "blockHash": "GvsCYQuk4prMMASaxAe5WWwow7m25EpBqU2cuMpmLGF7",
+            "receiptIds": [
+              "4yM2iMpo9y1tBuQUaexgduCNzJGHr8FCRUWAmfVgUnzb",
+              "AVLhTudC66oyUT9Sd9nuDJejbj6uxhN1cTzX69Q8WgR8"
+            ],
+            "executorId": "bounty-failure-worker.test.near",
+            "status": {
+              "Failure": {
+                "ActionError": {
+                  "index": 0,
+                  "kind": {
+                    "AccountDoesNotExist": {
+                      "account_id": "bounty-failure-worker.test.near"
+                    }
+                  }
+                }
+              }
+            },
+            "logs": [],
+            "tokensBurntYocto": "22318256250000000000"
+          },
+          {
+            "id": "4yM2iMpo9y1tBuQUaexgduCNzJGHr8FCRUWAmfVgUnzb",
+            "blockHash": "FsG8w4KQhkGstoWZbfXfGjpXbmB6VbVeRXXvNwajLKMs",
+            "receiptIds": [],
+            "executorId": "bounty-failure-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          },
+          {
+            "id": "AVLhTudC66oyUT9Sd9nuDJejbj6uxhN1cTzX69Q8WgR8",
+            "blockHash": "FsG8w4KQhkGstoWZbfXfGjpXbmB6VbVeRXXvNwajLKMs",
+            "receiptIds": [],
+            "executorId": "bounty-failure-voter.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          },
+          {
+            "id": "5vFv4BwYENAaEg3gMtNSHwvU8sT3NvzGJGB3EunQS7DJ",
+            "blockHash": "FsG8w4KQhkGstoWZbfXfGjpXbmB6VbVeRXXvNwajLKMs",
+            "receiptIds": [
+              "5t9mR2k2Vn8YBgmPCqwbMApn1ZLrZc6w2tDcs9P3awTW"
+            ],
+            "executorId": "bounty-failure-dao.test.near",
+            "status": {
+              "SuccessValue": "bnVsbA=="
+            },
+            "logs": [],
+            "tokensBurntYocto": "191263677916800000000"
+          },
+          {
+            "id": "5t9mR2k2Vn8YBgmPCqwbMApn1ZLrZc6w2tDcs9P3awTW",
+            "blockHash": "axsPqJj3ywx6BekDxYrrn1SBsej4TXvnHUwRM2AHSoq",
+            "receiptIds": [],
+            "executorId": "bounty-failure-voter.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          },
+          {
+            "id": "8Vho3boHTXGyVqfSth3VAm8GPd92w5euPpXqB7gbUiyr",
+            "blockHash": "GvsCYQuk4prMMASaxAe5WWwow7m25EpBqU2cuMpmLGF7",
+            "receiptIds": [],
+            "executorId": "bounty-failure-voter.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          },
+          {
+            "id": "ExiaxexaGzQPZMpDGJkzZfJYwNgsmtbzZzeCb5JiGRN5",
+            "blockHash": "TYbmJ7DYqMCJrthc72VnvHqyZcKBDRMvZkmNZkkNpgx",
+            "receiptIds": [],
+            "executorId": "bounty-failure-voter.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "bounty-failure-voter.test.near",
+          "receiverId": "bounty-failure-dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MSwiYWN0aW9uIjoiVm90ZUFwcHJvdmUiLCJwcm9wb3NhbCI6eyJCb3VudHlEb25lIjp7ImJvdW50eV9pZCI6MCwicmVjZWl2ZXJfaWQiOiJib3VudHktZmFpbHVyZS13b3JrZXIudGVzdC5uZWFyIn19fQ==",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "act_proposal"
+              }
+            }
+          ]
+        }
+      },
+      "retry": {
+        "transactionHash": "5a3wC11HrKwNpJaXqKFayRVECUgqvTVf54QkcyFqKuPS",
+        "blockHash": "32rqDc7PRJ6pVr3f1CjnEVEodVX7QbaQcGaZXELEM71G",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "2xJJ7MQ8BZTSvZbYM2gc5qm5R1ze5nHp1dZsn117uDFs"
+          },
+          "tokensBurntYocto": "31425838295000000000",
+          "receiptIds": [
+            "2xJJ7MQ8BZTSvZbYM2gc5qm5R1ze5nHp1dZsn117uDFs"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "2xJJ7MQ8BZTSvZbYM2gc5qm5R1ze5nHp1dZsn117uDFs",
+            "blockHash": "7Qyr9wHzKTzjZa3cWFh24xRv45hX2EnVFxtxL4RGzTW7",
+            "receiptIds": [
+              "6np3hnwGnvHt7rw6wGUYDrmrTUjpDts2Lwe8pSE7k9fd"
+            ],
+            "executorId": "bounty-failure-dao.test.near",
+            "status": {
+              "Failure": {
+                "ActionError": {
+                  "index": 0,
+                  "kind": {
+                    "FunctionCallError": {
+                      "ExecutionError": "Smart contract panicked: panicked at sputnikdao2/src/bounties.rs:141:14:\nERR_NO_BOUNTY_CLAIMS"
+                    }
+                  }
+                }
+              }
+            },
+            "logs": [],
+            "tokensBurntYocto": "210146330010500000000"
+          },
+          {
+            "id": "6np3hnwGnvHt7rw6wGUYDrmrTUjpDts2Lwe8pSE7k9fd",
+            "blockHash": "9ZNXScjvj5HAe2VbsFEzZvaBgeRg6ge3RhkKxaRuygkS",
+            "receiptIds": [],
+            "executorId": "bounty-failure-voter.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "bounty-failure-voter.test.near",
+          "receiverId": "bounty-failure-dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MSwiYWN0aW9uIjoiRmluYWxpemUiLCJwcm9wb3NhbCI6eyJCb3VudHlEb25lIjp7ImJvdW50eV9pZCI6MCwicmVjZWl2ZXJfaWQiOiJib3VudHktZmFpbHVyZS13b3JrZXIudGVzdC5uZWFyIn19fQ==",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "act_proposal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "failed": {
+      "blockHash": "3ACNdKkLo6Vik28Pat6QCSsqbTj55DxqhkNMUWPQmzkQ",
+      "blockHeight": 97,
+      "contractBalance": "101996135536230520800000000",
+      "lockedStorageAmount": "5352320000000000000000000",
+      "availableAmount": "94643815536230520800000000",
+      "lockedAmount": "2000000000000000000000000",
+      "proposal": {
+        "id": 1,
+        "proposer": "bounty-failure-worker.test.near",
+        "description": "bounded delivery",
+        "kind": {
+          "BountyDone": {
+            "bounty_id": 0,
+            "receiver_id": "bounty-failure-worker.test.near"
+          }
+        },
+        "status": "Failed",
+        "vote_counts": {
+          "council": [
+            "1",
+            "0",
+            "0"
+          ]
+        },
+        "votes": {
+          "bounty-failure-voter.test.near": "Approve"
+        },
+        "submission_time": "1794638188282291186",
+        "last_actions_log": [
+          {
+            "block_height": "54"
+          },
+          {
+            "block_height": "63"
+          }
+        ]
+      },
+      "proposer": null,
+      "voter": "19998528813039634000000000"
+    },
+    "beforeRetry": {
+      "blockHash": "HRZgJgKQq1xH9bPRAL9hBLAuwDC6peCMDDDPALJtNTDo",
+      "blockHeight": 108,
+      "contractBalance": "101996135536230520800000000",
+      "lockedStorageAmount": "5352320000000000000000000",
+      "availableAmount": "94643815536230520800000000",
+      "lockedAmount": "2000000000000000000000000",
+      "proposal": {
+        "id": 1,
+        "proposer": "bounty-failure-worker.test.near",
+        "description": "bounded delivery",
+        "kind": {
+          "BountyDone": {
+            "bounty_id": 0,
+            "receiver_id": "bounty-failure-worker.test.near"
+          }
+        },
+        "status": "Failed",
+        "vote_counts": {
+          "council": [
+            "1",
+            "0",
+            "0"
+          ]
+        },
+        "votes": {
+          "bounty-failure-voter.test.near": "Approve"
+        },
+        "submission_time": "1794638188282291186",
+        "last_actions_log": [
+          {
+            "block_height": "54"
+          },
+          {
+            "block_height": "63"
+          }
+        ]
+      },
+      "proposer": "10000000000000000000000000",
+      "voter": "19998528813039634000000000"
+    },
+    "afterRetry": {
+      "blockHash": "qgmSogMy3nCgMtqMH3mNXmUZRUtCAxzDxbgfEvf6XyR",
+      "blockHeight": 118,
+      "contractBalance": "101996135536230520800000000",
+      "lockedStorageAmount": "5352320000000000000000000",
+      "availableAmount": "94643815536230520800000000",
+      "lockedAmount": "2000000000000000000000000",
+      "proposal": {
+        "id": 1,
+        "proposer": "bounty-failure-worker.test.near",
+        "description": "bounded delivery",
+        "kind": {
+          "BountyDone": {
+            "bounty_id": 0,
+            "receiver_id": "bounty-failure-worker.test.near"
+          }
+        },
+        "status": "Failed",
+        "vote_counts": {
+          "council": [
+            "1",
+            "0",
+            "0"
+          ]
+        },
+        "votes": {
+          "bounty-failure-voter.test.near": "Approve"
+        },
+        "submission_time": "1794638188282291186",
+        "last_actions_log": [
+          {
+            "block_height": "54"
+          },
+          {
+            "block_height": "63"
+          }
+        ]
+      },
+      "proposer": "10000000000000000000000000",
+      "voter": "19998287240871328500000000"
+    },
+    "retryUnsupported": true,
+    "retryLimitation": "Upstream internal_execute_bounty_payout removes the claim before its asynchronous payout; after the failed payout the proposal can be finalized but the claim is gone. Recovered debt remains locked, and this PR does not change bounties.rs or claim semantics.",
+    "retryStatus": "{\"transaction\":{\"SuccessReceiptId\":\"2xJJ7MQ8BZTSvZbYM2gc5qm5R1ze5nHp1dZsn117uDFs\"},\"receipts\":[{\"Failure\":{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: panicked at sputnikdao2/src/bounties.rs:141:14:\\nERR_NO_BOUNTY_CLAIMS\"}}}}},{\"SuccessValue\":\"\"}]}",
+    "deltas": {
+      "retryProposer": "0"
+    },
+    "errors": [],
+    "ok": true
+  },
+  "success": {
+    "proposalId": 1,
+    "deploy": {
+      "transactionHash": "9VnYw981idNYDnYC3yfhy9EVnQeCFw8Vo12vFkSzP886",
+      "blockHash": "EZ9yJem8Db6rjT3ngffmCWoUagzAZtdqhJMLWSf1iuDG",
+      "blockHeight": null,
+      "finalExecutionStatus": "FINAL",
+      "transactionOutcome": {
+        "status": {
+          "SuccessReceiptId": "76ufgBcpPHgbTnAsExi5mDKU3H93vvdd4oQqm7gdyY3M"
+        },
+        "tokensBurntYocto": "392513478885600000000",
+        "receiptIds": [
+          "76ufgBcpPHgbTnAsExi5mDKU3H93vvdd4oQqm7gdyY3M"
+        ]
+      },
+      "receipts": [
+        {
+          "id": "76ufgBcpPHgbTnAsExi5mDKU3H93vvdd4oQqm7gdyY3M",
+          "blockHash": "EZ9yJem8Db6rjT3ngffmCWoUagzAZtdqhJMLWSf1iuDG",
+          "receiptIds": [
+            "B1JYLGkE4YEQrQoXgk6PS8mkSZK1jRLwwMqfnsvzBiNo"
+          ],
+          "executorId": "bounty-success-dao.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": [],
+          "tokensBurntYocto": "3471950290593600000000"
+        },
+        {
+          "id": "B1JYLGkE4YEQrQoXgk6PS8mkSZK1jRLwwMqfnsvzBiNo",
+          "blockHash": "5Suvqqh7oeXFFRR8uBd8HGhMFWtxgCsEVuu2dWHyBD1f",
+          "receiptIds": [],
+          "executorId": "bounty-success-dao.test.near",
+          "status": {
+            "SuccessValue": ""
+          },
+          "logs": [],
+          "tokensBurntYocto": "0"
+        }
+      ],
+      "transaction": {
+        "signerId": "bounty-success-dao.test.near",
+        "receiverId": "bounty-success-dao.test.near",
+        "actions": [
+          {
+            "DeployContract": {
+              "code": "FY8PDgqYs98R+4aCiqcrwO2+TpkvXbCrj4bwEut1T30="
+            }
+          }
+        ]
+      },
+      "codeHash": "2TA5rC2KnPVsrtLUVyo47oAsH431PWMavVhhBTvT91P2",
+      "wasmSha256": "158f0f0e0a98b3df11fb86828aa72bc0edbe4e992f5db0ab8f86f012eb754f7d"
+    },
+    "transactions": {
+      "deploy": {
+        "transactionHash": "9VnYw981idNYDnYC3yfhy9EVnQeCFw8Vo12vFkSzP886",
+        "blockHash": "EZ9yJem8Db6rjT3ngffmCWoUagzAZtdqhJMLWSf1iuDG",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "76ufgBcpPHgbTnAsExi5mDKU3H93vvdd4oQqm7gdyY3M"
+          },
+          "tokensBurntYocto": "392513478885600000000",
+          "receiptIds": [
+            "76ufgBcpPHgbTnAsExi5mDKU3H93vvdd4oQqm7gdyY3M"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "76ufgBcpPHgbTnAsExi5mDKU3H93vvdd4oQqm7gdyY3M",
+            "blockHash": "EZ9yJem8Db6rjT3ngffmCWoUagzAZtdqhJMLWSf1iuDG",
+            "receiptIds": [
+              "B1JYLGkE4YEQrQoXgk6PS8mkSZK1jRLwwMqfnsvzBiNo"
+            ],
+            "executorId": "bounty-success-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "3471950290593600000000"
+          },
+          {
+            "id": "B1JYLGkE4YEQrQoXgk6PS8mkSZK1jRLwwMqfnsvzBiNo",
+            "blockHash": "5Suvqqh7oeXFFRR8uBd8HGhMFWtxgCsEVuu2dWHyBD1f",
+            "receiptIds": [],
+            "executorId": "bounty-success-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "bounty-success-dao.test.near",
+          "receiverId": "bounty-success-dao.test.near",
+          "actions": [
+            {
+              "DeployContract": {
+                "code": "FY8PDgqYs98R+4aCiqcrwO2+TpkvXbCrj4bwEut1T30="
+              }
+            }
+          ]
+        }
+      },
+      "init": {
+        "transactionHash": "HEXtxHmsJDQvCBAHPWxk3s48dUtRzYfzv96VYQe6J1vj",
+        "blockHash": "AgcXYGWqZNo47NBYZsEm8BEoUiQpkddByGXjZDbFoHAk",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "HJ5wC5MCVzKep57G6VkjrG9933Hsqgh4uDkcPNWQmdDQ"
+          },
+          "tokensBurntYocto": "31478290381500000000",
+          "receiptIds": [
+            "HJ5wC5MCVzKep57G6VkjrG9933Hsqgh4uDkcPNWQmdDQ"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "HJ5wC5MCVzKep57G6VkjrG9933Hsqgh4uDkcPNWQmdDQ",
+            "blockHash": "GPbUepTEzcsboJFhaHj2YNT5nvAuK8KyDeyJXanqxFWG",
+            "receiptIds": [
+              "9eTmAaA4wjtK95mmo1tBWyPHRXRKfJpbbAocbsptir6D"
+            ],
+            "executorId": "bounty-success-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [
+              "Contract state version: V2"
+            ],
+            "tokensBurntYocto": "204544959007200000000"
+          },
+          {
+            "id": "9eTmAaA4wjtK95mmo1tBWyPHRXRKfJpbbAocbsptir6D",
+            "blockHash": "6xse6ArraVJpZZAuuAqbT9GMvUBYYQKtY4bTfnKKrehH",
+            "receiptIds": [],
+            "executorId": "test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "test.near",
+          "receiverId": "bounty-success-dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJjb25maWciOnsibmFtZSI6ImJvdW50eSBib3VudHktc3VjY2VzcyIsInB1cnBvc2UiOiJmYWlsZWQgQm91bnR5RG9uZSBwYXlvdXQiLCJtZXRhZGF0YSI6IiJ9LCJwb2xpY3kiOlsiYm91bnR5LXN1Y2Nlc3Mtdm90ZXIudGVzdC5uZWFyIl19",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "new"
+              }
+            }
+          ]
+        }
+      },
+      "addBounty": {
+        "transactionHash": "Cy7xRbZVXpDrNibFNdhoMCPkWnUKfSuhXXxQJuNdveGZ",
+        "blockHash": "4178RZJX5eEL9cnuPhyGWfVXtHPdrWErvtwK95QEKeg4",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "GAJXihpeYKqnHWgZupRFPeEqsuMa3Y8wDnTh9HtEKani"
+          },
+          "tokensBurntYocto": "31807308015000000000",
+          "receiptIds": [
+            "GAJXihpeYKqnHWgZupRFPeEqsuMa3Y8wDnTh9HtEKani"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "GAJXihpeYKqnHWgZupRFPeEqsuMa3Y8wDnTh9HtEKani",
+            "blockHash": "ErYgZjuz8mtNFw4G9iAFyQVNNqmuJgzZWMfJRA4bEoU6",
+            "receiptIds": [
+              "E8JFUuJfrYxpsvBvNEzJbgeEK3bXxXZHoDZKfTwnARGL"
+            ],
+            "executorId": "bounty-success-dao.test.near",
+            "status": {
+              "SuccessValue": "MA=="
+            },
+            "logs": [],
+            "tokensBurntYocto": "220407739065600000000"
+          },
+          {
+            "id": "E8JFUuJfrYxpsvBvNEzJbgeEK3bXxXZHoDZKfTwnARGL",
+            "blockHash": "4X7J8yjZj4CJrGAF6QMXwSNiCgNiUfCeqmfrkz4tBDap",
+            "receiptIds": [],
+            "executorId": "bounty-success-worker.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "bounty-success-worker.test.near",
+          "receiverId": "bounty-success-dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJwcm9wb3NhbCI6eyJkZXNjcmlwdGlvbiI6ImNyZWF0ZSBib3VudHkiLCJraW5kIjp7IkFkZEJvdW50eSI6eyJib3VudHkiOnsiZGVzY3JpcHRpb24iOiJib3VuZGVkIGJvdW50eSIsInRva2VuIjoiIiwiYW1vdW50IjoiMzAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCIsInRpbWVzIjoxLCJtYXhfZGVhZGxpbmUiOiIxMDAwMDAwMDAwMDAwIn19fX19",
+                "deposit": "1000000000000000000000000",
+                "gas": 300000000000000,
+                "method_name": "add_proposal"
+              }
+            }
+          ]
+        }
+      },
+      "claim": {
+        "transactionHash": "2w52TwfWVZqEKKLtvU6yVcKE54BjJKvWYWtczPMjvLKR",
+        "blockHash": "HaKYZLfK5rfJP2HxqP3wxhw6T2eVAYzjtrBghciMRGVK",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "DrP5kXiSPbxaHWRmcMmcoECUaBsV9yH4WJsuhQbF4Z9u"
+          },
+          "tokensBurntYocto": "31030063460500000000",
+          "receiptIds": [
+            "DrP5kXiSPbxaHWRmcMmcoECUaBsV9yH4WJsuhQbF4Z9u"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "DrP5kXiSPbxaHWRmcMmcoECUaBsV9yH4WJsuhQbF4Z9u",
+            "blockHash": "Centy3tUNABLTrmeA3TgHoVtuucbzwW7acDJnXVnCtwD",
+            "receiptIds": [
+              "6TYxLaBNuBBwEzwswrCJJKAUVtd7fFTq5R9KRfttqQoX"
+            ],
+            "executorId": "bounty-success-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "221072961757400000000"
+          },
+          {
+            "id": "6TYxLaBNuBBwEzwswrCJJKAUVtd7fFTq5R9KRfttqQoX",
+            "blockHash": "Fm8jk4QJMtKhjb1DmjznBUrcDU46Po8Cw9F1umqgDY3M",
+            "receiptIds": [],
+            "executorId": "bounty-success-worker.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "bounty-success-worker.test.near",
+          "receiverId": "bounty-success-dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MCwiZGVhZGxpbmUiOiIxMDAwMDAwMDAwMDAwIn0=",
+                "deposit": "1000000000000000000000000",
+                "gas": 300000000000000,
+                "method_name": "bounty_claim"
+              }
+            }
+          ]
+        }
+      },
+      "done": {
+        "transactionHash": "2oECtFp5PmxCoRZWFEWADqzuWhVAzeCEHdEJiqiimGtE",
+        "blockHash": "BRjqJg2y1xhT45MsNtQf8uTEHmXuj4QyLFZAEZUSioKy",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "4mimPVvSrZ3QaN3DWXZQCg4owuLgKRbG5qH8p44KDC75"
+          },
+          "tokensBurntYocto": "31139736005000000000",
+          "receiptIds": [
+            "4mimPVvSrZ3QaN3DWXZQCg4owuLgKRbG5qH8p44KDC75"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "4mimPVvSrZ3QaN3DWXZQCg4owuLgKRbG5qH8p44KDC75",
+            "blockHash": "56KY4Q7zLP7xcCwreJusGNtLChr4tBUzekGG6ox4f6oJ",
+            "receiptIds": [
+              "Eoq2mBp7rSCZXEj3kJa15jbBSCFkaN7EQUUnPhtp75nK"
+            ],
+            "executorId": "bounty-success-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "239670723218100000000"
+          },
+          {
+            "id": "Eoq2mBp7rSCZXEj3kJa15jbBSCFkaN7EQUUnPhtp75nK",
+            "blockHash": "24KTcNSZvdSZupKfYqBipViALDj69wF6ZFgFjZafrDYp",
+            "receiptIds": [],
+            "executorId": "bounty-success-worker.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "bounty-success-worker.test.near",
+          "receiverId": "bounty-success-dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MCwiYWNjb3VudF9pZCI6bnVsbCwiZGVzY3JpcHRpb24iOiJib3VuZGVkIGRlbGl2ZXJ5In0=",
+                "deposit": "1000000000000000000000000",
+                "gas": 300000000000000,
+                "method_name": "bounty_done"
+              }
+            }
+          ]
+        }
+      },
+      "vote": {
+        "transactionHash": "SFWC2tHa7NQ8t4RCLKQrykT6htUvQs6mzLV5oCqLRya",
+        "blockHash": "HgBMDqR6C4SYViQpxA3dTJXegk7Hcd3oPwwkRTxoB8Ww",
+        "blockHeight": null,
+        "finalExecutionStatus": "FINAL",
+        "transactionOutcome": {
+          "status": {
+            "SuccessReceiptId": "8vtDQvj4GtjKYarF8pMptYU9MnCMqcHJhsgeEFJEGtRg"
+          },
+          "tokensBurntYocto": "31440143409500000000",
+          "receiptIds": [
+            "8vtDQvj4GtjKYarF8pMptYU9MnCMqcHJhsgeEFJEGtRg"
+          ]
+        },
+        "receipts": [
+          {
+            "id": "8vtDQvj4GtjKYarF8pMptYU9MnCMqcHJhsgeEFJEGtRg",
+            "blockHash": "7fxYivxtgZciAm2x2AjpT4jCBjnzhuiWmnEEpeizVxsx",
+            "receiptIds": [
+              "Hmwt2dvy7fxKquzfPUPeRLdNyLBTtqQ9VUjpEpvUNrf4",
+              "CwhxmPWiGwbbbc6JDDRe8UTbqALmt3LKE9soiDjeupbR",
+              "3hheYFHY7jXrK9mYDL6YKFGFaeJBFXfKPpXbGX1UgCva"
+            ],
+            "executorId": "bounty-success-dao.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "335532998916400000000"
+          },
+          {
+            "id": "Hmwt2dvy7fxKquzfPUPeRLdNyLBTtqQ9VUjpEpvUNrf4",
+            "blockHash": "Bdh1Dh1SoY9hH9T2UanxtsYoP7JuaPTca9dA1XANKDTA",
+            "receiptIds": [
+              "5aB3D2TbreqpnqQVYotfPe33hgZw3qskVQ2Vgzzy2KvV"
+            ],
+            "executorId": "bounty-success-worker.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "22318256250000000000"
+          },
+          {
+            "id": "5aB3D2TbreqpnqQVYotfPe33hgZw3qskVQ2Vgzzy2KvV",
+            "blockHash": "FcbQeJ2c7TijjgBSdP999KQR14XFjMNdZYRYEMHzd4MU",
+            "receiptIds": [],
+            "executorId": "bounty-success-voter.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          },
+          {
+            "id": "CwhxmPWiGwbbbc6JDDRe8UTbqALmt3LKE9soiDjeupbR",
+            "blockHash": "FcbQeJ2c7TijjgBSdP999KQR14XFjMNdZYRYEMHzd4MU",
+            "receiptIds": [
+              "7TNLENYMPjauYPXrE9RvUxUmL2P6pYhEcaWL3fQNzKBm",
+              "4fny7tCJVLBiw5NYEVn58beeR7vp3Ry9wwymqWuccoze",
+              "FFBUbk2YWeZuYVqGC9x6zbYUvSJdG7Zsa4kmkMmG9B2W",
+              "C8Qmzfb1zdediAqX5pwhYw3Etg9LYD2ShsDqCYzUGxU2"
+            ],
+            "executorId": "bounty-success-dao.test.near",
+            "status": {
+              "SuccessReceiptId": "FFBUbk2YWeZuYVqGC9x6zbYUvSJdG7Zsa4kmkMmG9B2W"
+            },
+            "logs": [],
+            "tokensBurntYocto": "347535147695300000000"
+          },
+          {
+            "id": "7TNLENYMPjauYPXrE9RvUxUmL2P6pYhEcaWL3fQNzKBm",
+            "blockHash": "FNtK6yCe7XTvxxWSHtBfReRy9Df9Mjt3SJPwYmxm2MwR",
+            "receiptIds": [
+              "EThwksbQVj9aEKtXcEQamBajxPtZVyugs2EqCXvpqGFf"
+            ],
+            "executorId": "bounty-success-worker.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "22318256250000000000"
+          },
+          {
+            "id": "EThwksbQVj9aEKtXcEQamBajxPtZVyugs2EqCXvpqGFf",
+            "blockHash": "EAdzLZBvfpE6MvMDJ2zQk1UxYdFZJHg1PiTp4hFuUC69",
+            "receiptIds": [],
+            "executorId": "bounty-success-voter.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          },
+          {
+            "id": "4fny7tCJVLBiw5NYEVn58beeR7vp3Ry9wwymqWuccoze",
+            "blockHash": "FNtK6yCe7XTvxxWSHtBfReRy9Df9Mjt3SJPwYmxm2MwR",
+            "receiptIds": [
+              "G82rQFUEHRzarBnw7LecSA5PRJKxSHK7nTAbqMACgjBr"
+            ],
+            "executorId": "bounty-success-worker.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "22318256250000000000"
+          },
+          {
+            "id": "G82rQFUEHRzarBnw7LecSA5PRJKxSHK7nTAbqMACgjBr",
+            "blockHash": "EAdzLZBvfpE6MvMDJ2zQk1UxYdFZJHg1PiTp4hFuUC69",
+            "receiptIds": [],
+            "executorId": "bounty-success-voter.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          },
+          {
+            "id": "FFBUbk2YWeZuYVqGC9x6zbYUvSJdG7Zsa4kmkMmG9B2W",
+            "blockHash": "EAdzLZBvfpE6MvMDJ2zQk1UxYdFZJHg1PiTp4hFuUC69",
+            "receiptIds": [
+              "Cmw2waRX4sSzcvHkQwP7GMkDxzmyqn6NkfkV2MqLEpS3"
+            ],
+            "executorId": "bounty-success-dao.test.near",
+            "status": {
+              "SuccessValue": "bnVsbA=="
+            },
+            "logs": [],
+            "tokensBurntYocto": "192467660355000000000"
+          },
+          {
+            "id": "Cmw2waRX4sSzcvHkQwP7GMkDxzmyqn6NkfkV2MqLEpS3",
+            "blockHash": "GbztYkXoCSNerN8vMDToGrK3Jh5oAus1tzt2YXCgWx4c",
+            "receiptIds": [],
+            "executorId": "bounty-success-voter.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          },
+          {
+            "id": "C8Qmzfb1zdediAqX5pwhYw3Etg9LYD2ShsDqCYzUGxU2",
+            "blockHash": "FNtK6yCe7XTvxxWSHtBfReRy9Df9Mjt3SJPwYmxm2MwR",
+            "receiptIds": [],
+            "executorId": "bounty-success-voter.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          },
+          {
+            "id": "3hheYFHY7jXrK9mYDL6YKFGFaeJBFXfKPpXbGX1UgCva",
+            "blockHash": "Bdh1Dh1SoY9hH9T2UanxtsYoP7JuaPTca9dA1XANKDTA",
+            "receiptIds": [],
+            "executorId": "bounty-success-voter.test.near",
+            "status": {
+              "SuccessValue": ""
+            },
+            "logs": [],
+            "tokensBurntYocto": "0"
+          }
+        ],
+        "transaction": {
+          "signerId": "bounty-success-voter.test.near",
+          "receiverId": "bounty-success-dao.test.near",
+          "actions": [
+            {
+              "FunctionCall": {
+                "args": "eyJpZCI6MSwiYWN0aW9uIjoiVm90ZUFwcHJvdmUiLCJwcm9wb3NhbCI6eyJCb3VudHlEb25lIjp7ImJvdW50eV9pZCI6MCwicmVjZWl2ZXJfaWQiOiJib3VudHktc3VjY2Vzcy13b3JrZXIudGVzdC5uZWFyIn19fQ==",
+                "deposit": "0",
+                "gas": 300000000000000,
+                "method_name": "act_proposal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "beforeVote": {
+      "blockHash": "24KTcNSZvdSZupKfYqBipViALDj69wF6ZFgFjZafrDYp",
+      "blockHeight": 162,
+      "contractBalance": "101996135536230520800000000",
+      "lockedStorageAmount": "5351840000000000000000000",
+      "availableAmount": "94644295536230520800000000",
+      "lockedAmount": "2000000000000000000000000",
+      "proposal": {
+        "id": 1,
+        "proposer": "bounty-success-worker.test.near",
+        "description": "bounded delivery",
+        "kind": {
+          "BountyDone": {
+            "bounty_id": 0,
+            "receiver_id": "bounty-success-worker.test.near"
+          }
+        },
+        "status": "InProgress",
+        "vote_counts": {},
+        "votes": {},
+        "submission_time": "1794638255334794303",
+        "last_actions_log": [
+          {
+            "block_height": "161"
+          }
+        ]
+      },
+      "proposer": "47999224871468478400000000",
+      "voter": "19999429645718565100000000"
+    },
+    "settled": {
+      "blockHash": "8z9go2KGb5h3S1a5mSihUBN646qdExCtmiDs6EJfmrcV",
+      "blockHeight": 175,
+      "contractBalance": "96996135536230520800000000",
+      "lockedStorageAmount": "5352320000000000000000000",
+      "availableAmount": "91643815536230520800000000",
+      "lockedAmount": "0",
+      "proposal": {
+        "id": 1,
+        "proposer": "bounty-success-worker.test.near",
+        "description": "bounded delivery",
+        "kind": {
+          "BountyDone": {
+            "bounty_id": 0,
+            "receiver_id": "bounty-success-worker.test.near"
+          }
+        },
+        "status": "Approved",
+        "vote_counts": {
+          "council": [
+            "1",
+            "0",
+            "0"
+          ]
+        },
+        "votes": {
+          "bounty-success-voter.test.near": "Approve"
+        },
+        "submission_time": "1794638255334794303",
+        "last_actions_log": [
+          {
+            "block_height": "161"
+          },
+          {
+            "block_height": "167"
+          }
+        ]
+      },
+      "proposer": "52999224871468478400000000",
+      "voter": "19998455714999438900000000"
+    },
+    "successDelta": "5000000000000000000000000",
+    "successEvidence": {
+      "transactionHash": "SFWC2tHa7NQ8t4RCLKQrykT6htUvQs6mzLV5oCqLRya",
+      "finalExecutionStatus": "FINAL",
+      "receipt": {
+        "id": "Hmwt2dvy7fxKquzfPUPeRLdNyLBTtqQ9VUjpEpvUNrf4",
+        "blockHash": "Bdh1Dh1SoY9hH9T2UanxtsYoP7JuaPTca9dA1XANKDTA",
+        "receiptIds": [
+          "5aB3D2TbreqpnqQVYotfPe33hgZw3qskVQ2Vgzzy2KvV"
+        ],
+        "executorId": "bounty-success-worker.test.near",
+        "status": {
+          "SuccessValue": ""
+        },
+        "logs": [],
+        "tokensBurntYocto": "22318256250000000000"
+      }
+    },
+    "errors": [],
+    "ok": true
+  },
+  "errors": [],
+  "ok": true,
+  "boundary": "Local Sandbox BountyDone regression. No live DAO, production funds, deployment or universal recovery claim. Retry is explicitly unsupported upstream because the claim is removed before the asynchronous payout."
+}

@@ -593,7 +593,7 @@ impl Contract {
     ) -> PromiseOrValue<()> {
         proposal.status = ProposalStatus::Failed;
         let policy = self.policy.get().unwrap().to_policy();
-        self.internal_return_bonds(proposal_id, &policy, proposal)
+        self.internal_return_proposal_bond(proposal_id, &policy, proposal)
     }
 
     /// Process rejecting proposal.
