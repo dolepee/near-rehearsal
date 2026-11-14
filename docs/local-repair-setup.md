@@ -53,6 +53,8 @@ When serving both routes in one process, leave `NEAR_SANDBOX_BIN_PATH` and `NEAR
 
 ## Source and compiler
 
+Source compilation requires supported Linux x86_64 with an enforced PID-namespace launcher. Native macOS can run the pinned Sandbox for recorded WASM replay, but cannot run this release’s source-build route. See the [reviewer path](repair-review-handoff.md#browser-reviewer) for recorded replay before installing Rust unnecessarily.
+
 ```sh
 mkdir -p .local
 git clone https://github.com/near-daos/sputnik-dao-contract.git .local/sputnik-source
@@ -63,6 +65,32 @@ rustup target add wasm32-unknown-unknown --toolchain 1.86.0
 ```
 
 Use the official Rust/rustup installation if `rustup` is not present. The controller discovers the actual Rust 1.86.0 toolchain under `RUSTUP_HOME` or the standard rustup home, and checks cargo/rustc versions. The browser never accepts arbitrary build commands or host source paths.
+
+## Compiler boundary and dependency cache
+
+Both maintainer patch checking and reviewer **source-build** execute a supplied Rust patch. They require an OS-enforced compiler boundary, even when no model is used:
+
+
+Linux x86_64 uses installed `bubblewrap` with working unprivileged namespaces and PID-namespace teardown. The pinned Sandbox must also execute on the host; the official 2.14.0 Linux archive requires a compatible glibc (Ubuntu 22.04's stock runtime is too old). A container or distribution that denies the required namespaces is unavailable for source builds. Follow the distribution's supported application-specific launcher policy; do not disable a global AppArmor restriction or another host protection.
+
+Native macOS source compilation is explicitly unavailable because the current adapter cannot guarantee descendant teardown. A successful earlier filesystem/network probe does not establish that lifecycle guarantee. Recorded WASM replay does not compile source and remains a separate supported route.
+
+The compiler receives the applied source, selected toolchain, SDK and dependency caches as read-only inputs, a minimal environment, a disposable writable job directory and no network. Fetch the locked upstream dependencies **before** the offline build:
+
+```sh
+cargo +1.86.0 fetch --locked --manifest-path "$REPAIR_SOURCE_DIR/Cargo.toml"
+npm run doctor -- --flow repair --mode patch
+```
+
+The fetch uses Cargo's configured registry/network access and is separate from compiling the patch. It does not execute the patch. A cold or incomplete cache can prevent an offline build; rerun the fetch if the build reports a missing locked dependency.
+
+`BUILD_BOUNDARY_UNAVAILABLE` means the source build did not run. Keep it blocked while fixing the supported launcher/setup; never substitute host execution. Recorded WASM replay remains a separate option that does not compile source.
+
+The boundary enforces wall time, process cleanup, CPU time, per-file size, open-file and captured-output limits. It does **not** provide a hard memory limit, process-count limit or aggregate disk quota. This is a local review tool, not a hosted untrusted-code service.
+
+### Recover an interrupted dependency setup
+
+If preflight reports a missing dependency or compatibility shim, run `npm run setup` again from the repository root, then repeat the same doctor command. The setup uses `npm ci --ignore-scripts` and reapplies the runtime-path shim; an unfinished setup is not readiness. Existing Rust, runtime, cache and launcher prerequisites are checked separately.
 
 ## Existing model account and policy
 

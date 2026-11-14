@@ -1,12 +1,12 @@
 # NEAR Rehearsal Repair
 
-Generate a source patch for a supported NEAR contract failure, compile it, and check the monetary result with an independent local replay. Download the source diff and the exact tested WASM with their replay evidence.
+Check a source repair before merging it: build the patch, execute the supported financial and authority checks, and hand the evidence to another reviewer for an independent rebuild and replay. Optional model generation can propose the patch; it cannot change the acceptance policy.
 
 The supported repair case is [Sputnik DAO #238](https://github.com/near-daos/sputnik-dao-contract/issues/238): a failed asynchronous proposal retains its 1 NEAR bond. Rehearsal asks the configured model for a patch, then independently checks the built contract's bond return, receipt-backed retry, healthy payout and authority behavior. The model cannot edit the acceptance criteria.
 
 ## Choose the entry point
 
-The UI serves four local interfaces. They are not interchangeable:
+The UI serves five local interfaces. They are not interchangeable:
 
 | You want to... | Start | Runtime | What it proves |
 | --- | --- | --- | --- |
@@ -18,6 +18,20 @@ The UI serves four local interfaces. They are not interchangeable:
 
 The reviewer quickstart is for a supplied candidate and never calls a model. Fresh generation is a separate producer path. The front door at `/` is navigation only. The authored comparison at `/compare` — with `/index.html` kept as its legacy alias — is an advanced fixture, not a generated repair.
 
+## Start with your source patch
+
+Use **`/repair?mode=patch`** to check a maintainer diff. This is the primary workflow and needs no model account, wallet or API key. Source builds require a supported Linux x86_64 host with PID-namespace confinement. Native macOS supports recorded WASM replay, not source compilation.
+
+
+1. Complete the [runtime and source setup](docs/local-repair-setup.md#sandbox-runtimes), including the [compiler boundary and dependency cache](docs/local-repair-setup.md#compiler-boundary-and-dependency-cache).
+2. In that same terminal, run `npm run doctor -- --flow repair --mode patch`, then `PORT=4174 npm run ui:patch`.
+3. Open **http://127.0.0.1:4174/repair?mode=patch**, submit the supported Sputnik diff and run the checks. An incomplete run is not an accepted repair.
+4. For an accepted run, export the review bundle. Open **`/review`**, select that bundle and choose **Source build** to independently rebuild and rerun it. Download the reviewer's own fresh evidence after acceptance.
+
+This supports one pinned Sputnik source family, not arbitrary NEAR contracts. The public site shows recorded execution; these commands run a fresh local Sandbox. Source review needs an enforced compiler launcher; it stops with `BUILD_BOUNDARY_UNAVAILABLE` when that protection cannot run. Do not disable host protections to get past the check.
+
+Already have a review bundle? Continue with the reviewer quickstart below. **Recorded WASM replay** needs the pinned Sandbox but neither Rust nor a compiler launcher; it does not establish source-to-WASM reproducibility.
+
 ## Reviewer quickstart: supplied candidate, no model
 
 This is the shortest path for someone who has an accepted repair bundle, or who wants to inspect the checked-in recorded example. It does not require a model login.
@@ -28,7 +42,7 @@ This is the shortest path for someone who has an accepted repair bundle, or who 
 - `npm run setup` in this repository.
 - A NEAR Sandbox **2.14.0** binary directory. The supported archives are **Linux x86_64** and **native macOS arm64**. The directory contains `near-sandbox`; pass the directory, not the executable.
 - **Recorded WASM replay:** no Rust build and no pinned source checkout.
-- **Source build:** additionally a clean checkout of `near-daos/sputnik-dao-contract` at `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`, Rust **1.86.0**, and the `wasm32-unknown-unknown` target.
+- **Source build:** additionally a clean checkout of `near-daos/sputnik-dao-contract` at `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`, Rust **1.86.0**, the `wasm32-unknown-unknown` target, and a supported Linux x86_64 host, and the [enforced compiler boundary and fetched dependency cache](docs/local-repair-setup.md#compiler-boundary-and-dependency-cache).
 
 The checksum-verified runtime download and source/compiler commands are in [local repair setup](docs/local-repair-setup.md#sandbox-runtimes). Do not substitute a newer or older Sandbox release; the acceptance path checks the release, commit and protocol.
 
@@ -83,7 +97,7 @@ rustup toolchain install 1.86.0 --profile minimal
 rustup target add wasm32-unknown-unknown --toolchain 1.86.0
 ```
 
-`npm run doctor -- --flow repair` checks the Node, dependency and Sandbox configuration without starting a chain. A source-build review also needs `REPAIR_SOURCE_DIR` and the Rust target above.
+`npm run doctor -- --flow repair` checks the Node, dependency and Sandbox configuration without starting a chain. For source-build readiness, use `npm run doctor -- --flow repair --mode patch`; this additionally checks the clean source, Rust target and live compiler boundary. Fetch the pinned dependency cache as described in the linked setup first.
 
 ### Start the reviewer page
 
@@ -100,7 +114,7 @@ For source-build, complete the optional pinned-source and compiler steps above
 before starting the server. If it is already running, stop it and run the same
 start command again after exporting `REPAIR_SOURCE_DIR`.
 
-The page then offers **Source build** and **Recorded WASM replay**. Source-build is the default when its prerequisites are present. Both modes verify the bundle hashes and candidate identities before reserving an output directory. Neither calls a model.
+On a supported Linux source-build host the page offers **Source build** and **Recorded WASM replay**. On native macOS, source build is unavailable; use recorded replay. Source-build is the default when its prerequisites are present. Both modes verify the bundle hashes and candidate identities before reserving an output directory. Neither calls a model.
 
 The checked-in example is a **recorded model candidate**, not a new model run and not an authored control. The page still performs a fresh local Sandbox execution. A successful result is a review of the supplied candidate and its declared case; it is not a claim that the model generated anything during the review.
 
@@ -241,7 +255,7 @@ The authored comparison's seeded regression and correction are labelled fixtures
 | Flow | Sandbox | Tested chain/build coverage | Build tools | Provider generation |
 | --- | --- | --- | --- | --- |
 | `/review` recorded replay | 2.14.0 | Linux x86_64 CI; native macOS arm64 chain/replay exercised | None beyond Node | None |
-| `/review` source build | 2.14.0 | Linux x86_64 CI; native macOS arm64 build/replay exercised | Rust 1.86.0 + `wasm32-unknown-unknown` | None |
+| `/review` source build | 2.14.0 | Linux x86_64 CI with enforced bubblewrap PID namespace; unavailable on native macOS | Rust 1.86.0 + `wasm32-unknown-unknown` | None |
 | `/repair` fresh generation | 2.14.0 | Linux x86_64 CI covers source build/replay; it does not exercise a live model provider | Rust 1.86.0 + `wasm32-unknown-unknown` | Existing Codex login, model and enforced policy; local prerequisite, not CI-proven |
 | `/compare` authored comparison (legacy `/index.html`) | 2.6.2 | Linux x86_64 CI; native macOS arm64 chain/replay exercised | None beyond Node | None |
 
