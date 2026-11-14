@@ -7,9 +7,9 @@ const {verifySettlementReport, REQUIRED_SCHEMA, DEFAULT_BASE_WASM_SHA256} = requ
 const HERE = __dirname;
 const read = (name) => JSON.parse(fs.readFileSync(path.join(HERE, 'out', 'audit-intended', name, 'settlement-refund.json'), 'utf8'));
 
-const oldReport = {...read('settlement-old'), schema: REQUIRED_SCHEMA};
+const oldReport = read('settlement-old');
 const correctedReport = read('settlement');
-assert.equal(oldReport.schema, REQUIRED_SCHEMA);
+assert.equal(oldReport.schema, 'near-rehearsal/settlement-refund/v2');
 assert.equal(correctedReport.schema, REQUIRED_SCHEMA);
 assert.equal(oldReport.candidate.wasmSha256, '49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923');
 assert.equal(correctedReport.candidate.wasmSha256, '133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d');

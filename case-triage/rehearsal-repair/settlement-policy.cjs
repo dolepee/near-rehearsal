@@ -833,7 +833,10 @@ function verifySettlementReport(report, opts = {}) {
   if (!baseIdentityValid) fail('settlement base WASM identity is wrong');
   const requestedCandidateValid = !opts.candidateWasmSha256 || candidateWasmSha256 === opts.candidateWasmSha256;
   if (!requestedCandidateValid) fail('settlement report is for a different candidate WASM');
-  const identityEstablished = report?.schema === REQUIRED_SCHEMA && candidateIdentityValid && baseIdentityValid && requestedCandidateValid;
+  // A demonstrated economic loss remains REJECTED even when the report uses an
+  // older schema; missing current coverage is still recorded as incomplete.
+  const knownSchema = report?.schema === REQUIRED_SCHEMA || report?.schema === 'near-rehearsal/settlement-refund/v2';
+  const identityEstablished = knownSchema && candidateIdentityValid && baseIdentityValid && requestedCandidateValid;
   if (report?.ok !== true || (Array.isArray(report?.errors) && report.errors.length)) {
     fail(`settlement execution was not clean: ${(Array.isArray(report?.errors) ? report.errors.join('; ') : report?.errors) || 'ok is not true'}`, 'incomplete');
   }
