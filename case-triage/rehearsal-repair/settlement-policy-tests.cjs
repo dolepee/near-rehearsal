@@ -189,6 +189,25 @@ checkApprovedMutation('duplicate signer missing', (approved) => {
   delete approved.duplicate.transaction.signerId;
   approved.afterDuplicate.proposer = approved.afterRetry.proposer;
 }, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate signer missing without balance change', (approved) => {
+  delete approved.duplicate.transaction.signerId;
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate signer is approval signer without balance change', (approved) => {
+  approved.duplicate.transaction.signerId = approved.approval.transaction.signerId;
+}, 'INCONCLUSIVE');
+checkApprovedMutation('approval operation not FINAL without balance change', (approved) => {
+  approved.approval.finalExecutionStatus = 'NONE';
+}, 'INCONCLUSIVE');
+checkApprovedMutation('retry operation not FINAL without balance change', (approved) => {
+  approved.retry.finalExecutionStatus = 'NONE';
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate operation not FINAL without balance change', (approved) => {
+  approved.duplicate.finalExecutionStatus = 'NONE';
+}, 'INCONCLUSIVE');
+checkApprovedMutation('retry loss survives invalid approval operation', (approved) => {
+  approved.afterRetry.lockedAmount = '42';
+  approved.approval.finalExecutionStatus = 'NONE';
+}, 'REJECTED');
 checkApprovedMutation('all execution heights missing', (approved) => {
   delete approved.approval.blockHeight;
   delete approved.retry.blockHeight;

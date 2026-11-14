@@ -1051,6 +1051,9 @@ function verifySettlementReport(report, opts = {}) {
         retry: Boolean(retry && retry.finalExecutionStatus === 'FINAL' && retry.transaction && retryCall && retryCall.call.method_name === 'act_proposal' && retryCall.args.action === 'Finalize' && approvalCall && String(retryCall.args.id) === String(approvalCall.args.id) && retry.transaction.signerId === approved.proposer && retryCall.args.proposal && JSON.stringify(retryCall.args.proposal) === JSON.stringify(approvalCall.args.proposal) && retryOk && retryGraph && retry.transaction.receiverId === dao),
         duplicate: Boolean(duplicate && duplicate.finalExecutionStatus === 'FINAL' && duplicate.transaction && duplicateCall && duplicateCall.call.method_name === 'act_proposal' && duplicateCall.args.action === 'Finalize' && approvalCall && String(duplicateCall.args.id) === String(approvalCall.args.id) && duplicate.transaction.receiverId === dao && duplicate.transaction.signerId === approved.proposer && duplicateGraph),
       };
+      for (const name of ['approval', 'retry', 'duplicate']) {
+        approvedFail(operationValid[name], `${name} execution is not valid for coverage`, 'incomplete');
+      }
       const economicFail = (condition, message, relevant) => {
         const attributable = installationValid &&
           (relevant.ops || []).every((op) => operationValid[op]) &&
