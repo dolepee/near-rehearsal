@@ -175,6 +175,20 @@ checkApprovedMutation('valid linked duplicate payment remains rejected', (approv
   approved.duplicate.receipts[0].status = {SuccessValue: ''};
   approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
 }, 'REJECTED');
+checkApprovedMutation('approval child receipt removed', (approved) => {
+  approved.approval.receipts.splice(1, 1);
+}, 'INCONCLUSIVE');
+checkApprovedMutation('retry child receipt removed', (approved) => {
+  approved.retry.receipts.splice(1, 1);
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate signed by approval signer', (approved) => {
+  approved.duplicate.transaction.signerId = approved.approval.transaction.signerId;
+  approved.afterDuplicate.proposer = approved.afterRetry.proposer;
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate signer missing', (approved) => {
+  delete approved.duplicate.transaction.signerId;
+  approved.afterDuplicate.proposer = approved.afterRetry.proposer;
+}, 'INCONCLUSIVE');
 checkApprovedMutation('all execution heights missing', (approved) => {
   delete approved.approval.blockHeight;
   delete approved.retry.blockHeight;

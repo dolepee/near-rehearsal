@@ -1043,11 +1043,13 @@ function verifySettlementReport(report, opts = {}) {
       const retryOk = successfulReceiptChain(retry, 'approved action retry', (message) => fail(message));
       approvedFail(approvalOk, 'approval has no successful receipt chain');
       approvedFail(retryOk, 'retry has no successful receipt chain');
-      const duplicateExecutionLinked = linkedExecution(duplicate, 'duplicate retry', (message) => approvedFail(false, message));
+      const approvalGraph = linkedExecution(approval, 'approved action approval', (message) => approvedFail(false, message));
+      const retryGraph = linkedExecution(retry, 'approved action retry', (message) => approvedFail(false, message));
+      const duplicateGraph = linkedExecution(duplicate, 'duplicate retry', (message) => approvedFail(false, message));
       const operationValid = {
-        approval: Boolean(approval && approval.finalExecutionStatus === 'FINAL' && approval.transaction && approvalCall && approvalCall.call.method_name === 'act_proposal' && approvalCall.args.action === 'VoteApprove' && approvalOk && approval.transaction.receiverId === dao && approvedDaoValid && approved.dao === dao),
-        retry: Boolean(retry && retry.finalExecutionStatus === 'FINAL' && retry.transaction && retryCall && retryCall.call.method_name === 'act_proposal' && retryCall.args.action === 'Finalize' && approvalCall && String(retryCall.args.id) === String(approvalCall.args.id) && retry.transaction.signerId === approved.proposer && retryCall.args.proposal && JSON.stringify(retryCall.args.proposal) === JSON.stringify(approvalCall.args.proposal) && retryOk && retry.transaction.receiverId === dao),
-        duplicate: Boolean(duplicate && duplicate.finalExecutionStatus === 'FINAL' && duplicate.transaction && duplicateCall && duplicateCall.call.method_name === 'act_proposal' && duplicateCall.args.action === 'Finalize' && approvalCall && String(duplicateCall.args.id) === String(approvalCall.args.id) && duplicate.transaction.receiverId === dao && duplicateExecutionLinked),
+        approval: Boolean(approval && approval.finalExecutionStatus === 'FINAL' && approval.transaction && approvalCall && approvalCall.call.method_name === 'act_proposal' && approvalCall.args.action === 'VoteApprove' && approvalOk && approvalGraph && approval.transaction.receiverId === dao && approvedDaoValid && approved.dao === dao),
+        retry: Boolean(retry && retry.finalExecutionStatus === 'FINAL' && retry.transaction && retryCall && retryCall.call.method_name === 'act_proposal' && retryCall.args.action === 'Finalize' && approvalCall && String(retryCall.args.id) === String(approvalCall.args.id) && retry.transaction.signerId === approved.proposer && retryCall.args.proposal && JSON.stringify(retryCall.args.proposal) === JSON.stringify(approvalCall.args.proposal) && retryOk && retryGraph && retry.transaction.receiverId === dao),
+        duplicate: Boolean(duplicate && duplicate.finalExecutionStatus === 'FINAL' && duplicate.transaction && duplicateCall && duplicateCall.call.method_name === 'act_proposal' && duplicateCall.args.action === 'Finalize' && approvalCall && String(duplicateCall.args.id) === String(approvalCall.args.id) && duplicate.transaction.receiverId === dao && duplicate.transaction.signerId === approved.proposer && duplicateGraph),
       };
       const economicFail = (condition, message, relevant) => {
         const attributable = installationValid &&
