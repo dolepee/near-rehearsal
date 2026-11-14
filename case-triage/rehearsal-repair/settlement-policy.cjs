@@ -303,6 +303,29 @@ function recordedHeight(value) {
   return null;
 }
 
+function financialPrerequisitesEstablished(scenario, parseAmount) {
+  if (!scenario?.deploy || !scenario.transactions) return false;
+  const failed = scenario.failedRefund;
+  if (!failed || parseAmount(failed.lockedAmount) === null) return false;
+  const before = scenario.beforeRetry;
+  const after = scenario.afterRetry;
+  if (!before || !after) return false;
+  for (const snapshot of [before, after, scenario.afterDuplicate, scenario.afterUnauthorized]) {
+    if (!snapshot || parseAmount(snapshot.proposer) === null || parseAmount(snapshot.lockedAmount) === null) return false;
+  }
+  if (!scenario.overlap || parseAmount(scenario.overlap.delta) === null) return false;
+  if (!Array.isArray(scenario.transactions.retries) || scenario.transactions.retries.length !== 2) return false;
+  for (const retry of scenario.transactions.retries) {
+    const call = (retry?.transaction?.actions || [])[0]?.FunctionCall;
+    if (call?.method_name !== 'act_proposal') return false;
+    let args;
+    try { args = JSON.parse(Buffer.from(call.args || '', 'base64').toString('utf8')); } catch { return false; }
+    if (args?.action !== 'Finalize') return false;
+  }
+  if (scenario.mode === 'legacy-upgrade' && (!scenario.transactions.upgrade?.deploy || !scenario.transactions.upgrade?.migrate)) return false;
+  return true;
+}
+
 function verifyScenario(scenario, mode, context) {
   const {fail, text, candidateWasmSha256, baseWasmSha256, report} = context;
   if (!scenario) { fail(`${mode} settlement scenario is missing`); return null; }
@@ -389,7 +412,9 @@ function verifyScenario(scenario, mode, context) {
   } else failFor(false, 'post-upgrade proposal identity is missing');
   if (!failed) failFor(false, 'failed-refund snapshot missing');
   else {
-    if (text(failed.lockedAmount) && text(failed.lockedAmount) !== BOND.toString()) failVerified(false, 'failed refund did not retain the locked debt');
+    const failedLocked = failed ? parseAmount(failed.lockedAmount) : null;
+    if (text(failed?.lockedAmount) && failedLocked === null) failFor(false, 'failed refund locked amount is malformed');
+    else if (failedLocked !== null && failedLocked !== BOND) failVerified(false, 'failed refund did not retain the locked debt');
     if (failed.proposal?.status !== 'Failed') failFor(false, 'failed refund did not leave the proposal Failed');
   }
 
@@ -401,10 +426,14 @@ function verifyScenario(scenario, mode, context) {
   if (!before || !after) failFor(false, 'retry snapshots missing');
   else if (beforeAmount === null || afterAmount === null) failFor(false, 'retry proposer amounts missing or malformed');
   else {
-    if (text(before.lockedAmount) !== BOND.toString()) failVerified(false, 'retry did not start with the debt still locked');
+    const beforeLocked = parseAmount(before.lockedAmount);
+    if (beforeLocked === null) failFor(false, 'retry locked amount is missing or malformed');
+    else if (beforeLocked !== BOND) failVerified(false, 'retry did not start with the debt still locked');
     retryDelta = afterAmount - beforeAmount;
     if (retryDelta !== BOND) failVerified(false, `retry proposer delta is ${retryDelta}, expected exactly one bond`);
-    if (text(after.lockedAmount) !== '0') failVerified(false, 'successful retry did not clear the debt');
+    const afterLocked = parseAmount(after.lockedAmount);
+    if (afterLocked === null) failFor(false, 'retry resulting locked amount is missing or malformed');
+    else if (afterLocked !== 0n) failVerified(false, 'successful retry did not clear the debt');
   }
 
   if (afterAmount === null) {
@@ -415,12 +444,16 @@ function verifyScenario(scenario, mode, context) {
     if (duplicateAmount === null || !text(scenario.afterDuplicate?.lockedAmount)) failFor(false, 'afterDuplicate observation amounts missing or malformed');
     else {
       if (duplicateAmount !== afterAmount) failVerified(false, 'duplicate retry changed the proposer balance');
-      if (text(scenario.afterDuplicate.lockedAmount) !== '0') failVerified(false, 'duplicate retry changed the locked debt');
+      const duplicateLocked = parseAmount(scenario.afterDuplicate.lockedAmount);
+      if (duplicateLocked === null) failFor(false, 'afterDuplicate locked amount is missing or malformed');
+      else if (duplicateLocked !== 0n) failVerified(false, 'duplicate retry changed the locked debt');
     }
     if (unauthorizedAmount === null || !text(scenario.afterUnauthorized?.lockedAmount)) failFor(false, 'afterUnauthorized observation amounts missing or malformed');
     else {
       if (unauthorizedAmount !== afterAmount) failVerified(false, 'unauthorized callback changed the proposer balance');
-      if (text(scenario.afterUnauthorized.lockedAmount) !== '0') failVerified(false, 'unauthorized callback changed the locked debt');
+      const unauthorizedLocked = parseAmount(scenario.afterUnauthorized.lockedAmount);
+      if (unauthorizedLocked === null) failFor(false, 'afterUnauthorized locked amount is missing or malformed');
+      else if (unauthorizedLocked !== 0n) failVerified(false, 'unauthorized callback changed the locked debt');
     }
   }
 
@@ -456,11 +489,16 @@ function verifyScenario(scenario, mode, context) {
     if (new Set(hashes).size !== 2) failFor(false, 'overlap did not produce two distinct transactions');
     const signers = attempts.map((attempt) => attempt?.signerId).filter(Boolean);
     if (new Set(signers).size !== 2) failFor(false, 'overlap did not produce two distinct signers');
-    if (overlap.delta !== BOND.toString()) failVerified(false, 'overlapping retries did not pay exactly one bond');
-    if (text(overlap.lockedAfter) !== '0') failVerified(false, 'overlapping retries did not settle the debt');
+    const overlapDelta = parseAmount(overlap.delta);
+    if (overlapDelta === null) failFor(false, 'overlap delta is missing or malformed');
+    else if (overlapDelta !== BOND) failVerified(false, 'overlapping retries did not pay exactly one bond');
+    const overlapLocked = parseAmount(overlap.lockedAfter);
+    if (overlapLocked === null) failFor(false, 'overlap resulting locked amount is missing or malformed');
+    else if (overlapLocked !== 0n) failVerified(false, 'overlapping retries did not settle the debt');
   }
 
   return {
+    financialPrerequisitesEstablished: financialPrerequisitesEstablished(scenario, parseAmount),
     retryGuardUnproven: retryProof?.guardUnproven === true,
     coverageErrors: Array.isArray(retryProof?.coverageErrors) ? retryProof.coverageErrors : [],
     failedRefundLocked: text(failed?.lockedAmount),
@@ -501,16 +539,21 @@ function verifySettlementReport(report, opts = {}) {
   if (!requestedCandidateValid) fail('settlement report is for a different candidate WASM');
   const identityEstablished = candidateIdentityValid && baseIdentityValid && requestedCandidateValid;
   if (report?.ok !== true || (Array.isArray(report?.errors) && report.errors.length)) {
-    const kind = report?.fresh && report?.inherited ? 'verified' : 'incomplete';
-    fail(`settlement execution was not clean: ${(report?.errors || []).join('; ') || 'ok is not true'}`, kind);
+    fail(`settlement execution was not clean: ${(report?.errors || []).join('; ') || 'ok is not true'}`, 'incomplete');
   }
 
   const context = {fail, text, parseAmount, candidateWasmSha256, baseWasmSha256, report};
   const freshOutcomes = verifyScenario(report?.fresh, 'candidate-only', context);
   const inheritedOutcomes = verifyScenario(report?.inherited, 'legacy-upgrade', context);
 
-  const attributableVerified = identityEstablished ? verifiedReasons : [];
-  const attributableIncomplete = identityEstablished ? incompleteReasons : [...incompleteReasons, ...verifiedReasons];
+  const prerequisite = (reason) => {
+    if (reason.startsWith('candidate-only:')) return freshOutcomes?.financialPrerequisitesEstablished === true;
+    if (reason.startsWith('legacy-upgrade:')) return inheritedOutcomes?.financialPrerequisitesEstablished === true;
+    return true;
+  };
+  const attributableVerified = identityEstablished ? verifiedReasons.filter(prerequisite) : [];
+  const unattributed = identityEstablished ? verifiedReasons.filter((reason) => !prerequisite(reason)) : verifiedReasons;
+  const attributableIncomplete = [...incompleteReasons, ...unattributed];
   const status = attributableVerified.length ? 'REJECTED' : (attributableIncomplete.length ? 'INCONCLUSIVE' : 'ACCEPTED');
   return {
     status,

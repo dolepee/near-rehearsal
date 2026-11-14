@@ -622,6 +622,40 @@ const twoBondPayment = JSON.parse(JSON.stringify(correctedReport));
 twoBondPayment.inherited.afterRetry.proposer = (BigInt(twoBondPayment.inherited.beforeRetry.proposer) + 2n * BigInt(1000000000000000000000000n)).toString();
 assert.equal(verifySettlementReport(twoBondPayment, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
 
+const malformedFailedLocked = JSON.parse(JSON.stringify(correctedReport));
+malformedFailedLocked.inherited.failedRefund.lockedAmount = 'not-an-amount';
+assert.equal(verifySettlementReport(malformedFailedLocked, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const missingBeforeLocked = JSON.parse(JSON.stringify(correctedReport));
+delete missingBeforeLocked.inherited.beforeRetry.lockedAmount;
+assert.equal(verifySettlementReport(missingBeforeLocked, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const missingAfterLocked = JSON.parse(JSON.stringify(correctedReport));
+delete missingAfterLocked.inherited.afterRetry.lockedAmount;
+assert.equal(verifySettlementReport(missingAfterLocked, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const malformedAfterLocked = JSON.parse(JSON.stringify(correctedReport));
+malformedAfterLocked.inherited.afterRetry.lockedAmount = 'bad';
+assert.equal(verifySettlementReport(malformedAfterLocked, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const malformedDuplicateLocked = JSON.parse(JSON.stringify(correctedReport));
+malformedDuplicateLocked.inherited.afterDuplicate.lockedAmount = 'bad';
+assert.equal(verifySettlementReport(malformedDuplicateLocked, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const missingOverlapDelta = JSON.parse(JSON.stringify(correctedReport));
+delete missingOverlapDelta.inherited.overlap.delta;
+assert.equal(verifySettlementReport(missingOverlapDelta, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const missingUpgradeWithDebt = JSON.parse(JSON.stringify(correctedReport));
+delete missingUpgradeWithDebt.inherited.transactions.upgrade.deploy;
+missingUpgradeWithDebt.inherited.failedRefund.lockedAmount = '0';
+assert.equal(verifySettlementReport(missingUpgradeWithDebt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const wrongRetryMethodWithZero = JSON.parse(JSON.stringify(correctedReport));
+wrongRetryMethodWithZero.inherited.transactions.retries[0].transaction.actions[0].FunctionCall.method_name = 'get_config';
+wrongRetryMethodWithZero.inherited.afterRetry.proposer = wrongRetryMethodWithZero.inherited.beforeRetry.proposer;
+assert.equal(verifySettlementReport(wrongRetryMethodWithZero, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
 const acceptedGood = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
 assert.equal(acceptedGood.status, 'ACCEPTED');
 assert.equal(acceptedGood.ok, true);
@@ -655,7 +689,13 @@ assert.equal(verifySettlementReport(malformedMissing, {candidateWasmSha256: corr
 const completedRecoveryFalse = JSON.parse(JSON.stringify(correctedReport));
 completedRecoveryFalse.ok = false;
 completedRecoveryFalse.errors = ['fresh: locked liability after failed refund is 0'];
+completedRecoveryFalse.inherited.failedRefund.lockedAmount = '0';
 assert.equal(verifySettlementReport(completedRecoveryFalse, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
+
+const reportNotClean = JSON.parse(JSON.stringify(correctedReport));
+reportNotClean.ok = false;
+reportNotClean.errors = ['capture did not complete'];
+assert.equal(verifySettlementReport(reportNotClean, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
 
 assert.equal(bothSuccessResult.status, 'INCONCLUSIVE', 'coverage-only gaps stay inconclusive in the final report');
 assert.equal(doublePaymentResult.status, 'REJECTED', 'a paid-over bond stays rejected in the final report');
@@ -748,6 +788,14 @@ console.log(JSON.stringify({
     'single-signer-fails',
     'receiptless-fails',
     'fresh-legacy-leak-fails',
+    'status-malformed-failed-locked-inconclusive',
+    'status-missing-before-locked-inconclusive',
+    'status-missing-after-locked-inconclusive',
+    'status-malformed-after-locked-inconclusive',
+    'status-malformed-duplicate-locked-inconclusive',
+    'status-missing-overlap-delta-inconclusive',
+    'status-missing-upgrade-with-debt-inconclusive',
+    'status-wrong-retry-method-zero-inconclusive',
     'status-missing-after-retry-amount-inconclusive',
     'status-malformed-after-retry-amount-inconclusive',
     'status-missing-candidate-identity-inconclusive',
@@ -762,6 +810,7 @@ console.log(JSON.stringify({
     'status-missing-fresh-bad-inherited-rejected',
     'status-malformed-missing-inconclusive',
     'status-completed-recovery-false-rejected',
+    'status-report-not-clean-inconclusive',
     'status-double-payment-rejected',
     'status-under-payment-rejected',
   ],
