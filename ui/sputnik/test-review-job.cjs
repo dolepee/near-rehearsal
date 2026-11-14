@@ -32,7 +32,7 @@ fs.mkdirSync(sandboxDir, {recursive: true});
 fs.writeFileSync(path.join(sandboxDir, 'near-sandbox'), '');
 
 const spawnCalls = [];
-function fakeSpawn({payload = null, code = 0, error = null, hold = false, freshEvidence = 'valid'} = {}) {
+function fakeSpawn({payload = null, code = 0, signal = null, error = null, hold = false, freshEvidence = 'valid'} = {}) {
   return (command, args, options) => {
     spawnCalls.push({command, args, options});
     const child = new EventEmitter();
@@ -63,7 +63,7 @@ function fakeSpawn({payload = null, code = 0, error = null, hold = false, freshE
           }
         }
       }
-      child.emit('close', code, null);
+      child.emit('close', code, signal);
     }, 5);
     return child;
   };
@@ -188,6 +188,77 @@ async function runInfrastructureFailure() {
   assert.match(run.error, /infrastructure\/inconclusive/);
   assert.doesNotMatch(run.error, /\/tmp\/private/);
   assert.equal(manager.download(started.id), null);
+}
+
+async function runTerminalExitMatrix() {
+  // Every structured verdict crossed with every exit a finished child can
+  // report, plus death by signal (which reports code null). Only a REJECTED
+  // verdict with a passing exit is an executed rejection; every other pair
+  // must still terminate, as inconclusive rather than as a rejection.
+  const cases = [
+    {label: 'accepted/0', status: 'ACCEPTED', code: 0, expected: 'accepted'},
+    {label: 'accepted/1', status: 'ACCEPTED', code: 1, expected: 'inconclusive'},
+    {label: 'accepted/2', status: 'ACCEPTED', code: 2, expected: 'inconclusive'},
+    {label: 'rejected/0', status: 'REJECTED', code: 0, expected: 'rejected'},
+    {label: 'rejected/1', status: 'REJECTED', code: 1, expected: 'rejected'},
+    {label: 'rejected/2', status: 'REJECTED', code: 2, expected: 'rejected'},
+    {label: 'rejected/signal', status: 'REJECTED', code: null, signal: 'SIGKILL', expected: 'inconclusive'},
+    {label: 'inconclusive/0', status: 'INCONCLUSIVE', code: 0, expected: 'inconclusive'},
+    {label: 'inconclusive/1', status: 'INCONCLUSIVE', code: 1, expected: 'inconclusive'},
+    {label: 'inconclusive/2', status: 'INCONCLUSIVE', code: 2, expected: 'inconclusive'},
+    {label: 'inconclusive/signal', status: 'INCONCLUSIVE', code: null, signal: 'SIGTERM', expected: 'inconclusive'},
+  ];
+  for (const entry of cases) {
+    const payload = JSON.parse(JSON.stringify(acceptedResult));
+    payload.status = entry.status;
+    payload.accepted = entry.status === 'ACCEPTED';
+    payload.summary.checks.accepted = entry.status === 'ACCEPTED';
+    payload.acceptancePolicy = {status: entry.status, errors: [`${entry.label} fixture`]};
+    const manager = createManager({
+      runsRoot: path.join(tmp, `terminal-${entry.label.replace('/', '-')}`),
+      env: {REPAIR_SANDBOX_DIR: sandboxDir},
+      spawn: fakeSpawn({payload, code: entry.code, signal: entry.signal || null}),
+    });
+    const started = manager.start(example.bundle, 'recorded-wasm');
+    await manager.get(started.id).done;
+    const run = manager.get(started.id);
+    assert.equal(run.status, entry.expected, `${entry.label} must terminate as ${entry.expected}`);
+    assert.notEqual(run.phase, 'replaying', `${entry.label} left the run replaying`);
+    assert.ok(run.finishedAt, `${entry.label} did not record finishedAt`);
+    if (entry.expected === 'accepted') {
+      assert.equal(run.error, null);
+    } else {
+      assert.ok(run.error, `${entry.label} left no explanation`);
+      assert.equal(manager.download(started.id), null, `${entry.label} exposed a download`);
+    }
+  }
+  // A child killed by a signal without any result is inconclusive, never rejected.
+  for (const signal of ['SIGKILL', 'SIGTERM']) {
+    const manager = createManager({
+      runsRoot: path.join(tmp, `terminal-signal-only-${signal}`),
+      env: {REPAIR_SANDBOX_DIR: sandboxDir},
+      spawn: fakeSpawn({payload: null, code: null, signal}),
+    });
+    const started = manager.start(example.bundle, 'recorded-wasm');
+    await manager.get(started.id).done;
+    const run = manager.get(started.id);
+    assert.equal(run.status, 'inconclusive', `death by ${signal} is not a repair rejection`);
+    assert.match(run.error, /infrastructure\/inconclusive/);
+  }
+}
+
+async function runSpawnFailure() {
+  const manager = createManager({
+    runsRoot: path.join(tmp, 'spawn-failure'),
+    env: {REPAIR_SANDBOX_DIR: sandboxDir},
+    spawn: () => { throw new Error('spawn EACCES'); },
+  });
+  const started = manager.start(example.bundle, 'recorded-wasm');
+  await manager.get(started.id).done;
+  const run = manager.get(started.id);
+  assert.equal(run.status, 'inconclusive', 'a reviewer that never started is not a rejection');
+  assert.match(run.error, /could not be started/);
+  assert.ok(run.finishedAt);
 }
 
 async function runRejected() {
@@ -318,6 +389,8 @@ function validation() {
     await runAccepted();
     await runMissingFreshEvidence();
     await runInfrastructureFailure();
+    await runTerminalExitMatrix();
+    await runSpawnFailure();
   await runRejected();
   await runInconclusive();
     await runActive();

@@ -460,13 +460,19 @@ function createManager(options = {}) {
             try { fs.rmSync(path.join(runDir(run.id), name), {force: true}); } catch {}
           }
         }
-      } else if (verdict === 'REJECTED' && (code === 0 || code === 1)) {
+      } else if (verdict === 'REJECTED' && (code === 0 || code === 1 || code === 2)) {
         run.status = 'rejected';
         run.phase = 'rejected';
         const detail = run.logs.slice(-4).join(' ').trim();
-        run.error = cleanError(result?.summary?.checks?.accepted === false || verdict === 'REJECTED'
-          ? `The recorded replay did not pass acceptance.${detail ? ` ${detail}` : ''}`
-          : `The recorded replay did not produce an accepted result${code === null ? '.' : ` (exit ${code}).`}${detail ? ` ${detail}` : ''}`);
+        run.error = cleanError(`The recorded replay did not pass acceptance.${detail ? ` ${detail}` : ''}`);
+      } else {
+        // Every child that has finished must reach a terminal state. A verdict
+        // paired with an unexpected exit code (or death by signal, which
+        // reports code null) is not evidence of a genuine rejection; it is an
+        // inconclusive infrastructure mismatch.
+        run.status = 'inconclusive';
+        run.phase = 'inconclusive';
+        run.error = cleanError(`The reviewer returned ${verdict} with unsupported exit ${code === null ? (signal ? `signal ${signal}` : 'null') : code}; this is inconclusive, not a repair rejection.`);
       }
     }
     if (!run.error && code !== 0 && code !== null && run.status === 'rejected') run.error = `The recorded replay exited ${code}.`;
@@ -499,9 +505,9 @@ function createManager(options = {}) {
           detached: !IS_WINDOWS,
         });
       } catch (error) {
-        run.status = 'rejected';
-        run.phase = 'rejected';
-        run.error = cleanError(error.message);
+        run.status = 'inconclusive';
+        run.phase = 'inconclusive';
+        run.error = cleanError(`The reviewer could not be started; this is infrastructure/inconclusive, not a repair rejection. ${error.message}`);
         run.finishedAt = nowIso();
         activeId = activeId === run.id ? null : activeId;
         writeMeta(run);
