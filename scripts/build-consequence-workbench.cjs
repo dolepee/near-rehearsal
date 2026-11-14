@@ -437,6 +437,9 @@ function assertCaseFiles(data, out = OUT) {
     check(candidate.candidate.wasm.path, candidate.candidate.wasm.sha256, `${candidate.id} WASM`);
     if (candidate.candidate.patch) check(candidate.candidate.patch.path, candidate.candidate.patch.sha256, `${candidate.id} patch`);
     check(candidate.candidate.report.path, candidate.candidate.report.sha256, `${candidate.id} report`);
+    if (candidate.id === 'intended' && (!candidate.handoff || typeof candidate.handoff !== 'object')) {
+      throw new Error(`${candidate.id} accepted candidate is missing its reviewer handoff`);
+    }
     if (candidate.handoff) {
       if (candidate.status !== 'ACCEPTED') throw new Error(`${candidate.id} handoff is attached to a non-accepted candidate`);
       check(candidate.handoff.path, candidate.handoff.sha256, `${candidate.id} reviewer handoff`);

@@ -193,6 +193,12 @@ try {
   const missingHandoff = JSON.parse(JSON.stringify(data));
   missingHandoff.cases['238'].candidates[1].handoff.path = 'downloads/238/missing-handoff.json';
   assert.throws(() => assertCaseFiles(missingHandoff, OUT), /missing/, 'missing handoff must fail closed');
+  const absentHandoff = JSON.parse(JSON.stringify(data));
+  delete absentHandoff.cases['238'].candidates[1].handoff;
+  assert.throws(() => assertCaseFiles(absentHandoff, OUT), /accepted candidate is missing its reviewer handoff/, 'deleted handoff property must fail closed');
+  const nullHandoff = JSON.parse(JSON.stringify(data));
+  nullHandoff.cases['238'].candidates[1].handoff = null;
+  assert.throws(() => assertCaseFiles(nullHandoff, OUT), /accepted candidate is missing its reviewer handoff/, 'null handoff must fail closed');
 } finally {
   fs.rmSync(tmp, {recursive: true, force: true});
 }
