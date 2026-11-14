@@ -66,7 +66,7 @@ function verifyMixedReport(report, opts = {}) {
     description: proposal?.description,
     kind: proposal?.kind,
   });
-  const checkAttempt = (attempt, label, signerId, receiverId, methodName) => {
+  const checkAttempt = (attempt, label, signerId, receiverId, methodName, expected) => {
     const value = attempt?.value;
     if (!value) {
       fail(`${label} has no execution value`);
@@ -81,15 +81,42 @@ function verifyMixedReport(report, opts = {}) {
     if (transaction.signerId !== signerId) fail(`${label} signer is not the expected actor`);
     if (transaction.receiverId !== receiverId) fail(`${label} receiver is not the DAO`);
     const actions = Array.isArray(transaction.actions) ? transaction.actions : [];
-    if (!actions.some((action) => action?.FunctionCall?.method_name === methodName)) {
+    const call = actions.find((action) => action?.FunctionCall?.method_name === methodName);
+    if (!call) {
       fail(`${label} has no expected ${methodName} action`);
+    } else if (expected) {
+      let args;
+      try {
+        args = typeof call.FunctionCall.args === 'string'
+          ? JSON.parse(Buffer.from(call.FunctionCall.args, 'base64').toString('utf8'))
+          : call.FunctionCall.args;
+      } catch { fail(`${label} action args are not valid JSON`); }
+      if (args) {
+        if (String(args.id) !== String(expected.id)) fail(`${label} action targets proposal ${args.id}, expected ${expected.id}`);
+        if (args.action !== expected.action) fail(`${label} action is ${args.action}, expected ${expected.action}`);
+        if (JSON.stringify(args.proposal) !== JSON.stringify(expected.kind)) fail(`${label} action proposal kind does not match the pinned proposal`);
+      }
     }
-    const roots = value.transactionOutcome?.receiptIds || value.transactionOutcome?.rootReceiptIds;
+    const roots = value.transactionOutcome?.rootReceiptIds || value.transactionOutcome?.receiptIds;
     if (!Array.isArray(roots) || roots.length === 0) {
       fail(`${label} has no transaction receipt root`);
     } else {
-      const receipts = new Set((value.receipts || []).map((receipt) => receipt?.id));
-      for (const root of roots) if (!receipts.has(root)) fail(`${label} receipt root is not reachable from its receipts`);
+      const receipts = new Map();
+      for (const receipt of value.receipts || []) {
+        if (!receipt?.id || receipts.has(receipt.id)) fail(`${label} has a duplicate or missing receipt id`);
+        else receipts.set(receipt.id, receipt);
+      }
+      const seen = new Set();
+      const queue = [...roots];
+      while (queue.length) {
+        const id = queue.shift();
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const receipt = receipts.get(id);
+        if (!receipt) { fail(`${label} root references a missing receipt`); continue; }
+        for (const child of receipt.receiptIds || []) queue.push(child);
+      }
+      for (const id of receipts.keys()) if (!seen.has(id)) fail(`${label} has an unlinked receipt ${id}`);
     }
   };
   const checkProposalIdentity = (snapshot, label) => {
@@ -167,11 +194,12 @@ function verifyMixedReport(report, opts = {}) {
 
   const signer = report?.accounts?.alice;
   const receiver = report?.accounts?.contract;
-  checkAttempt(report?.aliceRecovery?.attempt, 'Alice recovery', signer, receiver, 'act_proposal');
-  checkAttempt(report?.aliceRetry?.attempt, 'Alice retry', signer, receiver, 'act_proposal');
-  checkAttempt(report?.bobPayout?.attempt, 'Bob payout', signer, receiver, 'act_proposal');
-  checkAttempt(report?.bobRetry?.attempt, 'Bob retry', signer, receiver, 'act_proposal');
-  checkAttempt(report?.carolRetry?.attempt, 'Carol retry', signer, receiver, 'act_proposal');
+  const pinned = before?.proposals || {};
+  checkAttempt(report?.aliceRecovery?.attempt, 'Alice recovery', signer, receiver, 'act_proposal', {id: pinned.alice?.id, action: 'Finalize', kind: pinned.alice?.kind});
+  checkAttempt(report?.aliceRetry?.attempt, 'Alice retry', signer, receiver, 'act_proposal', {id: pinned.alice?.id, action: 'Finalize', kind: pinned.alice?.kind});
+  checkAttempt(report?.bobPayout?.attempt, 'Bob payout', signer, receiver, 'act_proposal', {id: pinned.bob?.id, action: 'VoteApprove', kind: pinned.bob?.kind});
+  checkAttempt(report?.bobRetry?.attempt, 'Bob retry', signer, receiver, 'act_proposal', {id: pinned.bob?.id, action: 'Finalize', kind: pinned.bob?.kind});
+  checkAttempt(report?.carolRetry?.attempt, 'Carol retry', signer, receiver, 'act_proposal', {id: pinned.carol?.id, action: 'Finalize', kind: pinned.carol?.kind});
 
   const gas = {
     aliceRecovery: gasFromAttempt(report?.aliceRecovery?.attempt, 'Alice recovery'),
