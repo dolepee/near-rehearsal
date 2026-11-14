@@ -34,6 +34,7 @@ const suites = [
   'case-triage/rehearsal-repair/acceptance-orchestrator-tests.cjs',
   'case-triage/rehearsal-repair/compiler-boundary-tests.cjs',
   'case-triage/rehearsal-repair/settlement-policy-tests.cjs',
+  'case-triage/rehearsal-repair/approved-refund-principal-tests.cjs',
   'case-triage/rehearsal-repair/mixed-obligation-tests.cjs',
   'case-triage/rehearsal-repair/mixed-policy-tests.cjs',
   'case-triage/rehearsal-repair/mixed-policy-negative-tests.cjs',

@@ -22,6 +22,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const {spawnSync} = require('node:child_process');
 const {Worker, parseNEAR, hashContract} = require('near-workspaces');
+const {reconcilePrincipal} = require('./approved-refund-principal.cjs');
 
 const BOND = BigInt(parseNEAR('1'));
 const GAS = 300_000_000_000_000n;
@@ -558,7 +559,12 @@ async function runApprovedActionRefund({worker, wasm}) {
   const afterDuplicate = await settle(worker, dao, proposer.accountId, voter.accountId);
   const duplicateFailure = (duplicate.receipts || []).some((receipt) => JSON.stringify(receipt.status || {}).includes('ERR_PROPOSAL_ALREADY_EXECUTED'));
   fail(duplicateFailure, 'approved-refund duplicate did not fail with ERR_PROPOSAL_ALREADY_EXECUTED');
-  fail(BigInt(afterDuplicate.proposer) === BigInt(afterRetry.proposer) + BigInt(duplicate.transactionOutcome?.tokensBurntYocto || 0) + (duplicate.receipts || []).reduce((sum, receipt) => sum + BigInt(receipt.tokensBurntYocto || 0), 0n), 'approved-refund duplicate changed principal beyond gas');
+  const retryGasTotal = BigInt(retry.transactionOutcome?.tokensBurntYocto || 0)
+    + (retry.receipts || []).reduce((sum, receipt) => sum + BigInt(receipt.tokensBurntYocto || 0), 0n);
+  fail(reconcilePrincipal({before: beforeRetry.proposer, after: afterRetry.proposer, gas: retryGasTotal}) === BOND, 'approved-refund retry principal did not equal the recorded bond');
+  const duplicateGasTotal = BigInt(duplicate.transactionOutcome?.tokensBurntYocto || 0)
+    + (duplicate.receipts || []).reduce((sum, receipt) => sum + BigInt(receipt.tokensBurntYocto || 0), 0n);
+  fail(reconcilePrincipal({before: afterRetry.proposer, after: afterDuplicate.proposer, gas: duplicateGasTotal}) === 0n, 'approved-refund duplicate changed principal beyond gas');
 
   stage('approved-refund unauthorized callback');
   const unauthorizedTx = await voter.callRaw(dao, 'on_refund_callback', {proposal_id: id, attempt: 999}, {gas: GAS});
