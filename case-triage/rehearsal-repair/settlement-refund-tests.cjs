@@ -148,13 +148,13 @@ async function viewAmount(worker, id) {
   throw last;
 }
 
-async function snapshot(worker, dao, proposerId, voter) {
+async function snapshot(worker, dao, proposerId, voter, proposalId = 0) {
   const block = await worker.provider.sendJsonRpc('block', {finality: 'final'});
   const blockId = block?.header?.hash;
   const account = await worker.provider.viewAccount(dao.accountId, {blockId});
   const available = await worker.provider.viewCall(dao.accountId, 'get_available_amount', {}, {blockId});
   const lockedStorage = await worker.provider.viewCall(dao.accountId, 'get_locked_storage_amount', {}, {blockId});
-  const proposal = await viewJson(worker, dao.accountId, 'get_proposal', {id: 0}, blockId);
+  const proposal = await viewJson(worker, dao.accountId, 'get_proposal', {id: proposalId}, blockId);
   const balance = BigInt(account.amount);
   return {
     blockHash: blockId,
@@ -192,17 +192,17 @@ async function waitProposal(worker, dao, id, terminal) {
   return proposal;
 }
 
-async function settle(worker, dao, proposerId, voter) {
+async function settle(worker, dao, proposerId, voter, proposalId = 0) {
   let last = null;
   let stable = 0;
   for (let i = 0; i < 24; i += 1) {
-    const snap = await snapshot(worker, dao, proposerId, voter);
+    const snap = await snapshot(worker, dao, proposerId, voter, proposalId);
     const key = JSON.stringify({locked: snap.lockedAmount, balance: snap.contractBalance, proposer: snap.proposer, status: snap.proposal.status, receipts: snap.proposal.last_actions_log?.length});
     if (key === last) stable += 1; else { stable = 0; last = key; }
     if (stable >= 3) return snap;
     await sleep(500);
   }
-  return snapshot(worker, dao, proposerId, voter);
+  return snapshot(worker, dao, proposerId, voter, proposalId);
 }
 
 async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
@@ -396,6 +396,126 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   };
 }
 
+
+async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
+  const errors = [];
+  const label = (name) => `${tag}: ${name}`;
+  const fail = (condition, message) => { if (!condition) errors.push(message); };
+  const root = worker.rootAccount;
+  const workerId = `${prefix}-worker`;
+  const proposer = await root.createSubAccount(workerId, {initialBalance: parseNEAR('50')});
+  const voter = await root.createSubAccount(`${prefix}-voter`, {initialBalance: parseNEAR('20')});
+  const dao = await root.createSubAccount(`${prefix}-dao`, {initialBalance: parseNEAR('100')});
+  const bountyAmount = BigInt(parseNEAR('3'));
+  const expectedSettlement = bountyAmount + BOND * 2n;
+
+  stage(`${tag} deploy candidate and initialise`);
+  const deploy = await dao.deploy(wasm);
+  const deployFinal = summarize(await finalStatus(worker, deploy, root.accountId));
+  const init = await root.callRaw(dao, 'new', {
+    config: {name: `bounty ${tag}`, purpose: 'failed BountyDone payout', metadata: ''},
+    policy: [voter.accountId],
+  }, {gas: GAS});
+  const initFinal = summarize(await finalStatus(worker, init, root.accountId));
+
+  stage(`${tag} create bounty`);
+  const bountyKind = {AddBounty: {bounty: {
+    description: 'bounded bounty',
+    token: '',
+    amount: bountyAmount.toString(),
+    times: 1,
+    max_deadline: '1000000000000',
+  }}};
+  const addBounty = await proposer.callRaw(dao, 'add_proposal', {
+    proposal: {description: 'create bounty', kind: bountyKind},
+  }, {gas: GAS, attachedDeposit: BOND.toString()});
+  const addBountyFinal = summarize(await finalStatus(worker, addBounty, proposer.accountId));
+  const addBountyId = addBounty.parseResult();
+  await voter.callRaw(dao, 'act_proposal', {id: addBountyId, action: 'VoteApprove', proposal: bountyKind}, {gas: GAS});
+  await waitProposal(worker, dao, addBountyId, 'Approved');
+
+  stage(`${tag} claim and report bounty done`);
+  const claim = await proposer.callRaw(dao, 'bounty_claim', {
+    id: 0,
+    deadline: '1000000000000',
+  }, {gas: GAS, attachedDeposit: BOND.toString()});
+  const claimFinal = summarize(await finalStatus(worker, claim, proposer.accountId));
+  const done = await proposer.callRaw(dao, 'bounty_done', {
+    id: 0,
+    account_id: null,
+    description: 'bounded delivery',
+  }, {gas: GAS, attachedDeposit: BOND.toString()});
+  const doneFinal = summarize(await finalStatus(worker, done, proposer.accountId));
+  const proposalId = 1;
+  const proposal = await viewJson(worker, dao.accountId, 'get_proposal', {id: proposalId});
+  const bountyDoneKind = {BountyDone: {bounty_id: 0, receiver_id: proposer.accountId}};
+  fail(proposal.status === 'InProgress', `BountyDone proposal status after creation is ${proposal.status}`);
+
+  let deleteFinal = null;
+  if (failPath) {
+    stage(`${tag} delete proposer/receiver before failed payout`);
+    const deleted = await proposer.delete(root.accountId);
+    deleteFinal = {transactionHash: deleted?.transactionReceipt?.hash || null, transactionOutcome: {status: 'DeleteAccount submitted'}};
+  }
+
+  stage(`${tag} approve BountyDone`);
+  const vote = await voter.callRaw(dao, 'act_proposal', {id: proposalId, action: 'VoteApprove', proposal: bountyDoneKind}, {gas: GAS});
+  const voteFinal = summarize(await finalStatus(worker, vote, voter.accountId));
+  if (failPath) {
+    const failedProposal = await waitProposal(worker, dao, proposalId, 'Failed');
+    const failed = await settle(worker, dao, proposer.accountId, voter.accountId, proposalId);
+    fail(failedProposal.status === 'Failed', `proposal after failed BountyDone is ${failedProposal.status}`);
+    fail(failed.lockedAmount === (BOND * 2n).toString(), `failed BountyDone retained ${failed.lockedAmount} locked, expected ${BOND * 2n}`);
+    stage(`${tag} recreate proposer and retry`);
+    await root.createSubAccount(workerId, {initialBalance: parseNEAR('10')});
+    const beforeRetry = await snapshot(worker, dao, proposer.accountId, voter.accountId, proposalId);
+    const retry = await voter.callRaw(dao, 'act_proposal', {id: proposalId, action: 'Finalize', proposal: bountyDoneKind}, {gas: GAS});
+    const retryFinal = summarize(await finalStatus(worker, retry, voter.accountId));
+    await waitProposal(worker, dao, proposalId, 'Approved');
+    const afterRetry = await settle(worker, dao, proposer.accountId, voter.accountId, proposalId);
+    const retryDelta = BigInt(afterRetry.proposer ?? 0) - BigInt(beforeRetry.proposer ?? 0);
+    fail(retryDelta === expectedSettlement, `retry proposer delta is ${retryDelta}, expected ${expectedSettlement}`);
+    fail(afterRetry.lockedAmount === '0', `locked liability after successful retry is ${afterRetry.lockedAmount}`);
+    stage(`${tag} duplicate retry`);
+    let duplicateFinal = null;
+    try {
+      const duplicate = await voter.callRaw(dao, 'act_proposal', {id: proposalId, action: 'Finalize', proposal: bountyDoneKind}, {gas: GAS});
+      duplicateFinal = summarize(await finalStatus(worker, duplicate, voter.accountId));
+    } catch (error) {
+      duplicateFinal = {transactionHash: null, finalExecutionStatus: 'rejected', error: String(error?.message || error)};
+    }
+    const afterDuplicate = await settle(worker, dao, proposer.accountId, voter.accountId, proposalId);
+    const duplicateDelta = BigInt(afterDuplicate.proposer ?? 0) - BigInt(afterRetry.proposer ?? 0);
+    fail(duplicateDelta === 0n, `duplicate retry paid ${duplicateDelta}`);
+    fail(afterDuplicate.lockedAmount === '0', `duplicate retry changed locked amount to ${afterDuplicate.lockedAmount}`);
+    return {
+      proposalId,
+      deploy: {...deployFinal, codeHash: hashContract(wasm), wasmSha256: sha256(wasm)},
+      transactions: {deploy: deployFinal, init: initFinal, addBounty: addBountyFinal, claim: claimFinal, done: doneFinal, delete: deleteFinal, vote: voteFinal, retry: retryFinal, duplicate: duplicateFinal},
+      failed,
+      beforeRetry,
+      afterRetry,
+      afterDuplicate,
+      deltas: {retryProposer: retryDelta.toString(), duplicateProposer: duplicateDelta.toString()},
+      errors,
+      ok: errors.length === 0,
+    };
+  }
+
+  await waitProposal(worker, dao, proposalId, 'Approved');
+  const settled = await settle(worker, dao, proposer.accountId, voter.accountId, proposalId);
+  fail(settled.lockedAmount === '0', `successful bounty control retained ${settled.lockedAmount} locked`);
+  fail(settled.proposal.status === 'Approved', `successful bounty control status is ${settled.proposal.status}`);
+  return {
+    proposalId,
+    deploy: {...deployFinal, codeHash: hashContract(wasm), wasmSha256: sha256(wasm)},
+    transactions: {deploy: deployFinal, init: initFinal, addBounty: addBountyFinal, claim: claimFinal, done: doneFinal, vote: voteFinal},
+    settled,
+    errors,
+    ok: errors.length === 0,
+  };
+}
+
 (async () => {
   const opts = parseArgs(process.argv.slice(2));
   const rt = runtime();
@@ -410,9 +530,13 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
     assertLocal(worker);
     const fresh = await runScenario({worker, tag: 'fresh', prefix: 'fresh', wasm, baseWasm: null});
     const inherited = await runScenario({worker, tag: 'inherited', prefix: 'inherited', wasm, baseWasm});
+    const bountyFailure = await runBountyDoneScenario({worker, tag: 'bounty-failure', prefix: 'bounty-failure', wasm, failPath: true});
+    const bountySuccess = await runBountyDoneScenario({worker, tag: 'bounty-success', prefix: 'bounty-success', wasm, failPath: false});
     const errors = [
       ...fresh.errors.map((error) => `fresh: ${error}`),
       ...inherited.errors.map((error) => `inherited: ${error}`),
+      ...bountyFailure.errors.map((error) => `bounty-failure: ${error}`),
+      ...bountySuccess.errors.map((error) => `bounty-success: ${error}`),
     ];
     const report = {
       schema: 'near-rehearsal/settlement-refund/v2',
@@ -423,8 +547,9 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
       runtime: rt,
       fresh: {...fresh, mode: 'candidate-only'},
       inherited: {...inherited, mode: 'legacy-upgrade'},
+      bountyDone: {failure: bountyFailure, success: bountySuccess},
       errors,
-      ok: fresh.ok && inherited.ok,
+      ok: fresh.ok && inherited.ok && bountyFailure.ok && bountySuccess.ok,
       boundary: 'Local Sandbox settlement regression. No live DAO, production funds, deployment or universal recovery claim.',
     };
     fs.mkdirSync(opts.out, {recursive: true});
@@ -434,6 +559,8 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
       errors,
       fresh: {locked: fresh.failedRefund?.lockedAmount, delta: fresh.deltas?.retryProposer, finalLocked: fresh.afterDuplicate?.lockedAmount},
       inherited: {locked: inherited.failedRefund?.lockedAmount, delta: inherited.deltas?.retryProposer, finalLocked: inherited.afterDuplicate?.lockedAmount},
+      bountyFailure: {locked: bountyFailure.failed?.lockedAmount, delta: bountyFailure.deltas?.retryProposer, finalLocked: bountyFailure.afterDuplicate?.lockedAmount},
+      bountySuccess: {locked: bountySuccess.settled?.lockedAmount},
     }));
     if (!report.ok) process.exitCode = 1;
   } finally {
