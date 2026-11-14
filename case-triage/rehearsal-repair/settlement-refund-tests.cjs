@@ -496,6 +496,98 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
 }
 
 
+async function runApprovedActionRefund({worker, wasm}) {
+  const errors = [];
+  const fail = (condition, message) => { if (!condition) errors.push(message); };
+  const prefix = 'approved-refund';
+  const root = worker.rootAccount;
+  const proposerId = `${prefix}-proposer`;
+  const proposer = await root.createSubAccount(proposerId, {initialBalance: parseNEAR('20')});
+  const voter = await root.createSubAccount(`${prefix}-voter`, {initialBalance: parseNEAR('20')});
+  const voter2 = await root.createSubAccount(`${prefix}-voter2`, {initialBalance: parseNEAR('20')});
+  const recipient = await root.createSubAccount(`${prefix}-recipient`, {initialBalance: parseNEAR('20')});
+  const dao = await root.createSubAccount(`${prefix}-dao`, {initialBalance: parseNEAR('100')});
+  stage('approved-refund deploy');
+  const deploy = await dao.deploy(wasm);
+  const deployFinal = summarize(await finalStatus(worker, deploy, root.accountId));
+  const init = await root.callRaw(dao, 'new', {
+    config: {name: 'approved refund settlement', purpose: 'bounded approved-action refund', metadata: ''},
+    policy: [voter.accountId, voter2.accountId],
+  }, {gas: GAS});
+  const initFinal = summarize(await finalStatus(worker, init, root.accountId));
+  fail(initFinal.finalExecutionStatus === 'FINAL', 'approved-refund DAO initialisation was not FINAL');
+
+  const kind = {Transfer: {token_id: '', receiver_id: recipient.accountId, amount: parseNEAR('0.1').toString(), msg: null}};
+  stage('approved-refund add');
+  const add = await proposer.callRaw(dao, 'add_proposal', {proposal: {description: 'approved transfer with deleted proposer', kind}}, {gas: GAS, attachedDeposit: BOND.toString()});
+  const addFinal = await withHeight(worker, summarize(await finalStatus(worker, add, proposer.accountId)), 'approved-refund add');
+  const id = add.parseResult();
+  const recipientBeforeApproval = await viewAmount(worker, recipient.accountId);
+  await proposer.delete(root.accountId);
+  await sleep(1800);
+  stage('approved-refund approve');
+  const vote = await voter.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
+  const voteFinal = summarize(await finalStatus(worker, vote, voter.accountId));
+  const vote2 = await voter2.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
+  const approval = await withHeight(worker, summarize(await finalStatus(worker, vote2, voter2.accountId)), 'approved-refund approval');
+  const approvedProposal = await waitProposal(worker, dao, id, 'Approved');
+  await sleep(2000);
+  const afterApproval = await settle(worker, dao, proposer.accountId, voter.accountId);
+  const recipientAfterApproval = await viewAmount(worker, recipient.accountId);
+  fail(approvedProposal.status === 'Approved', `approved-refund proposal is ${approvedProposal.status}, not Approved`);
+  fail(BigInt(recipientAfterApproval) - BigInt(recipientBeforeApproval) === parseNEAR('0.1'), 'approved action did not pay exactly 0.1 NEAR once');
+  fail(afterApproval.lockedAmount === BOND.toString(), `approved-refund locked debt is ${afterApproval.lockedAmount}`);
+
+  stage('approved-refund recreate proposer');
+  await root.createSubAccount(proposerId, {initialBalance: parseNEAR('10')});
+  await sleep(2500);
+  const beforeRetry = await settle(worker, dao, proposer.accountId, voter.accountId);
+  const retryTx = await proposer.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
+  const retry = await withHeight(worker, summarize(await finalStatus(worker, retryTx, proposer.accountId)), 'approved-refund retry');
+  await sleep(2000);
+  const afterRetry = await settle(worker, dao, proposer.accountId, voter.accountId);
+  const recipientAfterRetry = await viewAmount(worker, recipient.accountId);
+  fail(retry.finalExecutionStatus === 'FINAL', 'approved-refund retry was not FINAL');
+  fail(afterRetry.proposal?.status === 'Approved', 'approved-refund retry changed the proposal status');
+  fail(BigInt(recipientAfterRetry) === BigInt(recipientAfterApproval), 'approved-refund retry paid the recipient again');
+
+  stage('approved-refund duplicate');
+  const duplicateTx = await proposer.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
+  const duplicate = await withHeight(worker, summarize(await finalStatus(worker, duplicateTx, proposer.accountId)), 'approved-refund duplicate');
+  await sleep(1500);
+  const afterDuplicate = await settle(worker, dao, proposer.accountId, voter.accountId);
+  const duplicateFailure = (duplicate.receipts || []).some((receipt) => JSON.stringify(receipt.status || {}).includes('ERR_PROPOSAL_ALREADY_EXECUTED'));
+  fail(duplicateFailure, 'approved-refund duplicate did not fail with ERR_PROPOSAL_ALREADY_EXECUTED');
+  fail(BigInt(afterDuplicate.proposer) === BigInt(afterRetry.proposer) + BigInt(duplicate.transactionOutcome?.tokensBurntYocto || 0) + (duplicate.receipts || []).reduce((sum, receipt) => sum + BigInt(receipt.tokensBurntYocto || 0), 0n), 'approved-refund duplicate changed principal beyond gas');
+
+  stage('approved-refund unauthorized callback');
+  const unauthorizedTx = await voter.callRaw(dao, 'on_refund_callback', {proposal_id: id, attempt: 999}, {gas: GAS});
+  const unauthorized = await withHeight(worker, summarize(await finalStatus(worker, unauthorizedTx, voter.accountId)), 'approved-refund unauthorized');
+  fail((unauthorized.receipts || []).some((receipt) => JSON.stringify(receipt.status || {}).includes('on_refund_callback is private')), 'approved-refund unauthorized callback was not denied');
+  return {
+    schema: 'near-rehearsal/approved-action-refund/v2',
+    generatedAt: new Date().toISOString(),
+    candidateWasmSha256: sha256(wasm),
+    proposalId: id,
+    proposer: proposer.accountId,
+    recipient: recipient.accountId,
+    bond: BOND.toString(),
+    transfer: parseNEAR('0.1').toString(),
+    approval,
+    retry,
+    duplicate,
+    unauthorized: {ok: false, value: unauthorized},
+    before: {recipient: recipientBeforeApproval, lockedAmount: afterApproval.lockedAmount},
+    afterApproval: {recipient: recipientAfterApproval, lockedAmount: afterApproval.lockedAmount},
+    beforeRetry: {proposer: beforeRetry.proposer, lockedAmount: beforeRetry.lockedAmount, recipient: recipientAfterApproval},
+    afterRetry: {proposer: afterRetry.proposer, lockedAmount: afterRetry.lockedAmount, recipient: recipientAfterRetry},
+    afterDuplicate: {proposer: afterDuplicate.proposer, lockedAmount: afterDuplicate.lockedAmount, recipient: recipientAfterRetry},
+    errors,
+    ok: errors.length === 0,
+    boundary: 'Local Sandbox approved-action/deleted-proposer refund branch. No live DAO or production funds.',
+  };
+}
+
 async function runUnequalLegacyScenario({worker, wasm, baseWasm}) {
   const errors = [];
   const fail = (condition, message) => { if (!condition) errors.push(message); };
@@ -693,12 +785,6 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
   process.env.NEAR_SANDBOX_BINARY_PATH = path.dirname(rt.binary);
   process.env.NEAR_SANDBOX_VERSION = rt.version;
   const wasm = fs.readFileSync(opts.wasm);
-  const approvedRefundPath = process.env.APPROVED_ACTION_REFUND
-    ? path.resolve(process.env.APPROVED_ACTION_REFUND)
-    : path.join(__dirname, 'out', 'audit-intended', 'successful-action-refund.json');
-  const successfulActionRefund = fs.existsSync(approvedRefundPath)
-    ? JSON.parse(fs.readFileSync(approvedRefundPath, 'utf8'))
-    : null;
   const baseWasm = opts.baseWasm ? fs.readFileSync(opts.baseWasm) : null;
   if (!baseWasm) throw new Error('--base-wasm is required: accepted settlement evidence must cover both the fresh candidate and the inherited pinned-base proposal');
   const mode = opts.mode || 'settlement';
@@ -706,6 +792,26 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
   const worker = await Worker.init({network: 'sandbox'});
   try {
     assertLocal(worker);
+    if (process.env.ONLY_APPROVED === '1') {
+      const successfulActionRefund = await runApprovedActionRefund({worker, wasm});
+      const report = {
+        schema: 'near-rehearsal/settlement-refund/v3',
+        generatedAt: new Date().toISOString(),
+        source: {repository: 'https://github.com/near-daos/sputnik-dao-contract', commit: '5434a59dec23ee0c49df8c8c4350c208a7e75b0b'},
+        candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length},
+        baseWasmSha256: sha256(baseWasm),
+        runtime: rt,
+        successfulActionRefund,
+        errors: successfulActionRefund.errors.map((error) => `approved-refund: ${error}`),
+        ok: successfulActionRefund.ok,
+        boundary: 'Local Sandbox approved-action/deleted-proposer refund branch. Partial approved-action-only report; not full settlement acceptance.',
+      };
+      fs.mkdirSync(opts.out, {recursive: true});
+      fs.writeFileSync(path.join(opts.out, 'successful-action-refund.json'), json(successfulActionRefund));
+      console.log(json({ok: report.ok, errors: report.errors, candidate: report.candidate.wasmSha256, locked: successfulActionRefund.afterRetry?.lockedAmount, proposer: successfulActionRefund.afterRetry?.proposer, duplicate: successfulActionRefund.duplicate?.receipts?.filter((r) => r.status?.Failure).length}));
+      if (!report.ok) process.exitCode = 1;
+      return;
+    }
     if (mode === 'bounty') {
       const bountyFailure = await runBountyDoneScenario({worker, tag: 'bounty-failure', prefix: 'bounty-failure', wasm, failPath: true});
       const bountySuccess = await runBountyDoneScenario({worker, tag: 'bounty-success', prefix: 'bounty-success', wasm, failPath: false});
@@ -760,10 +866,12 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
     const unequal = process.env.SKIP_UNEQUAL === '1'
       ? {ok: true, errors: [], skipped: true}
       : await runUnequalLegacyScenario({worker, wasm, baseWasm});
+    const successfulActionRefund = await runApprovedActionRefund({worker, wasm});
     const errors = [
       ...fresh.errors.map((error) => `fresh: ${error}`),
       ...inherited.errors.map((error) => `inherited: ${error}`),
       ...unequal.errors.map((error) => `unequal: ${error}`),
+      ...successfulActionRefund.errors.map((error) => `approved-refund: ${error}`),
     ];
     const report = {
       schema: 'near-rehearsal/settlement-refund/v3',
@@ -777,7 +885,7 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
       unequal,
       successfulActionRefund,
       errors,
-      ok: fresh.ok && inherited.ok && unequal.ok,
+      ok: fresh.ok && inherited.ok && unequal.ok && successfulActionRefund.ok,
       boundary: 'Local Sandbox settlement regression. No live DAO, production funds, deployment or universal recovery claim.',
     };
     fs.mkdirSync(opts.out, {recursive: true});

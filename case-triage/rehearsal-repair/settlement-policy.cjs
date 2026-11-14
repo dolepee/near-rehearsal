@@ -850,6 +850,8 @@ function verifySettlementReport(report, opts = {}) {
   };
   const freshOutcomes = inspect(report?.fresh, 'candidate-only');
   const inheritedOutcomes = inspect(report?.inherited, 'legacy-upgrade');
+  try { verifyUnequalOutcomes(report?.unequal, fail, candidateWasmSha256); }
+  catch (error) { fail(`unequal evidence prevented verification: ${error.message}`); }
   // A successful business action whose bond refund failed is a separate
   // terminal obligation. It is mandatory for acceptance: an older report that
   // simply lacks this evidence is inconclusive, never silently accepted.
@@ -875,14 +877,19 @@ function verifySettlementReport(report, opts = {}) {
     const retry = approved.retry;
     const duplicate = approved.duplicate;
     const before = approved.before;
+    const afterApproval = approved.afterApproval;
+    const beforeRetry = approved.beforeRetry;
     const afterRetry = approved.afterRetry;
     const afterDuplicate = approved.afterDuplicate;
     for (const [name, value] of [['approval', approval], ['retry', retry], ['duplicate', duplicate]]) {
       approvedFail(value && value.finalExecutionStatus === 'FINAL', `${name} execution is missing or not FINAL`);
       approvedFail(value && value.transaction && value.transaction.receiverId, `${name} transaction identity is missing`);
     }
-    if (!approval || !retry || !duplicate || !before || !afterRetry || !afterDuplicate) {
-      // The detailed checks below require the complete branch evidence.
+    for (const [name, value] of [['before', before], ['afterApproval', afterApproval], ['beforeRetry', beforeRetry], ['afterRetry', afterRetry], ['afterDuplicate', afterDuplicate]]) {
+      approvedFail(value !== null && typeof value === 'object', `${name} snapshot is missing`);
+    }
+    if (!approval?.transaction || !retry?.transaction || !duplicate?.transaction || !before || !afterApproval || !beforeRetry || !afterRetry || !afterDuplicate) {
+      approvedFail(false, 'complete approval/retry/duplicate transactions and snapshots are required');
     } else {
       const dao = approval.transaction.receiverId;
       approvedFail(retry.transaction.receiverId === dao, 'retry did not target the same DAO');
@@ -891,7 +898,9 @@ function verifySettlementReport(report, opts = {}) {
       const approvalCall = decodeCall(approval, 'approved action approval', (message) => fail(message));
       const retryCall = decodeCall(retry, 'approved action retry', (message) => fail(message));
       const duplicateCall = decodeCall(duplicate, 'approved action duplicate', (message) => fail(message));
-      if (!approvalCall || !retryCall || !duplicateCall) return;
+      if (!approvalCall || !retryCall || !duplicateCall) {
+        approvedFail(false, 'approval/retry/duplicate call payloads could not be decoded');
+      } else {
       approvedFail(approvalCall.call.method_name === 'act_proposal' && approvalCall.args.action === 'VoteApprove', 'approval is not a VoteApprove');
       approvedFail(retryCall.call.method_name === 'act_proposal' && retryCall.args.action === 'Finalize', 'retry is not a Finalize');
       approvedFail(duplicateCall.call.method_name === 'act_proposal' && duplicateCall.args.action === 'Finalize', 'duplicate is not a Finalize');
@@ -908,18 +917,26 @@ function verifySettlementReport(report, opts = {}) {
         approvedFail(value !== null, `${label} ${name} is missing or malformed`);
         return value;
       };
-      const proposerBefore = textAmount(before, 'proposer', 'before');
+      const proposerBefore = textAmount(beforeRetry, 'proposer', 'beforeRetry');
       const proposerAfter = textAmount(afterRetry, 'proposer', 'afterRetry');
       const duplicateAfter = textAmount(afterDuplicate, 'proposer', 'afterDuplicate');
-      const lockedBefore = textAmount(before, 'lockedAmount', 'before');
+      const lockedBefore = textAmount(beforeRetry, 'lockedAmount', 'beforeRetry');
       const lockedAfter = textAmount(afterRetry, 'lockedAmount', 'afterRetry');
       const lockedDuplicate = textAmount(afterDuplicate, 'lockedAmount', 'afterDuplicate');
       const recipientBefore = textAmount(before, 'recipient', 'before');
+      const recipientAfterApproval = textAmount(afterApproval, 'recipient', 'afterApproval');
+      const recipientBeforeRetry = textAmount(beforeRetry, 'recipient', 'beforeRetry');
       const recipientAfter = textAmount(afterRetry, 'recipient', 'afterRetry');
+      const recipientDuplicate = textAmount(afterDuplicate, 'recipient', 'afterDuplicate');
       approvedFail(lockedBefore === bond, 'retry did not start with the recorded bond locked', 'verified');
       approvedFail(lockedAfter === 0n, 'retry did not clear the locked bond', 'verified');
       approvedFail(lockedDuplicate === 0n, 'duplicate did not preserve the cleared locked bond', 'verified');
-      approvedFail(recipientAfter - recipientBefore === transfer, 'approved action did not pay the recipient exactly once', 'verified');
+      if (recipientBefore !== null && recipientAfterApproval !== null) {
+        approvedFail(recipientAfterApproval - recipientBefore === transfer, 'approved action did not pay the recipient exactly once', 'verified');
+      }
+      approvedFail(recipientBeforeRetry === recipientAfterApproval, 'recipient changed between approval and retry start', 'verified');
+      approvedFail(recipientAfter === recipientBeforeRetry, 'retry paid the recipient again', 'verified');
+      approvedFail(recipientDuplicate === recipientAfter, 'duplicate paid the recipient again', 'verified');
       const gasOf = (summary) => {
         const tx = approvedAmount(summary?.transactionOutcome?.tokensBurntYocto);
         if (tx === null || !Array.isArray(summary?.receipts)) return null;
@@ -946,6 +963,18 @@ function verifySettlementReport(report, opts = {}) {
       const duplicateFailures = (duplicate.receipts || []).filter((receipt) => receipt?.status?.Failure);
       approvedFail(duplicateFailures.length > 0, 'duplicate retry has no executed failure receipt');
       approvedFail(duplicateFailures.some((receipt) => JSON.stringify(receipt.status).includes('ERR_PROPOSAL_ALREADY_EXECUTED')), 'duplicate retry was not denied by the terminal guard', 'verified');
+      const unauthorized = approved.unauthorized?.value;
+      approvedFail(approved.unauthorized?.ok === false && unauthorized && unauthorized.finalExecutionStatus === 'FINAL', 'unauthorized callback evidence is missing or not FINAL');
+      if (unauthorized) {
+        const unauthorizedCall = decodeCall(unauthorized, 'approved action unauthorized callback', (message) => fail(message));
+        if (unauthorizedCall) {
+          approvedFail(unauthorizedCall.call.method_name === 'on_refund_callback', 'unauthorized evidence is not an on_refund_callback', 'verified');
+          approvedFail(String(unauthorizedCall.args.proposal_id) === String(approvalCall.args.id), 'unauthorized callback targets a different proposal', 'verified');
+          approvedFail(Number(unauthorizedCall.args.attempt) === 999, 'unauthorized callback attempt is not 999', 'verified');
+          approvedFail((unauthorized.receipts || []).some((receipt) => JSON.stringify(receipt.status || {}).includes('on_refund_callback is private')), 'unauthorized callback was not denied by the private-method guard', 'verified');
+        }
+      }
+      }
     }
   }
   const attributableVerified = identityEstablished ? verifiedReasons : [];
