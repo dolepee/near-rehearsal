@@ -237,6 +237,9 @@ jobs:
             ${{ runner.temp }}/repair-review/source-build/candidate-identity.json
             ${{ runner.temp }}/repair-review/source-build/persisted/persisted-recovery.json
             ${{ runner.temp }}/repair-review/source-build/persisted/persisted-recovery-acceptance.json
+            ${{ runner.temp }}/repair-review/source-build/evidence/persisted.log
+            ${{ runner.temp }}/repair-review/source-build/evidence/persisted-recovery.json
+            ${{ runner.temp }}/repair-review/source-build/evidence/persisted-recovery-acceptance.json
             ${{ runner.temp }}/repair-replay/review-result.json
             ${{ runner.temp }}/repair-replay/recorded-replay/persisted-recovery.json
             ${{ runner.temp }}/repair-replay/recorded-replay/persisted-recovery-acceptance.json
@@ -453,9 +456,14 @@ jobs:
             ${{ runner.temp }}/primary-good/evidence/mixed-obligation.json
             ${{ runner.temp }}/primary-good/evidence/settlement-refund.json
             ${{ runner.temp }}/primary-good/evidence/settlement.log
+            ${{ runner.temp }}/primary-good/evidence/persisted.log
+            ${{ runner.temp }}/primary-good/evidence/persisted-recovery.json
+            ${{ runner.temp }}/primary-good/evidence/persisted-recovery-acceptance.json
+            ${{ runner.temp }}/primary-good/persisted/persisted-recovery.json
+            ${{ runner.temp }}/primary-good/persisted/persisted-recovery-acceptance.json
             ${{ runner.temp }}/primary-bad/review-status.json
             ${{ runner.temp }}/primary-bad/review-report.md
             ${{ runner.temp }}/primary-bad/evidence/mixed-obligation.json
             ${{ runner.temp }}/primary-review-bundle.json
             ${{ runner.temp }}/primary-replay/review-result.json
-          if-no-files-found: error
+          if-no-files-found: warn

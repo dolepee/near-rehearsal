@@ -420,6 +420,12 @@ function verifyLegacySeed(scenario, dao, fail) {
     }
     check(reachableFailure(probe?.value, dao, needle, label, check), `${label} lacks a reachable failed receipt`);
   }
+  const seededFailure = legacy?.seededRefundFailure;
+  check(seededFailure?.final?.finalExecutionStatus === 'FINAL', 'seeded refund failure was not FINAL');
+  const seededTransferFailure = (seededFailure?.final?.receipts || []).some((receipt) => receipt?.status?.Failure && receipt.executorId === legacy?.seedArgs?.proposer);
+  check(seededTransferFailure, 'seeded refund failure did not retain a failed transfer receipt');
+  check(String(seededFailure?.snapshot?.lockedAmount) === String(deposit), 'seeded refund failure did not retain the locked debt');
+  check(seededFailure?.snapshot?.proposer === null || BigInt(seededFailure.snapshot.proposer) === 0n, 'seeded refund failure paid the deleted proposer');
   check(String(legacy?.beforeSeedProbe?.lockedAmount) === String(deposit) && String(legacy?.afterSeedProbe?.lockedAmount) === String(deposit), 'seed probes changed the locked debt');
   check(legacy?.beforeSeedProbe?.proposer === legacy?.afterSeedProbe?.proposer, 'seed probes changed the proposer principal');
   return valid;
@@ -627,7 +633,7 @@ function verifyScenario(scenario, mode, context) {
   };
 }
 
-function verifyUnequalOutcomes(unequal, fail) {
+function verifyUnequalOutcomes(unequal, fail, expectedCandidateSha256 = null) {
   if (!unequal || unequal.ok !== true) { fail('unequal legacy-principal case is missing or not clean'); return; }
   const amount = (value) => (/^[0-9]+$/.test(String(value ?? '')) ? BigInt(String(value)) : null);
   const before = unequal.before;
@@ -648,7 +654,27 @@ function verifyUnequalOutcomes(unequal, fail) {
   const aliceDeposit = (addAlice?.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall?.deposit;
   const bobDeposit = (addBob?.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall?.deposit;
   if (String(aliceDeposit) !== String(10n ** 24n) || String(bobDeposit) !== String(2n * 10n ** 24n)) fail('unequal funding deposits are not one and two bonds');
-  const unequalDao = addAlice?.transaction?.receiverId;
+  const unequalDao = unequal.dao || addAlice?.transaction?.receiverId;
+  if (!unequalDao) fail('unequal DAO identity is missing');
+  if (expectedCandidateSha256 && unequal.candidateWasmSha256 !== expectedCandidateSha256) fail('unequal evidence is bound to a different candidate');
+  if (unequal.baseWasmSha256 !== DEFAULT_BASE_WASM_SHA256) fail('unequal evidence is not bound to the pinned base artifact');
+  const baseDeploy = unequal.transactions?.baseDeploy;
+  const baseCommitment = deploymentCommitment(baseDeploy, 'unequal base deploy', (message) => fail(message), unequalDao);
+  if (baseCommitment !== unequal.baseWasmSha256) fail('unequal base deploy does not bind the pinned base artifact');
+  const upgradeDeploy = unequal.transactions?.upgradeDeploy;
+  const upgradeMigrate = unequal.transactions?.upgradeMigrate;
+  const upgradeCommitment = deploymentCommitment(upgradeDeploy, 'unequal candidate upgrade', (message) => fail(message), unequalDao);
+  if (upgradeCommitment !== unequal.candidateWasmSha256) fail('unequal candidate upgrade does not bind the candidate artifact');
+  if (upgradeMigrate?.finalExecutionStatus !== 'FINAL' || !successfulReceiptChain(upgradeMigrate, 'unequal migrate', (message) => fail(message))) fail('unequal migrate was not a successful FINAL transaction');
+  if (upgradeMigrate?.transaction?.signerId !== unequalDao || upgradeMigrate?.transaction?.receiverId !== unequalDao) fail('unequal migrate is not a DAO-private call');
+  const migrateCall = soleCall(upgradeMigrate, 'unequal migrate', (message) => fail(message));
+  if (migrateCall?.call?.method_name !== 'migrate') fail('unequal migrate called the wrong method');
+  const recovery = unequal.transactions?.recovery;
+  if (recovery?.finalExecutionStatus !== 'FINAL') fail('unequal Alice recovery was not FINAL');
+  if (recovery?.transaction?.receiverId !== unequalDao) fail('unequal Alice recovery receiver is not the DAO');
+  const recoveryCall = soleCall(recovery, 'unequal Alice recovery', (message) => fail(message));
+  if (recoveryCall?.call?.method_name !== 'act_proposal' || String(recoveryCall?.args?.id) !== String(unequal.ids?.alice) || recoveryCall?.args?.action !== 'Finalize') fail('unequal Alice recovery does not target the recorded obligation');
+  if (!reachableFailure(recovery, 'missing-target.test.near', 'missing-target', 'unequal Alice recovery', fail)) fail('unequal Alice recovery lacks the expected reachable failure');
   for (const [name, tx, expected] of [['Alice', addAlice, '1000000000000000000000000'], ['Bob', addBob, '2000000000000000000000000']]) {
     if (tx?.finalExecutionStatus !== 'FINAL' || !tx?.transactionHash) fail(`unequal ${name} funding is not FINAL and identified`);
     if (!successfulReceiptChain(tx, `unequal ${name} funding`, (message) => fail(message))) fail(`unequal ${name} funding lacks a linked successful receipt chain`);
@@ -709,7 +735,7 @@ function verifySettlementReport(report, opts = {}) {
   };
   const freshOutcomes = inspect(report?.fresh, 'candidate-only');
   const inheritedOutcomes = inspect(report?.inherited, 'legacy-upgrade');
-  verifyUnequalOutcomes(report?.unequal, fail);
+  verifyUnequalOutcomes(report?.unequal, fail, candidateWasmSha256);
 
   const attributableVerified = identityEstablished ? verifiedReasons : [];
   const attributableIncomplete = identityEstablished ? incompleteReasons : [...incompleteReasons, ...verifiedReasons];
