@@ -86,19 +86,25 @@ function linkedExecution(transaction, label, fail) {
     fail(`${label} root receipt is not linked to the transaction outcome`);
     return false;
   }
+  const receipts = Array.isArray(transaction.receipts) ? transaction.receipts : [];
   const byId = new Map();
-  for (const receipt of transaction.receipts || []) {
+  for (const receipt of receipts) {
     if (!receipt?.id || byId.has(receipt.id)) { fail(`${label} has a duplicate or missing receipt`); return false; }
     byId.set(receipt.id, receipt);
   }
+  if (!receipts.length) { fail(`${label} has no receipt records`); return false; }
   const seen = new Set();
-  let id = start;
+  const visiting = new Set();
+  let terminal = false;
   let first = true;
-  while (id) {
-    if (seen.has(id)) { fail(`${label} receipt graph contains a cycle`); return false; }
-    seen.add(id);
+  const visit = (id) => {
+    if (visiting.has(id)) { fail(`${label} receipt graph contains a cycle`); return false; }
+    if (seen.has(id)) return true;
     const receipt = byId.get(id);
-    if (!receipt) { fail(`${label} receipt graph roots a missing receipt`); return false; }
+    if (!receipt) { fail(`${label} receipt graph references a missing receipt`); return false; }
+    if (!Array.isArray(receipt.receiptIds)) { fail(`${label} receipt has no linked child list`); return false; }
+    visiting.add(id);
+    seen.add(id);
     if (first) {
       if (receipt.executorId !== transaction.transaction?.receiverId) {
         fail(`${label} first receipt was not executed by the target DAO`);
@@ -107,17 +113,21 @@ function linkedExecution(transaction, label, fail) {
       first = false;
     }
     const status = receipt.status || {};
-    if (Object.prototype.hasOwnProperty.call(status, 'SuccessValue') || status.Failure) return true;
-    const next = typeof status.SuccessReceiptId === 'string' ? status.SuccessReceiptId : null;
-    if (!next) { fail(`${label} receipt graph has no terminal status`); return false; }
-    if (!Array.isArray(receipt.receiptIds) || !receipt.receiptIds.includes(next)) {
-      fail(`${label} receipt graph child is not linked`);
-      return false;
+    if (Object.prototype.hasOwnProperty.call(status, 'SuccessValue') || status.Failure) terminal = true;
+    for (const child of receipt.receiptIds) {
+      if (!byId.has(child)) { fail(`${label} receipt graph references a missing child`); return false; }
+      if (!visit(child)) return false;
     }
-    id = next;
+    visiting.delete(id);
+    return true;
+  };
+  if (!visit(start)) return false;
+  if (seen.size !== byId.size) {
+    fail(`${label} has receipts outside the linked transaction graph`);
+    return false;
   }
-  fail(`${label} receipt graph has no linked terminal status`);
-  return false;
+  if (!terminal) { fail(`${label} receipt graph has no terminal status`); return false; }
+  return true;
 }
 
 function deploymentCommitment(deploy, label, fail, expectedDao = null) {

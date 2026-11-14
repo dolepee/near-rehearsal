@@ -123,6 +123,24 @@ checkApprovedMutation('duplicate transaction root removed with changed amount', 
   delete approved.duplicate.transactionOutcome;
   approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
 }, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate root replaced while old receipts remain', (approved) => {
+  const old = approved.duplicate.transactionOutcome;
+  approved.duplicate.transactionOutcome = {
+    status: {SuccessReceiptId: 'replacement-root'},
+    receiptIds: ['replacement-root'],
+    tokensBurntYocto: old.tokensBurntYocto,
+  };
+  approved.duplicate.receipts.unshift({
+    id: 'replacement-root',
+    executorId: approved.dao,
+    status: {SuccessValue: ''},
+    receiptIds: [],
+    tokensBurntYocto: '0',
+    blockHash: '11111111111111111111111111111111',
+    blockHeight: approved.duplicate.blockHeight,
+  });
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'INCONCLUSIVE');
 checkApprovedMutation('duplicate root disconnected with changed amount', (approved) => {
   const root = approved.duplicate.receipts[0];
   approved.duplicate.transactionOutcome = {
