@@ -20,14 +20,14 @@
     },
     "intended": {
       "wasm": "mixed-candidates/intended.wasm",
-      "wasmSha256": "3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2",
-      "wasmBytes": 538740,
+      "wasmSha256": "f5d71d978c2d3e479a6c32dc5172227a8fa629d18452731b50744b05abfdb051",
+      "wasmBytes": 539066,
       "patch": "mixed-candidates/intended.patch",
-      "patchSha256": "ea59d33f2102ef21d77be277dc4981911cb58d5a12b995a673261bb20a79cdc1",
+      "patchSha256": "023981318b57f425f1689993b42546e2cd114db56370f28dfe0f1499bbcdf665",
       "source": "mixed-candidates/intended-proposals.rs",
-      "sourceSha256": "2cc6f04cca4312ebfe092c2d438c9a570e602abcd81d1d240e34369a6ffcd22e",
+      "sourceSha256": "faa8061f4ed8ba80df7f90fe07e4acb89cab472df12f644b5737eb5e1a01f2e9",
       "identity": "mixed-candidates/intended-identity.json",
-      "identitySha256": "e94be3b22cc04771ae8b775881d08e9360a4baaefd7979ce067dfb173a0133ce"
+      "identitySha256": "27099728bcdb58ac1e6dddfb40e79ac22d6079c0ca080e9b9b6c5d328b8a4937"
     },
     "future-only": {
       "wasm": "mixed-candidates/future-only.wasm",
