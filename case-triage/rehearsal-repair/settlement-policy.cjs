@@ -76,6 +76,50 @@ function successfulReceiptChain(transaction, label, fail) {
   return receiptChain(transaction, label, fail).ok;
 }
 
+// Validate a transaction's actual receipt graph without requiring a particular
+// terminal status. A linked successful or failed execution is enough to prove
+// that a later economic observation belongs to this DAO execution.
+function linkedExecution(transaction, label, fail) {
+  const start = transaction?.transactionOutcome?.status?.SuccessReceiptId;
+  if (!start) { fail(`${label} has no linked root receipt`); return false; }
+  if (!Array.isArray(transaction.transactionOutcome.receiptIds) || !transaction.transactionOutcome.receiptIds.includes(start)) {
+    fail(`${label} root receipt is not linked to the transaction outcome`);
+    return false;
+  }
+  const byId = new Map();
+  for (const receipt of transaction.receipts || []) {
+    if (!receipt?.id || byId.has(receipt.id)) { fail(`${label} has a duplicate or missing receipt`); return false; }
+    byId.set(receipt.id, receipt);
+  }
+  const seen = new Set();
+  let id = start;
+  let first = true;
+  while (id) {
+    if (seen.has(id)) { fail(`${label} receipt graph contains a cycle`); return false; }
+    seen.add(id);
+    const receipt = byId.get(id);
+    if (!receipt) { fail(`${label} receipt graph roots a missing receipt`); return false; }
+    if (first) {
+      if (receipt.executorId !== transaction.transaction?.receiverId) {
+        fail(`${label} first receipt was not executed by the target DAO`);
+        return false;
+      }
+      first = false;
+    }
+    const status = receipt.status || {};
+    if (Object.prototype.hasOwnProperty.call(status, 'SuccessValue') || status.Failure) return true;
+    const next = typeof status.SuccessReceiptId === 'string' ? status.SuccessReceiptId : null;
+    if (!next) { fail(`${label} receipt graph has no terminal status`); return false; }
+    if (!Array.isArray(receipt.receiptIds) || !receipt.receiptIds.includes(next)) {
+      fail(`${label} receipt graph child is not linked`);
+      return false;
+    }
+    id = next;
+  }
+  fail(`${label} receipt graph has no linked terminal status`);
+  return false;
+}
+
 function deploymentCommitment(deploy, label, fail, expectedDao = null) {
   if (!deploy || deploy.finalExecutionStatus !== 'FINAL') { fail(`${label} deployment was not FINAL`); return null; }
   if (!successfulReceiptChain(deploy, label, fail)) return null;
@@ -975,10 +1019,11 @@ function verifySettlementReport(report, opts = {}) {
       const retryOk = successfulReceiptChain(retry, 'approved action retry', (message) => fail(message));
       approvedFail(approvalOk, 'approval has no successful receipt chain');
       approvedFail(retryOk, 'retry has no successful receipt chain');
+      const duplicateExecutionLinked = linkedExecution(duplicate, 'duplicate retry', (message) => approvedFail(false, message));
       const operationValid = {
         approval: Boolean(approval && approval.finalExecutionStatus === 'FINAL' && approval.transaction && approvalCall && approvalCall.call.method_name === 'act_proposal' && approvalCall.args.action === 'VoteApprove' && approvalOk && approval.transaction.receiverId === dao && approvedDaoValid && approved.dao === dao),
         retry: Boolean(retry && retry.finalExecutionStatus === 'FINAL' && retry.transaction && retryCall && retryCall.call.method_name === 'act_proposal' && retryCall.args.action === 'Finalize' && approvalCall && String(retryCall.args.id) === String(approvalCall.args.id) && retry.transaction.signerId === approved.proposer && retryCall.args.proposal && JSON.stringify(retryCall.args.proposal) === JSON.stringify(approvalCall.args.proposal) && retryOk && retry.transaction.receiverId === dao),
-        duplicate: Boolean(duplicate && duplicate.finalExecutionStatus === 'FINAL' && duplicate.transaction && duplicateCall && duplicateCall.call.method_name === 'act_proposal' && duplicateCall.args.action === 'Finalize' && approvalCall && String(duplicateCall.args.id) === String(approvalCall.args.id) && duplicate.transaction.receiverId === dao),
+        duplicate: Boolean(duplicate && duplicate.finalExecutionStatus === 'FINAL' && duplicate.transaction && duplicateCall && duplicateCall.call.method_name === 'act_proposal' && duplicateCall.args.action === 'Finalize' && approvalCall && String(duplicateCall.args.id) === String(approvalCall.args.id) && duplicate.transaction.receiverId === dao && duplicateExecutionLinked),
       };
       const economicFail = (condition, message, relevant) => {
         const attributable = installationValid &&

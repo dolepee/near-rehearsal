@@ -119,6 +119,36 @@ checkApprovedMutation('retry not FINAL with altered locked amount', (approved) =
   approved.retry.finalExecutionStatus = 'NONE';
   approved.afterRetry.lockedAmount = '42';
 }, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate transaction root removed with changed amount', (approved) => {
+  delete approved.duplicate.transactionOutcome;
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate root disconnected with changed amount', (approved) => {
+  const root = approved.duplicate.receipts[0];
+  approved.duplicate.transactionOutcome = {
+    status: {SuccessReceiptId: 'unlinked-root'},
+    receiptIds: ['other-root'],
+    tokensBurntYocto: approved.duplicate.transactionOutcome.tokensBurntYocto,
+  };
+  approved.duplicate.receipts.push({
+    id: 'unlinked-root',
+    executorId: approved.dao,
+    status: {SuccessValue: ''},
+    receiptIds: [],
+    blockHash: '11111111111111111111111111111111',
+    blockHeight: approved.duplicate.blockHeight,
+  });
+  root.status = {SuccessValue: ''};
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate root wrong executor with changed amount', (approved) => {
+  approved.duplicate.receipts[0].executorId = 'foreign-dao.test.near';
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'INCONCLUSIVE');
+checkApprovedMutation('valid linked duplicate payment remains rejected', (approved) => {
+  approved.duplicate.receipts[0].status = {SuccessValue: ''};
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'REJECTED');
 checkApprovedMutation('all execution heights missing', (approved) => {
   delete approved.approval.blockHeight;
   delete approved.retry.blockHeight;
