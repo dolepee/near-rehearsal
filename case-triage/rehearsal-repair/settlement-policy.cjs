@@ -10,6 +10,7 @@
  * pinned base artifact and inherited across an upgrade to the candidate. The
  * second scenario is what proves the historical bond/refund state survives.
  */
+const {isDeepStrictEqual} = require('node:util');
 const BOND = 10n ** 24n;
 const REQUIRED_SCHEMA = 'near-rehearsal/settlement-refund/v3';
 
@@ -940,7 +941,10 @@ function verifySettlementReport(report, opts = {}) {
     };
     const transfer = 10n ** 23n;
     const bond = approvedAmount(approved.bond);
+    const proposalIdValid = Number.isSafeInteger(approved.proposalId) && approved.proposalId >= 0;
+    const expectedKind = {Transfer: {token_id: '', receiver_id: approved.recipient, amount: transfer.toString(), msg: null}};
     approvedFail(bond === BOND, 'recorded bond is not the pinned obligation');
+    approvedFail(proposalIdValid, 'proposal identity is missing or malformed');
     approvedFail(approved.candidateWasmSha256 === candidateWasmSha256, 'evidence is for a different candidate', 'verified');
     approvedFail(typeof approved.proposer === 'string' && approved.proposer.length > 0, 'proposer identity is missing');
     approvedFail(typeof approved.recipient === 'string' && approved.recipient.length > 0, 'recipient identity is missing');
@@ -980,6 +984,12 @@ function verifySettlementReport(report, opts = {}) {
         approvedFail(codeOk, `${name} snapshot code hash is missing`);
         if (observedCodeValid && typeof value.codeHash === 'string') approvedFail(value.codeHash === approved.observedCodeHash, `${name} snapshot code differs from the deployed candidate`);
         if (!daoOk || !sameDao || !pinned || !codeOk || !sameCode) snapshotBinding[name] = false;
+        // These fields establish scenario coverage. Missing proposal metadata
+        // must not conceal a separately attributable balance counterexample.
+        approvedFail(proposalIdValid && value.proposal?.id === approved.proposalId, `${name} proposal identity differs from the approved proposal`);
+        approvedFail(value.proposal?.proposer === approved.proposer, `${name} proposal does not belong to the original proposer`);
+        approvedFail(isDeepStrictEqual(value.proposal?.kind, expectedKind), `${name} proposal kind differs from the required transfer`);
+        approvedFail(value.proposal?.status === (name === 'before' ? 'InProgress' : 'Approved'), `${name} proposal status does not preserve the approved action`);
       } else {
         snapshotBinding[name] = false;
       }
@@ -1035,6 +1045,10 @@ function verifySettlementReport(report, opts = {}) {
       approvedFail(approvalCall.call.method_name === 'act_proposal' && approvalCall.args.action === 'VoteApprove', 'approval is not a VoteApprove');
       approvedFail(retryCall.call.method_name === 'act_proposal' && retryCall.args.action === 'Finalize', 'retry is not a Finalize');
       approvedFail(duplicateCall.call.method_name === 'act_proposal' && duplicateCall.args.action === 'Finalize', 'duplicate is not a Finalize');
+      for (const [name, decoded] of [['approval', approvalCall], ['retry', retryCall], ['duplicate', duplicateCall]]) {
+        approvedFail(proposalIdValid && decoded.args.id === approved.proposalId, `${name} targets a different recorded proposal`);
+      }
+      approvedFail(isDeepStrictEqual(approvalCall.args.proposal, expectedKind), 'approval kind differs from the required transfer');
       approvedFail(String(retryCall.args.id) === String(approvalCall.args.id), 'retry targets a different proposal');
       approvedFail(String(duplicateCall.args.id) === String(approvalCall.args.id), 'duplicate targets a different proposal');
       approvedFail(retry.transaction.signerId === approved.proposer, 'retry was not signed by the original proposer', 'verified');
@@ -1044,6 +1058,14 @@ function verifySettlementReport(report, opts = {}) {
       approvedFail(approvalOk, 'approval has no successful receipt chain');
       approvedFail(retryOk, 'retry has no successful receipt chain');
       const approvalGraph = linkedExecution(approval, 'approved action approval', (message) => approvedFail(false, message));
+      // linkedExecution proves every receipt belongs to this transaction; a
+      // disconnected error or an error message mentioning the account cannot
+      // establish the original failed refund.
+      const refundFailed = approvalGraph && approval.receipts.some((receipt) => (
+        receipt.executorId === approved.proposer &&
+        isDeepStrictEqual(receipt.status?.Failure?.ActionError?.kind, {AccountDoesNotExist: {account_id: approved.proposer}})
+      ));
+      approvedFail(refundFailed, 'approval has no linked AccountDoesNotExist refund failure for the original proposer');
       const retryGraph = linkedExecution(retry, 'approved action retry', (message) => approvedFail(false, message));
       const duplicateGraph = linkedExecution(duplicate, 'duplicate retry', (message) => approvedFail(false, message));
       const operationValid = {
