@@ -470,7 +470,7 @@ function runReview(opts) {
     'The report is evidence, not a signature and not a GitHub-enforced merge restriction.',
     'A rejected or incomplete run is preserved but is not an accepted replay bundle.',
     'The same-DAO mixed-obligation gate is a local Sandbox scenario; it is not a live DAO migration or proof that other obligations are safe.',
-    'Source builds run as trusted local host execution: build scripts can read host files and credentials. This is not compiler isolation or an untrusted-code sandbox.',
+    'Source-build mode runs inside the controller enforced compiler boundary when the live probe passes; if no supported launcher is available, source-build is blocked rather than falling back to host execution.',
   ];
 
   let status = 'INCONCLUSIVE';
