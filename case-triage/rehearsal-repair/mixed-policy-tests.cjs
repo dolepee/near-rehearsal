@@ -67,6 +67,23 @@ mutationMustFail('seed-payout', (value) => {
     snapshot.contractBalance = (BigInt(snapshot.contractBalance) - amount).toString();
   }
 }, 'seed payout');
+mutationMustFail('seed unexplained DAO withdrawal', (value) => {
+  const amount = 10n ** 24n;
+  for (const snapshot of [value.beforeRecovery, value.aliceRecovery.after, value.aliceRetry.after, value.bobPayout.after, value.bobRetry.after, value.carolRetry.after]) {
+    snapshot.balances.dao = (BigInt(snapshot.balances.dao) - amount).toString();
+    snapshot.contractBalance = (BigInt(snapshot.contractBalance) - amount).toString();
+  }
+}, 'unexplained DAO withdrawal');
+
+mutationMustFail('seed forged redundant gas summary', (value) => {
+  const amount = 10n ** 24n;
+  for (const snapshot of [value.beforeRecovery, value.aliceRecovery.after, value.aliceRetry.after, value.bobPayout.after, value.bobRetry.after, value.carolRetry.after]) {
+    snapshot.balances.dao = (BigInt(snapshot.balances.dao) - amount).toString();
+    snapshot.contractBalance = (BigInt(snapshot.contractBalance) - amount).toString();
+  }
+  value.seed.alice.gasBurntYocto = (BigInt(value.seed.alice.gasBurntYocto) + amount).toString();
+}, 'forged gas summary');
+
 mutationMustFail('seed-args', (value) => {
   const call = value.seed.bob.transaction.actions[0].FunctionCall;
   call.args = Buffer.from(JSON.stringify({proposal_id: 999, proposer: value.accounts.bob, amount: '1', funding_tx_hash: 'x'})).toString('base64');
