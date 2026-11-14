@@ -63,6 +63,24 @@ mutate('unauthorized seed forged as success with unlinked private log', (value) 
     ],
   };
 });
+mutate('unauthorized seed signer replaced by the DAO', (value) => {
+  const dao = value.inherited.deploy.transaction.receiverId;
+  const probe = value.inherited.legacy.unauthorizedSeed;
+  probe.signer = dao;
+  probe.value.transaction.signerId = dao;
+});
+mutate('duplicate seed signer changed away from the DAO', (value) => {
+  const probe = value.inherited.legacy.duplicateSeed;
+  probe.signer = value.inherited.transactions.add.transaction.signerId;
+  probe.value.transaction.signerId = probe.signer;
+});
+mutate('unequal Alice seed receipt chain removed', (value) => {
+  delete value.unequal.transactions.seedAlice.receipts;
+  delete value.unequal.transactions.seedAlice.transactionOutcome;
+});
+mutate('unequal Bob seed call method changed', (value) => {
+  value.unequal.transactions.seedBob.transaction.actions[0].FunctionCall.method_name = 'migrate';
+});
 mutate('unequal case removed', (value) => { delete value.unequal; });
 mutate('unequal reported delta changed', (value) => { value.unequal.aliceDelta = '2000000000000000000000000'; });
 

@@ -108,6 +108,12 @@ function decodeCall(transaction, label, fail) {
   return {call, args};
 }
 
+function soleCall(summary, label, fail) {
+  const actions = summary?.transaction?.actions;
+  if (!Array.isArray(actions) || actions.length !== 1) { fail(`${label} must contain exactly one transaction action`); return null; }
+  return decodeCall(summary, label, fail);
+}
+
 function verifyMigrate(scenario, dao, failFor) {
   let valid = true;
   const check = (condition, message) => { if (!condition) { valid = false; failFor(false, message); } };
@@ -393,15 +399,25 @@ function verifyLegacySeed(scenario, dao, fail) {
   check(legacy?.seedArgs && JSON.stringify(legacy.seedArgs) === JSON.stringify(decoded.args), 'declared legacy seed input does not match the executed seed');
   check(String(legacy?.afterMissingSeed?.lockedAmount) === String(deposit), 'unseeded legacy finalize did not preserve the original debt');
   check(legacy?.afterMissingSeed?.proposer === null || BigInt(legacy.afterMissingSeed.proposer) === 0n, 'unseeded legacy finalize paid the proposer');
-  for (const [label, probe, needle] of [
-    ['unauthorized seed', legacy?.unauthorizedSeed, 'Method seed_legacy_proposal_bond is private'],
-    ['duplicate seed', legacy?.duplicateSeed, 'ERR_LEGACY_BOND_ALREADY_RECORDED'],
+  for (const [label, probe, needle, expectedSigner] of [
+    ['unauthorized seed', legacy?.unauthorizedSeed, 'Method seed_legacy_proposal_bond is private', 'non-dao'],
+    ['duplicate seed', legacy?.duplicateSeed, 'ERR_LEGACY_BOND_ALREADY_RECORDED', 'dao'],
   ]) {
     check(probe?.executed === true && probe?.rejected === true, `${label} did not produce the expected FINAL rejection`);
     check(probe?.value?.finalExecutionStatus === 'FINAL', `${label} was not FINAL`);
     check(probe?.value?.transaction?.receiverId === dao && probe?.value?.transaction?.signerId === probe?.signer, `${label} has the wrong signer or receiver`);
-    const probeCall = (probe?.value?.transaction?.actions || [])[0]?.FunctionCall;
-    check(probeCall?.method_name === 'seed_legacy_proposal_bond', `${label} called the wrong method`);
+    if (label === 'unauthorized seed') {
+      check(probe?.signer !== dao && probe?.value?.transaction?.signerId !== dao, 'unauthorized seed must not be signed by the DAO');
+    } else {
+      check(probe?.signer === dao && probe?.value?.transaction?.signerId === dao, 'duplicate seed must be signed by the DAO');
+    }
+    const probeDecoded = soleCall(probe?.value, label, (message) => check(false, message));
+    check(probeDecoded?.call?.method_name === 'seed_legacy_proposal_bond', `${label} called the wrong method`);
+    if (probeDecoded) {
+      check(String(probeDecoded.args?.proposal_id) === String(scenario.proposalId), `${label} targets a different proposal`);
+      check(probeDecoded.args?.proposer === scenario.transactions?.add?.transaction?.signerId, `${label} proposer does not match the funding proposal`);
+      check(probeDecoded.args?.funding_tx_hash === scenario.transactions?.add?.transactionHash, `${label} funding hash is not the add_proposal transaction`);
+    }
     check(reachableFailure(probe?.value, dao, needle, label, check), `${label} lacks a reachable failed receipt`);
   }
   check(String(legacy?.beforeSeedProbe?.lockedAmount) === String(deposit) && String(legacy?.afterSeedProbe?.lockedAmount) === String(deposit), 'seed probes changed the locked debt');
@@ -632,14 +648,22 @@ function verifyUnequalOutcomes(unequal, fail) {
   const aliceDeposit = (addAlice?.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall?.deposit;
   const bobDeposit = (addBob?.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall?.deposit;
   if (String(aliceDeposit) !== String(10n ** 24n) || String(bobDeposit) !== String(2n * 10n ** 24n)) fail('unequal funding deposits are not one and two bonds');
+  const unequalDao = addAlice?.transaction?.receiverId;
   for (const [name, tx, expected] of [['Alice', addAlice, '1000000000000000000000000'], ['Bob', addBob, '2000000000000000000000000']]) {
     if (tx?.finalExecutionStatus !== 'FINAL' || !tx?.transactionHash) fail(`unequal ${name} funding is not FINAL and identified`);
+    if (!successfulReceiptChain(tx, `unequal ${name} funding`, (message) => fail(message))) fail(`unequal ${name} funding lacks a linked successful receipt chain`);
     const seed = unequal.transactions?.[name === 'Alice' ? 'seedAlice' : 'seedBob'];
     if (seed?.finalExecutionStatus !== 'FINAL') fail(`unequal ${name} seed is not FINAL`);
-    const call = (seed?.transaction?.actions || [])[0]?.FunctionCall;
-    let args;
-    try { args = JSON.parse(Buffer.from(call?.args || '', 'base64').toString('utf8')); } catch {}
-    if (!args || String(args.amount) !== expected || args.funding_tx_hash !== tx.transactionHash) fail(`unequal ${name} seed does not bind its measured funding`);
+    if (!successfulReceiptChain(seed, `unequal ${name} seed`, (message) => fail(message))) fail(`unequal ${name} seed lacks a linked successful receipt chain`);
+    if (seed?.transaction?.signerId !== unequalDao || seed?.transaction?.receiverId !== unequalDao) fail(`unequal ${name} seed is not a DAO-private call`);
+    const decoded = soleCall(seed, `unequal ${name} seed`, (message) => fail(message));
+    if (decoded?.call?.method_name !== 'seed_legacy_proposal_bond') fail(`unequal ${name} seed called the wrong method`);
+    if (decoded) {
+      if (String(decoded.args?.proposal_id) !== String(unequal.ids?.[name.toLowerCase()])) fail(`unequal ${name} seed targets the wrong proposal`);
+      if (decoded.args?.proposer !== tx?.transaction?.signerId) fail(`unequal ${name} seed proposer does not match its funding transaction`);
+      if (String(decoded.args?.amount) !== expected) fail(`unequal ${name} seed amount is not its measured funding deposit`);
+      if (decoded.args?.funding_tx_hash !== tx.transactionHash) fail(`unequal ${name} seed does not bind its measured funding`);
+    }
   }
 }
 
