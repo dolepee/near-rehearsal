@@ -376,6 +376,8 @@ function verifyScenario(scenario, mode, context) {
     if (recordedProposal.status !== 'Failed') failFor(false, 'recorded old-code proposal is not Failed');
   }
   const failed = scenario.failedRefund;
+  if (!failed) failFor(false, 'failed-refund snapshot missing');
+  else if (!text(failed.lockedAmount)) failFor(false, 'failed refund locked amount is missing');
   if (failed?.proposal) {
     if (String(failed.proposal.id) !== String(scenario.proposalId)) failFor(false, 'post-upgrade proposal identity changed');
     if (failed.proposal.status !== 'Failed') failFor(false, 'post-upgrade proposal is not Failed');
@@ -385,7 +387,7 @@ function verifyScenario(scenario, mode, context) {
   } else failFor(false, 'post-upgrade proposal identity is missing');
   if (!failed) failFor(false, 'failed-refund snapshot missing');
   else {
-    if (text(failed.lockedAmount) !== BOND.toString()) failFor(false, 'failed refund did not retain the locked debt');
+    if (text(failed.lockedAmount) && text(failed.lockedAmount) !== BOND.toString()) failFor(false, 'failed refund did not retain the locked debt');
     if (failed.proposal?.status !== 'Failed') failFor(false, 'failed refund did not leave the proposal Failed');
   }
 
@@ -393,17 +395,26 @@ function verifyScenario(scenario, mode, context) {
   const after = scenario.afterRetry;
   let retryDelta = null;
   if (!before || !after) failFor(false, 'retry snapshots missing');
+  else if (!text(before.proposer) || !text(after.proposer)) failFor(false, 'retry proposer amounts missing');
   else {
     if (text(before.lockedAmount) !== BOND.toString()) failFor(false, 'retry did not start with the debt still locked');
-    retryDelta = BigInt(after.proposer ?? 0) - BigInt(before.proposer ?? 0);
+    retryDelta = BigInt(after.proposer) - BigInt(before.proposer);
     if (retryDelta !== BOND) failFor(false, `retry proposer delta is ${retryDelta}, expected exactly one bond`);
     if (text(after.lockedAmount) !== '0') failFor(false, 'successful retry did not clear the debt');
   }
 
-  if (text(scenario.afterDuplicate?.proposer) !== text(after?.proposer)) failFor(false, 'duplicate retry changed the proposer balance');
-  if (text(scenario.afterDuplicate?.lockedAmount) !== '0') failFor(false, 'duplicate retry changed the locked debt');
-  if (text(scenario.afterUnauthorized?.proposer) !== text(after?.proposer)) failFor(false, 'unauthorized callback changed the proposer balance');
-  if (text(scenario.afterUnauthorized?.lockedAmount) !== '0') failFor(false, 'unauthorized callback changed the locked debt');
+  if (!text(scenario.afterDuplicate?.proposer) || !text(scenario.afterDuplicate?.lockedAmount)) {
+    failFor(false, 'afterDuplicate observation amounts missing');
+  } else {
+    if (text(scenario.afterDuplicate.proposer) !== text(after?.proposer)) failFor(false, 'duplicate retry changed the proposer balance');
+    if (text(scenario.afterDuplicate.lockedAmount) !== '0') failFor(false, 'duplicate retry changed the locked debt');
+  }
+  if (!text(scenario.afterUnauthorized?.proposer) || !text(scenario.afterUnauthorized?.lockedAmount)) {
+    failFor(false, 'afterUnauthorized observation amounts missing');
+  } else {
+    if (text(scenario.afterUnauthorized.proposer) !== text(after?.proposer)) failFor(false, 'unauthorized callback changed the proposer balance');
+    if (text(scenario.afterUnauthorized.lockedAmount) !== '0') failFor(false, 'unauthorized callback changed the locked debt');
+  }
 
   const unauthorized = scenario.unauthorized;
   const unauthorizedReceipts = unauthorized?.value?.receipts || unauthorized?.receipts || [];
@@ -452,6 +463,10 @@ function verifyScenario(scenario, mode, context) {
   };
 }
 
+function isIncompleteEvidence(message) {
+  return /missing|no |not produced|not recorded|not linked|not FINAL|unreadable|malformed|incomplete|schema must|does not link|no Success|scenario is missing|expected exactly one|not exercised|could not be verified|capture/i.test(message);
+}
+
 function verifySettlementReport(report, opts = {}) {
   const errors = [];
   const fail = (message) => errors.push(message);
@@ -474,10 +489,17 @@ function verifySettlementReport(report, opts = {}) {
     ...(freshOutcomes?.coverageErrors || []),
     ...(inheritedOutcomes?.coverageErrors || []),
   ];
+  const incompleteReasons = errors.filter(isIncompleteEvidence);
+  const verifiedReasons = errors.filter((error) => !isIncompleteEvidence(error));
+  const status = verifiedReasons.length ? 'REJECTED' : (incompleteReasons.length || errors.length ? 'INCONCLUSIVE' : 'ACCEPTED');
   return {
-    ok: errors.length === 0,
+    status,
+    verifiedFailure: verifiedReasons.length > 0,
+    incomplete: status === 'INCONCLUSIVE',
+    reasons: {verified: verifiedReasons, incomplete: incompleteReasons},
+    ok: status === 'ACCEPTED',
     errors,
-    unproven: coverageErrors.length > 0 && errors.length === coverageErrors.length,
+    unproven: status === 'INCONCLUSIVE',
     outcomes: inheritedOutcomes ? {
       ...inheritedOutcomes,
       fresh: freshOutcomes,

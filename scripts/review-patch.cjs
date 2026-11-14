@@ -603,7 +603,7 @@ function runReview(opts) {
               }
               // A gate that ran and returned a verified failure is a rejection, not a
               // missing-evidence result. Only an unreported gate leaves the outcome open.
-              if (missingGateIsInconclusive({acceptanceOk: true, mixedCheck, settlementCheck})) {
+              if (missingGateIsInconclusive({acceptanceOk: acceptance.ok === true, mixedCheck, settlementCheck})) {
                 status = 'INCONCLUSIVE';
                 reason = 'same-DAO mixed-obligation or failed-refund settlement gate produced no verified report';
                 checks = [
@@ -617,7 +617,7 @@ function runReview(opts) {
                   fresh: stageFromChecks(pipeline.ok === true && (pipeline.acceptanceErrors || []).length === 0, pipeline.acceptanceErrors || [], {evidenceValid: Boolean(pipeline)}),
                   recovery: stageFromChecks(acceptance.ok === true, acceptance.errors || [], {evidenceValid: Boolean(acceptance)}),
                   mixed: stageFromChecks(mixedCheck?.ok === true, mixedCheck?.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedCheck)}),
-                  settlement: stageFromChecks(settlementCheck?.ok === true, settlementCheck?.errors || [], {evidenceValid: Boolean(settlementCheck) && settlementCheck?.unproven !== true}),
+                  settlement: stageFromChecks(settlementCheck?.status === 'ACCEPTED', settlementCheck?.errors || [], {evidenceValid: settlementCheck?.status === 'REJECTED'}),
                 });
                 acceptanceVerdict = verdict;
                 if (verdict.status === 'REJECTED') {

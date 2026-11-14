@@ -740,7 +740,7 @@ function createManager(options = {}) {
         fresh: stageFromChecks(freshAccepted, freshAccepted ? [] : (pipeline.acceptanceErrors || ['fresh-state checks failed']), {evidenceValid: Boolean(pipeline)}),
         recovery: stageFromChecks(recoveryAccepted, recoveryAccepted ? [] : (run.recovery?.acceptanceErrors || [run.recovery?.error || 'persisted recovery did not pass acceptance']), {evidenceValid: Boolean(run.recovery?.report)}),
         mixed: stageFromChecks(mixedCheck.ok === true, mixedCheck.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedReport) && mixedReport?.schema === 'near-rehearsal/mixed-obligation/v1'}),
-        settlement: stageFromChecks(settlementCheck.ok === true, settlementCheck.errors || [], {evidenceValid: Boolean(settlementReport) && settlementReport?.schema === SETTLEMENT_SCHEMA && settlementCheck?.unproven !== true}),
+        settlement: stageFromChecks(settlementCheck.status === 'ACCEPTED', settlementCheck.errors || [], {evidenceValid: settlementCheck?.status === 'REJECTED'}),
       });
       run.acceptancePolicy = acceptanceVerdict;
       const accepted = acceptanceVerdict.status === 'ACCEPTED';

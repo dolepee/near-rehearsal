@@ -576,6 +576,41 @@ freshLeak.fresh.legacy = correctedReport.inherited.legacy;
 assert.equal(verifySettlementReport(freshLeak, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'the fresh scenario cannot claim inherited-upgrade evidence');
 
+const acceptedGood = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(acceptedGood.status, 'ACCEPTED');
+assert.equal(acceptedGood.ok, true);
+
+const lostDebt = JSON.parse(JSON.stringify(correctedReport));
+lostDebt.inherited.failedRefund.lockedAmount = '0';
+assert.equal(verifySettlementReport(lostDebt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
+
+const missingInheritedGoodFresh = JSON.parse(JSON.stringify(correctedReport));
+delete missingInheritedGoodFresh.inherited;
+assert.equal(verifySettlementReport(missingInheritedGoodFresh, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const missingInheritedBadFresh = JSON.parse(JSON.stringify(correctedReport));
+delete missingInheritedBadFresh.inherited;
+missingInheritedBadFresh.fresh.failedRefund.lockedAmount = '0';
+assert.equal(verifySettlementReport(missingInheritedBadFresh, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
+
+const missingFreshGoodInherited = JSON.parse(JSON.stringify(correctedReport));
+delete missingFreshGoodInherited.fresh;
+assert.equal(verifySettlementReport(missingFreshGoodInherited, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const missingFreshBadInherited = JSON.parse(JSON.stringify(correctedReport));
+delete missingFreshBadInherited.fresh;
+missingFreshBadInherited.inherited.failedRefund.lockedAmount = '0';
+assert.equal(verifySettlementReport(missingFreshBadInherited, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
+
+const malformedMissing = JSON.parse(JSON.stringify(correctedReport));
+delete malformedMissing.inherited.transactions.vote2.receipts;
+assert.equal(verifySettlementReport(malformedMissing, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const completedRecoveryFalse = JSON.parse(JSON.stringify(correctedReport));
+completedRecoveryFalse.ok = false;
+completedRecoveryFalse.errors = ['fresh: locked liability after failed refund is 0'];
+assert.equal(verifySettlementReport(completedRecoveryFalse, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
+
 console.log(JSON.stringify({
   schema: 'near-rehearsal/settlement-policy-tests/v2',
   passed: true,
@@ -664,5 +699,13 @@ console.log(JSON.stringify({
     'single-signer-fails',
     'receiptless-fails',
     'fresh-legacy-leak-fails',
+    'status-good-accepted',
+    'status-lost-debt-rejected',
+    'status-missing-inherited-good-fresh-inconclusive',
+    'status-missing-inherited-bad-fresh-rejected',
+    'status-missing-fresh-good-inherited-inconclusive',
+    'status-missing-fresh-bad-inherited-rejected',
+    'status-malformed-missing-inconclusive',
+    'status-completed-recovery-false-rejected',
   ],
 }, null, 2));

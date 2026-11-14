@@ -510,10 +510,11 @@ const runSettlementGate = (candidateWasm, outDir, sandboxDir) => {
 
 const settlementAcceptanceStage = (checked, unavailable = null) => {
   if (unavailable) return stageFromChecks(false, [unavailable.message], {evidenceValid: false});
+  const status = checked?.status || (checked?.ok === true ? 'ACCEPTED' : checked?.unproven === true ? 'INCONCLUSIVE' : checked ? 'REJECTED' : null);
   return stageFromChecks(
-    checked?.ok === true,
+    status === 'ACCEPTED',
     checked?.errors || [],
-    {evidenceValid: Boolean(checked) && checked?.unproven !== true},
+    {evidenceValid: status === 'REJECTED'},
   );
 };
 
