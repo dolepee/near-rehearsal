@@ -244,8 +244,9 @@ assert.equal(verifySettlementReport(duplicateLegacyHash, {candidateWasmSha256: c
 
 const missingRetryHeight = JSON.parse(JSON.stringify(correctedReport));
 delete missingRetryHeight.inherited.transactions.retries[0].blockHeight;
-assert.equal(verifySettlementReport(missingRetryHeight, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
-  'raw retries must carry measured heights');
+const missingRetryResult = verifySettlementReport(missingRetryHeight, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(missingRetryResult.ok, false, 'raw retries must carry measured heights');
+assert.equal(missingRetryResult.unproven, true, 'missing retry capture is unproven, not a financial rejection');
 
 const beforeWindowRetry = JSON.parse(JSON.stringify(correctedReport));
 beforeWindowRetry.inherited.transactions.retries[0].blockHeight = beforeWindowRetry.inherited.beforeRetry.blockHeight;

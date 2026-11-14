@@ -227,16 +227,24 @@ function verifyLegacyFinalize(scenario, dao, failFor) {
 }
 
 function verifyRetries(scenario, dao, failFor) {
+  const coverageErrors = [];
   const raw = scenario.transactions?.retries;
   const attempts = scenario.overlap?.attempts;
-  if (!Array.isArray(raw) || raw.length !== 2) { failFor(false, 'two full retry transaction summaries are required'); return; }
-  if (!Array.isArray(attempts) || attempts.length !== 2) { failFor(false, 'two retry attempts are required'); return; }
+  if (!Array.isArray(raw) || raw.length !== 2) {
+    coverageErrors.push('two full retry transaction summaries are required');
+    failFor(false, coverageErrors[coverageErrors.length - 1]);
+    return {guardUnproven: true, coverageErrors};
+  }
+  if (!Array.isArray(attempts) || attempts.length !== 2) {
+    coverageErrors.push('two retry attempts are required');
+    failFor(false, coverageErrors[coverageErrors.length - 1]);
+    return {guardUnproven: true, coverageErrors};
+  }
   const voteSigners = [scenario.transactions?.vote?.transaction?.signerId, scenario.transactions?.vote2?.transaction?.signerId].filter(Boolean);
   if (voteSigners.length !== 2) failFor(false, 'two recorded voter approvals are required');
   if (!verifyVote(scenario, voteSigners[0], 'vote', failFor) || !verifyVote(scenario, voteSigners[1], 'vote2', failFor)) return;
   const hashes = [];
   const signers = [];
-  const coverageErrors = [];
   let successful = 0;
   let expectedInFlight = 0;
   raw.forEach((tx, index) => {
@@ -264,11 +272,17 @@ function verifyRetries(scenario, dao, failFor) {
   if (new Set(signers).size !== 2) failFor(false, 'retry transactions do not have distinct signers');
   const beforeHeight = recordedHeight(scenario.beforeRetry?.blockHeight);
   const afterHeight = recordedHeight(scenario.afterRetry?.blockHeight);
-  if (beforeHeight === null || afterHeight === null) failFor(false, 'raw retry evidence is not bounded by valid before/after snapshots');
+  if (beforeHeight === null || afterHeight === null) {
+    coverageErrors.push('raw retry evidence is not bounded by valid before/after snapshots');
+    failFor(false, coverageErrors[coverageErrors.length - 1]);
+  }
   else {
     raw.forEach((tx, index) => {
       const height = recordedHeight(tx.blockHeight);
-      if (height === null) failFor(false, `retry ${index + 1} height is missing or malformed`);
+      if (height === null) {
+        coverageErrors.push(`retry ${index + 1} height is missing or malformed`);
+        failFor(false, coverageErrors[coverageErrors.length - 1]);
+      }
       else if (height <= beforeHeight || height > afterHeight) failFor(false, `retry ${index + 1} is outside the measured recovery window`);
     });
   }

@@ -292,13 +292,17 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
     voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS}),
     voter2.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS}),
   ]);
-  for (const entry of submitted) {
-    if (entry.status !== 'fulfilled') { retryFinals.push({error: String(entry.reason?.message || entry.reason).slice(0, 500)}); continue; }
+  for (const [index, entry] of submitted.entries()) {
+    if (entry.status !== 'fulfilled') {
+      throw new Error(`required retry ${index + 1} submission failed: ${String(entry.reason?.message || entry.reason)}`);
+    }
     try {
       const signer = entry.value?.transaction?.signerId || null;
-      const summarized = await withHeight(worker, summarize(await finalStatus(worker, entry.value, signer || voter.accountId)), `retry ${retryFinals.length + 1}`);
+      const summarized = await withHeight(worker, summarize(await finalStatus(worker, entry.value, signer || voter.accountId)), `retry ${index + 1}`);
       retryFinals.push({...summarized, signerId: summarized.transaction?.signerId || null});
-    } catch (error) { retryFinals.push({error: String(error.message || error).slice(0, 500)}); }
+    } catch (error) {
+      throw new Error(`required retry ${index + 1} capture failed: ${error.message}`);
+    }
   }
   await waitProposal(worker, dao, id, 'Failed');
   await settle(worker, dao, proposer.accountId, voter.accountId);
