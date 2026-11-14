@@ -86,6 +86,8 @@ remains the default; the expected hash is never overwritten.
 
 The browser's second replay creates a failed proposal under the original code and freezes its unpaid bond, proposal, policy and raw state. It deploys the same generated candidate and calls private `migrate` on that local account, without `new()`. It then measures the first refund and a second retry. An unpaid healthy Transfer created before upgrade must still pay its original beneficiary and amount; an already-paid Transfer must not pay again.
 
+The historical `generated/e8262f5a` model candidate is retained as a pre-seed negative and is not the positive CI candidate; the current positive persisted job uses `mixed-candidates/intended.*` under the mandatory legacy-seed contract.
+
 `persisted-recovery-acceptance.cjs` checks the actual base/candidate artifacts, code transition, continuous snapshots, executed transaction actions and final receipts. Principal, net participant changes and receipt-derived gas are separate. This is an account-key upgrade exercise, not the timed factory or DAO-governance path. The runner creates a known unpaid history; unknown prior compensation or policy changes are not inferred from an absent refund marker.
 
 After installing dependencies and configuring `REPAIR_SANDBOX_DIR` for Sandbox 2.14.0, this reruns the recorded **generated** `e8262f5a` artifact without calling a model or rebuilding source. It is distinct from a fresh model attempt. Use a new output directory so a failed attempt cannot reuse an earlier report:

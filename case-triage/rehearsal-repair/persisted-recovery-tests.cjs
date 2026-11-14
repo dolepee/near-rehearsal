@@ -5,14 +5,14 @@ const path = require('node:path');
 const {verify} = require('./persisted-recovery-acceptance.cjs');
 
 const here = __dirname;
-const report = JSON.parse(fs.readFileSync(path.join(here, 'out/persisted-recovery.json'), 'utf8'));
+const report = JSON.parse(fs.readFileSync(path.join(here, 'out/audit-intended/persisted/persisted-recovery.json'), 'utf8'));
 const opts = {
-  wasmPath: path.join(here, 'generated/e8262f5a/candidate.wasm'),
+  wasmPath: path.join(here, 'mixed-candidates/intended.wasm'),
   baseWasmPath: path.join(here, 'bundle/artifacts/base.wasm'),
-  patchPath: path.join(here, 'generated/e8262f5a/repair.patch'),
-  expectedWasmSha256: '49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923',
-  expectedPatchSha256: '532741a3f689863844d0af147ec08d278420cd74920f68f817234747e295fedc',
-  expectedSourceSha256: '82efc4225e307b97068cd7bd984da78f9a83ecf51e1b21749de344f45aa53b22',
+  patchPath: path.join(here, 'mixed-candidates/intended.patch'),
+  expectedWasmSha256: '3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2',
+  expectedPatchSha256: 'ea59d33f2102ef21d77be277dc4981911cb58d5a12b995a673261bb20a79cdc1',
+  expectedSourceSha256: '2cc6f04cca4312ebfe092c2d438c9a570e602abcd81d1d240e34369a6ffcd22e',
 };
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const reject = (label, mutate) => {
@@ -24,6 +24,10 @@ const reject = (label, mutate) => {
 
 assert.deepEqual(verify(report, opts), []);
 console.log('accepted: persisted recovery with recomputed state, authority and accounting');
+
+reject('legacy seed receipts removed', (r) => { r.seed.receipts = []; r.seed.transactionOutcome = {status: {SuccessValue: ''}, receiptIds: []}; });
+reject('post-recovery permission probe removed', (r) => { delete r.authority.postRecoveryUnauthorizedProbe; });
+reject('post-retry permission probe removed', (r) => { delete r.authority.postRetryUnauthorizedProbe; });
 
 const cachedFlagsAreIgnored = clone(report);
 cachedFlagsAreIgnored.preservation = {

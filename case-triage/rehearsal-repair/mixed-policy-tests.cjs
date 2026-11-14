@@ -56,6 +56,38 @@ mutationMustFail('null-action-args', (value) => {
 mutationMustFail('extra-action', (value) => {
   value.bobPayout.attempt.value.transaction.actions.push({Transfer: {deposit: '1'}});
 }, 'extra transaction action');
+mutationMustFail('before-recovery-policy', (value) => { value.beforeRecovery.policy.proposal_bond = '2'; }, 'beforeRecovery policy');
+mutationMustFail('before-recovery-locked', (value) => { value.beforeRecovery.lockedAmount = '0'; }, 'beforeRecovery locked');
+mutationMustFail('seed-missing', (value) => { delete value.seed.alice; }, 'missing seed');
+mutationMustFail('seed-payout', (value) => {
+  const amount = 10n ** 24n;
+  for (const snapshot of [value.beforeRecovery, value.aliceRecovery.after, value.aliceRetry.after, value.bobPayout.after, value.bobRetry.after, value.carolRetry.after]) {
+    snapshot.balances.alice = (BigInt(snapshot.balances.alice) + amount).toString();
+    snapshot.balances.dao = (BigInt(snapshot.balances.dao) - amount).toString();
+    snapshot.contractBalance = (BigInt(snapshot.contractBalance) - amount).toString();
+  }
+}, 'seed payout');
+mutationMustFail('seed unexplained DAO withdrawal', (value) => {
+  const amount = 10n ** 24n;
+  for (const snapshot of [value.beforeRecovery, value.aliceRecovery.after, value.aliceRetry.after, value.bobPayout.after, value.bobRetry.after, value.carolRetry.after]) {
+    snapshot.balances.dao = (BigInt(snapshot.balances.dao) - amount).toString();
+    snapshot.contractBalance = (BigInt(snapshot.contractBalance) - amount).toString();
+  }
+}, 'unexplained DAO withdrawal');
+
+mutationMustFail('seed forged redundant gas summary', (value) => {
+  const amount = 10n ** 24n;
+  for (const snapshot of [value.beforeRecovery, value.aliceRecovery.after, value.aliceRetry.after, value.bobPayout.after, value.bobRetry.after, value.carolRetry.after]) {
+    snapshot.balances.dao = (BigInt(snapshot.balances.dao) - amount).toString();
+    snapshot.contractBalance = (BigInt(snapshot.contractBalance) - amount).toString();
+  }
+  value.seed.alice.gasBurntYocto = (BigInt(value.seed.alice.gasBurntYocto) + amount).toString();
+}, 'forged gas summary');
+
+mutationMustFail('seed-args', (value) => {
+  const call = value.seed.bob.transaction.actions[0].FunctionCall;
+  call.args = Buffer.from(JSON.stringify({proposal_id: 999, proposer: value.accounts.bob, amount: '1', funding_tx_hash: 'x'})).toString('base64');
+}, 'seed args');
 console.log('mixed-policy: null args, conflicting roots and extra actions reject');
 console.log('mixed-policy: finality, signer, root, action-args, policy, non-target and unlinked-receipt mutations reject');
 console.log('mixed-policy: primary policy rejects old/future-only/clear-all and accepts intended');

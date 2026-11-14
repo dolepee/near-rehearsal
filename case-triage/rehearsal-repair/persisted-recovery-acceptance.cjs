@@ -227,6 +227,24 @@ function verify(report, options = {}) {
   if (hasAction(upgradeMigrate, 'DeployContract')) fail('upgrade migrate contains an unexpected deploy action');
   if (report?.authority?.upgradeMethod !== 'account-key deploy + private migrate') fail('upgrade method is not the declared account-key deploy/migrate path');
 
+  const seed = report?.seed;
+  if (!seed?.transaction || seed?.finalExecutionStatus !== 'FINAL' || seed?.receiptFailure !== false) fail('legacy seed was not an executed successful FINAL transaction');
+  else {
+    if (seed.transaction.signerId !== report?.accounts?.contract || seed.transaction.receiverId !== report?.accounts?.contract) fail('legacy seed signer/receiver is not the contract');
+    const call = functionCall(seed, 'seed_legacy_proposal_bond');
+    if (!call) fail('legacy seed has no seed_legacy_proposal_bond action');
+    else {
+      if (String(call.args?.proposal_id) !== String(report?.failed?.proposalId)) fail('legacy seed proposal id does not match the failed obligation');
+      if (call.args?.proposer !== report?.accounts?.proposer) fail('legacy seed proposer does not match the recorded proposer');
+      if (String(call.args?.amount) !== BOND.toString()) fail('legacy seed amount is not the measured original bond');
+      if (call.args?.funding_tx_hash !== report?.failed?.add?.transactionHash) fail('legacy seed funding hash does not match the add_proposal transaction');
+    }
+  }
+  receiptGraphErrors(report?.seed, 'legacy seed', fail);
+  if (String(report?.seeded?.lockedAmount) !== String(report?.upgraded?.lockedAmount)) fail('legacy seed changed the locked debt');
+  if (!sameJson(report?.seeded?.policy, report?.upgraded?.policy)) fail('legacy seed changed policy');
+  if (!sameJson(report?.seeded?.proposal, report?.upgraded?.proposal)) fail('legacy seed changed the proposal');
+
   assertProposalAction(report?.firstRecovery?.final, 'first recovery', report, report?.failed?.proposalId, 'Finalize', fail);
   assertProposalAction(report?.secondRetry?.final, 'second retry', report, report?.failed?.proposalId, 'Finalize', fail);
 
@@ -238,7 +256,7 @@ function verify(report, options = {}) {
     ['post-recovery unauthorized finalize', report?.authority?.postRecoveryUnauthorizedProbe],
     ['post-retry unauthorized finalize', report?.authority?.postRetryUnauthorizedProbe],
   ]) {
-    if (!probe) continue;
+    if (!probe) { fail(`${label} is missing`); continue; }
     if (!probe.ok || probe.value?.finalExecutionStatus !== 'FINAL') fail(`${label} was not an executed FINAL transaction`);
     else if (!hasFailure(probe.value, report?.accounts?.contract, 'ERR_PERMISSION_DENIED')) fail(`${label} did not fail with the expected permission error`);
     receiptGraphErrors(probe.value, label, fail);

@@ -32,6 +32,10 @@ function buildReviewBundle(opts = {}) {
   const source = identity.source;
   const mixedPolicy = mixedText ? mixedPolicyIdentity() : null;
   const settlementPolicySha256 = settlementText ? sha256(read(require.resolve('./settlement-policy.cjs'))) : null;
+  const candidateReport = JSON.parse(candidateReportText);
+  if (!candidateReport.source?.wasmSha256 || candidateReport.source.wasmSha256 !== identity.wasm.sha256) {
+    throw new Error('refusing to export a reviewer bundle with a fresh report bound to a different candidate');
+  }
   const candidate = {
     patch: {text: patchText, sha256: sha256(Buffer.from(patchText, 'utf8')), bytes: Buffer.byteLength(patchText)},
     wasm: {base64: wasm.toString('base64'), sha256: sha256(wasm), bytes: wasm.length},

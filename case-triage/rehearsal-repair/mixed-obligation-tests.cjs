@@ -38,9 +38,10 @@ function verify(report) {
 
   const ar = report?.aliceRecovery?.after;
   const alice = report?.aliceRecovery;
-  const aliceContract = delta(ar, afterUpgrade, 'contractBalance');
-  const aliceLocked = delta(ar, afterUpgrade, 'lockedAmount');
-  const aliceRecipient = BigInt(ar?.balances?.aliceRecipient ?? 0) - BigInt(afterUpgrade?.balances?.aliceRecipient ?? 0);
+  const recoveryStart = report?.beforeRecovery || afterUpgrade;
+  const aliceContract = delta(ar, recoveryStart, 'contractBalance');
+  const aliceLocked = delta(ar, recoveryStart, 'lockedAmount');
+  const aliceRecipient = BigInt(ar?.balances?.aliceRecipient ?? 0) - BigInt(recoveryStart?.balances?.aliceRecipient ?? 0);
   const alicePaid = alice?.attempt?.ok === true &&
     alice?.attempt?.value?.receiptFailure === true &&
     ar?.proposals?.alice?.status === 'Failed' &&

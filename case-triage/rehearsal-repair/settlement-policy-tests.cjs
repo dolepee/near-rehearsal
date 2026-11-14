@@ -12,7 +12,7 @@ const correctedReport = read('settlement');
 assert.equal(oldReport.schema, REQUIRED_SCHEMA);
 assert.equal(correctedReport.schema, REQUIRED_SCHEMA);
 assert.equal(oldReport.candidate.wasmSha256, '49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923');
-assert.equal(correctedReport.candidate.wasmSha256, '158f0f0e0a98b3df11fb86828aa72bc0edbe4e992f5db0ab8f86f012eb754f7d');
+assert.equal(correctedReport.candidate.wasmSha256, '3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2');
 
 const oldCheck = verifySettlementReport(oldReport, {candidateWasmSha256: oldReport.candidate.wasmSha256});
 const correctedCheck = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
@@ -26,6 +26,85 @@ assert.equal(correctedCheck.outcomes.retryDelta, '1000000000000000000000000');
 assert.equal(correctedCheck.outcomes.overlapDelta, '1000000000000000000000000');
 assert.equal(correctedCheck.outcomes.fresh.failedRefundLocked, '1000000000000000000000000', 'the fresh candidate scenario must also retain the debt');
 assert.equal(correctedCheck.outcomes.inherited.failedRefundLocked, '1000000000000000000000000', 'the inherited scenario must retain the debt');
+
+const missingSeed = JSON.parse(JSON.stringify(correctedReport));
+delete missingSeed.inherited.transactions.seed;
+delete missingSeed.inherited.legacy.seed;
+delete missingSeed.inherited.legacy.seedArgs;
+delete missingSeed.inherited.legacy.afterMissingSeed;
+delete missingSeed.inherited.legacy.beforeSeedProbe;
+delete missingSeed.inherited.legacy.afterSeedProbe;
+delete missingSeed.inherited.legacy.unauthorizedSeed;
+delete missingSeed.inherited.legacy.duplicateSeed;
+const missingSeedCheck = verifySettlementReport(missingSeed, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(missingSeedCheck.ok, false, 'missing trusted legacy input must not be accepted');
+assert.ok(missingSeedCheck.errors.some((error) => /legacy principal seed|trusted legacy/i.test(error)));
+
+const mutate = (label, fn) => {
+  const value = JSON.parse(JSON.stringify(correctedReport));
+  fn(value);
+  const checked = verifySettlementReport(value, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+  assert.equal(checked.ok, false, label);
+};
+mutate('seed receipt evidence removed', (value) => {
+  delete value.inherited.transactions.seed.receipts;
+  delete value.inherited.transactions.seed.transactionOutcome;
+});
+mutate('unauthorized seed forged as success with unlinked private log', (value) => {
+  const probe = value.inherited.legacy.unauthorizedSeed;
+  probe.rejected = true;
+  probe.value = {
+    finalExecutionStatus: 'FINAL',
+    transaction: probe.value.transaction,
+    transactionOutcome: {status: {SuccessReceiptId: 'root'}, receiptIds: ['root']},
+    receipts: [
+      {id: 'root', executorId: value.inherited.deploy.transaction.receiverId, status: {SuccessValue: ''}, receiptIds: []},
+      {id: 'unlinked', executorId: value.inherited.deploy.transaction.receiverId, status: {SuccessValue: ''}, logs: ['Method seed_legacy_proposal_bond is private']},
+    ],
+  };
+});
+mutate('unauthorized seed signer replaced by the DAO', (value) => {
+  const dao = value.inherited.deploy.transaction.receiverId;
+  const probe = value.inherited.legacy.unauthorizedSeed;
+  probe.signer = dao;
+  probe.value.transaction.signerId = dao;
+});
+mutate('duplicate seed signer changed away from the DAO', (value) => {
+  const probe = value.inherited.legacy.duplicateSeed;
+  probe.signer = value.inherited.transactions.add.transaction.signerId;
+  probe.value.transaction.signerId = probe.signer;
+});
+mutate('unequal Alice seed receipt chain removed', (value) => {
+  delete value.unequal.transactions.seedAlice.receipts;
+  delete value.unequal.transactions.seedAlice.transactionOutcome;
+});
+mutate('unequal Bob seed call method changed', (value) => {
+  value.unequal.transactions.seedBob.transaction.actions[0].FunctionCall.method_name = 'migrate';
+});
+mutate('unequal base deploy removed', (value) => { delete value.unequal.transactions.baseDeploy; });
+mutate('unequal candidate upgrade removed', (value) => { delete value.unequal.transactions.upgradeDeploy; });
+mutate('unequal actual recovery removed', (value) => { delete value.unequal.transactions.recovery; });
+mutate('seeded refund failure removed', (value) => { delete value.inherited.legacy.seededRefundFailure; });
+mutate('seeded refund failure precedes seed', (value) => {
+  value.inherited.legacy.seededRefundFailure.final.blockHeight = value.inherited.legacy.seed.blockHeight;
+});
+mutate('seeded refund observation precedes failure', (value) => {
+  value.inherited.legacy.seededRefundFailure.snapshot.blockHeight = value.inherited.legacy.seededRefundFailure.final.blockHeight - 1;
+});
+mutate('seeded refund failure receiver changed', (value) => {
+  value.inherited.legacy.seededRefundFailure.final.transaction.receiverId = 'elsewhere.test.near';
+});
+mutate('seeded refund failure receipt graph unlinked', (value) => {
+  const final = value.inherited.legacy.seededRefundFailure.final;
+  final.transactionOutcome = {status: {SuccessValue: ''}, receiptIds: []};
+});
+mutate('unequal Alice proposal ids changed to 99', (value) => {
+  value.unequal.before.proposal.id = 99;
+  value.unequal.after.proposal.id = 99;
+});
+mutate('unequal case removed', (value) => { delete value.unequal; });
+mutate('unequal reported delta changed', (value) => { value.unequal.aliceDelta = '2000000000000000000000000'; });
+mutate('unequal policy differs by one yocto', (value) => { value.unequal.policyAfter.proposal_bond = '2000000000000000000000001'; });
 
 const labelSwap = JSON.parse(JSON.stringify(correctedReport));
 const forged = '1'.repeat(64);
@@ -624,6 +703,82 @@ assert.equal(verifySettlementReport(zeroPayment, {candidateWasmSha256: corrected
 const twoBondPayment = JSON.parse(JSON.stringify(correctedReport));
 twoBondPayment.inherited.afterRetry.proposer = (BigInt(twoBondPayment.inherited.beforeRetry.proposer) + 2n * BigInt(1000000000000000000000000n)).toString();
 assert.equal(verifySettlementReport(twoBondPayment, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
+
+const unequalOverpay = JSON.parse(JSON.stringify(correctedReport));
+unequalOverpay.unequal.after.proposer = (BigInt(unequalOverpay.unequal.after.proposer) + 10n ** 24n).toString();
+unequalOverpay.unequal.aliceDelta = (BigInt(unequalOverpay.unequal.aliceDelta) + 10n ** 24n).toString();
+const unequalOverpayResult = verifySettlementReport(unequalOverpay, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(unequalOverpayResult.status, 'REJECTED', 'a complete unequal over-refund is a verified rejection');
+assert.ok(unequalOverpayResult.reasons.verified.some((error) => /unequal Alice refund|unequal reported Alice/.test(error)));
+
+const aliceOverpayMissingBob = JSON.parse(JSON.stringify(unequalOverpay));
+delete aliceOverpayMissingBob.unequal.bobBefore.proposer;
+delete aliceOverpayMissingBob.unequal.bobAfter.proposer;
+const aliceOverpayMissingBobResult = verifySettlementReport(aliceOverpayMissingBob, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(aliceOverpayMissingBobResult.status, 'REJECTED', 'a complete Alice over-refund survives missing unrelated Bob balances');
+assert.ok(aliceOverpayMissingBobResult.reasons.verified.some((error) => /Alice refund/.test(error)));
+
+const bobDebtLossMissingAlice = JSON.parse(JSON.stringify(correctedReport));
+bobDebtLossMissingAlice.unequal.bobAfter.lockedAmount = '0';
+bobDebtLossMissingAlice.unequal.bobLocked = '0';
+delete bobDebtLossMissingAlice.unequal.after.proposer;
+const bobDebtLossMissingAliceResult = verifySettlementReport(bobDebtLossMissingAlice, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(bobDebtLossMissingAliceResult.status, 'REJECTED', 'a complete Bob debt loss survives a missing unrelated Alice after-balance');
+assert.ok(bobDebtLossMissingAliceResult.reasons.verified.some((error) => /Bob debt/.test(error)));
+
+const inheritedDebtLoss = JSON.parse(JSON.stringify(correctedReport));
+inheritedDebtLoss.inherited.legacy.seededRefundFailure.snapshot.lockedAmount = '0';
+inheritedDebtLoss.inherited.seededRefundFailure.lockedAmount = '0';
+inheritedDebtLoss.inherited.beforeRetry.lockedAmount = '0';
+inheritedDebtLoss.inherited.legacy.beforeSeedProbe.lockedAmount = '0';
+inheritedDebtLoss.inherited.legacy.afterSeedProbe.lockedAmount = '0';
+inheritedDebtLoss.inherited.ok = false;
+const inheritedDebtLossResult = verifySettlementReport(inheritedDebtLoss, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(inheritedDebtLossResult.status, 'REJECTED', 'a complete inherited seeded refund debt loss is verified');
+assert.ok(inheritedDebtLossResult.reasons.verified.some((error) => /seeded refund failure|retry did not start/.test(error)));
+
+const inheritedDebtLossMissingUnequal = JSON.parse(JSON.stringify(inheritedDebtLoss));
+delete inheritedDebtLossMissingUnequal.unequal.transactions.addAlice;
+assert.equal(verifySettlementReport(inheritedDebtLossMissingUnequal, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED', 'inherited debt loss survives missing unequal funding');
+
+const aliceOverpayMissingBobSnapshot = JSON.parse(JSON.stringify(unequalOverpay));
+delete aliceOverpayMissingBobSnapshot.unequal.bobAfter;
+assert.equal(verifySettlementReport(aliceOverpayMissingBobSnapshot, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED', 'complete Alice over-refund survives a missing whole Bob after snapshot');
+
+const inheritedDebtLossMissingDeploy = JSON.parse(JSON.stringify(inheritedDebtLoss));
+delete inheritedDebtLossMissingDeploy.inherited.transactions.upgrade.deploy;
+assert.equal(verifySettlementReport(inheritedDebtLossMissingDeploy, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'inherited debt loss without candidate installation binding is incomplete');
+
+const unequalRecoveryHeightOne = JSON.parse(JSON.stringify(correctedReport));
+unequalRecoveryHeightOne.unequal.transactions.recovery.blockHeight = 1;
+assert.equal(verifySettlementReport(unequalRecoveryHeightOne, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'an impossible unequal recovery height is incomplete');
+
+const missingUnequalAfterProposer = JSON.parse(JSON.stringify(correctedReport));
+delete missingUnequalAfterProposer.unequal.after.proposer;
+assert.equal(verifySettlementReport(missingUnequalAfterProposer, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'a missing unequal after-proposer balance is incomplete, not a rejection');
+
+const missingBothBobProposers = JSON.parse(JSON.stringify(correctedReport));
+delete missingBothBobProposers.unequal.bobBefore.proposer;
+delete missingBothBobProposers.unequal.bobAfter.proposer;
+assert.equal(verifySettlementReport(missingBothBobProposers, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'missing Bob raw balances must not become acceptance');
+
+const invalidBobLocked = JSON.parse(JSON.stringify(correctedReport));
+invalidBobLocked.unequal.bobAfter.lockedAmount = 'not-an-amount';
+assert.equal(verifySettlementReport(invalidBobLocked, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'an invalid Bob locked amount is incomplete');
+
+const inconsistentAliceDelta = JSON.parse(JSON.stringify(correctedReport));
+inconsistentAliceDelta.unequal.aliceDelta = (BigInt(inconsistentAliceDelta.unequal.aliceDelta) + 10n ** 24n).toString();
+assert.equal(verifySettlementReport(inconsistentAliceDelta, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'a derived delta that disagrees with raw snapshots is incomplete');
+
+const malformedUnequalFunding = JSON.parse(JSON.stringify(correctedReport));
+delete malformedUnequalFunding.unequal.transactions.addAlice;
+const malformedUnequalFundingResult = verifySettlementReport(malformedUnequalFunding, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(malformedUnequalFundingResult.status, 'INCONCLUSIVE', 'malformed unequal funding alone must be inconclusive, not a throw or rejection');
+assert.equal(malformedUnequalFundingResult.verifiedFailure, false);
+
+const knownRejectMissingUnequal = JSON.parse(JSON.stringify(twoBondPayment));
+delete knownRejectMissingUnequal.unequal.transactions.addBob;
+assert.equal(verifySettlementReport(knownRejectMissingUnequal, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED', 'a known fresh/inherited rejection survives missing unequal funding');
 
 const malformedFailedLocked = JSON.parse(JSON.stringify(correctedReport));
 malformedFailedLocked.inherited.failedRefund.lockedAmount = 'not-an-amount';
