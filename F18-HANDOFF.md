@@ -4,12 +4,12 @@ Status: exploratory contract implementation and compiled artifact. Not accepted 
 
 - Source commit base: `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`
 - Patch: `case-triage/rehearsal-repair/repair.patch`
-- Patch SHA-256: `023981318b57f425f1689993b42546e2cd114db56370f28dfe0f1499bbcdf665`
+- Patch SHA-256: `9ae060af97dcb7f4ced31d135ac84b0130f274032f17c2acb1a56e43a6ebf3d0`
 - Source file: `case-triage/rehearsal-repair/mixed-candidates/intended-proposals.rs`
-- Source SHA-256: `faa8061f4ed8ba80df7f90fe07e4acb89cab472df12f644b5737eb5e1a01f2e9`
+- Source SHA-256: `1e1c693fc2cae3c2ce3159a1e0d79699a6e8085148b5c521cb166acddd74464c`
 - WASM: `case-triage/rehearsal-repair/mixed-candidates/intended.wasm`
-- WASM SHA-256: `f5d71d978c2d3e479a6c32dc5172227a8fa629d18452731b50744b05abfdb051`
-- WASM size: `539066` bytes
+- WASM SHA-256: `3205860e557dbe4852e4022866ab7cc6461483d39a7be3e990ade3287f3c8df4`
+- WASM size: `539065` bytes
 
 ## Behavior
 
