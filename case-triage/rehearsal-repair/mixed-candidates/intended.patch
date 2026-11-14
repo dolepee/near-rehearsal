@@ -1,8 +1,8 @@
 diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs
-index 3c41adf..7af4247 100644
+index 3c41adf..87d4d91 100644
 --- a/sputnikdao2/src/proposals.rs
 +++ b/sputnikdao2/src/proposals.rs
-@@ -336,7 +336,104 @@ impl Contract {
+@@ -336,7 +336,110 @@ impl Contract {
          }
      }
  
@@ -49,38 +49,44 @@ index 3c41adf..7af4247 100644
 +        env::storage_write(&Self::refund_state_key(proposal_id), &value);
 +    }
 +
-+    fn proposal_bond_amount(proposal_id: u64, policy: &Policy) -> NearToken {
-+        let value = env::storage_read(&Self::proposal_bond_key(proposal_id))
-+            // Legacy proposals predate per-proposal amounts. The current
-+            // policy amount is only a bounded fallback; a changed policy makes
-+            // the historical principal ambiguous and must be resolved by the
-+            // caller's trusted migration input before recovery is claimed.
-+            .unwrap_or_else(|| policy.proposal_bond.as_yoctonear().to_le_bytes().to_vec());
++    fn legacy_bond_provenance_key(proposal_id: u64) -> Vec<u8> {
++        let mut key = b"legacy_proposal_bond_provenance:".to_vec();
++        key.extend_from_slice(&proposal_id.to_le_bytes());
++        key
++    }
++
++    fn proposal_bond_amount(proposal_id: u64) -> Option<u128> {
++        let value = env::storage_read(&Self::proposal_bond_key(proposal_id))?;
 +        if value.len() != 16 {
 +            env::panic_str("ERR_INVALID_PROPOSAL_BOND");
 +        }
-+        NearToken::from_yoctonear(u128::from_le_bytes(value.try_into().unwrap()))
++        Some(u128::from_le_bytes(value.try_into().unwrap()))
 +    }
 +
 +    fn internal_return_proposal_bond(
 +        &mut self,
 +        proposal_id: u64,
-+        policy: &Policy,
 +        proposal: &Proposal,
 +    ) -> PromiseOrValue<()> {
-+        let policy_bond = Self::proposal_bond_amount(proposal_id, policy);
-+        let (status, attempt, recorded_bond) = Self::read_refund_state(proposal_id).unwrap_or((
-+            Self::REFUND_OPEN,
-+            0,
-+            policy_bond.as_yoctonear(),
-+        ));
++        let Some(amount) = Self::proposal_bond_amount(proposal_id) else {
++            log!(
++                "Refusing refund for proposal {} without a trusted legacy principal",
++                proposal_id
++            );
++            return PromiseOrValue::Value(());
++        };
++        if amount == 0 {
++            return PromiseOrValue::Value(());
++        }
++        let (status, attempt, recorded_bond) =
++            Self::read_refund_state(proposal_id).unwrap_or((Self::REFUND_OPEN, 0, amount));
 +        let bond = if recorded_bond == 0 {
-+            policy_bond.as_yoctonear()
++            amount
 +        } else {
 +            recorded_bond
 +        };
-+        if bond == 0 {
-+            return PromiseOrValue::Value(());
++        if bond != amount {
++            env::panic_str("ERR_PROPOSAL_BOND_MISMATCH");
 +        }
 +        match status {
 +            Self::REFUND_SETTLED | Self::REFUND_IN_FLIGHT => return PromiseOrValue::Value(()),
@@ -108,17 +114,17 @@ index 3c41adf..7af4247 100644
          if let ProposalKind::BountyDone { .. } = &proposal.kind {
              self.locked_amount = self.locked_amount.saturating_sub(policy.bounty_bond);
              Promise::new(proposal.proposer.clone())
-@@ -344,8 +441,7 @@ impl Contract {
+@@ -344,8 +447,7 @@ impl Contract {
                  .detach();
          }
  
 -        self.locked_amount = self.locked_amount.saturating_sub(policy.proposal_bond);
 -        Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond)
-+        self.internal_return_proposal_bond(proposal_id, policy, proposal)
++        self.internal_return_proposal_bond(proposal_id, proposal)
      }
  
      /// Executes given proposal and updates the contract's state.
-@@ -466,12 +562,13 @@ impl Contract {
+@@ -466,12 +568,13 @@ impl Contract {
                          .on_proposal_callback(proposal_id),
                  )
                  .into(),
@@ -133,7 +139,7 @@ index 3c41adf..7af4247 100644
          proposal: &mut Proposal,
      ) -> PromiseOrValue<()> {
          let policy = self.policy.get().unwrap().to_policy();
-@@ -486,27 +583,31 @@ impl Contract {
+@@ -486,27 +589,30 @@ impl Contract {
              }
          }
          proposal.status = ProposalStatus::Approved;
@@ -148,8 +154,7 @@ index 3c41adf..7af4247 100644
      ) -> PromiseOrValue<()> {
          proposal.status = ProposalStatus::Failed;
 -        PromiseOrValue::Value(())
-+        let policy = self.policy.get().unwrap().to_policy();
-+        self.internal_return_proposal_bond(proposal_id, &policy, proposal)
++        self.internal_return_proposal_bond(proposal_id, proposal)
      }
  
      /// Process rejecting proposal.
@@ -169,7 +174,58 @@ index 3c41adf..7af4247 100644
          }
  
          let proposal_data = proposal;
-@@ -583,6 +684,16 @@ impl Contract {
+@@ -530,6 +636,50 @@ impl Contract {
+ 
+ #[near]
+ impl Contract {
++    /// Trusted migration input for a proposal created before per-proposal
++    /// principal was recorded. This is a bounded, one-time seed: it never
++    /// changes locked debt or governance, and it refuses a second seed.
++    #[private]
++    pub fn seed_legacy_proposal_bond(
++        &mut self,
++        proposal_id: u64,
++        proposer: AccountId,
++        amount: U128,
++        funding_tx_hash: String,
++    ) {
++        let amount = amount.0;
++        assert!(amount > 0, "ERR_INVALID_LEGACY_BOND");
++        assert!(
++            (43..=44).contains(&funding_tx_hash.len())
++                && funding_tx_hash
++                    .bytes()
++                    .all(|byte| byte.is_ascii_alphanumeric() && !b"0OIl".contains(&byte)),
++            "ERR_INVALID_FUNDING_TX_HASH"
++        );
++        let proposal: Proposal = self
++            .proposals
++            .get(&proposal_id)
++            .expect("ERR_NO_PROPOSAL")
++            .into();
++        assert_eq!(
++            proposal.proposer, proposer,
++            "ERR_LEGACY_BOND_PROPOSAL_MISMATCH"
++        );
++        assert!(
++            env::storage_read(&Self::proposal_bond_key(proposal_id)).is_none(),
++            "ERR_LEGACY_BOND_ALREADY_RECORDED"
++        );
++        assert!(
++            env::storage_read(&Self::refund_state_key(proposal_id)).is_none(),
++            "ERR_LEGACY_REFUND_ALREADY_STARTED"
++        );
++        env::storage_write(&Self::proposal_bond_key(proposal_id), &amount.to_le_bytes());
++        let mut provenance = Vec::with_capacity(80);
++        provenance.extend_from_slice(funding_tx_hash.as_bytes());
++        provenance.extend_from_slice(&amount.to_le_bytes());
++        env::storage_write(&Self::legacy_bond_provenance_key(proposal_id), &provenance);
++    }
++
+     /// Add proposal to this DAO.
+     #[payable]
+     pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {
+@@ -583,6 +733,16 @@ impl Contract {
  
          self.proposals
              .insert(&id, &VersionedProposal::Latest(proposal));
@@ -186,7 +242,7 @@ index 3c41adf..7af4247 100644
          self.last_proposal_id += 1;
          self.locked_amount = self.locked_amount.saturating_add(env::attached_deposit());
          id
-@@ -642,12 +753,12 @@ impl Contract {
+@@ -642,12 +802,12 @@ impl Contract {
                          .detach();
                      true
                  } else if proposal.status == ProposalStatus::Removed {
@@ -201,7 +257,7 @@ index 3c41adf..7af4247 100644
                          .detach();
                      true
                  } else {
-@@ -674,7 +785,7 @@ impl Contract {
+@@ -674,7 +834,7 @@ impl Contract {
                              .detach();
                      }
                      ProposalStatus::Expired => {
@@ -210,7 +266,7 @@ index 3c41adf..7af4247 100644
                              .detach();
                      }
                      _ => {
-@@ -712,12 +823,42 @@ impl Contract {
+@@ -712,12 +872,42 @@ impl Contract {
              "ERR_UNEXPECTED_CALLBACK_PROMISES"
          );
          let result = if utils::is_promise_success() {

@@ -343,6 +343,36 @@ function recordedHeight(value) {
 }
 
 
+function reachableFailure(summary, expectedExecutor, needle, label, fail) {
+  const start = summary?.transactionOutcome?.status?.SuccessReceiptId;
+  const roots = summary?.transactionOutcome?.receiptIds || (start ? [start] : []);
+  if (!start || !Array.isArray(roots) || !roots.includes(start)) { fail(false, `${label} has no linked first receipt`); return false; }
+  const byId = new Map();
+  for (const receipt of summary?.receipts || []) {
+    if (!receipt?.id || byId.has(receipt.id)) { fail(false, `${label} has a duplicate or missing receipt`); return false; }
+    byId.set(receipt.id, receipt);
+  }
+  const seen = new Set();
+  const queue = [...roots];
+  let found = false;
+  while (queue.length) {
+    const id = queue.shift();
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const receipt = byId.get(id);
+    if (!receipt) { fail(false, `${label} roots a missing receipt`); return false; }
+    if (receipt.status?.Failure) {
+      if (receipt.executorId !== expectedExecutor) { fail(false, `${label} failure receipt has the wrong executor`); return false; }
+      if (!JSON.stringify(receipt.status).includes(needle)) { fail(false, `${label} reachable failure lacks the expected error`); return false; }
+      found = true;
+    }
+    for (const child of receipt.receiptIds || []) queue.push(child);
+  }
+  for (const id of byId.keys()) if (!seen.has(id)) { fail(false, `${label} has an unlinked receipt`); return false; }
+  if (!found) { fail(false, `${label} has no reachable failed receipt`); return false; }
+  return true;
+}
+
 function verifyLegacySeed(scenario, dao, fail) {
   const seed = scenario.transactions?.seed;
   const legacy = scenario.legacy;
@@ -351,6 +381,7 @@ function verifyLegacySeed(scenario, dao, fail) {
   const check = (condition, message) => { if (!condition) { valid = false; fail(false, message); } };
   check(seed.finalExecutionStatus === 'FINAL', 'legacy principal seed was not FINAL');
   check(seed.transaction?.receiverId === dao && seed.transaction?.signerId === dao, 'legacy principal seed was not a DAO-private call');
+  check(successfulReceiptChain(seed, 'legacy principal seed', (message) => check(false, message)), 'legacy principal seed lacks a linked successful receipt chain');
   const decoded = decodeCall(seed, 'legacy principal seed', (message) => { valid = false; fail(false, message); });
   check(decoded.call.method_name === 'seed_legacy_proposal_bond', 'legacy principal seed has the wrong method');
   check(String(decoded.args?.proposal_id) === String(scenario.proposalId), 'legacy principal seed targets a different proposal');
@@ -367,7 +398,11 @@ function verifyLegacySeed(scenario, dao, fail) {
     ['duplicate seed', legacy?.duplicateSeed, 'ERR_LEGACY_BOND_ALREADY_RECORDED'],
   ]) {
     check(probe?.executed === true && probe?.rejected === true, `${label} did not produce the expected FINAL rejection`);
-    check(probe?.value?.finalExecutionStatus === 'FINAL' && JSON.stringify({receipts: probe?.value?.receipts || [], outcome: probe?.value?.transactionOutcome || {}}).includes(needle), `${label} was not a FINAL failed execution with its expected error`);
+    check(probe?.value?.finalExecutionStatus === 'FINAL', `${label} was not FINAL`);
+    check(probe?.value?.transaction?.receiverId === dao && probe?.value?.transaction?.signerId === probe?.signer, `${label} has the wrong signer or receiver`);
+    const probeCall = (probe?.value?.transaction?.actions || [])[0]?.FunctionCall;
+    check(probeCall?.method_name === 'seed_legacy_proposal_bond', `${label} called the wrong method`);
+    check(reachableFailure(probe?.value, dao, needle, label, check), `${label} lacks a reachable failed receipt`);
   }
   check(String(legacy?.beforeSeedProbe?.lockedAmount) === String(deposit) && String(legacy?.afterSeedProbe?.lockedAmount) === String(deposit), 'seed probes changed the locked debt');
   check(legacy?.beforeSeedProbe?.proposer === legacy?.afterSeedProbe?.proposer, 'seed probes changed the proposer principal');
@@ -576,6 +611,38 @@ function verifyScenario(scenario, mode, context) {
   };
 }
 
+function verifyUnequalOutcomes(unequal, fail) {
+  if (!unequal || unequal.ok !== true) { fail('unequal legacy-principal case is missing or not clean'); return; }
+  const amount = (value) => (/^[0-9]+$/.test(String(value ?? '')) ? BigInt(String(value)) : null);
+  const before = unequal.before;
+  const after = unequal.after;
+  const bobBefore = unequal.bobBefore;
+  const bobAfter = unequal.bobAfter;
+  if (!before || !after || !bobBefore || !bobAfter) { fail('unequal legacy-principal snapshots are incomplete'); return; }
+  const delta = amount(after.proposer) !== null && amount(before.proposer) !== null ? amount(after.proposer) - amount(before.proposer) : null;
+  if (delta === null || delta !== 10n ** 24n) fail('unequal Alice refund is not exactly one original bond');
+  if (String(unequal.aliceDelta) !== (delta === null ? '' : delta.toString())) fail('unequal reported Alice delta does not match the raw snapshots');
+  if (String(unequal.bobLocked) !== String(bobAfter.lockedAmount)) fail('unequal reported Bob debt does not match the raw snapshot');
+  if (amount(bobBefore.proposer) !== amount(bobAfter.proposer)) fail('unequal Bob principal changed');
+  if (JSON.stringify(bobBefore.proposal) !== JSON.stringify(bobAfter.proposal)) fail('unequal Bob proposal changed');
+  if (amount(bobAfter.lockedAmount) !== 2n * 10n ** 24n) fail('unequal Bob debt is not preserved at two bonds');
+  if (Number(unequal.policyBefore?.proposal_bond) !== 10 ** 24 || Number(unequal.policyAfter?.proposal_bond) !== 2 * 10 ** 24) fail('unequal policy change is not the measured one-to-two transition');
+  const addAlice = unequal.transactions?.addAlice;
+  const addBob = unequal.transactions?.addBob;
+  const aliceDeposit = (addAlice?.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall?.deposit;
+  const bobDeposit = (addBob?.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall?.deposit;
+  if (String(aliceDeposit) !== String(10n ** 24n) || String(bobDeposit) !== String(2n * 10n ** 24n)) fail('unequal funding deposits are not one and two bonds');
+  for (const [name, tx, expected] of [['Alice', addAlice, '1000000000000000000000000'], ['Bob', addBob, '2000000000000000000000000']]) {
+    if (tx?.finalExecutionStatus !== 'FINAL' || !tx?.transactionHash) fail(`unequal ${name} funding is not FINAL and identified`);
+    const seed = unequal.transactions?.[name === 'Alice' ? 'seedAlice' : 'seedBob'];
+    if (seed?.finalExecutionStatus !== 'FINAL') fail(`unequal ${name} seed is not FINAL`);
+    const call = (seed?.transaction?.actions || [])[0]?.FunctionCall;
+    let args;
+    try { args = JSON.parse(Buffer.from(call?.args || '', 'base64').toString('utf8')); } catch {}
+    if (!args || String(args.amount) !== expected || args.funding_tx_hash !== tx.transactionHash) fail(`unequal ${name} seed does not bind its measured funding`);
+  }
+}
+
 function verifySettlementReport(report, opts = {}) {
   const errors = [];
   const incompleteReasons = [];
@@ -618,6 +685,7 @@ function verifySettlementReport(report, opts = {}) {
   };
   const freshOutcomes = inspect(report?.fresh, 'candidate-only');
   const inheritedOutcomes = inspect(report?.inherited, 'legacy-upgrade');
+  verifyUnequalOutcomes(report?.unequal, fail);
 
   const attributableVerified = identityEstablished ? verifiedReasons : [];
   const attributableIncomplete = identityEstablished ? incompleteReasons : [...incompleteReasons, ...verifiedReasons];

@@ -40,6 +40,32 @@ const missingSeedCheck = verifySettlementReport(missingSeed, {candidateWasmSha25
 assert.equal(missingSeedCheck.ok, false, 'missing trusted legacy input must not be accepted');
 assert.ok(missingSeedCheck.errors.some((error) => /legacy principal seed|trusted legacy/i.test(error)));
 
+const mutate = (label, fn) => {
+  const value = JSON.parse(JSON.stringify(correctedReport));
+  fn(value);
+  const checked = verifySettlementReport(value, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+  assert.equal(checked.ok, false, label);
+};
+mutate('seed receipt evidence removed', (value) => {
+  delete value.inherited.transactions.seed.receipts;
+  delete value.inherited.transactions.seed.transactionOutcome;
+});
+mutate('unauthorized seed forged as success with unlinked private log', (value) => {
+  const probe = value.inherited.legacy.unauthorizedSeed;
+  probe.rejected = true;
+  probe.value = {
+    finalExecutionStatus: 'FINAL',
+    transaction: probe.value.transaction,
+    transactionOutcome: {status: {SuccessReceiptId: 'root'}, receiptIds: ['root']},
+    receipts: [
+      {id: 'root', executorId: value.inherited.deploy.transaction.receiverId, status: {SuccessValue: ''}, receiptIds: []},
+      {id: 'unlinked', executorId: value.inherited.deploy.transaction.receiverId, status: {SuccessValue: ''}, logs: ['Method seed_legacy_proposal_bond is private']},
+    ],
+  };
+});
+mutate('unequal case removed', (value) => { delete value.unequal; });
+mutate('unequal reported delta changed', (value) => { value.unequal.aliceDelta = '2000000000000000000000000'; });
+
 const labelSwap = JSON.parse(JSON.stringify(correctedReport));
 const forged = '1'.repeat(64);
 labelSwap.candidate.wasmSha256 = forged;

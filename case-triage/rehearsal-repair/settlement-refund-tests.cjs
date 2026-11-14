@@ -221,9 +221,9 @@ async function captureSeedFailure(worker, account, dao, args, label, needle) {
     const value = await withHeight(worker, summarize(await finalStatus(worker, tx, account.accountId)), label);
     const rejected = value.finalExecutionStatus === 'FINAL'
       && JSON.stringify({receipts: value.receipts || [], outcome: value.transactionOutcome || {}}).includes(needle);
-    return {ok: true, executed: true, rejected, needle, value};
+    return {ok: true, executed: true, rejected, needle, signer: account.accountId, value};
   } catch (error) {
-    return {ok: false, executed: false, rejected: false, needle, error: String(error?.message || error)};
+    return {ok: false, executed: false, rejected: false, needle, signer: account.accountId, error: String(error?.message || error)};
   }
 }
 
@@ -515,8 +515,10 @@ async function runUnequalLegacyScenario({worker, wasm, baseWasm}) {
   const upgradeDeploy = await dao.deploy(wasm);
   await finalStatus(worker, upgradeDeploy, dao.accountId);
   await finalStatus(worker, await dao.callRaw(dao, 'migrate', {}, {gas: GAS}), dao.accountId);
-  await finalStatus(worker, await dao.callRaw(dao, 'seed_legacy_proposal_bond', {proposal_id: idA, proposer: alice.accountId, amount: BOND.toString(), funding_tx_hash: addAFinal.transactionHash}, {gas: GAS}), dao.accountId);
-  await finalStatus(worker, await dao.callRaw(dao, 'seed_legacy_proposal_bond', {proposal_id: idB, proposer: bob.accountId, amount: (BOND * 2n).toString(), funding_tx_hash: addBFinal.transactionHash}, {gas: GAS}), dao.accountId);
+  const seedATx = await dao.callRaw(dao, 'seed_legacy_proposal_bond', {proposal_id: idA, proposer: alice.accountId, amount: BOND.toString(), funding_tx_hash: addAFinal.transactionHash}, {gas: GAS});
+  const seedAFinal = await finalStatus(worker, seedATx, dao.accountId);
+  const seedBTx = await dao.callRaw(dao, 'seed_legacy_proposal_bond', {proposal_id: idB, proposer: bob.accountId, amount: (BOND * 2n).toString(), funding_tx_hash: addBFinal.transactionHash}, {gas: GAS});
+  const seedBFinal = await finalStatus(worker, seedBTx, dao.accountId);
   const before = await snapshot(worker, dao, alice.accountId, voter.accountId, idA);
   const beforeBob = await snapshot(worker, dao, bob.accountId, voter.accountId, idB);
   await finalStatus(worker, await voter.callRaw(dao, 'act_proposal', {id: idA, action: 'Finalize', proposal: missingKind}, {gas: GAS}), voter.accountId);
@@ -528,7 +530,7 @@ async function runUnequalLegacyScenario({worker, wasm, baseWasm}) {
   fail(afterBob.proposer === beforeBob.proposer, 'unequal Bob balance changed');
   fail(JSON.stringify(afterBob.proposal) === JSON.stringify(beforeBob.proposal), 'unequal Bob proposal changed');
   fail(BigInt(afterBob.lockedAmount) === BOND * 2n, `unequal Bob debt is ${afterBob.lockedAmount}, expected two bonds`);
-  return {ok: errors.length === 0, errors, ids: {alice: idA, bob: idB}, aliceDelta: delta.toString(), bobLocked: afterBob.lockedAmount, policyBefore: policy0, policyAfter: policy1};
+  return {ok: errors.length === 0, errors, ids: {alice: idA, bob: idB}, aliceDelta: delta.toString(), bobLocked: afterBob.lockedAmount, before, after, bobBefore: beforeBob, bobAfter: afterBob, transactions: {addAlice: addAFinal, addBob: addBFinal, change: await summarize(await finalStatus(worker, changeAdd, voter.accountId)), seedAlice: summarize(seedAFinal), seedBob: summarize(seedBFinal)}, policyBefore: policy0, policyAfter: policy1};
 }
 
 async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
@@ -701,6 +703,24 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
         failure: {locked: bountyFailure.failed?.lockedAmount, delta: bountyFailure.deltas?.retryProposer, finalLocked: bountyFailure.afterRetry?.lockedAmount, retryStatus: bountyFailure.retryStatus},
         success: {delta: bountySuccess.successDelta, locked: bountySuccess.settled?.lockedAmount, receipt: bountySuccess.successEvidence?.receipt?.id || null, finalExecutionStatus: bountySuccess.successEvidence?.finalExecutionStatus},
       }));
+      if (!report.ok) process.exitCode = 1;
+      return;
+    }
+    if (process.env.ONLY_INHERITED === '1') {
+      const inherited = await runScenario({worker, tag: 'inherited', prefix: 'inherited', wasm, baseWasm});
+      const report = {schema: 'near-rehearsal/settlement-refund/v2', generatedAt: new Date().toISOString(), candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length}, baseWasmSha256: sha256(baseWasm), runtime: rt, inherited, errors: inherited.errors.map((error) => `inherited: ${error}`), ok: inherited.ok};
+      fs.mkdirSync(opts.out, {recursive: true});
+      fs.writeFileSync(path.join(opts.out, 'settlement-refund.json'), json(report));
+      console.log(json({ok: report.ok, errors: report.errors}));
+      if (!report.ok) process.exitCode = 1;
+      return;
+    }
+    if (process.env.ONLY_UNEQUAL === '1') {
+      const unequal = await runUnequalLegacyScenario({worker, wasm, baseWasm});
+      const report = {schema: 'near-rehearsal/settlement-refund/v2', generatedAt: new Date().toISOString(), candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length}, baseWasmSha256: sha256(baseWasm), runtime: rt, unequal, errors: unequal.errors.map((error) => `unequal: ${error}`), ok: unequal.ok};
+      fs.mkdirSync(opts.out, {recursive: true});
+      fs.writeFileSync(path.join(opts.out, 'settlement-refund.json'), json(report));
+      console.log(json({ok: report.ok, errors: report.errors, unequal}));
       if (!report.ok) process.exitCode = 1;
       return;
     }
