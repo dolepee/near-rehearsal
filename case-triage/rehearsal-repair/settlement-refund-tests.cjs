@@ -25,6 +25,7 @@ const {Worker, parseNEAR, hashContract} = require('near-workspaces');
 const {reconcilePrincipal} = require('./approved-refund-principal.cjs');
 
 const BOND = BigInt(parseNEAR('1'));
+const TRANSFER = BigInt(parseNEAR('0.1'));
 const GAS = 300_000_000_000_000n;
 const ACTION_GAS = 20_000_000_000_000n;
 const MAX_WAIT_MS = 90_000;
@@ -518,7 +519,7 @@ async function runApprovedActionRefund({worker, wasm}) {
   const initFinal = summarize(await finalStatus(worker, init, root.accountId));
   fail(initFinal.finalExecutionStatus === 'FINAL', 'approved-refund DAO initialisation was not FINAL');
 
-  const kind = {Transfer: {token_id: '', receiver_id: recipient.accountId, amount: parseNEAR('0.1').toString(), msg: null}};
+  const kind = {Transfer: {token_id: '', receiver_id: recipient.accountId, amount: TRANSFER.toString(), msg: null}};
   stage('approved-refund add');
   const add = await proposer.callRaw(dao, 'add_proposal', {proposal: {description: 'approved transfer with deleted proposer', kind}}, {gas: GAS, attachedDeposit: BOND.toString()});
   const addFinal = await withHeight(worker, summarize(await finalStatus(worker, add, proposer.accountId)), 'approved-refund add');
@@ -536,7 +537,7 @@ async function runApprovedActionRefund({worker, wasm}) {
   const afterApproval = await settle(worker, dao, proposer.accountId, voter.accountId);
   const recipientAfterApproval = await viewAmount(worker, recipient.accountId);
   fail(approvedProposal.status === 'Approved', `approved-refund proposal is ${approvedProposal.status}, not Approved`);
-  fail(BigInt(recipientAfterApproval) - BigInt(recipientBeforeApproval) === parseNEAR('0.1'), 'approved action did not pay exactly 0.1 NEAR once');
+  fail(BigInt(recipientAfterApproval) - BigInt(recipientBeforeApproval) === TRANSFER, 'approved action did not pay exactly 0.1 NEAR once');
   fail(afterApproval.lockedAmount === BOND.toString(), `approved-refund locked debt is ${afterApproval.lockedAmount}`);
 
   stage('approved-refund recreate proposer');
@@ -578,7 +579,7 @@ async function runApprovedActionRefund({worker, wasm}) {
     proposer: proposer.accountId,
     recipient: recipient.accountId,
     bond: BOND.toString(),
-    transfer: parseNEAR('0.1').toString(),
+    transfer: TRANSFER.toString(),
     approval,
     retry,
     duplicate,
