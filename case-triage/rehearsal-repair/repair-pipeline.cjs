@@ -220,9 +220,10 @@ function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance
   };
   fs.writeFileSync(path.join(out, 'boundary.json'), JSON.stringify(boundaryRecord, null, 2) + '\n');
   if (!build.ok) {
-    if (build.timedOut) throw new Error(`candidate build timed out; see build.log`);
-    if (build.outputLimit) throw new Error(`candidate build exceeded the bounded output limit; see build.log`);
-    throw new Error(`candidate build failed with exit ${build.status ?? 'unavailable'}; see build.log`);
+    const detail = `${build.stderr || ''}\n${build.stdout || ''}`.trim().split('\n').slice(-40).join('\n').slice(0, 4000);
+    if (build.timedOut) throw new Error(`candidate build timed out; see build.log${detail ? `\n${detail}` : ''}`);
+    if (build.outputLimit) throw new Error(`candidate build exceeded the bounded output limit; see build.log${detail ? `\n${detail}` : ''}`);
+    throw new Error(`candidate build failed with exit ${build.status ?? 'unavailable'}; see build.log${detail ? `\n${detail}` : ''}`);
   }
   const MAX_WASM_BYTES = 16 * 1024 * 1024;
   const artifactReal = fs.realpathSync(prepared.artifact);

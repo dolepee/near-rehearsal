@@ -204,6 +204,7 @@ jobs:
           test -s "$out_dir/recorded-replay/persisted-recovery.json"
           test -s "$out_dir/recorded-replay/persisted-recovery-acceptance.json"
       - name: Upload repair review evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: repair-review-source-build
@@ -212,6 +213,9 @@ jobs:
             ${{ runner.temp }}/repair-review.log
             ${{ runner.temp }}/repair-replay.log
             ${{ runner.temp }}/repair-review/review-result.json
+            ${{ runner.temp }}/repair-review.log
+            ${{ runner.temp }}/repair-review/source-build/build.log
+            ${{ runner.temp }}/repair-review/source-build/boundary.json
             ${{ runner.temp }}/repair-review/source-build/pipeline.json
             ${{ runner.temp }}/repair-review/source-build/candidate-identity.json
             ${{ runner.temp }}/repair-review/source-build/persisted/persisted-recovery.json
@@ -219,7 +223,7 @@ jobs:
             ${{ runner.temp }}/repair-replay/review-result.json
             ${{ runner.temp }}/repair-replay/recorded-replay/persisted-recovery.json
             ${{ runner.temp }}/repair-replay/recorded-replay/persisted-recovery-acceptance.json
-          if-no-files-found: error
+          if-no-files-found: warn
 
   persisted-recovery:
     name: Persisted bond recovery (Sandbox 2.14.0)
@@ -382,11 +386,13 @@ jobs:
           if(r.mixed.comparison.differences.length) throw new Error('producer/reviewer outcomes differ');
           NODE
       - name: Upload primary gate evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: primary-gate
           path: |
             ${{ runner.temp }}/primary-good/review-status.json
+            ${{ runner.temp }}/primary-good/source-build/build.log
             ${{ runner.temp }}/primary-good/review-report.md
             ${{ runner.temp }}/primary-good/evidence/mixed-obligation.json
             ${{ runner.temp }}/primary-good/evidence/settlement-refund.json
