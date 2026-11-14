@@ -876,8 +876,13 @@ function verifySettlementReport(report, opts = {}) {
     approvedFail(approved.candidateWasmSha256 === candidateWasmSha256, 'evidence is for a different candidate', 'verified');
     approvedFail(typeof approved.proposer === 'string' && approved.proposer.length > 0, 'proposer identity is missing');
     approvedFail(typeof approved.recipient === 'string' && approved.recipient.length > 0, 'recipient identity is missing');
-    const deployed = deploymentCommitment(approved.deploy, 'approved-action deployment', (message) => approvedFail(false, message), approved.dao || null);
+    const approvedDaoValid = typeof approved.dao === 'string' && approved.dao.length > 0;
+    approvedFail(approvedDaoValid, 'DAO identity is missing');
+    const deployed = deploymentCommitment(approved.deploy, 'approved-action deployment', (message) => approvedFail(false, message), approvedDaoValid ? approved.dao : null);
     if (deployed !== null) approvedFail(deployed === approved.candidateWasmSha256, 'approved-action deployment is not bound to the candidate WASM', 'verified');
+    const observedCodeValid = typeof approved.observedCodeHash === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,64}$/.test(approved.observedCodeHash);
+    approvedFail(observedCodeValid, 'observed DAO code hash is missing or malformed');
+    if (deployed !== null && observedCodeValid) approvedFail(approved.observedCodeHash === approved.deploy.codeHash, 'observed DAO code differs from the deployment commitment', 'verified');
     const approval = approved.approval;
     const retry = approved.retry;
     const duplicate = approved.duplicate;
@@ -897,6 +902,7 @@ function verifySettlementReport(report, opts = {}) {
       approvedFail(false, 'complete approval/retry/duplicate transactions and snapshots are required');
     } else {
       const dao = approval.transaction.receiverId;
+      if (approvedDaoValid) approvedFail(approved.dao === dao, 'approval did not target the deployed approved-action DAO', 'verified');
       approvedFail(retry.transaction.receiverId === dao, 'retry did not target the same DAO');
       approvedFail(duplicate.transaction.receiverId === dao, 'duplicate did not target the same DAO');
       approvedFail(approval.transaction.receiverId === dao, 'approval did not target the retry DAO');
@@ -939,9 +945,9 @@ function verifySettlementReport(report, opts = {}) {
       if (recipientBefore !== null && recipientAfterApproval !== null) {
         approvedFail(recipientAfterApproval - recipientBefore === transfer, 'approved action did not pay the recipient exactly once', 'verified');
       }
-      approvedFail(recipientBeforeRetry === recipientAfterApproval, 'recipient changed between approval and retry start', 'verified');
-      approvedFail(recipientAfter === recipientBeforeRetry, 'retry paid the recipient again', 'verified');
-      approvedFail(recipientDuplicate === recipientAfter, 'duplicate paid the recipient again', 'verified');
+      if (recipientBeforeRetry !== null && recipientAfterApproval !== null) approvedFail(recipientBeforeRetry === recipientAfterApproval, 'recipient changed between approval and retry start', 'verified');
+      if (recipientAfter !== null && recipientBeforeRetry !== null) approvedFail(recipientAfter === recipientBeforeRetry, 'retry paid the recipient again', 'verified');
+      if (recipientDuplicate !== null && recipientAfter !== null) approvedFail(recipientDuplicate === recipientAfter, 'duplicate paid the recipient again', 'verified');
       const gasOf = (summary) => {
         const tx = approvedAmount(summary?.transactionOutcome?.tokensBurntYocto);
         if (tx === null || !Array.isArray(summary?.receipts)) return null;

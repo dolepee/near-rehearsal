@@ -514,6 +514,7 @@ async function runApprovedActionRefund({worker, wasm}) {
   const deployFinal = summarize(await finalStatus(worker, deploy, root.accountId));
   deployFinal.wasmSha256 = sha256(wasm);
   deployFinal.codeHash = hashContract(wasm);
+  const observedCodeHash = (await worker.provider.viewAccount(dao.accountId, {finality: 'final'})).code_hash;
   const init = await root.callRaw(dao, 'new', {
     config: {name: 'approved refund settlement', purpose: 'bounded approved-action refund', metadata: ''},
     policy: [voter.accountId, voter2.accountId],
@@ -582,6 +583,8 @@ async function runApprovedActionRefund({worker, wasm}) {
     schema: 'near-rehearsal/approved-action-refund/v2',
     generatedAt: new Date().toISOString(),
     candidateWasmSha256: sha256(wasm),
+    dao: dao.accountId,
+    observedCodeHash,
     proposalId: id,
     proposer: proposer.accountId,
     recipient: recipient.accountId,
@@ -596,7 +599,7 @@ async function runApprovedActionRefund({worker, wasm}) {
     before: {recipient: recipientBeforeApproval, lockedAmount: afterApproval.lockedAmount},
     afterApproval: {recipient: recipientAfterApproval, lockedAmount: afterApproval.lockedAmount},
     beforeRetry: {proposer: beforeRetry.proposer, lockedAmount: beforeRetry.lockedAmount, recipient: recipientAfterApproval},
-    afterRetry: {proposer: afterRetry.proposer, lockedAmount: afterRetry.lockedAmount, recipient: recipientAfterRetry},
+    afterRetry: {blockHeight: afterRetry.blockHeight, proposer: afterRetry.proposer, lockedAmount: afterRetry.lockedAmount, recipient: recipientAfterRetry},
     afterDuplicate: {proposer: afterDuplicate.proposer, lockedAmount: afterDuplicate.lockedAmount, recipient: recipientAfterRetry},
     errors,
     ok: errors.length === 0,
