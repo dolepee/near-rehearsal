@@ -343,6 +343,39 @@ function recordedHeight(value) {
 }
 
 
+function verifyLegacySeed(scenario, dao, fail) {
+  const seed = scenario.transactions?.seed;
+  const legacy = scenario.legacy;
+  if (!legacy?.seed && !seed) return true;
+  if (!seed) { fail(false, 'legacy principal seed transaction is missing'); return false; }
+  let valid = true;
+  const check = (condition, message) => { if (!condition) { valid = false; fail(false, message); } };
+  check(seed.finalExecutionStatus === 'FINAL', 'legacy principal seed was not FINAL');
+  check(seed.transaction?.receiverId === dao && seed.transaction?.signerId === dao, 'legacy principal seed was not a DAO-private call');
+  const decoded = decodeCall(seed, 'legacy principal seed', (message) => { valid = false; fail(false, message); });
+  check(decoded.call.method_name === 'seed_legacy_proposal_bond', 'legacy principal seed has the wrong method');
+  check(String(decoded.args?.proposal_id) === String(scenario.proposalId), 'legacy principal seed targets a different proposal');
+  check(decoded.args?.proposer === scenario.transactions?.add?.transaction?.signerId, 'legacy principal seed proposer does not match the funding proposal');
+  const addCall = (scenario.transactions?.add?.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall;
+  const deposit = addCall?.deposit;
+  check(deposit && String(decoded.args?.amount) === String(deposit), 'legacy principal seed amount is not the measured add_proposal deposit');
+  check(decoded.args?.funding_tx_hash === scenario.transactions?.add?.transactionHash, 'legacy principal seed funding hash is not the add_proposal transaction');
+  check(legacy?.seedArgs && JSON.stringify(legacy.seedArgs) === JSON.stringify(decoded.args), 'declared legacy seed input does not match the executed seed');
+  check(String(legacy?.afterMissingSeed?.lockedAmount) === String(deposit), 'unseeded legacy finalize did not preserve the original debt');
+  check(legacy?.afterMissingSeed?.proposer === null || BigInt(legacy.afterMissingSeed.proposer) === 0n, 'unseeded legacy finalize paid the proposer');
+  for (const [label, probe, needle] of [
+    ['unauthorized seed', legacy?.unauthorizedSeed, 'Method seed_legacy_proposal_bond is private'],
+    ['duplicate seed', legacy?.duplicateSeed, 'ERR_LEGACY_BOND_ALREADY_RECORDED'],
+  ]) {
+    check(probe?.executed === true && probe?.rejected === true, `${label} did not produce the expected FINAL rejection`);
+    check(probe?.value?.finalExecutionStatus === 'FINAL' && probe?.value?.receiptFailure === true, `${label} was not a FINAL failed execution`);
+    check(JSON.stringify(probe?.value?.receipts || []).includes(needle), `${label} did not expose its expected error`);
+  }
+  check(String(legacy?.beforeSeedProbe?.lockedAmount) === String(deposit) && String(legacy?.afterSeedProbe?.lockedAmount) === String(deposit), 'seed probes changed the locked debt');
+  check(legacy?.beforeSeedProbe?.proposer === legacy?.afterSeedProbe?.proposer, 'seed probes changed the proposer principal');
+  return valid;
+}
+
 function verifyScenario(scenario, mode, context) {
   const {fail, text, candidateWasmSha256, baseWasmSha256, report} = context;
   if (!scenario) { fail(`${mode} settlement scenario is missing`); return null; }
@@ -394,6 +427,7 @@ function verifyScenario(scenario, mode, context) {
     if (scenario.deploy?.wasmSha256 !== baseWasmSha256) installCheck(false, 'inherited scenario did not deploy the pinned base WASM');
     if (!verifyMigrate(scenario, scenario.deploy?.transaction?.receiverId, installCheck)) candidateExecutionValid = false;
     legacyFinalizeValid = verifyLegacyFinalize(scenario, scenario.deploy?.transaction?.receiverId, failFor);
+    if (!verifyLegacySeed(scenario, scenario.deploy?.transaction?.receiverId, failFor)) candidateExecutionValid = false;
     const addHeight = recordedHeight(scenario.transactions?.add?.blockHeight);
     const vote2Height = recordedHeight(scenario.transactions?.vote2?.blockHeight);
     const failedLog = scenario.transactions?.failedProposal?.last_actions_log;
