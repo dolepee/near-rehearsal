@@ -52,6 +52,25 @@ assert.ok(missingRun.unavailable);
 const missingStage = settlementAcceptanceStage(missingRun.checked, missingRun.unavailable);
 assert.equal(missingStage.evidenceValid, false);
 assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: missingStage}).status, 'INCONCLUSIVE', 'a nonzero child without a report is missing evidence');
+const truncatedReport = path.join(os.tmpdir(), `truncated-settlement-${process.pid}.json`);
+fs.writeFileSync(truncatedReport, '{"schema": ');
+const truncatedRun = interpretSettlementRun({status: 1, stdout: '', stderr: 'capture interrupted during report write'}, truncatedReport, () => ({ok: true}));
+assert.equal(truncatedRun.checked, null);
+assert.ok(truncatedRun.unavailable);
+assert.match(truncatedRun.unavailable.message, /unreadable or incomplete/);
+const truncatedStage = settlementAcceptanceStage(truncatedRun.checked, truncatedRun.unavailable);
+assert.equal(truncatedStage.evidenceValid, false);
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: truncatedStage}).status, 'INCONCLUSIVE');
+fs.rmSync(truncatedReport, {force: true});
+
+const verifierThrowReport = path.join(os.tmpdir(), `verifier-throw-${process.pid}.json`);
+fs.writeFileSync(verifierThrowReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v2', broken: true}));
+const verifierThrowRun = interpretSettlementRun({status: 1, stdout: '', stderr: ''}, verifierThrowReport, () => { throw new Error('malformed report data'); });
+assert.ok(verifierThrowRun.unavailable);
+assert.match(verifierThrowRun.unavailable.message, /could not be verified/);
+assert.equal(settlementAcceptanceStage(verifierThrowRun.checked, verifierThrowRun.unavailable).evidenceValid, false);
+fs.rmSync(verifierThrowReport, {force: true});
+
 const semanticReport = path.join(os.tmpdir(), `semantic-settlement-${process.pid}.json`);
 fs.writeFileSync(semanticReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v2'}));
 const semanticRun = interpretSettlementRun({status: 1, stdout: '', stderr: 'child exited 1'}, semanticReport, () => ({ok: false, unproven: false, errors: ['verified financial failure']}));
@@ -158,7 +177,7 @@ try {
 console.log(JSON.stringify({
   schema: 'near-rehearsal/repair-review-guards/v1',
   ok: true,
-  checks: 34,
+  checks: 36,
   fixture: path.relative(path.join(__dirname, '..'), fixture),
   fixtureSha256: crypto.createHash('sha256').update(fs.readFileSync(fixture)).digest('hex'),
 }, null, 2));

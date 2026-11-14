@@ -468,12 +468,28 @@ const runMixedGate = (candidateWasm, outDir, sandboxDir) => {
 // policy; only an infrastructure/capture failure exits without one. That case is
 // missing evidence for the shared classifier (INCONCLUSIVE), never a rejection.
 const interpretSettlementRun = (result, reportPath, verify) => {
-  if (reportPath && fs.existsSync(reportPath)) {
-    const report = readJson(reportPath, 'failed-refund settlement report');
-    return {report, checked: verify(report), unavailable: null};
-  }
   const detail = [result?.stdout, result?.stderr].filter(Boolean).join('\n').trim();
   const exit = result?.status === null || result?.status === undefined ? 'not started' : `exit ${result.status}`;
+  if (reportPath && fs.existsSync(reportPath)) {
+    try {
+      const report = readJson(reportPath, 'failed-refund settlement report');
+      let checked;
+      try {
+        checked = verify(report);
+      } catch (error) {
+        return {report: null, checked: null, unavailable: {
+          exitCode: result?.status ?? null,
+          message: `failed-refund settlement report could not be verified (${exit}): ${error.message}${detail ? `: ${detail.slice(-2000)}` : ''}`,
+        }};
+      }
+      return {report, checked, unavailable: null};
+    } catch (error) {
+      return {report: null, checked: null, unavailable: {
+        exitCode: result?.status ?? null,
+        message: `failed-refund settlement report is unreadable or incomplete (${exit}): ${error.message}${detail ? `: ${detail.slice(-2000)}` : ''}`,
+      }};
+    }
+  }
   const message = `failed-refund settlement gate produced no evidence (${exit})${detail ? `: ${detail.slice(-2000)}` : ''}`;
   return {report: null, checked: null, unavailable: {exitCode: result?.status ?? null, message}};
 };
