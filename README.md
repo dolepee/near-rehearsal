@@ -20,7 +20,9 @@ The reviewer quickstart is for a supplied candidate and never calls a model. Fre
 
 ## Start with your source patch
 
-Use **`/repair?mode=patch`** to check a maintainer diff. This is the primary workflow and needs no model account, wallet or API key:
+Use **`/repair?mode=patch`** to check a maintainer diff. This is the primary workflow and needs no model account, wallet or API key. Source builds require a supported Linux x86_64 host with PID-namespace confinement. Native macOS supports recorded WASM replay, not source compilation.
+
+**Pending compiler release #26:** the protected source-build instructions below are not available at the pre-merge baseline. Do not compile untrusted patches on that baseline. This documentation change remains held until the implementation and its final review land.
 
 1. Complete the [runtime and source setup](docs/local-repair-setup.md#sandbox-runtimes), including the [compiler boundary and dependency cache](docs/local-repair-setup.md#compiler-boundary-and-dependency-cache).
 2. In that same terminal, run `npm run doctor -- --flow repair --mode patch`, then `PORT=4174 npm run ui:patch`.
@@ -41,7 +43,7 @@ This is the shortest path for someone who has an accepted repair bundle, or who 
 - `npm run setup` in this repository.
 - A NEAR Sandbox **2.14.0** binary directory. The supported archives are **Linux x86_64** and **native macOS arm64**. The directory contains `near-sandbox`; pass the directory, not the executable.
 - **Recorded WASM replay:** no Rust build and no pinned source checkout.
-- **Source build:** additionally a clean checkout of `near-daos/sputnik-dao-contract` at `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`, Rust **1.86.0**, the `wasm32-unknown-unknown` target, and the [enforced compiler boundary and fetched dependency cache](docs/local-repair-setup.md#compiler-boundary-and-dependency-cache).
+- **Source build:** additionally a clean checkout of `near-daos/sputnik-dao-contract` at `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`, Rust **1.86.0**, the `wasm32-unknown-unknown` target, and a supported Linux x86_64 host, and the [enforced compiler boundary and fetched dependency cache](docs/local-repair-setup.md#compiler-boundary-and-dependency-cache).
 
 The checksum-verified runtime download and source/compiler commands are in [local repair setup](docs/local-repair-setup.md#sandbox-runtimes). Do not substitute a newer or older Sandbox release; the acceptance path checks the release, commit and protocol.
 
@@ -113,7 +115,7 @@ For source-build, complete the optional pinned-source and compiler steps above
 before starting the server. If it is already running, stop it and run the same
 start command again after exporting `REPAIR_SOURCE_DIR`.
 
-The page then offers **Source build** and **Recorded WASM replay**. Source-build is the default when its prerequisites are present. Both modes verify the bundle hashes and candidate identities before reserving an output directory. Neither calls a model.
+On a supported Linux source-build host the page offers **Source build** and **Recorded WASM replay**. On native macOS, source build is unavailable; use recorded replay. Source-build is the default when its prerequisites are present. Both modes verify the bundle hashes and candidate identities before reserving an output directory. Neither calls a model.
 
 The checked-in example is a **recorded model candidate**, not a new model run and not an authored control. The page still performs a fresh local Sandbox execution. A successful result is a review of the supplied candidate and its declared case; it is not a claim that the model generated anything during the review.
 

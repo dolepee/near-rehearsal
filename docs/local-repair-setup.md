@@ -53,6 +53,8 @@ When serving both routes in one process, leave `NEAR_SANDBOX_BIN_PATH` and `NEAR
 
 ## Source and compiler
 
+Source compilation requires supported Linux x86_64 with an enforced PID-namespace launcher. Native macOS can run the pinned Sandbox for recorded WASM replay, but cannot run this release’s source-build route. See the [reviewer path](repair-review-handoff.md#browser-reviewer) for recorded replay before installing Rust unnecessarily.
+
 ```sh
 mkdir -p .local
 git clone https://github.com/near-daos/sputnik-dao-contract.git .local/sputnik-source
@@ -68,8 +70,11 @@ Use the official Rust/rustup installation if `rustup` is not present. The contro
 
 Both maintainer patch checking and reviewer **source-build** execute a supplied Rust patch. They require an OS-enforced compiler boundary, even when no model is used:
 
-- Native macOS arm64 uses an installed official Codex CLI with permission-profile support. The compiler uses its local sandbox command, without a model call or model login. The live probe must pass; finding an executable alone is insufficient.
-- Linux x86_64 uses installed `bubblewrap` with working unprivileged namespaces. The source-build CI reference is Ubuntu 22.04. A container or distribution that denies those namespaces is unsupported for source builds unless an enforced supported launcher is available. Do not change a global AppArmor setting or disable another host protection.
+**Pending #26:** the following compiler protections are not present at the pre-merge baseline. Do not treat this section as evidence that that baseline confines source builds. Merge is held until the implementation and its final review are complete.
+
+Linux x86_64 uses installed `bubblewrap` with working unprivileged namespaces and PID-namespace teardown. The pinned Sandbox must also execute on the host; the official 2.14.0 Linux archive requires a compatible glibc (Ubuntu 22.04's stock runtime is too old). A container or distribution that denies the required namespaces is unavailable for source builds. Follow the distribution's supported application-specific launcher policy; do not disable a global AppArmor restriction or another host protection.
+
+Native macOS source compilation is explicitly unavailable because the current adapter cannot guarantee descendant teardown. A successful earlier filesystem/network probe does not establish that lifecycle guarantee. Recorded WASM replay does not compile source and remains a separate supported route.
 
 The compiler receives the applied source, selected toolchain, SDK and dependency caches as read-only inputs, a minimal environment, a disposable writable job directory and no network. Fetch the locked upstream dependencies **before** the offline build:
 

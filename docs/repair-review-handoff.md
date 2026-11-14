@@ -7,7 +7,7 @@ before a file is written or a command is executed.
 
 ## Prerequisites
 
-For `source-build` (the default):
+For `source-build` (the default on a fully configured supported Linux host):
 
 - Node.js and `npm run setup` in this repository. The setup command performs
   the supported clean install with install hooks ignored and applies the
@@ -15,7 +15,7 @@ For `source-build` (the default):
 - Git checkout of `near-daos/sputnik-dao-contract` at
   `5434a59dec23ee0c49df8c8c4350c208a7e75b0b`.
 - Rust `1.86.0` with the `wasm32-unknown-unknown` target.
-- An enforced supported compiler launcher and the prefetched locked Cargo cache,
+- A supported Linux x86_64 host, enforced PID-namespace compiler launcher and prefetched locked Cargo cache,
   following [compiler setup](local-repair-setup.md#compiler-boundary-and-dependency-cache).
   Run `npm run doctor -- --flow repair --mode patch` before source review.
   A failed boundary probe blocks compilation; it never falls back to host execution.
@@ -38,7 +38,7 @@ REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14 \
 PORT=4174 npm run ui:review
 ```
 
-For recorded-only review, omit the source checkout:
+For recorded-only review, including native macOS, omit the source checkout:
 
 ```sh
 REPAIR_SANDBOX_DIR=/path/to/near-sandbox-2.14 PORT=4174 npm run ui:review
