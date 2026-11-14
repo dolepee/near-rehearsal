@@ -36,3 +36,4 @@ policy; it does not execute a public chain transaction.
 - `mixed-obligation-old.json`: baseline recording.
 - `issue238-local.json`: controller-owned fixture used for expected bond/transfer amounts.
 - `manifest.json`: candidate source/build identity.
+- `LICENSE`, `THIRD_PARTY_NOTICES.md` and `LICENSES/sputnik-dao-contract-MIT.txt`: project license and upstream attribution for this detached packet.

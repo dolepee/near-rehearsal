@@ -32,7 +32,7 @@ fs.mkdirSync(sandboxDir, {recursive: true});
 fs.writeFileSync(path.join(sandboxDir, 'near-sandbox'), '');
 
 const spawnCalls = [];
-function fakeSpawn({payload = null, code = 0, error = null, hold = false} = {}) {
+function fakeSpawn({payload = null, code = 0, error = null, hold = false, freshEvidence = 'valid'} = {}) {
   return (command, args, options) => {
     spawnCalls.push({command, args, options});
     const child = new EventEmitter();
@@ -52,6 +52,16 @@ function fakeSpawn({payload = null, code = 0, error = null, hold = false} = {}) 
       if (payload) {
         fs.mkdirSync(out, {recursive: true});
         fs.writeFileSync(path.join(out, 'review-result.json'), `${JSON.stringify(payload, null, 2)}\n`);
+        if (freshEvidence !== 'missing') {
+          for (const [folder, name, schema] of [
+            ['mixed', 'mixed-obligation.json', 'near-rehearsal/mixed-obligation/v1'],
+            ['settlement', 'settlement-refund.json', 'near-rehearsal/settlement-refund/v2'],
+          ]) {
+            fs.mkdirSync(path.join(out, folder), {recursive: true});
+            const evidence = {schema, candidate: {wasmSha256: freshEvidence === 'wrong-candidate' ? '0'.repeat(64) : payload.run?.wasmSha256}, reviewerOnlyReceipt: 'fresh-reviewer-only-receipt', runtime: {binary: '/tmp/private/reviewer-runtime'}};
+            fs.writeFileSync(path.join(out, folder, name), freshEvidence === 'malformed' ? '{broken' : `${JSON.stringify(evidence, null, 2)}\n`);
+          }
+        }
       }
       child.emit('close', code, null);
     }, 5);
@@ -131,12 +141,42 @@ async function runAccepted() {
   assert.ok(manager.input(started.id));
   assert.ok(manager.evidence(started.id));
   assert.doesNotMatch(fs.readFileSync(manager.evidence(started.id), 'utf8'), /\/Users\/|\/tmp\/|\/opt\//);
+  const exported = JSON.parse(fs.readFileSync(manager.evidence(started.id), 'utf8'));
+  assert.equal(exported.schema, 'near-rehearsal/review-browser-evidence/v2');
+  for (const [key, folder, name] of [['mixed', 'mixed', 'mixed-obligation.json'], ['settlement', 'settlement', 'settlement-refund.json']]) {
+    assert.equal(exported[key].report.reviewerOnlyReceipt, 'fresh-reviewer-only-receipt');
+    assert.equal(exported[key].report.candidate.wasmSha256, run.result.run.wasmSha256);
+    const digest = (value) => crypto.createHash('sha256').update(value).digest('hex');
+    assert.equal(exported[key].rawReportSha256, digest(fs.readFileSync(path.join(run.outDir, folder, name))));
+    assert.equal(exported[key].exportedReportSha256, digest(`${JSON.stringify(exported[key].report, null, 2)}\n`));
+    assert.notEqual(exported[key].rawReportSha256, exported[key].exportedReportSha256, 'raw and sanitized report hashes are distinct');
+  }
+  assert.equal(exported.mixed.policy.sha256, run.result.mixed.policy.sha256);
+  assert.doesNotMatch(fs.readFileSync(inputFile, 'utf8'), /fresh-reviewer-only-receipt/, 'the reports belong to the reviewer, not the original producer bundle');
   assert.equal(manager.list()[0].accepted, true);
 
+  const finishedAt = run.finishedAt;
+  fs.writeFileSync(manager.evidence(started.id), JSON.stringify({schema: 'near-rehearsal/review-browser-evidence/v1'}));
   const recovered = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: sandboxDir}});
   recovered.recover();
   assert.equal(recovered.get(started.id).status, 'accepted');
+  assert.equal(recovered.get(started.id).finishedAt, finishedAt, 'export recovery does not relabel the execution time');
+  assert.equal(JSON.parse(fs.readFileSync(recovered.evidence(started.id), 'utf8')).mixed.report.reviewerOnlyReceipt, 'fresh-reviewer-only-receipt', 'older exports are repaired from retained fresh reports without replay');
   assert.equal(recovered.list().length, 1);
+}
+
+async function runMissingFreshEvidence() {
+  for (const freshEvidence of ['missing', 'wrong-candidate', 'malformed']) {
+    const manager = createManager({runsRoot: path.join(tmp, `fresh-${freshEvidence}`), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({payload: acceptedResult, freshEvidence})});
+    const started = manager.start(example.bundle, 'recorded-wasm');
+    const run = manager.get(started.id);
+    await run.done;
+    assert.equal(run.status, 'inconclusive', freshEvidence);
+    assert.equal(run.result, null);
+    assert.match(run.error, /handoff is incomplete/);
+    assert.equal(manager.publicRun(run).downloadUrl, null);
+    assert.equal(manager.publicRun(run).evidenceUrl, null);
+  }
 }
 
 async function runRejected() {
@@ -198,10 +238,12 @@ function runRestartRecovery() {
     mode: 'recorded-wasm',
     logs: [],
   }));
+  fs.writeFileSync(path.join(dir, 'result.json'), JSON.stringify({result: {summary: {checks: {accepted: true}}}}));
   const manager = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: sandboxDir}});
   manager.recover();
   const recovered = manager.get('run-restart');
   assert.equal(recovered.status, 'interrupted', 'a restart marks an in-flight run interrupted');
+  assert.equal(recovered.result, null, 'a stale accepted wrapper cannot label an interrupted run');
   assert.match(recovered.error, /restarted before this review completed/, 'the restart reason is explicit');
   assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'run.json'), 'utf8')).status, 'interrupted',
     'the interrupted state is persisted for the next restart');
@@ -224,6 +266,7 @@ function runHistoricalMissingEvidence() {
     result: {summary: {checks: {accepted: true}}},
     logs: [],
   }));
+  fs.writeFileSync(path.join(dir, 'result.json'), JSON.stringify({result: {summary: {checks: {accepted: true}}}}));
   const manager = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: sandboxDir}});
   manager.recover();
   const run = manager.get('run-accepted-without-artifacts');
@@ -236,6 +279,9 @@ function runHistoricalMissingEvidence() {
   assert.equal(manager.download(run.id), null);
   assert.equal(manager.evidence(run.id), null);
   assert.equal(manager.list()[0].accepted, false);
+  const again = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: sandboxDir}});
+  again.recover();
+  assert.equal(again.get('run-accepted-without-artifacts').result, null, 'a stale accepted wrapper cannot reappear after another restart');
   console.log('review-history: accepted metadata without supporting artifacts becomes unavailable');
 }
 
@@ -254,6 +300,7 @@ function validation() {
   try {
     validation();
     await runAccepted();
+    await runMissingFreshEvidence();
     await runRejected();
   await runInconclusive();
     await runActive();

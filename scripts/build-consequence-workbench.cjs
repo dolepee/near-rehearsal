@@ -221,6 +221,10 @@ function build238() {
   const baseReport = path.join(REPAIR, 'out', 'issue238-local.json');
   copiedReports.base = copyFile(baseReport, path.join(destination, 'issue238-local.json'));
   copyFile(manifestPath, path.join(destination, 'manifest.json'));
+  for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md']) {
+    copyFile(path.join(ROOT, name), path.join(destination, name));
+  }
+  copyFile(path.join(ROOT, 'LICENSES', 'sputnik-dao-contract-MIT.txt'), path.join(destination, 'LICENSES', 'sputnik-dao-contract-MIT.txt'));
 
   const clearReport = readJson(reportFiles.clearAll);
   const intendedReport = readJson(reportFiles.intended);
@@ -276,6 +280,7 @@ policy; it does not execute a public chain transaction.
 - \`mixed-obligation-old.json\`: baseline recording.
 - \`issue238-local.json\`: controller-owned fixture used for expected bond/transfer amounts.
 - \`manifest.json\`: candidate source/build identity.
+- \`LICENSE\`, \`THIRD_PARTY_NOTICES.md\` and \`LICENSES/sputnik-dao-contract-MIT.txt\`: project license and upstream attribution for this detached packet.
 `);
 
   const stable = new Date('2020-01-01T00:00:00.000Z');

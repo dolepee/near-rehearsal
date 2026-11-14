@@ -190,12 +190,30 @@ function sanitizeEvidence(value) {
   return typeof value === 'string' ? redactPathString(value) : value;
 }
 
+function portableReport(file, expectedWasm, schema) {
+  const report = readJson(file);
+  if (!report || report.schema !== schema || report.candidate?.wasmSha256 !== expectedWasm) {
+    throw new Error('Fresh reviewer evidence is missing, unreadable or bound to another candidate.');
+  }
+  const exported = sanitizeEvidence(report);
+  return {
+    report: exported,
+    rawReportSha256: sha256(fs.readFileSync(file)),
+    exportedReportSha256: sha256(Buffer.from(json(exported))),
+    hashFormat: 'UTF-8 JSON.stringify(report, null, 2) followed by a newline. The exported hash covers the sanitized report; the raw hash covers the original file.',
+  };
+}
+
 function buildEvidence(run) {
   const recorded = run.mode !== 'source-build';
   const evidenceDir = recorded ? path.join(run.outDir, 'recorded-replay') : path.join(run.outDir, 'source-build');
   const persistedDir = recorded ? evidenceDir : path.join(evidenceDir, 'persisted');
+  const wasm = run.result?.run?.wasmSha256;
+  if (!/^[a-f0-9]{64}$/.test(wasm || '')) throw new Error('Fresh reviewer candidate identity is unavailable.');
+  const policy = run.result?.mixed?.policy;
+  if (!/^[a-f0-9]{64}$/.test(policy?.sha256 || '')) throw new Error('Fresh reviewer policy identity is unavailable.');
   return sanitizeEvidence({
-    schema: 'near-rehearsal/review-browser-evidence/v1',
+    schema: 'near-rehearsal/review-browser-evidence/v2',
     createdAt: run.finishedAt || nowIso(),
     mode: run.mode,
     bundle: run.bundle,
@@ -204,7 +222,36 @@ function buildEvidence(run) {
     identity: recorded ? null : readJson(path.join(evidenceDir, 'candidate-identity.json')),
     recovery: readJson(path.join(persistedDir, 'persisted-recovery.json')),
     acceptance: readJson(path.join(persistedDir, 'persisted-recovery-acceptance.json')),
+    mixed: {
+      ...portableReport(path.join(run.outDir, 'mixed', 'mixed-obligation.json'), wasm, 'near-rehearsal/mixed-obligation/v1'),
+      policy,
+    },
+    settlement: portableReport(path.join(run.outDir, 'settlement', 'settlement-refund.json'), wasm, 'near-rehearsal/settlement-refund/v2'),
   });
+}
+
+function completeStoredEvidence(run, dir) {
+  if (!['result.json', 'download.json', 'evidence.json'].every((name) => fs.existsSync(path.join(dir, name)))) return false;
+  const stored = readJson(path.join(dir, 'evidence.json'));
+  const wasm = run.result?.run?.wasmSha256;
+  const matches = stored?.schema === 'near-rehearsal/review-browser-evidence/v2'
+    && /^[a-f0-9]{64}$/.test(stored.mixed?.policy?.sha256 || '')
+    && stored.mixed?.policy?.sha256 === run.result?.mixed?.policy?.sha256
+    && /^[a-f0-9]{64}$/.test(wasm || '')
+    && [[stored.mixed, 'near-rehearsal/mixed-obligation/v1'], [stored.settlement, 'near-rehearsal/settlement-refund/v2']].every(([entry, schema]) => entry?.report?.schema === schema
+      && entry.report.candidate?.wasmSha256 === wasm
+      && /^[a-f0-9]{64}$/.test(entry.rawReportSha256 || '')
+      && entry.exportedReportSha256 === sha256(Buffer.from(json(entry.report))));
+  if (matches) return true;
+  // Upgrade an older incomplete export only from retained reviewer-owned raw
+  // reports. This never replays, changes the result or relabels its provenance.
+  try {
+    const evidence = buildEvidence(run);
+    const temporary = path.join(dir, 'evidence.next.json');
+    fs.writeFileSync(temporary, json(evidence));
+    fs.renameSync(temporary, path.join(dir, 'evidence.json'));
+    return true;
+  } catch { return false; }
 }
 
 function publicMixed(mixed) {
@@ -370,8 +417,19 @@ function createManager(options = {}) {
         run.status = 'accepted';
         run.phase = 'accepted';
         run.result = publicResult(result, {bundle: run.bundle, bundleSha256: run.bundleSha256, finishedAt: run.finishedAt});
-        fs.writeFileSync(path.join(runDir(run.id), 'download.json'), json(run.result));
-        fs.writeFileSync(path.join(runDir(run.id), 'evidence.json'), json(buildEvidence(run)));
+        try {
+          const evidence = buildEvidence(run);
+          fs.writeFileSync(path.join(runDir(run.id), 'download.json'), json(run.result));
+          fs.writeFileSync(path.join(runDir(run.id), 'evidence.json'), json(evidence));
+        } catch (error) {
+          run.status = 'inconclusive';
+          run.phase = 'inconclusive';
+          run.result = null;
+          run.error = cleanError(`The reviewer handoff is incomplete; it is not accepted. ${error.message}`);
+          for (const name of ['download.json', 'evidence.json']) {
+            try { fs.rmSync(path.join(runDir(run.id), name), {force: true}); } catch {}
+          }
+        }
       } else {
         run.status = 'rejected';
         run.phase = 'rejected';
@@ -535,19 +593,22 @@ function createManager(options = {}) {
         result: meta.result || null,
         outDir: path.join(dir, 'review'),
       };
+      if (meta.status === 'accepted' && !run.result && result?.result) run.result = result.result;
       if (meta.status === 'running') {
         run.status = 'interrupted';
         run.phase = 'interrupted';
+        run.result = null;
         run.error = 'Server restarted before this review completed; it is not accepted.';
         run.finishedAt = nowIso();
         fs.writeFileSync(path.join(dir, 'run.json'), json({
           ...meta,
           status: run.status,
           phase: run.phase,
+          result: null,
           error: run.error,
           finishedAt: run.finishedAt,
         }));
-      } else if (meta.status === 'accepted' && !['result.json', 'download.json', 'evidence.json'].every((name) => fs.existsSync(path.join(dir, name)))) {
+      } else if (meta.status === 'accepted' && !completeStoredEvidence(run, dir)) {
         // A historical pointer is not a complete accepted packet. Preserve the
         // fact that it previously passed, but never advertise live artifacts.
         run.status = 'unavailable';
@@ -560,11 +621,11 @@ function createManager(options = {}) {
           ...meta,
           status: run.status,
           phase: run.phase,
+          result: null,
+          historicalStatus: 'accepted',
           error: run.error,
           finishedAt: run.finishedAt,
         }));
-      } else if (!run.result && result?.result) {
-        run.result = result.result;
       }
       runs.set(id, run);
     }
