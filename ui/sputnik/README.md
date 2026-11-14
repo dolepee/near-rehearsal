@@ -155,9 +155,11 @@ and incomplete runs show the failed or unavailable checks without inventing a
 success. Accepted `/repair` results lead with the measured money consequence: the
 frozen bond, first gross recovery with gas and proposer net, the retry's zero
 extra principal and gas, and the preserved healthy obligations. The original
-proposal remains `Failed`; recovery clears the bond debt without re-executing
-the failed payment. Mode, source, patch and WASM identities stay in the
-technical details or downloads.
+proposal remains `Failed`. `Finalize` retries the original action, which fails
+again in this case, while the receipt-settled refund returns the bond once. This
+does not establish that earlier effects of another business operation cannot
+repeat. Mode, source, patch and WASM identities stay in the technical details or
+downloads.
 
 An accepted repair offers both the bundle download and a reviewer handoff. Use
 `/review` for the model-free page, or the existing `npm run repair:review` CLI

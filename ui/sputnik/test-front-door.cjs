@@ -16,7 +16,8 @@ assert.match(home, /href="\/repair"[\s\S]*Generate a fresh repair/);
 assert.match(home, /href="\/review"[\s\S]*Independently review a repair/);
 assert.match(home, /No model account required/);
 assert.match(home, /remains Failed/);
-assert.match(home, /does not re-execute the failed payment/);
+assert.match(home, /Finalize retries the original action/);
+assert.doesNotMatch(home, /does not re-execute the failed payment/);
 assert.match(home, /Not a live DAO/);
 assert.doesNotMatch(home, /<script/i, 'front door does not start execution');
 

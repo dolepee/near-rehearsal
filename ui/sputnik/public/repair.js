@@ -156,7 +156,7 @@
       && recoverySummary.healthyControl === true
       && recoverySummary.pendingHealthy === true;
     $('result-copy').textContent = accepted
-      ? 'The accepted result is measured on this run. The original proposal remains Failed while its bond debt is recovered; this is not a re-execution of the failed payment. Gas is reported separately from returned principal.'
+      ? 'The accepted result is measured on this run. Finalize retries the original action, which fails again in this case. The bond is returned once; these checks do not establish that other business effects happen only once. Gas is reported separately from returned principal.'
       : (run.error || 'The run stopped before all declared checks passed.');
     if (acceptedMoney) {
       $('consequence-grid').innerHTML = `
