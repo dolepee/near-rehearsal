@@ -107,6 +107,7 @@ function summarize(final) {
   const txo = final?.status?.transaction_outcome;
   const receipts = (final?.status?.receipts_outcome || []).map((r) => ({
     id: r.id,
+    blockHash: r.block_hash ?? null,
     receiptIds: r.outcome?.receipt_ids ?? [],
     executorId: r.outcome?.executor_id ?? null,
     status: r.outcome?.status ?? null,
@@ -318,7 +319,12 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   try {
     const unauthorizedTx = await voter.callRaw(dao, 'on_refund_callback', unauthorizedArgs, {gas: GAS});
     const unauthorizedFinal = await finalStatus(worker, unauthorizedTx, voter.accountId);
-    const unauthorizedValue = await withHeight(worker, summarize(unauthorizedFinal), 'unauthorized callback');
+    const unauthorizedValue = await withHeight(worker, summarize(unauthorizedFinal), 'unauthorized callback root');
+    const callbackReceiptId = unauthorizedValue.transactionOutcome?.status?.SuccessReceiptId;
+    if (!callbackReceiptId) throw new Error('unauthorized callback has no linked first receipt');
+    const callbackReceipt = (unauthorizedValue.receipts || []).find((receipt) => receipt.id === callbackReceiptId);
+    if (!callbackReceipt) throw new Error('unauthorized callback linked first receipt is missing');
+    await withHeight(worker, callbackReceipt, 'unauthorized callback receipt');
     unauthorized = {ok: false, value: unauthorizedValue};
   } catch (error) {
     throw new Error(`required unauthorized callback capture failed: ${String(error?.message || error)}`);
