@@ -105,6 +105,12 @@ checkApprovedMutation('duplicate root disconnected from old failure', (approved)
   });
 }, 'INCONCLUSIVE');
 checkApprovedMutation('retry height outside its window', (approved) => { approved.retry.blockHeight = 1; }, 'INCONCLUSIVE');
+checkApprovedMutation('receipt completes before its root', (approved) => {
+  approved.approval.receipts[0].blockHeight = approved.approval.blockHeight - 1;
+}, 'INCONCLUSIVE');
+checkApprovedMutation('approval observation after retry start', (approved) => {
+  approved.beforeRetry.blockHeight = approved.afterApproval.blockHeight - 1;
+}, 'INCONCLUSIVE');
 checkApprovedMutation('all execution heights missing', (approved) => {
   delete approved.approval.blockHeight;
   delete approved.retry.blockHeight;

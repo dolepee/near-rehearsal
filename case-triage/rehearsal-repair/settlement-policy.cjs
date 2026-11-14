@@ -933,6 +933,7 @@ function verifySettlementReport(report, opts = {}) {
         for (const receipt of transaction?.receipts || []) {
           const receiptHeight = recordedHeight(receipt?.blockHeight);
           if (!heightCheck(receiptHeight !== null, `${label} receipt completion height is missing`)) valid = false;
+          if (receiptHeight !== null && height !== null && !heightCheck(receiptHeight >= height, `${label} receipt completed before its root execution`)) valid = false;
           if (receiptHeight !== null && !heightCheck(receiptHeight >= lower && receiptHeight <= upper, `${label} receipt completion is outside its measurement window`)) valid = false;
         }
       }
@@ -943,6 +944,11 @@ function verifySettlementReport(report, opts = {}) {
       windowCheck('approval', approval, before, afterApproval);
       windowCheck('retry', retry, beforeRetry, afterRetry);
       windowCheck('duplicate', duplicate, afterRetry, afterDuplicate);
+      const afterApprovalHeight = recordedHeight(afterApproval?.blockHeight);
+      const beforeRetryHeight = recordedHeight(beforeRetry?.blockHeight);
+      if (!heightCheck(afterApprovalHeight !== null && beforeRetryHeight !== null && afterApprovalHeight <= beforeRetryHeight, 'afterApproval must not be later than beforeRetry')) {
+        windowValid.retry = false;
+      }
     }
     if (!approval?.transaction || !retry?.transaction || !duplicate?.transaction || !before || !afterApproval || !beforeRetry || !afterRetry || !afterDuplicate) {
       approvedFail(false, 'complete approval/retry/duplicate transactions and snapshots are required');
