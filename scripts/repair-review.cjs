@@ -151,6 +151,11 @@ const checkBundle = (bundle) => {
   }
   if (sha256(Buffer.from(bundle.baseline.reportText, 'utf8')) !== bundle.baseline.reportSha256) fail('bundle baseline report hash does not match its text');
   if (sha256(Buffer.from(bundle.candidate.reportText, 'utf8')) !== bundle.candidate.reportSha256) fail('bundle candidate report hash does not match its text');
+  let candidateReport;
+  try { candidateReport = JSON.parse(bundle.candidate.reportText); } catch (error) { fail(`bundle candidate report is not valid JSON: ${error.message}`); }
+  if (!candidateReport?.source?.wasmSha256 || candidateReport.source.wasmSha256 !== bundle.candidate.wasm.sha256) {
+    fail('bundle candidate report is not bound to the candidate WASM');
+  }
   if (sha256(Buffer.from(bundle.recovery.reportText, 'utf8')) !== bundle.recovery.reportSha256) fail('bundle recovery report hash does not match its text');
   if (bundle.recovery?.acceptance?.ok !== true) fail('bundle recovery acceptance is not recorded as passing');
   if (bundle.recovery.acceptance.candidateWasmSha256 !== bundle.candidate.wasm.sha256) fail('bundle acceptance is for a different candidate WASM');

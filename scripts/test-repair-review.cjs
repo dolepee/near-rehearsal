@@ -30,6 +30,12 @@ fs.writeFileSync(freshTemp, JSON.stringify(freshFixture));
 const mixedOriginal = buildHandoffBundle({runId: 'mixed-policy-guard', createdAt: '2026-11-13T21:15:09.000Z', candidateReportPath: freshTemp});
 fs.rmSync(freshTemp, {force: true});
 assert.doesNotThrow(() => checkBundle(mixedOriginal));
+const crossedFresh = JSON.parse(JSON.stringify(mixedOriginal));
+const crossedReport = JSON.parse(crossedFresh.candidate.reportText);
+crossedReport.source.wasmSha256 = '0'.repeat(64);
+crossedFresh.candidate.reportText = JSON.stringify(crossedReport);
+crossedFresh.candidate.reportSha256 = crypto.createHash('sha256').update(crossedFresh.candidate.reportText).digest('hex');
+assert.throws(() => checkBundle(crossedFresh), /candidate report is not bound to the candidate WASM/, 'cross-artifact fresh evidence is refused');
 for (const [label, mutate] of [
   ['fake mixed report', (b) => { b.mixed.reportText = 'not a real mixed report'; b.mixed.reportSha256 = '0'.repeat(64); }],
   ['zero mixed policy', (b) => { b.mixed.policySha256 = '0'.repeat(64); }],
