@@ -44,6 +44,7 @@ const suites = [
   'ui/sputnik/test-repair-history.cjs',
   'ui/sputnik/test-repair-ui.cjs',
   'ui/sputnik/test-review-job.cjs',
+  'ui/sputnik/test-review-cli-result.cjs',
   'ui/sputnik/test-review-ui.cjs',
   'ui/sputnik/test-review-polling.cjs',
   'ui/sputnik/test-review-stale.cjs',
