@@ -106,6 +106,14 @@ async function withHeight(worker, summary, label) {
   return summary;
 }
 
+async function withReceiptHeights(worker, summary, label) {
+  for (const receipt of summary?.receipts || []) {
+    if (!receipt?.blockHash) throw new Error(`required receipt chronology for ${label} is missing a block hash`);
+    await withHeight(worker, receipt, `${label} receipt ${receipt.id}`);
+  }
+  return summary;
+}
+
 function summarize(final) {
   const txo = final?.status?.transaction_outcome;
   const receipts = (final?.status?.receipts_outcome || []).map((r) => ({
@@ -546,7 +554,7 @@ async function runApprovedActionRefund({worker, wasm}) {
   const vote = await voter.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
   const voteFinal = summarize(await finalStatus(worker, vote, voter.accountId));
   const vote2 = await voter2.callRaw(dao, 'act_proposal', {id, action: 'VoteApprove', proposal: kind}, {gas: GAS});
-  const approval = await withHeight(worker, summarize(await finalStatus(worker, vote2, voter2.accountId)), 'approved-refund approval');
+  const approval = await withReceiptHeights(worker, await withHeight(worker, summarize(await finalStatus(worker, vote2, voter2.accountId)), 'approved-refund approval'), 'approved-refund approval');
   const approvedProposal = await waitProposal(worker, dao, id, 'Approved');
   await sleep(2000);
   const afterApproval = await captureApprovedSnapshot();
@@ -560,7 +568,7 @@ async function runApprovedActionRefund({worker, wasm}) {
   await sleep(2500);
   const beforeRetry = await captureApprovedSnapshot();
   const retryTx = await proposer.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
-  const retry = await withHeight(worker, summarize(await finalStatus(worker, retryTx, proposer.accountId)), 'approved-refund retry');
+  const retry = await withReceiptHeights(worker, await withHeight(worker, summarize(await finalStatus(worker, retryTx, proposer.accountId)), 'approved-refund retry'), 'approved-refund retry');
   await sleep(2000);
   const afterRetry = await captureApprovedSnapshot();
   const recipientAfterRetry = afterRetry.recipient;
@@ -570,7 +578,7 @@ async function runApprovedActionRefund({worker, wasm}) {
 
   stage('approved-refund duplicate');
   const duplicateTx = await proposer.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
-  const duplicate = await withHeight(worker, summarize(await finalStatus(worker, duplicateTx, proposer.accountId)), 'approved-refund duplicate');
+  const duplicate = await withReceiptHeights(worker, await withHeight(worker, summarize(await finalStatus(worker, duplicateTx, proposer.accountId)), 'approved-refund duplicate'), 'approved-refund duplicate');
   await sleep(1500);
   const afterDuplicate = await captureApprovedSnapshot();
   const duplicateFailure = (duplicate.receipts || []).some((receipt) => JSON.stringify(receipt.status || {}).includes('ERR_PROPOSAL_ALREADY_EXECUTED'));
