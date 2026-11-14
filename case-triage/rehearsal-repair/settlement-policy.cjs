@@ -199,6 +199,15 @@ function verifyUnauthorized(scenario, dao, failFor) {
   else if (!JSON.stringify(failure).includes('Method on_refund_callback is private')) {
     verifyFailure(false, 'unauthorized callback linked receipt was not rejected by the private-method guard');
   }
+  const beforeHeight = recordedHeight(scenario.afterRetry?.blockHeight);
+  const operationHeight = recordedHeight(value.blockHeight);
+  const observedHeight = recordedHeight(scenario.afterUnauthorized?.blockHeight);
+  verifyFailure(beforeHeight !== null && operationHeight !== null && observedHeight !== null,
+    'unauthorized callback execution or observation height is missing or malformed');
+  if (beforeHeight !== null && operationHeight !== null) verifyFailure(beforeHeight < operationHeight,
+    'unauthorized callback was not after the retry observation');
+  if (operationHeight !== null && observedHeight !== null) verifyFailure(operationHeight < observedHeight,
+    'unauthorized callback was not bounded by a later observation');
   return valid;
 }
 
@@ -215,7 +224,7 @@ function verifyDuplicate(scenario, dao, failFor) {
   if (!decoded) return;
   if (decoded.call.method_name !== 'act_proposal' || decoded.args?.action !== 'Finalize') verifyFailure(false, 'duplicate retry is not an act_proposal Finalize');
   if (String(decoded.args?.id) !== String(scenario.proposalId)) verifyFailure(false, 'duplicate retry targets a different proposal');
-  const retryHashes = (scenario.transactions?.retries || []).map((tx) => tx.transactionHash).filter(Boolean);
+  const retryHashes = (Array.isArray(scenario.transactions?.retries) ? scenario.transactions.retries : []).map((tx) => tx?.transactionHash).filter(Boolean);
   const legacyHash = scenario.transactions?.upgrade?.legacyFinalize?.transactionHash;
   if (duplicate.transactionHash && retryHashes.includes(duplicate.transactionHash)) verifyFailure(false, 'duplicate retry reuses an overlap transaction');
   if (duplicate.transactionHash && legacyHash && duplicate.transactionHash === legacyHash) verifyFailure(false, 'duplicate retry reuses the legacy finalize transaction');
@@ -277,6 +286,7 @@ function verifyRetries(scenario, dao, failFor) {
   let expectedInFlight = 0;
   raw.forEach((tx, index) => {
     const label = `retry ${index + 1}`;
+    if (!tx || typeof tx !== 'object') { invalid(false, `${label} execution record is missing or malformed`); return; }
     if (tx.finalExecutionStatus !== 'FINAL') invalid(false, `${label} was not FINAL`);
     if (tx.transaction?.receiverId !== dao) { executionValid = false; invalid(false, `${label} receiver is not the DAO`); }
     if (!voteSigners.includes(tx.transaction?.signerId)) { executionValid = false; invalid(false, `${label} signer was not an approving voter`); }
@@ -285,7 +295,7 @@ function verifyRetries(scenario, dao, failFor) {
     if (decoded.call.method_name !== 'act_proposal') { executionValid = false; invalid(false, `${label} method is not act_proposal`); }
     if (decoded.args?.action !== 'Finalize') { executionValid = false; invalid(false, `${label} is not Finalize`); }
     if (String(decoded.args?.id) !== String(scenario.proposalId)) { executionValid = false; invalid(false, `${label} targets a different proposal`); }
-    const receiptIds = (tx.receipts || []).map((receipt) => receipt.id).filter(Boolean);
+    const receiptIds = (Array.isArray(tx.receipts) ? tx.receipts : []).map((receipt) => receipt?.id).filter(Boolean);
     if (!receiptIds.length) { executionValid = false; invalid(false, `${label} has no executed receipts`); }
     const attempt = attempts[index];
     if (attempt?.transactionHash !== tx.transactionHash) invalid(false, `${label} summary hash does not match its attempt`);
@@ -307,7 +317,7 @@ function verifyRetries(scenario, dao, failFor) {
   }
   else {
     raw.forEach((tx, index) => {
-      const height = recordedHeight(tx.blockHeight);
+      const height = recordedHeight(tx?.blockHeight);
       if (height === null) {
         coverageErrors.push(`retry ${index + 1} height is missing or malformed`);
         invalid(false, coverageErrors[coverageErrors.length - 1]);
@@ -360,7 +370,7 @@ function verifyScenario(scenario, mode, context) {
       if (legacy.candidateWasmSha256 !== candidateWasmSha256) installCheck(false, 'legacy candidate identity is wrong');
       if (legacy.upgradeCodeHash !== scenario.transactions?.upgrade?.codeHash || !legacy.upgradeCodeHash) installCheck(false, 'legacy upgrade did not install the candidate');
       if (legacy.proposalCreatedBeforeUpgrade !== true) installCheck(false, 'legacy proposal was not created before upgrade');
-      if (legacy.legacyFinalize?.finalExecutionStatus !== 'FINAL') installCheck(false, 'legacy finalize evidence is missing');
+      if (legacy.legacyFinalize?.finalExecutionStatus !== 'FINAL') failFor(false, 'legacy finalize evidence is missing');
     }
     const upgrade = scenario.transactions?.upgrade;
     if (!upgrade || upgrade.candidateWasmSha256 !== candidateWasmSha256 || !upgrade.deploy || !upgrade.migrate) {
@@ -395,9 +405,9 @@ function verifyScenario(scenario, mode, context) {
     if (failureHeight !== null && upgradeHeight !== null && failureHeight >= upgradeHeight) installCheck(false, 'recorded old-code failure was not before the candidate upgrade');
     if (migrateHeight === null) installCheck(false, 'migrate height is missing or malformed');
     else if (upgradeHeight !== null && upgradeHeight > migrateHeight) installCheck(false, 'migrate was not after the candidate upgrade');
-    if (legacyHeight === null) installCheck(false, 'legacy finalize height is missing or malformed');
-    else if (migrateHeight !== null && migrateHeight > legacyHeight) installCheck(false, 'legacy finalize was before migrate');
-    else if (upgradeHeight !== null && legacyHeight < upgradeHeight) installCheck(false, 'legacy finalize was not after the candidate upgrade');
+    if (legacyHeight === null) { legacyFinalizeValid = false; failFor(false, 'legacy finalize height is missing or malformed'); }
+    else if (migrateHeight !== null && migrateHeight > legacyHeight) { legacyFinalizeValid = false; failFor(false, 'legacy finalize was before migrate'); }
+    else if (upgradeHeight !== null && legacyHeight < upgradeHeight) { legacyFinalizeValid = false; failFor(false, 'legacy finalize was not after the candidate upgrade'); }
   }
 
   const operationDao = scenario.deploy?.transaction?.receiverId;
@@ -446,38 +456,34 @@ function verifyScenario(scenario, mode, context) {
   const afterAmount = after ? parseAmount(after.proposer) : null;
   const beforeLocked = before ? parseAmount(before.lockedAmount) : null;
   const afterLocked = after ? parseAmount(after.lockedAmount) : null;
-  const retryExecutionValid = failedDebtPrereq && retryProof?.executionValid === true;
-  const retryBalanceValid = retryExecutionValid && beforeAmount !== null && afterAmount !== null;
+  const retryExecutionValid = candidateExecutionValid && proposalEvidenceValid && retryProof?.executionValid === true;
+  // Exact payout requires a measured starting obligation. A later missing
+  // locked-state observation cannot erase an already observed wrong payout.
+  const retryBalanceValid = retryExecutionValid && beforeLocked === BOND && beforeAmount !== null && afterAmount !== null;
   if (!before || !after) failFor(false, 'retry snapshots missing');
-  else if (beforeAmount === null || afterAmount === null) failFor(false, 'retry proposer amounts missing or malformed');
+  if (beforeAmount === null || afterAmount === null) failFor(false, 'retry proposer amounts missing or malformed');
   else {
-    if (beforeLocked === null) failFor(false, 'retry locked amount is missing or malformed');
-    else if (beforeLocked !== BOND) failFinancial(false, retryExecutionValid, 'retry did not start with the debt still locked');
     retryDelta = afterAmount - beforeAmount;
     if (retryDelta !== BOND) failFinancial(false, retryBalanceValid, `retry proposer delta is ${retryDelta}, expected exactly one bond`);
-    if (afterLocked === null) failFor(false, 'retry resulting locked amount is missing or malformed');
-    else if (afterLocked !== 0n) failFinancial(false, retryExecutionValid, 'successful retry did not clear the debt');
   }
+  // Debt and balance observations are independent assertions. A missing balance
+  // cannot erase a complete debt counterexample, or the converse.
+  if (beforeLocked === null) failFor(false, 'retry locked amount is missing or malformed');
+  else if (beforeLocked !== BOND) failFinancial(false, retryExecutionValid, 'retry did not start with the debt still locked');
+  if (afterLocked === null) failFor(false, 'retry resulting locked amount is missing or malformed');
+  else if (afterLocked !== 0n) failFinancial(false, retryExecutionValid, 'successful retry did not clear the debt');
 
-  if (afterAmount === null) {
-    failFor(false, 'dependent duplicate/unauthorized balances cannot be checked without a valid retry amount');
-  } else {
-    const duplicateAmount = scenario.afterDuplicate ? parseAmount(scenario.afterDuplicate.proposer) : null;
-    const unauthorizedAmount = scenario.afterUnauthorized ? parseAmount(scenario.afterUnauthorized.proposer) : null;
-    const duplicateLocked = scenario.afterDuplicate ? parseAmount(scenario.afterDuplicate.lockedAmount) : null;
-    const unauthorizedLocked = scenario.afterUnauthorized ? parseAmount(scenario.afterUnauthorized.lockedAmount) : null;
-    const duplicatePrereq = retryExecutionValid && duplicateExecutionValid && duplicateAmount !== null && duplicateLocked !== null && afterAmount !== null;
-    const unauthorizedPrereq = retryExecutionValid && unauthorizedExecutionValid && unauthorizedAmount !== null && unauthorizedLocked !== null && afterAmount !== null;
-    if (duplicateAmount === null || duplicateLocked === null) failFor(false, 'afterDuplicate observation amounts missing or malformed');
-    else {
-      if (duplicateAmount !== afterAmount) failFinancial(false, duplicatePrereq, 'duplicate retry changed the proposer balance');
-      if (afterLocked !== null && duplicateLocked !== afterLocked) failFinancial(false, duplicatePrereq, 'duplicate retry changed the locked debt');
-    }
-    if (unauthorizedAmount === null || unauthorizedLocked === null) failFor(false, 'afterUnauthorized observation amounts missing or malformed');
-    else {
-      if (unauthorizedAmount !== afterAmount) failFinancial(false, unauthorizedPrereq, 'unauthorized callback changed the proposer balance');
-      if (afterLocked !== null && unauthorizedLocked !== afterLocked) failFinancial(false, unauthorizedPrereq, 'unauthorized callback changed the locked debt');
-    }
+  for (const [name, snapshot, operationValid] of [
+    ['duplicate retry', scenario.afterDuplicate, duplicateExecutionValid],
+    ['unauthorized callback', scenario.afterUnauthorized, unauthorizedExecutionValid],
+  ]) {
+    const amount = parseAmount(snapshot?.proposer);
+    const locked = parseAmount(snapshot?.lockedAmount);
+    const operationEstablished = retryExecutionValid && operationValid === true;
+    if (amount === null || afterAmount === null) failFor(false, `${name} observation balance is missing or malformed`);
+    else if (amount !== afterAmount) failFinancial(false, operationEstablished, `${name} changed the proposer balance`);
+    if (locked === null || afterLocked === null) failFor(false, `${name} observation debt is missing or malformed`);
+    else if (locked !== afterLocked) failFinancial(false, operationEstablished, `${name} changed the locked debt`);
   }
 
   const unauthorized = scenario.unauthorized;
@@ -564,8 +570,17 @@ function verifySettlementReport(report, opts = {}) {
   }
 
   const context = {fail, text, parseAmount, candidateWasmSha256, baseWasmSha256, report};
-  const freshOutcomes = verifyScenario(report?.fresh, 'candidate-only', context);
-  const inheritedOutcomes = verifyScenario(report?.inherited, 'legacy-upgrade', context);
+  const inspect = (scenario, mode) => {
+    try { return verifyScenario(scenario, mode, context); }
+    catch (error) {
+      // A malformed scenario cannot discard another scenario's already verified
+      // counterexample. Preserve accumulated reasons and continue independently.
+      fail(`${mode}: malformed evidence prevented remaining checks: ${error.message}`);
+      return null;
+    }
+  };
+  const freshOutcomes = inspect(report?.fresh, 'candidate-only');
+  const inheritedOutcomes = inspect(report?.inherited, 'legacy-upgrade');
 
   const attributableVerified = identityEstablished ? verifiedReasons : [];
   const attributableIncomplete = identityEstablished ? incompleteReasons : [...incompleteReasons, ...verifiedReasons];

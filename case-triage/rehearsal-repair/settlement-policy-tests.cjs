@@ -730,6 +730,61 @@ wrongSchemaWithCounterexample.schema = 'unsupported';
 wrongSchemaWithCounterexample.inherited.failedRefund.lockedAmount = '0';
 assert.equal(verifySettlementReport(wrongSchemaWithCounterexample).status, 'INCONCLUSIVE');
 
+const independentPayoutCases = [
+  ['missing starting debt', 'INCONCLUSIVE', s => { delete s.beforeRetry.lockedAmount; s.afterRetry.proposer = s.beforeRetry.proposer; }],
+  ['malformed starting debt', 'INCONCLUSIVE', s => { s.beforeRetry.lockedAmount = 'not-an-amount'; s.afterRetry.proposer = s.beforeRetry.proposer; }],
+  ['missing ending debt cannot mask zero payout', 'REJECTED', s => { delete s.afterRetry.lockedAmount; s.afterRetry.proposer = s.beforeRetry.proposer; }],
+  ['malformed ending debt cannot mask overpayment', 'REJECTED', s => { s.afterRetry.lockedAmount = 'not-an-amount'; s.afterRetry.proposer = (BigInt(s.beforeRetry.proposer) + 2n * 10n ** 24n).toString(); }],
+];
+for (const mode of ['fresh', 'inherited']) for (const [label, status, mutate] of independentPayoutCases) {
+  const evidence = structuredClone(correctedReport);
+  mutate(evidence[mode]);
+  // Avoid claiming a duplicate or callback counterexample using an invalid
+  // preceding payout observation; these independent operations are unmeasured.
+  delete evidence[mode].afterDuplicate;
+  delete evidence[mode].afterUnauthorized;
+  const result = verifySettlementReport(evidence, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+  assert.equal(result.status, status, `${mode}: ${label}: ${result.errors.join('; ')}`);
+}
+const retryWithoutFailedTrial = structuredClone(correctedReport);
+delete retryWithoutFailedTrial.inherited.transactions.upgrade.legacyFinalize;
+delete retryWithoutFailedTrial.inherited.legacy.legacyFinalize;
+retryWithoutFailedTrial.inherited.afterRetry.proposer = retryWithoutFailedTrial.inherited.beforeRetry.proposer;
+assert.equal(verifySettlementReport(retryWithoutFailedTrial).status, 'REJECTED', 'a complete later retry counterexample does not depend on observing an earlier failed trial');
+
+for (const height of [null, 'not-a-height', 0]) {
+  const evidence = structuredClone(correctedReport);
+  evidence.inherited.transactions.upgrade.legacyFinalize.blockHeight = height;
+  evidence.inherited.legacy.legacyFinalize.blockHeight = height;
+  evidence.inherited.failedRefund.lockedAmount = '0';
+  assert.equal(verifySettlementReport(evidence).status, 'INCONCLUSIVE', 'the failed trial must be proven after candidate installation before attributing its loss');
+}
+
+for (const mode of ['fresh', 'inherited']) {
+  for (const missing of ['beforeRetry', 'afterRetry']) {
+    const evidence = structuredClone(correctedReport);
+    for (const name of ['afterRetry', 'afterDuplicate', 'afterUnauthorized']) evidence[mode][name].lockedAmount = '1000000000000000000000000';
+    evidence[mode].overlap.lockedAfter = '1000000000000000000000000';
+    delete evidence[mode][missing].proposer;
+    assert.equal(verifySettlementReport(evidence).status, 'REJECTED', `${mode}: a missing ${missing} balance cannot mask a complete debt failure`);
+  }
+  for (const timing of ['missing', 'pre-operation', 'malformed']) {
+    const evidence = structuredClone(correctedReport);
+    if (timing === 'pre-operation') evidence[mode].afterUnauthorized = structuredClone(evidence[mode].afterRetry);
+    else for (const tx of [evidence[mode].unauthorized.value, evidence[mode].transactions.unauthorized.value]) {
+      if (timing === 'missing') delete tx.blockHeight;
+      else tx.blockHeight = 'not-a-height';
+    }
+    assert.equal(verifySettlementReport(evidence).status, 'INCONCLUSIVE', `${mode}: unauthorized timing ${timing}`);
+  }
+  for (const malformed of [[null, null], [0, false], 'not-an-array']) {
+    const evidence = structuredClone(correctedReport);
+    evidence[mode].transactions.retries = malformed;
+    evidence[mode === 'fresh' ? 'inherited' : 'fresh'].failedRefund.lockedAmount = '0';
+    assert.equal(verifySettlementReport(evidence).status, 'REJECTED', `${mode}: malformed retry evidence must not erase the other complete counterexample`);
+  }
+}
+
 const acceptedGood = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
 assert.equal(acceptedGood.status, 'ACCEPTED');
 assert.equal(acceptedGood.ok, true);
@@ -883,6 +938,8 @@ console.log(JSON.stringify({
     'status-wrong-upgrade-zero-retry-inconclusive',
     'status-missing-retries-with-debt-rejected',
     'cross-prerequisite-contract-30-cases',
+    'independent-payout-contract-9-cases',
+    'review-debt-timing-malformed-contract-16-cases',
     'status-good-accepted',
     'status-lost-debt-rejected',
     'status-missing-inherited-good-fresh-inconclusive',
