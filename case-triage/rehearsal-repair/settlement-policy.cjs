@@ -384,6 +384,8 @@ function verifyLegacySeed(scenario, dao, fail) {
   if (!seed) { fail(false, 'legacy principal seed transaction is missing'); return false; }
   let valid = true;
   const check = (condition, message) => { if (!condition) { valid = false; fail(false, message); } };
+  const financeCheck = (condition, message) => { if (!condition) fail(false, message, valid ? 'verified' : 'incomplete'); };
+  const amountValue = (value) => (/^[0-9]+$/.test(String(value ?? '')) ? BigInt(String(value)) : null);
   check(seed.finalExecutionStatus === 'FINAL', 'legacy principal seed was not FINAL');
   check(seed.transaction?.receiverId === dao && seed.transaction?.signerId === dao, 'legacy principal seed was not a DAO-private call');
   check(successfulReceiptChain(seed, 'legacy principal seed', (message) => check(false, message)), 'legacy principal seed lacks a linked successful receipt chain');
@@ -440,12 +442,17 @@ function verifyLegacySeed(scenario, dao, fail) {
   if (seedHeight !== null && failureHeight !== null && observationHeight !== null) {
     check(seedHeight < failureHeight && failureHeight <= observationHeight, 'seeded refund chronology is not seed -> failure -> observation');
   }
-  check(String(seededFailure?.snapshot?.lockedAmount) === String(deposit), 'seeded refund failure did not retain the locked debt');
+  const seededLocked = amountValue(seededFailure?.snapshot?.lockedAmount);
+  if (seededLocked === null) check(false, 'seeded refund failure locked observation is missing or malformed');
+  else financeCheck(String(seededLocked) === String(deposit), 'seeded refund failure did not retain the locked debt');
   check(seededFailure?.snapshot?.proposal?.id === scenario.proposalId && seededFailure?.snapshot?.proposal?.status === 'Failed', 'seeded refund failure changed the original proposal');
   check(seededFailure?.snapshot?.proposer === null || BigInt(seededFailure.snapshot.proposer) === 0n, 'seeded refund failure paid the deleted proposer');
-  check(String(legacy?.beforeSeedProbe?.lockedAmount) === String(deposit) && String(legacy?.afterSeedProbe?.lockedAmount) === String(deposit), 'seed probes changed the locked debt');
+  const beforeProbeLocked = amountValue(legacy?.beforeSeedProbe?.lockedAmount);
+  const afterProbeLocked = amountValue(legacy?.afterSeedProbe?.lockedAmount);
+  if (beforeProbeLocked === null || afterProbeLocked === null) check(false, 'seed probe locked observations are missing or malformed');
+  else financeCheck(String(beforeProbeLocked) === String(deposit) && String(afterProbeLocked) === String(deposit), 'seed probes changed the locked debt');
   check(legacy?.beforeSeedProbe?.proposer === legacy?.afterSeedProbe?.proposer, 'seed probes changed the proposer principal');
-  return valid;
+  return {valid, traceValid: valid};
 }
 
 function verifyScenario(scenario, mode, context) {
@@ -499,7 +506,8 @@ function verifyScenario(scenario, mode, context) {
     if (scenario.deploy?.wasmSha256 !== baseWasmSha256) installCheck(false, 'inherited scenario did not deploy the pinned base WASM');
     if (!verifyMigrate(scenario, scenario.deploy?.transaction?.receiverId, installCheck)) candidateExecutionValid = false;
     legacyFinalizeValid = verifyLegacyFinalize(scenario, scenario.deploy?.transaction?.receiverId, failFor);
-    if (!verifyLegacySeed(scenario, scenario.deploy?.transaction?.receiverId, failFor)) candidateExecutionValid = false;
+    const legacySeedCheck = verifyLegacySeed(scenario, scenario.deploy?.transaction?.receiverId, failFor);
+    if (!legacySeedCheck.valid) candidateExecutionValid = false;
     const addHeight = recordedHeight(scenario.transactions?.add?.blockHeight);
     const vote2Height = recordedHeight(scenario.transactions?.vote2?.blockHeight);
     const failedLog = scenario.transactions?.failedProposal?.last_actions_log;

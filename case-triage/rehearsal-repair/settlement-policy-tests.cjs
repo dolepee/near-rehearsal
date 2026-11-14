@@ -726,6 +726,21 @@ const bobDebtLossMissingAliceResult = verifySettlementReport(bobDebtLossMissingA
 assert.equal(bobDebtLossMissingAliceResult.status, 'REJECTED', 'a complete Bob debt loss survives a missing unrelated Alice after-balance');
 assert.ok(bobDebtLossMissingAliceResult.reasons.verified.some((error) => /Bob debt/.test(error)));
 
+const inheritedDebtLoss = JSON.parse(JSON.stringify(correctedReport));
+inheritedDebtLoss.inherited.legacy.seededRefundFailure.snapshot.lockedAmount = '0';
+inheritedDebtLoss.inherited.seededRefundFailure.lockedAmount = '0';
+inheritedDebtLoss.inherited.beforeRetry.lockedAmount = '0';
+inheritedDebtLoss.inherited.legacy.beforeSeedProbe.lockedAmount = '0';
+inheritedDebtLoss.inherited.legacy.afterSeedProbe.lockedAmount = '0';
+inheritedDebtLoss.inherited.ok = false;
+const inheritedDebtLossResult = verifySettlementReport(inheritedDebtLoss, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(inheritedDebtLossResult.status, 'REJECTED', 'a complete inherited seeded refund debt loss is verified');
+assert.ok(inheritedDebtLossResult.reasons.verified.some((error) => /seeded refund failure|retry did not start/.test(error)));
+
+const inheritedDebtLossMissingUnequal = JSON.parse(JSON.stringify(inheritedDebtLoss));
+delete inheritedDebtLossMissingUnequal.unequal.transactions.addAlice;
+assert.equal(verifySettlementReport(inheritedDebtLossMissingUnequal, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED', 'inherited debt loss survives missing unequal funding');
+
 const missingUnequalAfterProposer = JSON.parse(JSON.stringify(correctedReport));
 delete missingUnequalAfterProposer.unequal.after.proposer;
 assert.equal(verifySettlementReport(missingUnequalAfterProposer, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE', 'a missing unequal after-proposer balance is incomplete, not a rejection');
