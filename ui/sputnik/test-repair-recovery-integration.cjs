@@ -207,8 +207,13 @@ function fakeSpawn({mixedPath = mixedReport, writeSettlement = true, settlementM
   const mutateSettlement = (kind) => (report) => {
     const changed = JSON.parse(JSON.stringify(report));
     if (kind === 'guard' || kind === 'both') {
-      const retry = changed.inherited.transactions.retries[0];
-      retry.receipts.find((receipt) => receipt.id === retry.transactionOutcome.status.SuccessReceiptId).status = {SuccessValue: ''};
+      // Make the duplicate retry look successful rather than denied by the
+      // terminal guard. This leaves the financial observations intact but
+      // removes proof the guard fired, so it must be inconclusive.
+      const retry = changed.inherited.transactions.retries[1];
+      const denied = retry.receipts.find((receipt) => receipt.status && receipt.status.Failure);
+      if (!denied) throw new Error('guard mutation fixture is missing the denied retry receipt');
+      denied.status = {SuccessValue: ''};
     }
     if (kind === 'debt' || kind === 'both') changed.inherited.failedRefund.lockedAmount = '0';
     return changed;

@@ -71,6 +71,11 @@ checkApprovedMutation('observed code hash mismatched', (approved) => {
   approved.observedCodeHash = '11111111111111111111111111111111';
 }, 'REJECTED');
 checkApprovedMutation('afterRetry height removed', (approved) => { delete approved.afterRetry.blockHeight; }, 'INCONCLUSIVE');
+for (const snapshot of ['before', 'afterApproval', 'beforeRetry', 'afterRetry', 'afterDuplicate', 'afterUnauthorized']) {
+  checkApprovedMutation(`${snapshot} belongs to a foreign DAO`, (approved) => {
+    approved[snapshot].dao = 'foreign-dao.test.near';
+  }, 'INCONCLUSIVE');
+}
 
 const missingSeed = JSON.parse(JSON.stringify(correctedReport));
 delete missingSeed.inherited.transactions.seed;
