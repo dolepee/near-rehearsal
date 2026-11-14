@@ -314,10 +314,15 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
 
   stage(`${tag} unauthorized callback`);
   const unauthorizedArgs = {proposal_id: id, attempt: 999};
-  const unauthorized = await voter.callRaw(dao, 'on_refund_callback', unauthorizedArgs, {gas: GAS}).then(
-    (tx) => finalStatus(worker, tx, voter.accountId).then((final) => ({ok: false, value: summarize(final)})),
-    (error) => ({ok: false, error: String(error.message || error).slice(0, 500)}),
-  );
+  let unauthorized;
+  try {
+    const unauthorizedTx = await voter.callRaw(dao, 'on_refund_callback', unauthorizedArgs, {gas: GAS});
+    const unauthorizedFinal = await finalStatus(worker, unauthorizedTx, voter.accountId);
+    const unauthorizedValue = await withHeight(worker, summarize(unauthorizedFinal), 'unauthorized callback');
+    unauthorized = {ok: false, value: unauthorizedValue};
+  } catch (error) {
+    throw new Error(`required unauthorized callback capture failed: ${String(error?.message || error)}`);
+  }
   const afterUnauthorized = await settle(worker, dao, proposer.accountId, voter.accountId);
   fail(afterUnauthorized.proposer === afterRetry.proposer, 'unauthorized callback changed proposer balance');
   fail(afterUnauthorized.lockedAmount === '0', 'unauthorized callback changed locked debt');
