@@ -22,7 +22,7 @@ const {EventEmitter} = require('node:events');
 
 const root = path.resolve(__dirname, '..', '..');
 const {buildHandoffBundle} = require(path.join(root, 'case-triage', 'rehearsal-repair', 'handoff-bundle.cjs'));
-const {classifyAndPublish, summarize} = require(path.join(root, 'scripts', 'repair-review.cjs'));
+const {classifyAndPublish, publishStageRejection, summarize} = require(path.join(root, 'scripts', 'repair-review.cjs'));
 const {verifyMixedReport} = require(path.join(root, 'case-triage', 'rehearsal-repair', 'mixed-policy.cjs'));
 const {verifySettlementReport} = require(path.join(root, 'case-triage', 'rehearsal-repair', 'settlement-policy.cjs'));
 const {mixedPolicyIdentity} = require(path.join(root, 'case-triage', 'rehearsal-repair', 'mixed-policy-identity.cjs'));
@@ -131,7 +131,27 @@ const publish = (label, {
     assert.equal(missing.result.acceptancePolicy.stages.settlement.evidenceValid, false, 'missing settlement evidence is not evidence of a rejection');
     assert.equal(missing.result.acceptancePolicy.stages.settlement.ok, false);
 
-    // 5. The manager classifies the CLI's own file and exit code, not a guess.
+    // 5. A stage that executed and reported failure is a rejection, not a crash,
+    //    and the stages behind it were never reached.
+    for (const [label, rejectedStage, errors] of [
+      ['acceptance-stage', 'acceptance', ['persisted recovery acceptance failed: candidate WASM SHA-256 does not match report']],
+      ['pipeline-stage', 'fresh-pipeline', ['source-build pipeline did not pass']],
+    ]) {
+      const outDir = path.join(tmp, label);
+      fs.mkdirSync(outDir, {recursive: true});
+      const stageRun = {...run, rejectedStage, rejectionErrors: errors};
+      const published = publishStageRejection({bundle, bundlePath, run: stageRun, outDir});
+      assert.equal(published.exitCode, 2, `${label}: withholds exit 2`);
+      const written = JSON.parse(fs.readFileSync(path.join(outDir, 'review-result.json'), 'utf8'));
+      assert.equal(written.status, 'REJECTED');
+      assert.equal(written.run.rejectedStage, rejectedStage);
+      assert.equal(written.acceptancePolicy.stages.fresh.evidenceValid, true, `${label}: the executed stage is verified evidence`);
+      assert.equal(written.acceptancePolicy.stages.mixed.evidenceValid, false, `${label}: an unexecuted stage must not look executed`);
+      assert.equal(written.acceptancePolicy.stages.mixed.ok, false);
+      assert.equal(written.summary.checks.accepted, false);
+    }
+
+    // 6. The manager classifies the CLI's own file and exit code, not a guess.
     for (const [label, expected] of [['disagreement', 'rejected'], ['financial', 'rejected'], ['missing', 'inconclusive']]) {
       const source = label === 'disagreement' ? disagreement : label === 'financial' ? financial : missing;
       const manager = createManager({
