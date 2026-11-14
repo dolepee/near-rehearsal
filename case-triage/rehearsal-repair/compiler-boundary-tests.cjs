@@ -50,14 +50,28 @@ try {
   });
   assert.equal(timeoutRun.timedOut, true);
   assert.equal(timeoutRun.ok, false);
+  const isExecuting = (pid) => {
+    try { process.kill(pid, 0); } catch { return false; }
+    if (process.platform === 'linux') {
+      try {
+        const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+        const state = stat.slice(stat.lastIndexOf(')') + 2).split(' ')[0];
+        // A zombie has exited and cannot run or write, even if its parent
+        // has not reaped its PID entry. Stopped or sleeping tasks still count.
+        if (state === 'Z' || state === 'X') return false;
+      } catch (error) {
+        if (error.code === 'ENOENT' || error.code === 'ESRCH') return false;
+      }
+    }
+    return true;
+  };
   const assertDead = (pid) => {
-    let alive = true;
-    for (let i = 0; i < 20; i += 1) {
-      try { process.kill(pid, 0); } catch { alive = false; break; }
+    for (let i = 0; i < 20 && isExecuting(pid); i += 1) {
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
     }
-    assert.equal(alive, false, `process ${pid} survived supervisor cleanup`);
+    assert.equal(isExecuting(pid), false, `process ${pid} can still execute after supervisor cleanup`);
   };
+
   assertDead(Number(fs.readFileSync(pidFile, 'utf8')));
 
   const linuxAdapter = process.platform === 'linux' ? adapterFor('linux') : null;
