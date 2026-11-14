@@ -642,7 +642,7 @@ function verifyUnequalOutcomes(unequal, fail) {
   if (amount(bobBefore.proposer) !== amount(bobAfter.proposer)) fail('unequal Bob principal changed');
   if (JSON.stringify(bobBefore.proposal) !== JSON.stringify(bobAfter.proposal)) fail('unequal Bob proposal changed');
   if (amount(bobAfter.lockedAmount) !== 2n * 10n ** 24n) fail('unequal Bob debt is not preserved at two bonds');
-  if (Number(unequal.policyBefore?.proposal_bond) !== 10 ** 24 || Number(unequal.policyAfter?.proposal_bond) !== 2 * 10 ** 24) fail('unequal policy change is not the measured one-to-two transition');
+  if (amount(unequal.policyBefore?.proposal_bond) !== 10n ** 24n || amount(unequal.policyAfter?.proposal_bond) !== 2n * 10n ** 24n) fail('unequal policy change is not the measured one-to-two transition');
   const addAlice = unequal.transactions?.addAlice;
   const addBob = unequal.transactions?.addBob;
   const aliceDeposit = (addAlice?.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall?.deposit;

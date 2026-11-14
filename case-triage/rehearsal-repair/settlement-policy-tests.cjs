@@ -83,6 +83,7 @@ mutate('unequal Bob seed call method changed', (value) => {
 });
 mutate('unequal case removed', (value) => { delete value.unequal; });
 mutate('unequal reported delta changed', (value) => { value.unequal.aliceDelta = '2000000000000000000000000'; });
+mutate('unequal policy differs by one yocto', (value) => { value.unequal.policyAfter.proposal_bond = '2000000000000000000000001'; });
 
 const labelSwap = JSON.parse(JSON.stringify(correctedReport));
 const forged = '1'.repeat(64);
