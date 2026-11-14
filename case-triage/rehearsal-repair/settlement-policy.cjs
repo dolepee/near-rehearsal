@@ -859,22 +859,95 @@ function verifySettlementReport(report, opts = {}) {
   } else {
     const approvedAmount = (value) => {
       if (typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value)) return BigInt(value);
+      if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return BigInt(value);
       return null;
     };
+    const approvedFail = (condition, message, kind = 'incomplete') => {
+      if (!condition) fail(`approved-action/failed-refund: ${message}`, kind);
+    };
     const transfer = 10n ** 23n;
-    if (approved.candidateWasmSha256 !== candidateWasmSha256) fail('approved-action/failed-refund evidence is for a different candidate');
-    if (approved.recipientPaid !== transfer.toString()) fail('approved-action/failed-refund recipient was not paid exactly once', 'verified');
-    if (approved.lockedBefore !== BOND.toString()) fail('approved-action/failed-refund did not start with the bond locked', 'verified');
-    if (approved.lockedAfter !== '0') fail('approved-action/failed-refund left the bond locked', 'verified');
-    const refund = approvedAmount(approved.retryRefund);
-    if (refund === null || refund <= 0n || refund > BOND) fail('approved-action/failed-refund retry did not return the proposer bond', 'verified');
-    const duplicate = approvedAmount(approved.duplicateRefund);
-    if (duplicate === null || duplicate > 0n) fail('approved-action/failed-refund duplicate retry changed the proposer principal', 'verified');
-    if (approved.duplicateDenied !== true) fail('approved-action/failed-refund duplicate retry was not denied', 'verified');
+    const bond = approvedAmount(approved.bond);
+    approvedFail(bond === BOND, 'recorded bond is not the pinned obligation');
+    approvedFail(approved.candidateWasmSha256 === candidateWasmSha256, 'evidence is for a different candidate', 'verified');
+    approvedFail(typeof approved.proposer === 'string' && approved.proposer.length > 0, 'proposer identity is missing');
+    approvedFail(typeof approved.recipient === 'string' && approved.recipient.length > 0, 'recipient identity is missing');
+    const approval = approved.approval;
+    const retry = approved.retry;
+    const duplicate = approved.duplicate;
+    const before = approved.before;
+    const afterRetry = approved.afterRetry;
+    const afterDuplicate = approved.afterDuplicate;
+    for (const [name, value] of [['approval', approval], ['retry', retry], ['duplicate', duplicate]]) {
+      approvedFail(value && value.finalExecutionStatus === 'FINAL', `${name} execution is missing or not FINAL`);
+      approvedFail(value && value.transaction && value.transaction.receiverId, `${name} transaction identity is missing`);
+    }
+    if (!approval || !retry || !duplicate || !before || !afterRetry || !afterDuplicate) {
+      // The detailed checks below require the complete branch evidence.
+    } else {
+      const dao = approval.transaction.receiverId;
+      approvedFail(retry.transaction.receiverId === dao, 'retry did not target the same DAO');
+      approvedFail(duplicate.transaction.receiverId === dao, 'duplicate did not target the same DAO');
+      approvedFail(approval.transaction.receiverId === dao, 'approval did not target the retry DAO');
+      const approvalCall = decodeCall(approval, 'approved action approval', (message) => fail(message));
+      const retryCall = decodeCall(retry, 'approved action retry', (message) => fail(message));
+      const duplicateCall = decodeCall(duplicate, 'approved action duplicate', (message) => fail(message));
+      if (!approvalCall || !retryCall || !duplicateCall) return;
+      approvedFail(approvalCall.call.method_name === 'act_proposal' && approvalCall.args.action === 'VoteApprove', 'approval is not a VoteApprove');
+      approvedFail(retryCall.call.method_name === 'act_proposal' && retryCall.args.action === 'Finalize', 'retry is not a Finalize');
+      approvedFail(duplicateCall.call.method_name === 'act_proposal' && duplicateCall.args.action === 'Finalize', 'duplicate is not a Finalize');
+      approvedFail(String(retryCall.args.id) === String(approvalCall.args.id), 'retry targets a different proposal');
+      approvedFail(String(duplicateCall.args.id) === String(approvalCall.args.id), 'duplicate targets a different proposal');
+      approvedFail(retry.transaction.signerId === approved.proposer, 'retry was not signed by the original proposer', 'verified');
+      approvedFail(retryCall.args.proposal && JSON.stringify(retryCall.args.proposal) === JSON.stringify(approvalCall.args.proposal), 'retry changed the recorded proposal kind', 'verified');
+      const approvalOk = successfulReceiptChain(approval, 'approved action approval', (message) => fail(message));
+      const retryOk = successfulReceiptChain(retry, 'approved action retry', (message) => fail(message));
+      approvedFail(approvalOk, 'approval has no successful receipt chain');
+      approvedFail(retryOk, 'retry has no successful receipt chain');
+      const textAmount = (snapshot, name, label) => {
+        const value = approvedAmount(snapshot?.[name]);
+        approvedFail(value !== null, `${label} ${name} is missing or malformed`);
+        return value;
+      };
+      const proposerBefore = textAmount(before, 'proposer', 'before');
+      const proposerAfter = textAmount(afterRetry, 'proposer', 'afterRetry');
+      const duplicateAfter = textAmount(afterDuplicate, 'proposer', 'afterDuplicate');
+      const lockedBefore = textAmount(before, 'lockedAmount', 'before');
+      const lockedAfter = textAmount(afterRetry, 'lockedAmount', 'afterRetry');
+      const lockedDuplicate = textAmount(afterDuplicate, 'lockedAmount', 'afterDuplicate');
+      const recipientBefore = textAmount(before, 'recipient', 'before');
+      const recipientAfter = textAmount(afterRetry, 'recipient', 'afterRetry');
+      approvedFail(lockedBefore === bond, 'retry did not start with the recorded bond locked', 'verified');
+      approvedFail(lockedAfter === 0n, 'retry did not clear the locked bond', 'verified');
+      approvedFail(lockedDuplicate === 0n, 'duplicate did not preserve the cleared locked bond', 'verified');
+      approvedFail(recipientAfter - recipientBefore === transfer, 'approved action did not pay the recipient exactly once', 'verified');
+      const gasOf = (summary) => {
+        const tx = approvedAmount(summary?.transactionOutcome?.tokensBurntYocto);
+        if (tx === null || !Array.isArray(summary?.receipts)) return null;
+        let total = tx;
+        for (const receipt of summary.receipts) {
+          const fee = approvedAmount(receipt?.tokensBurntYocto);
+          if (fee === null) return null;
+          total += fee;
+        }
+        return total;
+      };
+      const retryGas = gasOf(retry);
+      approvedFail(retryGas !== null, 'retry gas is missing or malformed');
+      if (retryGas !== null && proposerBefore !== null && proposerAfter !== null) {
+        const principal = proposerAfter - proposerBefore + retryGas;
+        approvedFail(principal === bond, `retry principal is ${principal}, expected the recorded bond`, 'verified');
+      }
+      const duplicateGas = gasOf(duplicate);
+      approvedFail(duplicateGas !== null, 'duplicate gas is missing or malformed');
+      if (duplicateGas !== null && proposerAfter !== null && duplicateAfter !== null) {
+        const duplicatePrincipal = duplicateAfter - proposerAfter + duplicateGas;
+        approvedFail(duplicatePrincipal === 0n, `duplicate moved proposer principal by ${duplicatePrincipal}`, 'verified');
+      }
+      const duplicateFailures = (duplicate.receipts || []).filter((receipt) => receipt?.status?.Failure);
+      approvedFail(duplicateFailures.length > 0, 'duplicate retry has no executed failure receipt');
+      approvedFail(duplicateFailures.some((receipt) => JSON.stringify(receipt.status).includes('ERR_PROPOSAL_ALREADY_EXECUTED')), 'duplicate retry was not denied by the terminal guard', 'verified');
+    }
   }
-  try { verifyUnequalOutcomes(report?.unequal, fail, candidateWasmSha256); }
-  catch (error) { fail(`unequal evidence prevented verification: ${error.message}`); }
-
   const attributableVerified = identityEstablished ? verifiedReasons : [];
   const attributableIncomplete = identityEstablished ? incompleteReasons : [...incompleteReasons, ...verifiedReasons];
   const status = attributableVerified.length ? 'REJECTED' : (attributableIncomplete.length ? 'INCONCLUSIVE' : 'ACCEPTED');

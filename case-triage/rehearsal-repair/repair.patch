@@ -241,7 +241,7 @@ diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs
          self.last_proposal_id += 1;
          self.locked_amount = self.locked_amount.saturating_add(env::attached_deposit());
          id
-@@ -609,8 +769,27 @@
+@@ -609,8 +769,28 @@
          // Check permissions for the given action.
          let (roles, allowed) =
              policy.can_execute_action(self.internal_user_info(), &proposal.kind, &action);
@@ -249,7 +249,8 @@ diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs
          let sender_id = env::predecessor_account_id();
 +        // Once a successful business action and its bond refund have settled,
 +        // Finalize must never execute that action a second time.
-+        if proposal.status == ProposalStatus::Approved
++        if matches!(&action, Action::Finalize)
++            && proposal.status == ProposalStatus::Approved
 +            && matches!(
 +                Self::read_refund_state(id),
 +                Some((Self::REFUND_SETTLED, _, _))
@@ -270,7 +271,7 @@ diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs
  
          // Verify proposal kind
          assert!(proposal.kind == input_proposal_kind, "ERR_WRONG_KIND");
-@@ -642,12 +821,12 @@
+@@ -642,12 +822,12 @@
                          .detach();
                      true
                  } else if proposal.status == ProposalStatus::Removed {
@@ -285,7 +286,7 @@ diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs
                          .detach();
                      true
                  } else {
-@@ -663,22 +842,27 @@
+@@ -663,22 +843,27 @@
              //  - if the number of votes in the group has changed (new members has been added) -
              //      the proposal can loose it's approved state. In this case new proposal needs to be made, this one can only expire.
              Action::Finalize => {
@@ -329,7 +330,7 @@ diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs
                      }
                  }
                  true
-@@ -712,12 +896,42 @@
+@@ -712,12 +897,42 @@
              "ERR_UNEXPECTED_CALLBACK_PROMISES"
          );
          let result = if utils::is_promise_success() {

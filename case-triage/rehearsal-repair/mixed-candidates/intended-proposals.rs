@@ -772,7 +772,8 @@ impl Contract {
         let sender_id = env::predecessor_account_id();
         // Once a successful business action and its bond refund have settled,
         // Finalize must never execute that action a second time.
-        if proposal.status == ProposalStatus::Approved
+        if matches!(&action, Action::Finalize)
+            && proposal.status == ProposalStatus::Approved
             && matches!(
                 Self::read_refund_state(id),
                 Some((Self::REFUND_SETTLED, _, _))
