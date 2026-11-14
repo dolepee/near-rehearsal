@@ -876,6 +876,8 @@ function verifySettlementReport(report, opts = {}) {
     approvedFail(approved.candidateWasmSha256 === candidateWasmSha256, 'evidence is for a different candidate', 'verified');
     approvedFail(typeof approved.proposer === 'string' && approved.proposer.length > 0, 'proposer identity is missing');
     approvedFail(typeof approved.recipient === 'string' && approved.recipient.length > 0, 'recipient identity is missing');
+    const deployed = deploymentCommitment(approved.deploy, 'approved-action deployment', (message) => approvedFail(false, message), approved.dao || null);
+    if (deployed !== null) approvedFail(deployed === approved.candidateWasmSha256, 'approved-action deployment is not bound to the candidate WASM', 'verified');
     const approval = approved.approval;
     const retry = approved.retry;
     const duplicate = approved.duplicate;
@@ -931,9 +933,9 @@ function verifySettlementReport(report, opts = {}) {
       const recipientBeforeRetry = textAmount(beforeRetry, 'recipient', 'beforeRetry');
       const recipientAfter = textAmount(afterRetry, 'recipient', 'afterRetry');
       const recipientDuplicate = textAmount(afterDuplicate, 'recipient', 'afterDuplicate');
-      approvedFail(lockedBefore === bond, 'retry did not start with the recorded bond locked', 'verified');
-      approvedFail(lockedAfter === 0n, 'retry did not clear the locked bond', 'verified');
-      approvedFail(lockedDuplicate === 0n, 'duplicate did not preserve the cleared locked bond', 'verified');
+      if (lockedBefore !== null) approvedFail(lockedBefore === bond, 'retry did not start with the recorded bond locked', 'verified');
+      if (lockedAfter !== null) approvedFail(lockedAfter === 0n, 'retry did not clear the locked bond', 'verified');
+      if (lockedDuplicate !== null) approvedFail(lockedDuplicate === 0n, 'duplicate did not preserve the cleared locked bond', 'verified');
       if (recipientBefore !== null && recipientAfterApproval !== null) {
         approvedFail(recipientAfterApproval - recipientBefore === transfer, 'approved action did not pay the recipient exactly once', 'verified');
       }
@@ -966,16 +968,16 @@ function verifySettlementReport(report, opts = {}) {
       const duplicateFailures = (duplicate.receipts || []).filter((receipt) => receipt?.status?.Failure);
       approvedFail(duplicateFailures.length > 0, 'duplicate retry has no executed failure receipt');
       approvedFail(duplicateFailures.some((receipt) => JSON.stringify(receipt.status).includes('ERR_PROPOSAL_ALREADY_EXECUTED')), 'duplicate retry was not denied by the terminal guard', 'verified');
-      const unauthorized = approved.unauthorized?.value;
-      approvedFail(approved.unauthorized?.ok === false && unauthorized && unauthorized.finalExecutionStatus === 'FINAL', 'unauthorized callback evidence is missing or not FINAL');
-      if (unauthorized) {
-        const unauthorizedCall = decodeCall(unauthorized, 'approved action unauthorized callback', (message) => fail(message));
-        if (unauthorizedCall) {
-          approvedFail(unauthorizedCall.call.method_name === 'on_refund_callback', 'unauthorized evidence is not an on_refund_callback', 'verified');
-          approvedFail(String(unauthorizedCall.args.proposal_id) === String(approvalCall.args.id), 'unauthorized callback targets a different proposal', 'verified');
-          approvedFail(Number(unauthorizedCall.args.attempt) === 999, 'unauthorized callback attempt is not 999', 'verified');
-          approvedFail((unauthorized.receipts || []).some((receipt) => JSON.stringify(receipt.status || {}).includes('on_refund_callback is private')), 'unauthorized callback was not denied by the private-method guard', 'verified');
-        }
+      const unauthorized = approved.unauthorized;
+      approvedFail(unauthorized?.ok === false && unauthorized?.value?.finalExecutionStatus === 'FINAL', 'unauthorized callback evidence is missing or not FINAL');
+      if (unauthorized?.value) {
+        verifyUnauthorized({
+          proposalId: approvalCall.args.id,
+          transactions: {unauthorized},
+          unauthorized,
+          afterRetry: {blockHeight: afterRetry.blockHeight},
+          afterUnauthorized: {blockHeight: approved.afterUnauthorized?.blockHeight},
+        }, dao, (condition, message) => approvedFail(condition, message));
       }
       }
     }

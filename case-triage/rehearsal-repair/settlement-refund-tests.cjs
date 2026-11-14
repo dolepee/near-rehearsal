@@ -512,6 +512,8 @@ async function runApprovedActionRefund({worker, wasm}) {
   stage('approved-refund deploy');
   const deploy = await dao.deploy(wasm);
   const deployFinal = summarize(await finalStatus(worker, deploy, root.accountId));
+  deployFinal.wasmSha256 = sha256(wasm);
+  deployFinal.codeHash = hashContract(wasm);
   const init = await root.callRaw(dao, 'new', {
     config: {name: 'approved refund settlement', purpose: 'bounded approved-action refund', metadata: ''},
     policy: [voter.accountId, voter2.accountId],
@@ -570,6 +572,11 @@ async function runApprovedActionRefund({worker, wasm}) {
   stage('approved-refund unauthorized callback');
   const unauthorizedTx = await voter.callRaw(dao, 'on_refund_callback', {proposal_id: id, attempt: 999}, {gas: GAS});
   const unauthorized = await withHeight(worker, summarize(await finalStatus(worker, unauthorizedTx, voter.accountId)), 'approved-refund unauthorized');
+  const firstUnauthorizedReceipt = (unauthorized.receipts || []).find((receipt) => receipt.executorId === dao.accountId);
+  if (firstUnauthorizedReceipt?.blockHash) {
+    await withHeight(worker, firstUnauthorizedReceipt, 'approved-refund unauthorized receipt');
+  }
+  const afterUnauthorized = await settle(worker, dao, proposer.accountId, voter.accountId);
   fail((unauthorized.receipts || []).some((receipt) => JSON.stringify(receipt.status || {}).includes('on_refund_callback is private')), 'approved-refund unauthorized callback was not denied');
   return {
     schema: 'near-rehearsal/approved-action-refund/v2',
@@ -580,10 +587,12 @@ async function runApprovedActionRefund({worker, wasm}) {
     recipient: recipient.accountId,
     bond: BOND.toString(),
     transfer: TRANSFER.toString(),
+    deploy: deployFinal,
     approval,
     retry,
     duplicate,
     unauthorized: {ok: false, value: unauthorized},
+    afterUnauthorized: {blockHeight: afterUnauthorized.blockHeight},
     before: {recipient: recipientBeforeApproval, lockedAmount: afterApproval.lockedAmount},
     afterApproval: {recipient: recipientAfterApproval, lockedAmount: afterApproval.lockedAmount},
     beforeRetry: {proposer: beforeRetry.proposer, lockedAmount: beforeRetry.lockedAmount, recipient: recipientAfterApproval},
