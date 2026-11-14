@@ -222,6 +222,36 @@ duplicateNoReceiptLink.inherited.transactions.duplicate.transactionOutcome.recei
 assert.equal(verifySettlementReport(duplicateNoReceiptLink, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'duplicate retry must link its executed receipts');
 
+const reusedDuplicate = JSON.parse(JSON.stringify(correctedReport));
+reusedDuplicate.inherited.transactions.duplicate = JSON.parse(JSON.stringify(reusedDuplicate.inherited.transactions.retries[0]));
+assert.equal(verifySettlementReport(reusedDuplicate, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the duplicate retry cannot reuse an overlap transaction');
+
+const missingDuplicateHeight = JSON.parse(JSON.stringify(correctedReport));
+delete missingDuplicateHeight.inherited.transactions.duplicate.blockHeight;
+assert.equal(verifySettlementReport(missingDuplicateHeight, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the duplicate retry must carry its measured block height');
+
+const prematureDuplicate = JSON.parse(JSON.stringify(correctedReport));
+prematureDuplicate.inherited.transactions.duplicate.blockHeight = prematureDuplicate.inherited.beforeRetry.blockHeight;
+assert.equal(verifySettlementReport(prematureDuplicate, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the duplicate retry must be after the settled afterRetry observation');
+
+const duplicateLegacyHash = JSON.parse(JSON.stringify(correctedReport));
+duplicateLegacyHash.inherited.transactions.duplicate.transactionHash = duplicateLegacyHash.inherited.transactions.upgrade.legacyFinalize.transactionHash;
+assert.equal(verifySettlementReport(duplicateLegacyHash, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the duplicate retry cannot reuse the legacy finalize transaction');
+
+const missingRetryHeight = JSON.parse(JSON.stringify(correctedReport));
+delete missingRetryHeight.inherited.transactions.retries[0].blockHeight;
+assert.equal(verifySettlementReport(missingRetryHeight, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'raw retries must carry measured heights');
+
+const beforeWindowRetry = JSON.parse(JSON.stringify(correctedReport));
+beforeWindowRetry.inherited.transactions.retries[0].blockHeight = beforeWindowRetry.inherited.beforeRetry.blockHeight;
+assert.equal(verifySettlementReport(beforeWindowRetry, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'raw retries must be inside the beforeRetry/afterRetry window');
+
 const genuineTrace = JSON.parse(JSON.stringify(correctedReport));
 {
   const t = genuineTrace.inherited.transactions;
@@ -526,6 +556,12 @@ console.log(JSON.stringify({
     'failed-deployment-receipt-fails',
     'approval-receipts-required',
     'genuine-ordered-trace-passes',
+    'reused-duplicate-fails',
+    'missing-duplicate-height-fails',
+    'premature-duplicate-fails',
+    'duplicate-legacy-hash-fails',
+    'missing-retry-height-fails',
+    'retry-before-window-fails',
     'add-method-substitution-fails',
     'add-receiver-substitution-fails',
     'add-signer-substitution-fails',

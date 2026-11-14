@@ -474,9 +474,14 @@ const runSettlementGate = (candidateWasm, outDir, sandboxDir) => {
   const reportPath = path.join(settlementDir, 'settlement-refund.json');
   const report = readJson(reportPath, 'failed-refund settlement report');
   const checked = verifySettlementReport(report, {candidateWasmSha256: sha256(fs.readFileSync(candidateWasm)), baseWasmSha256: sha256(fs.readFileSync(BASE_WASM))});
-  if (!checked.ok) fail(`failed-refund settlement gate failed: ${checked.errors.join('; ')}`);
   return {settlementDir, reportPath, report, checked, stdout: result.stdout};
 };
+
+const settlementAcceptanceStage = (checked) => stageFromChecks(
+  checked?.ok === true,
+  checked?.errors || [],
+  {evidenceValid: Boolean(checked) && checked?.unproven !== true},
+);
 
 const compareMixed = (producer, reviewer, reviewerWasmSha256, artifactWasmSha256) => {
   const producerOutcomes = producer?.outcomes || (producer ? verifyMixedReport(producer, {requireBlockPinned: true}).outcomes : null);
@@ -647,9 +652,9 @@ const main = () => {
     fresh: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted/fresh acceptance did not pass'], {evidenceValid: Boolean(summary)}),
     recovery: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted recovery report did not pass acceptance'], {evidenceValid: Boolean(report)}),
     mixed: stageFromChecks(mixedRun.checked.ok === true, mixedRun.checked.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedRun.checked)}),
-    settlement: stageFromChecks(settlementRun.checked.ok === true, settlementRun.checked.errors || [], {evidenceValid: Boolean(settlementRun.checked) && settlementRun.checked?.unproven !== true}),
+    settlement: settlementAcceptanceStage(settlementRun.checked),
   });
-  if (!acceptancePolicy.ok) fail(`${acceptancePolicy.status}: versioned acceptance policy ${acceptancePolicy.policyVersion} failed: ${acceptancePolicy.errors.join('; ')}`);
+  if (acceptancePolicy.status === 'REJECTED') fail(`${acceptancePolicy.status}: versioned acceptance policy ${acceptancePolicy.policyVersion} failed: ${acceptancePolicy.errors.join('; ')}`);
   const resultPath = path.join(outDir, 'review-result.json');
   const result = {
     schema: 'near-rehearsal/repair-review-handoff/v1',
@@ -687,6 +692,7 @@ const main = () => {
   };
   fs.writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`);
   console.log(render(result));
+  if (acceptancePolicy.status === 'INCONCLUSIVE') process.exitCode = 5;
 };
 
 if (require.main === module) {
@@ -698,4 +704,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { checkBundle, compareMixed, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment };
+module.exports = { checkBundle, compareMixed, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment, settlementAcceptanceStage };

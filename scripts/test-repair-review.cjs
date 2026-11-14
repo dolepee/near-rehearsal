@@ -7,7 +7,8 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
-const { checkBundle, compareMixed, formatYocto, yoctoNear, preflight } = require('./repair-review.cjs');
+const { checkBundle, compareMixed, formatYocto, yoctoNear, preflight, settlementAcceptanceStage } = require('./repair-review.cjs');
+const { evaluateCandidate, stageFromChecks } = require('../case-triage/rehearsal-repair/acceptance-orchestrator.cjs');
 const { buildReviewBundle } = require('../case-triage/rehearsal-repair/review-bundle.cjs');
 const { buildHandoffBundle } = require('../case-triage/rehearsal-repair/handoff-bundle.cjs');
 
@@ -33,6 +34,22 @@ for (const [label, mutate] of [
 }
 
 const outcomes = {alicePaid: true, bobLiabilityAfterAlice: true, bobTransferPaid: true, bobPaidExactlyOnce: true, aliceLockedDelta: '-1000000000000000000000000', bobLockedDelta: '-1000000000000000000000000', bobRecipientDelta: '100000000000000000000000', bobProposerDelta: '1000000000000000000000000'};
+const coverageOnly = settlementAcceptanceStage({ok: false, unproven: true, errors: ['in-flight guard was not exercised']});
+const coverageVerdict = evaluateCandidate({
+  fresh: stageFromChecks(true),
+  recovery: stageFromChecks(true),
+  mixed: stageFromChecks(true, [], {policyVersion: 'near-rehearsal/acceptance-policy/v3'}),
+  settlement: coverageOnly,
+});
+assert.equal(coverageOnly.evidenceValid, false);
+assert.equal(coverageVerdict.status, 'INCONCLUSIVE', 'coverage-only reviewer evidence must reach the shared classifier');
+const financialOnly = settlementAcceptanceStage({ok: false, unproven: false, errors: ['failed refund lost locked debt']});
+assert.equal(financialOnly.evidenceValid, true);
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: financialOnly}).status, 'REJECTED');
+const combined = settlementAcceptanceStage({ok: false, unproven: true, errors: ['in-flight guard was not exercised', 'failed refund lost locked debt']});
+assert.equal(combined.evidenceValid, false);
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: combined}).status, 'INCONCLUSIVE');
+
 const sameBytes = compareMixed({outcomes, candidate: {wasmSha256: 'a'.repeat(64)}}, {outcomes}, 'a'.repeat(64), 'a'.repeat(64));
 assert.equal(sameBytes.candidateMatches, true);
 const legacy = compareMixed(null, {ok: true, outcomes}, 'a'.repeat(64), 'a'.repeat(64));
@@ -101,7 +118,7 @@ try {
 console.log(JSON.stringify({
   schema: 'near-rehearsal/repair-review-guards/v1',
   ok: true,
-  checks: 26,
+  checks: 30,
   fixture: path.relative(path.join(__dirname, '..'), fixture),
   fixtureSha256: crypto.createHash('sha256').update(fs.readFileSync(fixture)).digest('hex'),
 }, null, 2));

@@ -254,6 +254,16 @@ function verifyRetries(scenario, dao, failFor) {
   });
   if (new Set(hashes).size !== 2) failFor(false, 'retry transactions do not have distinct hashes');
   if (new Set(signers).size !== 2) failFor(false, 'retry transactions do not have distinct signers');
+  const beforeHeight = recordedHeight(scenario.beforeRetry?.blockHeight);
+  const afterHeight = recordedHeight(scenario.afterRetry?.blockHeight);
+  if (beforeHeight === null || afterHeight === null) failFor(false, 'raw retry evidence is not bounded by valid before/after snapshots');
+  else {
+    raw.forEach((tx, index) => {
+      const height = recordedHeight(tx.blockHeight);
+      if (height === null) failFor(false, `retry ${index + 1} height is missing or malformed`);
+      else if (height <= beforeHeight || height > afterHeight) failFor(false, `retry ${index + 1} is outside the measured recovery window`);
+    });
+  }
   if (successful !== 1) { coverageErrors.push(`expected exactly one successful retry action, got ${successful}`); failFor(false, coverageErrors[coverageErrors.length - 1]); }
   if (expectedInFlight !== 1) { coverageErrors.push(`expected exactly one receipt-backed ERR_PROPOSAL_NOT_IN_PROGRESS rejection, got ${expectedInFlight}`); failFor(false, coverageErrors[coverageErrors.length - 1]); }
   return {guardUnproven: successful === 2 && expectedInFlight === 0, coverageErrors};

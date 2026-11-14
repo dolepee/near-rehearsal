@@ -296,7 +296,7 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
     if (entry.status !== 'fulfilled') { retryFinals.push({error: String(entry.reason?.message || entry.reason).slice(0, 500)}); continue; }
     try {
       const signer = entry.value?.transaction?.signerId || null;
-      const summarized = summarize(await finalStatus(worker, entry.value, signer || voter.accountId));
+      const summarized = await withHeight(worker, summarize(await finalStatus(worker, entry.value, signer || voter.accountId)), `retry ${retryFinals.length + 1}`);
       retryFinals.push({...summarized, signerId: summarized.transaction?.signerId || null});
     } catch (error) { retryFinals.push({error: String(error.message || error).slice(0, 500)}); }
   }
@@ -320,7 +320,7 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
 
   stage(`${tag} duplicate retry`);
   const duplicate = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
-  const duplicateFinal = summarize(await finalStatus(worker, duplicate, voter.accountId));
+  const duplicateFinal = await withHeight(worker, summarize(await finalStatus(worker, duplicate, voter.accountId)), 'duplicate retry');
   const afterDuplicate = await settle(worker, dao, proposer.accountId, voter.accountId);
   const duplicateDelta = BigInt(afterDuplicate.proposer ?? 0) - BigInt(afterRetry.proposer ?? 0);
   fail(duplicateDelta === 0n, `duplicate retry paid ${duplicateDelta}`);
