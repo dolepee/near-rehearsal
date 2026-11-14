@@ -85,6 +85,17 @@ mutate('unequal base deploy removed', (value) => { delete value.unequal.transact
 mutate('unequal candidate upgrade removed', (value) => { delete value.unequal.transactions.upgradeDeploy; });
 mutate('unequal actual recovery removed', (value) => { delete value.unequal.transactions.recovery; });
 mutate('seeded refund failure removed', (value) => { delete value.inherited.legacy.seededRefundFailure; });
+mutate('seeded refund failure receiver changed', (value) => {
+  value.inherited.legacy.seededRefundFailure.final.transaction.receiverId = 'elsewhere.test.near';
+});
+mutate('seeded refund failure receipt graph unlinked', (value) => {
+  const final = value.inherited.legacy.seededRefundFailure.final;
+  final.transactionOutcome = {status: {SuccessValue: ''}, receiptIds: []};
+});
+mutate('unequal Alice proposal ids changed to 99', (value) => {
+  value.unequal.before.proposal.id = 99;
+  value.unequal.after.proposal.id = 99;
+});
 mutate('unequal case removed', (value) => { delete value.unequal; });
 mutate('unequal reported delta changed', (value) => { value.unequal.aliceDelta = '2000000000000000000000000'; });
 mutate('unequal policy differs by one yocto', (value) => { value.unequal.policyAfter.proposal_bond = '2000000000000000000000001'; });

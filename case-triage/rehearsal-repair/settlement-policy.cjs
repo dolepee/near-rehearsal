@@ -367,9 +367,8 @@ function reachableFailure(summary, expectedExecutor, needle, label, fail) {
     seen.add(id);
     const receipt = byId.get(id);
     if (!receipt) { fail(false, `${label} roots a missing receipt`); return false; }
-    if (receipt.status?.Failure) {
+    if (receipt.status?.Failure && JSON.stringify(receipt.status).includes(needle)) {
       if (receipt.executorId !== expectedExecutor) { fail(false, `${label} failure receipt has the wrong executor`); return false; }
-      if (!JSON.stringify(receipt.status).includes(needle)) { fail(false, `${label} reachable failure lacks the expected error`); return false; }
       found = true;
     }
     for (const child of receipt.receiptIds || []) queue.push(child);
@@ -421,10 +420,21 @@ function verifyLegacySeed(scenario, dao, fail) {
     check(reachableFailure(probe?.value, dao, needle, label, check), `${label} lacks a reachable failed receipt`);
   }
   const seededFailure = legacy?.seededRefundFailure;
-  check(seededFailure?.final?.finalExecutionStatus === 'FINAL', 'seeded refund failure was not FINAL');
-  const seededTransferFailure = (seededFailure?.final?.receipts || []).some((receipt) => receipt?.status?.Failure && receipt.executorId === legacy?.seedArgs?.proposer);
-  check(seededTransferFailure, 'seeded refund failure did not retain a failed transfer receipt');
+  const seededFinal = seededFailure?.final;
+  const seededProposer = legacy?.seedArgs?.proposer;
+  check(seededFinal?.finalExecutionStatus === 'FINAL', 'seeded refund failure was not FINAL');
+  check(seededFinal?.transaction?.receiverId === dao, 'seeded refund failure receiver is not the DAO');
+  const seededSigner = scenario.transactions?.vote?.transaction?.signerId;
+  check(seededSigner && seededFinal?.transaction?.signerId === seededSigner, 'seeded refund failure signer is not the recorded voter');
+  const seededCall = soleCall(seededFinal, 'seeded refund failure', (message) => check(false, message));
+  check(seededCall?.call?.method_name === 'act_proposal', 'seeded refund failure called the wrong method');
+  if (seededCall) {
+    check(String(seededCall.args?.id) === String(scenario.proposalId), 'seeded refund failure targets a different proposal');
+    check(seededCall.args?.action === 'Finalize', 'seeded refund failure action is not Finalize');
+  }
+  check(seededProposer && reachableFailure(seededFinal, seededProposer, seededProposer, 'seeded refund failure', check), 'seeded refund failure lacks a linked failed transfer to the deleted proposer');
   check(String(seededFailure?.snapshot?.lockedAmount) === String(deposit), 'seeded refund failure did not retain the locked debt');
+  check(seededFailure?.snapshot?.proposal?.id === scenario.proposalId && seededFailure?.snapshot?.proposal?.status === 'Failed', 'seeded refund failure changed the original proposal');
   check(seededFailure?.snapshot?.proposer === null || BigInt(seededFailure.snapshot.proposer) === 0n, 'seeded refund failure paid the deleted proposer');
   check(String(legacy?.beforeSeedProbe?.lockedAmount) === String(deposit) && String(legacy?.afterSeedProbe?.lockedAmount) === String(deposit), 'seed probes changed the locked debt');
   check(legacy?.beforeSeedProbe?.proposer === legacy?.afterSeedProbe?.proposer, 'seed probes changed the proposer principal');
@@ -651,6 +661,14 @@ function verifyUnequalOutcomes(unequal, fail, expectedCandidateSha256 = null) {
   if (amount(unequal.policyBefore?.proposal_bond) !== 10n ** 24n || amount(unequal.policyAfter?.proposal_bond) !== 2n * 10n ** 24n) fail('unequal policy change is not the measured one-to-two transition');
   const addAlice = unequal.transactions?.addAlice;
   const addBob = unequal.transactions?.addBob;
+  for (const [name, proposalId, beforeSnap, afterSnap, funding] of [
+    ['Alice', unequal.ids?.alice, before, after, addAlice],
+    ['Bob', unequal.ids?.bob, bobBefore, bobAfter, addBob],
+  ]) {
+    if (String(beforeSnap?.proposal?.id) !== String(proposalId) || String(afterSnap?.proposal?.id) !== String(proposalId)) fail(`unequal ${name} snapshot is not bound to its proposal id`);
+    if (beforeSnap?.proposal?.proposer !== funding?.transaction?.signerId || afterSnap?.proposal?.proposer !== funding?.transaction?.signerId) fail(`unequal ${name} snapshot proposer does not match its funding signer`);
+    if (funding?.transaction?.receiverId !== unequal.dao) fail(`unequal ${name} funding receiver is not the DAO`);
+  }
   const aliceDeposit = (addAlice?.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall?.deposit;
   const bobDeposit = (addBob?.transaction?.actions || []).find((action) => action?.FunctionCall?.method_name === 'add_proposal')?.FunctionCall?.deposit;
   if (String(aliceDeposit) !== String(10n ** 24n) || String(bobDeposit) !== String(2n * 10n ** 24n)) fail('unequal funding deposits are not one and two bonds');
