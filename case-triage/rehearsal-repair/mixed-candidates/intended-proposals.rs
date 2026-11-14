@@ -769,8 +769,27 @@ impl Contract {
         // Check permissions for the given action.
         let (roles, allowed) =
             policy.can_execute_action(self.internal_user_info(), &proposal.kind, &action);
-        assert!(allowed, "ERR_PERMISSION_DENIED");
         let sender_id = env::predecessor_account_id();
+        // Once a successful business action and its bond refund have settled,
+        // Finalize must never execute that action a second time.
+        if proposal.status == ProposalStatus::Approved
+            && matches!(
+                Self::read_refund_state(id),
+                Some((Self::REFUND_SETTLED, _, _))
+            ) {
+            env::panic_str("ERR_PROPOSAL_ALREADY_EXECUTED");
+        }
+        // A successfully executed proposal can still owe its proposer a bond
+        // whose transfer failed. Only that original proposer may ask for the
+        // refund-only retry; Finalize must not execute the successful action again.
+        let refund_retry = matches!(&action, Action::Finalize)
+            && proposal.status == ProposalStatus::Approved
+            && proposal.proposer == sender_id
+            && matches!(
+                Self::read_refund_state(id),
+                Some((Self::REFUND_FAILED, _, _))
+            );
+        assert!(allowed || refund_retry, "ERR_PERMISSION_DENIED");
 
         // Verify proposal kind
         assert!(proposal.kind == input_proposal_kind, "ERR_WRONG_KIND");
@@ -823,22 +842,27 @@ impl Contract {
             //  - if the number of votes in the group has changed (new members has been added) -
             //      the proposal can loose it's approved state. In this case new proposal needs to be made, this one can only expire.
             Action::Finalize => {
-                proposal.status = policy.proposal_status(
-                    &proposal,
-                    policy.roles.iter().map(|r| r.name.clone()).collect(),
-                    self.total_delegation_amount,
-                );
-                match proposal.status {
-                    ProposalStatus::Approved => {
-                        self.internal_execute_proposal(&policy, &proposal, id)
-                            .detach();
-                    }
-                    ProposalStatus::Expired => {
-                        self.internal_reject_proposal(id, &policy, &proposal, true)
-                            .detach();
-                    }
-                    _ => {
-                        env::panic_str("ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED");
+                if refund_retry {
+                    // Refund-only recovery: the business action already succeeded.
+                    self.internal_return_proposal_bond(id, &proposal).detach();
+                } else {
+                    proposal.status = policy.proposal_status(
+                        &proposal,
+                        policy.roles.iter().map(|r| r.name.clone()).collect(),
+                        self.total_delegation_amount,
+                    );
+                    match proposal.status {
+                        ProposalStatus::Approved => {
+                            self.internal_execute_proposal(&policy, &proposal, id)
+                                .detach();
+                        }
+                        ProposalStatus::Expired => {
+                            self.internal_reject_proposal(id, &policy, &proposal, true)
+                                .detach();
+                        }
+                        _ => {
+                            env::panic_str("ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED");
+                        }
                     }
                 }
                 true

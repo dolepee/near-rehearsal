@@ -11,7 +11,7 @@
  * second scenario is what proves the historical bond/refund state survives.
  */
 const BOND = 10n ** 24n;
-const REQUIRED_SCHEMA = 'near-rehearsal/settlement-refund/v2';
+const REQUIRED_SCHEMA = 'near-rehearsal/settlement-refund/v3';
 
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 function base58Encode(bytes) {
@@ -850,6 +850,28 @@ function verifySettlementReport(report, opts = {}) {
   };
   const freshOutcomes = inspect(report?.fresh, 'candidate-only');
   const inheritedOutcomes = inspect(report?.inherited, 'legacy-upgrade');
+  // A successful business action whose bond refund failed is a separate
+  // terminal obligation. It is mandatory for acceptance: an older report that
+  // simply lacks this evidence is inconclusive, never silently accepted.
+  const approved = report?.successfulActionRefund;
+  if (!approved) {
+    fail('approved-action/failed-refund coverage is missing');
+  } else {
+    const approvedAmount = (value) => {
+      if (typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value)) return BigInt(value);
+      return null;
+    };
+    const transfer = 10n ** 23n;
+    if (approved.candidateWasmSha256 !== candidateWasmSha256) fail('approved-action/failed-refund evidence is for a different candidate');
+    if (approved.recipientPaid !== transfer.toString()) fail('approved-action/failed-refund recipient was not paid exactly once', 'verified');
+    if (approved.lockedBefore !== BOND.toString()) fail('approved-action/failed-refund did not start with the bond locked', 'verified');
+    if (approved.lockedAfter !== '0') fail('approved-action/failed-refund left the bond locked', 'verified');
+    const refund = approvedAmount(approved.retryRefund);
+    if (refund === null || refund <= 0n || refund > BOND) fail('approved-action/failed-refund retry did not return the proposer bond', 'verified');
+    const duplicate = approvedAmount(approved.duplicateRefund);
+    if (duplicate === null || duplicate > 0n) fail('approved-action/failed-refund duplicate retry changed the proposer principal', 'verified');
+    if (approved.duplicateDenied !== true) fail('approved-action/failed-refund duplicate retry was not denied', 'verified');
+  }
   try { verifyUnequalOutcomes(report?.unequal, fail, candidateWasmSha256); }
   catch (error) { fail(`unequal evidence prevented verification: ${error.message}`); }
 

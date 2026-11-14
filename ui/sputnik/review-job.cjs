@@ -250,7 +250,7 @@ function buildEvidence(run) {
       ...portableReport(path.join(run.outDir, 'mixed', 'mixed-obligation.json'), wasm, 'near-rehearsal/mixed-obligation/v1'),
       policy,
     },
-    settlement: portableReport(path.join(run.outDir, 'settlement', 'settlement-refund.json'), wasm, 'near-rehearsal/settlement-refund/v2'),
+    settlement: portableReport(path.join(run.outDir, 'settlement', 'settlement-refund.json'), wasm, 'near-rehearsal/settlement-refund/v3'),
   });
 }
 
@@ -262,7 +262,7 @@ function completeStoredEvidence(run, dir) {
     && /^[a-f0-9]{64}$/.test(stored.mixed?.policy?.sha256 || '')
     && stored.mixed?.policy?.sha256 === run.result?.mixed?.policy?.sha256
     && /^[a-f0-9]{64}$/.test(wasm || '')
-    && [[stored.mixed, 'near-rehearsal/mixed-obligation/v1'], [stored.settlement, 'near-rehearsal/settlement-refund/v2']].every(([entry, schema]) => entry?.report?.schema === schema
+    && [[stored.mixed, 'near-rehearsal/mixed-obligation/v1'], [stored.settlement, 'near-rehearsal/settlement-refund/v3']].every(([entry, schema]) => entry?.report?.schema === schema
       && entry.report.candidate?.wasmSha256 === wasm
       && /^[a-f0-9]{64}$/.test(entry.rawReportSha256 || '')
       && entry.exportedReportSha256 === sha256(Buffer.from(json(entry.report))));

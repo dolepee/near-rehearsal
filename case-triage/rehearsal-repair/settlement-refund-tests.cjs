@@ -693,6 +693,12 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
   process.env.NEAR_SANDBOX_BINARY_PATH = path.dirname(rt.binary);
   process.env.NEAR_SANDBOX_VERSION = rt.version;
   const wasm = fs.readFileSync(opts.wasm);
+  const approvedRefundPath = process.env.APPROVED_ACTION_REFUND
+    ? path.resolve(process.env.APPROVED_ACTION_REFUND)
+    : path.join(__dirname, 'out', 'audit-intended', 'successful-action-refund.json');
+  const successfulActionRefund = fs.existsSync(approvedRefundPath)
+    ? JSON.parse(fs.readFileSync(approvedRefundPath, 'utf8'))
+    : null;
   const baseWasm = opts.baseWasm ? fs.readFileSync(opts.baseWasm) : null;
   if (!baseWasm) throw new Error('--base-wasm is required: accepted settlement evidence must cover both the fresh candidate and the inherited pinned-base proposal');
   const mode = opts.mode || 'settlement';
@@ -733,7 +739,7 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
     }
     if (process.env.ONLY_INHERITED === '1') {
       const inherited = await runScenario({worker, tag: 'inherited', prefix: 'inherited', wasm, baseWasm});
-      const report = {schema: 'near-rehearsal/settlement-refund/v2', generatedAt: new Date().toISOString(), candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length}, baseWasmSha256: sha256(baseWasm), runtime: rt, inherited, errors: inherited.errors.map((error) => `inherited: ${error}`), ok: inherited.ok};
+      const report = {schema: 'near-rehearsal/settlement-refund/v3', generatedAt: new Date().toISOString(), candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length}, baseWasmSha256: sha256(baseWasm), runtime: rt, inherited, errors: inherited.errors.map((error) => `inherited: ${error}`), ok: inherited.ok};
       fs.mkdirSync(opts.out, {recursive: true});
       fs.writeFileSync(path.join(opts.out, 'settlement-refund.json'), json(report));
       console.log(json({ok: report.ok, errors: report.errors}));
@@ -742,7 +748,7 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
     }
     if (process.env.ONLY_UNEQUAL === '1') {
       const unequal = await runUnequalLegacyScenario({worker, wasm, baseWasm});
-      const report = {schema: 'near-rehearsal/settlement-refund/v2', generatedAt: new Date().toISOString(), candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length}, baseWasmSha256: sha256(baseWasm), runtime: rt, unequal, errors: unequal.errors.map((error) => `unequal: ${error}`), ok: unequal.ok};
+      const report = {schema: 'near-rehearsal/settlement-refund/v3', generatedAt: new Date().toISOString(), candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length}, baseWasmSha256: sha256(baseWasm), runtime: rt, unequal, errors: unequal.errors.map((error) => `unequal: ${error}`), ok: unequal.ok};
       fs.mkdirSync(opts.out, {recursive: true});
       fs.writeFileSync(path.join(opts.out, 'settlement-refund.json'), json(report));
       console.log(json({ok: report.ok, errors: report.errors, unequal}));
@@ -760,7 +766,7 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
       ...unequal.errors.map((error) => `unequal: ${error}`),
     ];
     const report = {
-      schema: 'near-rehearsal/settlement-refund/v2',
+      schema: 'near-rehearsal/settlement-refund/v3',
       generatedAt: new Date().toISOString(),
       source: {repository: 'https://github.com/near-daos/sputnik-dao-contract', commit: '5434a59dec23ee0c49df8c8c4350c208a7e75b0b'},
       candidate: {wasmSha256: sha256(wasm), wasmBytes: wasm.length},
@@ -769,6 +775,7 @@ async function runBountyDoneScenario({worker, tag, prefix, wasm, failPath}) {
       fresh: {...fresh, mode: 'candidate-only'},
       inherited: {...inherited, mode: 'legacy-upgrade'},
       unequal,
+      successfulActionRefund,
       errors,
       ok: fresh.ok && inherited.ok && unequal.ok,
       boundary: 'Local Sandbox settlement regression. No live DAO, production funds, deployment or universal recovery claim.',

@@ -77,7 +77,7 @@ assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFro
 fs.rmSync(truncatedReport, {force: true});
 
 const verifierThrowReport = path.join(os.tmpdir(), `verifier-throw-${process.pid}.json`);
-fs.writeFileSync(verifierThrowReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v2', broken: true}));
+fs.writeFileSync(verifierThrowReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v3', broken: true}));
 const verifierThrowRun = interpretSettlementRun({status: 1, stdout: '', stderr: ''}, verifierThrowReport, () => { throw new Error('malformed report data'); });
 assert.ok(verifierThrowRun.unavailable);
 assert.match(verifierThrowRun.unavailable.message, /could not be verified/);
@@ -85,7 +85,7 @@ assert.equal(settlementAcceptanceStage(verifierThrowRun.checked, verifierThrowRu
 fs.rmSync(verifierThrowReport, {force: true});
 
 const semanticReport = path.join(os.tmpdir(), `semantic-settlement-${process.pid}.json`);
-fs.writeFileSync(semanticReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v2'}));
+fs.writeFileSync(semanticReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v3'}));
 const semanticRun = interpretSettlementRun({status: 1, stdout: '', stderr: 'child exited 1'}, semanticReport, () => ({ok: false, unproven: false, errors: ['verified financial failure']}));
 assert.ok(semanticRun.report, 'a completed report is inspected even when the child exited nonzero');
 const semanticStage = settlementAcceptanceStage(semanticRun.checked, semanticRun.unavailable);
