@@ -22,7 +22,6 @@ The reviewer quickstart is for a supplied candidate and never calls a model. Fre
 
 Use **`/repair?mode=patch`** to check a maintainer diff. This is the primary workflow and needs no model account, wallet or API key. Source builds require a supported Linux x86_64 host with PID-namespace confinement. Native macOS supports recorded WASM replay, not source compilation.
 
-**Pending compiler release #26:** the protected source-build instructions below are not available at the pre-merge baseline. Do not compile untrusted patches on that baseline. This documentation change remains held until the implementation and its final review land.
 
 1. Complete the [runtime and source setup](docs/local-repair-setup.md#sandbox-runtimes), including the [compiler boundary and dependency cache](docs/local-repair-setup.md#compiler-boundary-and-dependency-cache).
 2. In that same terminal, run `npm run doctor -- --flow repair --mode patch`, then `PORT=4174 npm run ui:patch`.
@@ -256,7 +255,7 @@ The authored comparison's seeded regression and correction are labelled fixtures
 | Flow | Sandbox | Tested chain/build coverage | Build tools | Provider generation |
 | --- | --- | --- | --- | --- |
 | `/review` recorded replay | 2.14.0 | Linux x86_64 CI; native macOS arm64 chain/replay exercised | None beyond Node | None |
-| `/review` source build | 2.14.0 | Linux x86_64 CI; native macOS arm64 build/replay exercised | Rust 1.86.0 + `wasm32-unknown-unknown` | None |
+| `/review` source build | 2.14.0 | Linux x86_64 CI with enforced bubblewrap PID namespace; unavailable on native macOS | Rust 1.86.0 + `wasm32-unknown-unknown` | None |
 | `/repair` fresh generation | 2.14.0 | Linux x86_64 CI covers source build/replay; it does not exercise a live model provider | Rust 1.86.0 + `wasm32-unknown-unknown` | Existing Codex login, model and enforced policy; local prerequisite, not CI-proven |
 | `/compare` authored comparison (legacy `/index.html`) | 2.6.2 | Linux x86_64 CI; native macOS arm64 chain/replay exercised | None beyond Node | None |
 

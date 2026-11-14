@@ -70,7 +70,6 @@ Use the official Rust/rustup installation if `rustup` is not present. The contro
 
 Both maintainer patch checking and reviewer **source-build** execute a supplied Rust patch. They require an OS-enforced compiler boundary, even when no model is used:
 
-**Pending #26:** the following compiler protections are not present at the pre-merge baseline. Do not treat this section as evidence that that baseline confines source builds. Merge is held until the implementation and its final review are complete.
 
 Linux x86_64 uses installed `bubblewrap` with working unprivileged namespaces and PID-namespace teardown. The pinned Sandbox must also execute on the host; the official 2.14.0 Linux archive requires a compatible glibc (Ubuntu 22.04's stock runtime is too old). A container or distribution that denies the required namespaces is unavailable for source builds. Follow the distribution's supported application-specific launcher policy; do not disable a global AppArmor restriction or another host protection.
 
