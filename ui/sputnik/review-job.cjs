@@ -358,7 +358,15 @@ function createManager(options = {}) {
     } else {
       const resultPath = path.join(run.outDir, 'review-result.json');
       const result = readJson(resultPath);
-      if (code === 0 && result && result.summary?.checks?.accepted === true) {
+      const verdict = result?.acceptancePolicy?.status || result?.status
+        || (result?.summary?.checks?.accepted === true ? 'ACCEPTED' : 'REJECTED');
+      if ((code === 0 || code === 5) && verdict === 'INCONCLUSIVE') {
+        run.status = 'inconclusive';
+        run.phase = 'inconclusive';
+        run.result = publicResult(result, {bundle: run.bundle, bundleSha256: run.bundleSha256, finishedAt: run.finishedAt});
+        const detail = run.logs.slice(-4).join(' ').trim();
+        run.error = cleanError(`The review was inconclusive: required coverage evidence was not proven; it is not accepted.${detail ? ` ${detail}` : ''}`);
+      } else if (code === 0 && verdict === 'ACCEPTED' && result?.summary?.checks?.accepted === true) {
         run.status = 'accepted';
         run.phase = 'accepted';
         run.result = publicResult(result, {bundle: run.bundle, bundleSha256: run.bundleSha256, finishedAt: run.finishedAt});
@@ -368,12 +376,12 @@ function createManager(options = {}) {
         run.status = 'rejected';
         run.phase = 'rejected';
         const detail = run.logs.slice(-4).join(' ').trim();
-        run.error = cleanError(result?.summary?.checks?.accepted === false
+        run.error = cleanError(result?.summary?.checks?.accepted === false || verdict === 'REJECTED'
           ? `The recorded replay did not pass acceptance.${detail ? ` ${detail}` : ''}`
           : `The recorded replay did not produce an accepted result${code === null ? '.' : ` (exit ${code}).`}${detail ? ` ${detail}` : ''}`);
       }
     }
-    if (!run.error && code !== 0 && code !== null) run.error = `The recorded replay exited ${code}.`;
+    if (!run.error && code !== 0 && code !== null && run.status === 'rejected') run.error = `The recorded replay exited ${code}.`;
     writeMeta(run);
   }
 

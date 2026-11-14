@@ -134,6 +134,20 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
   assert.equal(timers.length, 0, 'opening saved results does not restart polling');
   accepted.result.mixed.comparison = flatComparison;
 
+  // A coverage-only reviewer result is terminal but not accepted.
+  elements.clear();
+  timers.length = 0;
+  runResponse = {...accepted, status: 'inconclusive', phase: 'inconclusive',
+    error: 'The review was inconclusive: required coverage evidence was not proven; it is not accepted.',
+    downloadUrl: null, evidenceUrl: null,
+    result: {...accepted.result, status: 'INCONCLUSIVE', accepted: false, acceptancePolicy: {status: 'INCONCLUSIVE'}}};
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'public/review.js'), 'utf8'), context, {filename: 'review.js'});
+  await tick(); await tick(); await tick(); await tick();
+  assert.equal(get('error-state').hidden, false, 'inconclusive results render a terminal state');
+  assert.match(get('error-copy').textContent, /coverage evidence was not proven/);
+  assert.match(get('status').textContent, /inconclusive/i);
+  assert.equal(timers.length, 0, 'inconclusive history stops polling');
+
   // Restore a historical result whose evidence disappeared while the server
   // was stopped. It must release the UI rather than pretend to keep running.
   elements.clear();

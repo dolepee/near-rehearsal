@@ -5,10 +5,10 @@ Recorded local review material. These files are not a live run and not a mainnet
 - Source: https://github.com/near-daos/sputnik-dao-contract
 - Pinned commit: 5434a59dec23ee0c49df8c8c4350c208a7e75b0b
 - Runtime: Sandbox 2.14.0, protocol 88
-- Policy SHA-256: 003766299d6f793f6a6b724296f23a3bd78c7b968323c8d20dc2d1ad40f4c2c6
+- Policy SHA-256: edd83f24aa9ba52fc0ebb42eed3c24df67a43f8d4f84a9f0c3136e042961f0ca
 - Baseline WASM: 5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578
 - Clear-all candidate: 684eabc429fc691f68aef8baf7f2e226f42ae481e3da4a1f41a54598e302d9b6
-- Intended candidate: 49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923
+- Intended candidate: 158f0f0e0a98b3df11fb86828aa72bc0edbe4e992f5db0ab8f86f012eb754f7d
 
 ## Reproduce with the supported source-review command
 
@@ -29,6 +29,7 @@ policy; it does not execute a public chain transaction.
 
 - `clear-all.patch` / `clear-all.wasm`: rejected candidate.
 - `intended.patch` / `intended.wasm`: accepted candidate.
+- `intended.proposals.rs` / `intended-identity.json`: applied source and controller identity for that candidate.
 - `old.wasm`: pinned baseline code.
 - `mixed-obligation-clear-all.json`: recorded bad result.
 - `mixed-obligation-intended.json`: recorded good result.

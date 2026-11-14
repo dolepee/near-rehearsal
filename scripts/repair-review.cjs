@@ -20,14 +20,18 @@ const RECOVERY = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'persisted-r
 const ACCEPTANCE = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'persisted-recovery-acceptance.cjs');
 const BASE_WASM = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'bundle', 'artifacts', 'base.wasm');
 const MIXED = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'mixed-obligation.cjs');
+const SETTLEMENT = path.join(ROOT, 'case-triage', 'rehearsal-repair', 'settlement-refund-tests.cjs');
 const {verifyMixedReport} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'mixed-policy.cjs'));
+const {verifySettlementReport} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'settlement-policy.cjs'));
 const {mixedPolicyIdentity} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'mixed-policy-identity.cjs'));
+const {POLICY_VERSION, evaluateCandidate, stageFromChecks} = require(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'acceptance-orchestrator.cjs'));
 const BASE_WASM_SHA = '5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578';
 const SANDBOX_COMMIT = 'bc4e9e8cfb03d9e82f027883055624e18576993e';
 const SANDBOX_VERSION = '2.14.0';
 const SCHEMA = 'near-rehearsal/repair-review-bundle/v1';
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
+const SETTLEMENT_POLICY_SHA = sha256(fs.readFileSync(path.join(ROOT, 'case-triage', 'rehearsal-repair', 'settlement-policy.cjs')));
 const hex = (value) => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
 const fail = (message) => { throw new Error(message); };
 const readJson = (file, label) => {
@@ -188,6 +192,15 @@ const checkBundle = (bundle) => {
     try { producerMixed = JSON.parse(bundle.mixed.reportText); } catch (error) { fail(`bundle mixed report is not valid JSON: ${error.message}`); }
     const checkedMixed = verifyMixedReport(producerMixed, {requireBlockPinned: true});
     if (!checkedMixed.ok) fail(`bundle mixed producer evidence does not pass the current policy: ${checkedMixed.errors.join('; ')}`);
+    if (bundle.settlement == null) fail('bundle failed-refund settlement report is missing');
+    if (typeof bundle.settlement.reportText !== 'string' || !bundle.settlement.reportText.trim()) fail('bundle settlement report text is missing');
+    if (!hex(bundle.settlement.reportSha256) || sha256(Buffer.from(bundle.settlement.reportText, 'utf8')) !== bundle.settlement.reportSha256) fail('bundle settlement report hash does not match its text');
+    if (bundle.settlement.candidateWasmSha256 !== bundle.candidate.wasm.sha256) fail('bundle settlement evidence is for a different candidate WASM');
+    if (bundle.settlement.policySha256 !== SETTLEMENT_POLICY_SHA) fail('bundle settlement policy hash does not match this reviewer policy');
+    let producerSettlement;
+    try { producerSettlement = JSON.parse(bundle.settlement.reportText); } catch (error) { fail(`bundle settlement report is not valid JSON: ${error.message}`); }
+    const checkedSettlement = verifySettlementReport(producerSettlement, {candidateWasmSha256: bundle.candidate.wasm.sha256});
+    if (!checkedSettlement.ok) fail(`bundle settlement producer evidence does not pass the current policy: ${checkedSettlement.errors.join('; ')}`);
   }
   return { patchText, wasm, sourceIdentity, producerMixed, legacy, mixedPolicy: mixedPolicyIdentity(ROOT) };
 };
@@ -219,13 +232,15 @@ const prepare = (bundle, outDir) => {
   return { inputDir, patchPath, wasmPath, baselinePath, recordedRecoveryPath, sourceIdentity: bundle._sourceIdentity };
 };
 
+const spawnNode = (args) => spawnSync(process.execPath, args, {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 30 * 60 * 1000,
+  maxBuffer: 32 * 1024 * 1024,
+});
+
 const requireCommand = (args, label) => {
-  const result = spawnSync(process.execPath, args, {
-    cwd: ROOT,
-    encoding: 'utf8',
-    timeout: 30 * 60 * 1000,
-    maxBuffer: 32 * 1024 * 1024,
-  });
+  const result = spawnNode(args);
   if (result.error) fail(`${label} could not start: ${result.error.message}`);
   if (result.status !== 0) {
     const detail = [result.stdout, result.stderr].filter(Boolean).join('\n').trim();
@@ -449,6 +464,60 @@ const runMixedGate = (candidateWasm, outDir, sandboxDir) => {
   return {mixedDir, reportPath, report, checked, policy: mixedPolicyIdentity(ROOT), stdout: result.stdout};
 };
 
+// A settlement child writes its report whether the candidate passes or fails the
+// policy; only an infrastructure/capture failure exits without one. That case is
+// missing evidence for the shared classifier (INCONCLUSIVE), never a rejection.
+const interpretSettlementRun = (result, reportPath, verify) => {
+  const detail = [result?.stdout, result?.stderr].filter(Boolean).join('\n').trim();
+  const exit = result?.status === null || result?.status === undefined ? 'not started' : `exit ${result.status}`;
+  if (reportPath && fs.existsSync(reportPath)) {
+    try {
+      const report = readJson(reportPath, 'failed-refund settlement report');
+      let checked;
+      try {
+        checked = verify(report);
+      } catch (error) {
+        return {report: null, checked: null, unavailable: {
+          exitCode: result?.status ?? null,
+          message: `failed-refund settlement report could not be verified (${exit}): ${error.message}${detail ? `: ${detail.slice(-2000)}` : ''}`,
+        }};
+      }
+      return {report, checked, unavailable: null};
+    } catch (error) {
+      return {report: null, checked: null, unavailable: {
+        exitCode: result?.status ?? null,
+        message: `failed-refund settlement report is unreadable or incomplete (${exit}): ${error.message}${detail ? `: ${detail.slice(-2000)}` : ''}`,
+      }};
+    }
+  }
+  const message = `failed-refund settlement gate produced no evidence (${exit})${detail ? `: ${detail.slice(-2000)}` : ''}`;
+  return {report: null, checked: null, unavailable: {exitCode: result?.status ?? null, message}};
+};
+
+const runSettlementGate = (candidateWasm, outDir, sandboxDir) => {
+  const settlementDir = path.join(outDir, 'settlement');
+  const reportPath = path.join(settlementDir, 'settlement-refund.json');
+  const result = spawnNode([
+    SETTLEMENT,
+    '--candidate-wasm', candidateWasm,
+    '--base-wasm', BASE_WASM,
+    '--out', settlementDir,
+    '--sandbox-dir', sandboxDir,
+  ]);
+  const {report, checked, unavailable} = interpretSettlementRun(result, reportPath, (settlement) => verifySettlementReport(settlement, {candidateWasmSha256: sha256(fs.readFileSync(candidateWasm)), baseWasmSha256: sha256(fs.readFileSync(BASE_WASM))}));
+  return {settlementDir, reportPath, report, checked, unavailable, stdout: result.stdout};
+};
+
+const settlementAcceptanceStage = (checked, unavailable = null) => {
+  if (unavailable) return stageFromChecks(false, [unavailable.message], {evidenceValid: false});
+  const status = checked?.status || (checked?.ok === true ? 'ACCEPTED' : checked?.unproven === true ? 'INCONCLUSIVE' : checked ? 'REJECTED' : null);
+  return stageFromChecks(
+    status === 'ACCEPTED',
+    checked?.errors || [],
+    {evidenceValid: status === 'REJECTED'},
+  );
+};
+
 const compareMixed = (producer, reviewer, reviewerWasmSha256, artifactWasmSha256) => {
   const producerOutcomes = producer?.outcomes || (producer ? verifyMixedReport(producer, {requireBlockPinned: true}).outcomes : null);
   const keys = ['alicePaid', 'bobLiabilityAfterAlice', 'bobTransferPaid', 'bobPaidExactlyOnce', 'aliceLockedDelta', 'bobLockedDelta', 'bobRecipientDelta', 'bobProposerDelta'];
@@ -562,7 +631,7 @@ const summarize = (report, run) => {
 const render = (result) => {
   const s = result.summary;
   return [
-    `REHEARSAL HANDOFF PASS — ${s.modeLabel}`,
+    `REHEARSAL HANDOFF ${result.acceptancePolicy?.status === 'ACCEPTED' ? 'PASS' : result.acceptancePolicy?.status === 'INCONCLUSIVE' ? 'INCONCLUSIVE' : 'FAIL'} — ${s.modeLabel}`,
     '',
     `Source: ${result.bundle.source.repository} @ ${result.bundle.source.commit}`,
     `Candidate WASM: ${s.candidateWasmSha256}`,
@@ -579,7 +648,7 @@ const render = (result) => {
     `Producer/reviewer principal outcomes: ${result.mixed.comparison.legacy ? 'not comparable (legacy bundle)' : 'match'}`,
     `Reviewer mixed policy: ${result.mixed.policy.sha256}`,
     '',
-    `Acceptance: ${s.checks.accepted ? 'pass' : 'FAIL'}`,
+    `Acceptance: ${result.acceptancePolicy?.status === 'ACCEPTED' ? 'pass' : result.acceptancePolicy?.status === 'INCONCLUSIVE' ? 'INCONCLUSIVE (not accepted)' : 'FAIL'}`,
     `Result: ${result.resultPath}`,
     `Report: ${result.run.reportPath}`,
     `Acceptance receipt: ${result.run.acceptancePath}`,
@@ -612,6 +681,21 @@ const main = () => {
   const mixedReportWasmSha256 = mixedRun.report?.candidate?.wasmSha256;
   if (!mixedReportWasmSha256 || mixedReportWasmSha256 !== reviewerArtifactWasmSha256) fail('reviewer mixed gate did not execute the built/recorded candidate artifact');
   const mixedComparison = compareMixed(checkBundle(bundle).producerMixed, mixedRun.checked, mixedReportWasmSha256, reviewerArtifactWasmSha256);
+  const settlementRun = runSettlementGate(run.builtWasm || run.wasmPath, outDir, plan.sandboxDir);
+  const settlementArtifactWasmSha256 = settlementRun.report?.candidate?.wasmSha256;
+  if (settlementArtifactWasmSha256 && settlementArtifactWasmSha256 !== reviewerArtifactWasmSha256) {
+    fail('settlement gate did not execute the built/recorded candidate artifact');
+  }
+  const acceptancePolicy = evaluateCandidate({
+    fresh: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted/fresh acceptance did not pass'], {evidenceValid: Boolean(summary)}),
+    recovery: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted recovery report did not pass acceptance'], {evidenceValid: Boolean(report)}),
+    mixed: stageFromChecks(mixedRun.checked.ok === true, mixedRun.checked.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedRun.checked)}),
+    settlement: settlementAcceptanceStage(settlementRun.checked, settlementRun.unavailable),
+  });
+  if (acceptancePolicy.status === 'REJECTED') fail(`${acceptancePolicy.status}: versioned acceptance policy ${acceptancePolicy.policyVersion} failed: ${acceptancePolicy.errors.join('; ')}`);
+  summary.checks.persistedAccepted = summary.checks.accepted;
+  summary.checks.accepted = acceptancePolicy.status === 'ACCEPTED';
+  summary.acceptanceStatus = acceptancePolicy.status;
   const resultPath = path.join(outDir, 'review-result.json');
   const result = {
     schema: 'near-rehearsal/repair-review-handoff/v1',
@@ -630,6 +714,9 @@ const main = () => {
     },
     run,
     summary,
+    status: acceptancePolicy.status,
+    accepted: acceptancePolicy.status === 'ACCEPTED',
+    acceptancePolicy,
     mixed: {
       mode: 'fresh-replay',
       policy: mixedRun.policy,
@@ -637,11 +724,19 @@ const main = () => {
       reportPath: mixedRun.reportPath,
       comparison: mixedComparison,
     },
+    settlement: {
+      mode: 'fresh-replay',
+      reportPath: settlementRun.reportPath,
+      reportSha256: settlementRun.report ? sha256(fs.readFileSync(settlementRun.reportPath)) : null,
+      checked: settlementRun.checked,
+      unavailable: settlementRun.unavailable,
+    },
     resultPath,
     boundary: 'Local NEAR Sandbox 2.14 only. No public write, deployment, production upgrade, or claim about other cases.',
   };
   fs.writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`);
   console.log(render(result));
+  if (acceptancePolicy.status === 'INCONCLUSIVE') process.exitCode = 5;
 };
 
 if (require.main === module) {
@@ -653,4 +748,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { checkBundle, compareMixed, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment };
+module.exports = { checkBundle, compareMixed, formatYocto, yoctoNear, summarize, preflight, sandboxFromEnvironment, settlementAcceptanceStage, interpretSettlementRun };

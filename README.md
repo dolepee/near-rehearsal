@@ -107,12 +107,17 @@ The checked-in example is a **recorded model candidate**, not a new model run an
 ### Review from the command line
 
 The browser and the command-line handoff use the same `repair-review` path.
-After setup and the runtime export above, this command runs the checked-in
-recorded candidate without Rust or a model account. See [repair review handoff](docs/repair-review-handoff.md) for the complete failure handling.
+After setup and the runtime export above, these commands run the
+settlement-fixed candidate without Rust or a model account. See [repair review handoff](docs/repair-review-handoff.md) for the complete failure handling.
+
+The bundle is assembled from the tracked artifacts of the accepted source run,
+so it is rebuilt rather than stored twice:
 
 ```sh
+node case-triage/rehearsal-repair/handoff-bundle.cjs /tmp/settlement-fixed-bundle.json
+
 npm run repair:review -- \
-  --bundle test-fixtures/repair-browser-export-1de7b8c5.json \
+  --bundle /tmp/settlement-fixed-bundle.json \
   --out .local/review-recorded \
   --mode recorded-wasm
 ```
@@ -122,10 +127,16 @@ For source-build, first complete the optional source/compiler steps and export
 
 ```sh
 npm run repair:review -- \
-  --bundle test-fixtures/repair-browser-export-1de7b8c5.json \
+  --bundle /tmp/settlement-fixed-bundle.json \
   --out .local/review-source \
   --source "$REPAIR_SOURCE_DIR"
 ```
+
+The checked-in `test-fixtures/repair-browser-export-1de7b8c5.json` is the
+8 November recorded model candidate. It predates the failed-refund settlement
+policy and is now rejected at that gate: it returns the bond but drops the
+locked liability and pays no retry. It is kept as the historical record and as
+a negative control, so use the rebuilt bundle for an accepted handoff.
 
 Both commands use the exported `REPAIR_SANDBOX_DIR`; `--sandbox-dir` is available
 if you prefer passing the real binary directory explicitly. To review your own

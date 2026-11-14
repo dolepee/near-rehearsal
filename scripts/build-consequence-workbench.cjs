@@ -120,6 +120,19 @@ function bindReportIdentity(report, manifest, id, copiedWasm, copiedPatch) {
     if (!copiedPatch) throw new Error(`candidate ${id} patch copy is missing`);
     if (shaFile(copiedPath(copiedPatch)) !== candidate.patchSha256) throw new Error(`candidate ${id} copied patch does not match the manifest`);
   }
+  if (candidate.identity) {
+    const identityPath = path.join(REPAIR, candidate.identity);
+    const identity = readJson(requireFile(identityPath, `candidate ${id} identity`));
+    if (identity?.schema !== 'near-rehearsal/repair-candidate-identity/v1') throw new Error(`candidate ${id} identity schema is invalid`);
+    if (identity.patch?.sha256 !== candidate.patchSha256) throw new Error(`candidate ${id} identity patch hash does not match the manifest`);
+    if (identity.wasm?.sha256 !== candidate.wasmSha256) throw new Error(`candidate ${id} identity WASM hash does not match the manifest`);
+    if (identity.wasm?.bytes !== candidate.wasmBytes) throw new Error(`candidate ${id} identity WASM byte count does not match the manifest`);
+    if (identity.source?.sha256 !== candidate.sourceSha256) throw new Error(`candidate ${id} identity applied source hash does not match the manifest`);
+    const copiedSource = copyFile(path.join(REPAIR, candidate.source), path.join(OUT, path.dirname(copiedWasm.path), `${id}.proposals.rs`));
+    if (copiedSource.sha256 !== candidate.sourceSha256) throw new Error(`candidate ${id} copied applied source does not match the manifest`);
+    const copiedIdentity = copyFile(identityPath, path.join(OUT, path.dirname(copiedWasm.path), `${id}-identity.json`));
+    if (copiedIdentity.sha256 !== candidate.identitySha256) throw new Error(`candidate ${id} copied identity does not match the manifest`);
+  }
 }
 
 function candidateData(id, label, manifest, reportPath, copiedPatch, copiedWasm, verified) {
@@ -182,6 +195,16 @@ function build238() {
       const patchTarget = path.join(destination, `${id}.patch`);
       copies[`${id}Patch`] = copyFile(patchSource, patchTarget);
       if (shaFile(patchSource) !== entry.patchSha256) throw new Error(`patch hash mismatch for ${id}`);
+    }
+    if (entry.source) {
+      const sourceTarget = path.join(destination, `${id}.proposals.rs`);
+      copies[`${id}Source`] = copyFile(path.join(REPAIR, entry.source), sourceTarget);
+      if (shaFile(sourceTarget) !== entry.sourceSha256) throw new Error(`source hash mismatch for ${id}`);
+    }
+    if (entry.identity) {
+      const identityTarget = path.join(destination, `${id}-identity.json`);
+      copies[`${id}Identity`] = copyFile(path.join(REPAIR, entry.identity), identityTarget);
+      if (shaFile(identityTarget) !== entry.identitySha256) throw new Error(`identity hash mismatch for ${id}`);
     }
     if (shaFile(wasmSource) !== entry.wasmSha256) throw new Error(`WASM hash mismatch for ${id}`);
   }
@@ -246,6 +269,7 @@ policy; it does not execute a public chain transaction.
 
 - \`clear-all.patch\` / \`clear-all.wasm\`: rejected candidate.
 - \`intended.patch\` / \`intended.wasm\`: accepted candidate.
+- \`intended.proposals.rs\` / \`intended-identity.json\`: applied source and controller identity for that candidate.
 - \`old.wasm\`: pinned baseline code.
 - \`mixed-obligation-clear-all.json\`: recorded bad result.
 - \`mixed-obligation-intended.json\`: recorded good result.

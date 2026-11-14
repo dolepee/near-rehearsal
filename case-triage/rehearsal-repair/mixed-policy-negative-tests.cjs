@@ -43,4 +43,12 @@ const unpinned = clone();
 delete unpinned.beforeUpgrade.blockHash;
 assert.equal(verifyMixedReport(unpinned, opts).ok, false);
 
+
+expectFail('missing Bob payout finality', (r) => { r.bobPayout.attempt.value.finalExecutionStatus = 'EXECUTED_OPTIMISTIC'; }, /Bob payout is not FINAL/);
+expectFail('changed Bob payout signer', (r) => { r.bobPayout.attempt.value.transaction.signerId = 'attacker.test.near'; }, /Bob payout signer/);
+expectFail('missing Bob receipt root', (r) => { delete r.bobPayout.attempt.value.transactionOutcome.receiptIds; delete r.bobPayout.attempt.value.transactionOutcome.rootReceiptIds; }, /Bob payout has no transaction receipt root/);
+expectFail('empty Bob action list', (r) => { r.bobPayout.attempt.value.transaction.actions = []; }, /Bob payout has no expected act_proposal action/);
+expectFail('governance changed after recovery', (r) => { r.aliceRecovery.after.policy.roles[1].permissions.push('*:*'); }, /Alice recovery changed governance policy/);
+expectFail('non-target proposer changed after recovery', (r) => { r.aliceRecovery.after.proposals.bob.proposer = 'attacker.test.near'; }, /Alice recovery changed bob proposal identity/);
+
 console.log('mixed-policy negatives: missing/malformed balances and receipt gas, changed actor credits, unpinned snapshots and nonterminal retries are rejected');

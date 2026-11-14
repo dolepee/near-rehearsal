@@ -27,8 +27,11 @@ const CONTROLLER_MANIFEST = path.join(REPAIR, 'controller-manifest.json');
 const BUILD_MANIFEST = path.join(REPAIR, 'build-manifest.json');
 const ACCEPTANCE = path.join(REPAIR, 'acceptance.cjs');
 const MIXED = path.join(REPAIR, 'mixed-obligation.cjs');
+const SETTLEMENT = path.join(REPAIR, 'settlement-refund-tests.cjs');
 const MIXED_POLICY = path.join(REPAIR, 'mixed-policy.cjs');
 const {verifyMixedReport} = require(MIXED_POLICY);
+const {verifySettlementReport} = require(path.join(REPAIR, 'settlement-policy.cjs'));
+const {POLICY_VERSION, evaluateCandidate, stageFromChecks} = require(path.join(REPAIR, 'acceptance-orchestrator.cjs'));
 const BASE_REPORT = path.join(REPAIR, 'out', 'issue238-local.json');
 const BASE_WASM = path.join(REPAIR, 'bundle', 'artifacts', 'base.wasm');
 const SCHEMA = 'near-rehearsal/review-patch/v1';
@@ -40,6 +43,7 @@ const PIPELINE_TIMEOUT_MS = 30 * 60 * 1000;
 const PERSISTED_TIMEOUT_MS = 15 * 60 * 1000;
 const ACCEPTANCE_TIMEOUT_MS = 60 * 1000;
 const MIXED_TIMEOUT_MS = 30 * 60 * 1000;
+const SETTLEMENT_TIMEOUT_MS = 15 * 60 * 1000;
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const sha256File = (file) => sha256(fs.readFileSync(file));
@@ -245,7 +249,7 @@ function asBigInt(value) {
   try { return BigInt(value); } catch { return null; }
 }
 
-function checksFrom(pipeline, report, acceptance, mixedCheck = null) {
+function checksFrom(pipeline, report, acceptance, mixedCheck = null, settlementCheck = null) {
   const checks = [];
   const add = (id, ok, detail, status = null) => checks.push({
     id,
@@ -261,6 +265,8 @@ function checksFrom(pipeline, report, acceptance, mixedCheck = null) {
   add('persisted-acceptance', acceptance?.ok === true, acceptance?.errors?.join('; ') || (acceptance ? 'accepted' : 'acceptance did not run'));
   add('same-dao-mixed', mixedCheck ? mixedCheck.ok : null,
     mixedCheck ? (mixedCheck.ok ? 'Alice bond returned once; Bob liability, transfer and retries preserved' : mixedCheck.errors.join('; ')) : 'same-DAO gate did not run');
+  add('failed-refund-settlement', settlementCheck ? settlementCheck.ok : null,
+    settlementCheck ? (settlementCheck.ok ? 'failed refund retained debt; recreation retry paid once' : settlementCheck.errors.join('; ')) : 'settlement gate did not run');
   if (report) {
     add('failed-status', report.failed?.proposal?.status === 'Failed', `failed proposal status: ${report.failed?.proposal?.status || 'missing'}`);
     add('bond-recovered-once', asBigInt(report.firstRecovery?.grossRecoveryYocto) === 10n ** 24n,
@@ -280,6 +286,50 @@ function checksFrom(pipeline, report, acceptance, mixedCheck = null) {
     'unauthorized update and finalize rejected');
   }
   return checks;
+}
+
+// A gate that ran and returned a verified failure is a rejection, not missing
+// evidence. Only an unreported gate, with no verified failure elsewhere, leaves
+// the outcome open.
+function missingGateIsInconclusive({acceptanceOk, mixedCheck, settlementCheck}) {
+  if (acceptanceOk !== true) return false;
+  if (mixedCheck?.ok === false || settlementCheck?.ok === false) return false;
+  return !mixedCheck || !settlementCheck;
+}
+
+// Every terminal source-review decision goes through the same four-stage
+// policy. A missing report is represented as an invalid evidence stage, not
+// as an early return: an already verified fresh/recovery/mixed failure still
+// reaches the shared classifier and keeps its REJECTED verdict.
+function reviewPolicyDecision({pipeline, acceptance, mixedCheck, settlementCheck}) {
+  return evaluateCandidate({
+    fresh: stageFromChecks(
+      pipeline?.ok === true && (pipeline?.acceptanceErrors || []).length === 0,
+      pipeline?.acceptanceErrors || [],
+      {evidenceValid: Boolean(pipeline)},
+    ),
+    recovery: stageFromChecks(
+      acceptance?.ok === true,
+      acceptance?.errors || [],
+      {evidenceValid: Boolean(acceptance)},
+    ),
+    mixed: stageFromChecks(
+      mixedCheck?.ok === true,
+      mixedCheck?.errors || [],
+      {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedCheck)},
+    ),
+    settlement: stageFromChecks(
+      settlementCheck?.status === 'ACCEPTED',
+      settlementCheck?.errors || [],
+      {evidenceValid: settlementCheck?.status === 'REJECTED'},
+    ),
+  });
+}
+
+function policyReason(verdict) {
+  if (verdict.status === 'REJECTED') return `versioned acceptance policy ${verdict.policyVersion} failed: ${verdict.errors.join('; ')}`;
+  if (verdict.status === 'INCONCLUSIVE') return `versioned acceptance policy ${verdict.policyVersion} was inconclusive: ${verdict.errors.join('; ')}`;
+  return `All policy ${verdict.policyVersion} source, build, replay, recovery, same-DAO and preservation checks passed.`;
 }
 
 function renderReport(review) {
@@ -384,6 +434,8 @@ function runReview(opts) {
   const sourceDir = path.resolve(opts.source);
   const outDir = path.resolve(opts.out);
   const baseReport = path.resolve(opts.baseReport || BASE_REPORT);
+  const runChild = opts.runNode || runNode;
+  const inspectSource = opts.checkSource || checkSource;
   const controller = JSON.parse(fs.readFileSync(CONTROLLER_MANIFEST, 'utf8'));
   const pinnedCommit = controller.source.commit;
   const supplied = {
@@ -428,11 +480,13 @@ function runReview(opts) {
   let acceptance = null;
   let mixed = null;
   let mixedCheck = null;
+  let settlementCheck = null;
+  let acceptanceVerdict = null;
   let summary = null;
   let checks = [];
 
   try {
-    verified.sourceCommit = checkSource(sourceDir, pinnedCommit);
+    verified.sourceCommit = inspectSource(sourceDir, pinnedCommit);
     verified.sourceClean = true;
   } catch (error) {
     const result = classify('input', {inputError: error.message});
@@ -450,7 +504,7 @@ function runReview(opts) {
       checks = [{id: 'sandbox-runtime', status: 'error', detail: result.reason}];
     } else {
       const pipelineDir = path.join(outDir, 'pipeline');
-      const pipelineResult = runNode([
+      const pipelineResult = runChild([
         PIPELINE,
         '--patch', patchPath,
         '--source', sourceDir,
@@ -510,7 +564,7 @@ function runReview(opts) {
           checks = [{id: 'build-artifacts', status: 'fail', detail: result.reason}];
         } else {
           const persistedDir = path.join(outDir, 'persisted');
-          const persistedResult = runNode([
+          const persistedResult = runChild([
             PERSISTED,
             '--candidate-wasm', wasmPath,
             '--candidate-patch', patchPath,
@@ -525,14 +579,12 @@ function runReview(opts) {
           report = readJson(path.join(persistedDir, 'persisted-recovery.json'));
           if (!report) {
             const result = classify('persisted', {inconclusive: `persisted recovery produced no report: ${(persistedResult.stderr || '').trim().slice(0, 500) || 'no output'}`});
-            status = pipeline.ok === false ? 'REJECTED' : result.status;
-            reason = pipeline.ok === false
-              ? `fresh-state acceptance failed: ${(pipeline.acceptanceErrors || []).join('; ') || 'pipeline did not pass'}`
-              : result.reason;
-            checks = [
-              ...(pipeline.ok === false ? [{id: 'fresh-replay', status: 'fail', detail: reason}] : []),
-              {id: 'persisted-recovery', status: 'error', detail: result.reason},
-            ];
+            acceptanceVerdict = reviewPolicyDecision({pipeline, acceptance: null, mixedCheck, settlementCheck});
+            checks = checksFrom(pipeline, null, null, mixedCheck, settlementCheck);
+            status = acceptanceVerdict.status;
+            reason = acceptanceVerdict.status === 'REJECTED'
+              ? policyReason(acceptanceVerdict)
+              : `${result.reason}; ${policyReason(acceptanceVerdict)}`;
           } else {
             const acceptanceArgs = [
               PERSISTED_ACCEPTANCE,
@@ -546,21 +598,24 @@ function runReview(opts) {
             ];
             const expectedSource = verified.appliedSourceSha256 || pipeline.identity?.source?.sha256;
             if (expectedSource) acceptanceArgs.push('--expected-source-sha256', expectedSource);
-            const acceptanceResult = runNode(acceptanceArgs, {timeout: ACCEPTANCE_TIMEOUT_MS});
+            const acceptanceResult = runChild(acceptanceArgs, {timeout: ACCEPTANCE_TIMEOUT_MS});
             writeLog(path.join(evidenceDir, 'acceptance.log'), acceptanceResult);
             try { acceptance = JSON.parse(acceptanceResult.stdout); } catch { acceptance = null; }
             if (acceptance) fs.writeFileSync(path.join(persistedDir, 'persisted-recovery-acceptance.json'), json(acceptance));
             if (!acceptance) {
               const result = classify('acceptance', {inconclusive: 'persisted acceptance produced no readable JSON'});
-              status = result.status;
-              reason = result.reason;
-              checks = [{id: 'persisted-acceptance', status: 'error', detail: result.reason}];
+              acceptanceVerdict = reviewPolicyDecision({pipeline, acceptance: null, mixedCheck, settlementCheck});
+              checks = checksFrom(pipeline, report, null, mixedCheck, settlementCheck);
+              status = acceptanceVerdict.status;
+              reason = acceptanceVerdict.status === 'REJECTED'
+                ? policyReason(acceptanceVerdict)
+                : `${result.reason}; ${policyReason(acceptanceVerdict)}`;
             } else {
               safeCopy(path.join(persistedDir, 'persisted-recovery-acceptance.json'), path.join(evidenceDir, 'persisted-recovery-acceptance.json'));
               summary = reportSummary(report, acceptance, {mode: 'source-build'});
               if (acceptance.ok === true) {
                 const mixedDir = path.join(outDir, 'mixed');
-                const mixedResult = runNode([
+                const mixedResult = runChild([
                   MIXED,
                   '--candidate-wasm', wasmPath,
                   '--out', mixedDir,
@@ -570,35 +625,24 @@ function runReview(opts) {
                 safeCopy(path.join(mixedDir, 'mixed-obligation.json'), path.join(evidenceDir, 'mixed-obligation.json'));
                 mixed = readJson(path.join(mixedDir, 'mixed-obligation.json'));
                 if (mixed) mixedCheck = verifyMixedReport(mixed, {requireBlockPinned: true});
-              }
-              if (acceptance.ok === true && !mixedCheck) {
-                status = 'INCONCLUSIVE';
-                reason = 'same-DAO mixed-obligation gate produced no verified report';
-                checks = [
-                  {id: 'persisted-acceptance', status: 'pass', detail: 'persisted acceptance passed'},
-                  {id: 'same-dao-mixed', status: 'error', detail: reason},
-                ];
-              } else {
-                checks = checksFrom(pipeline, report, acceptance, mixedCheck);
-                const pipelineFailed = pipeline.ok !== true || (pipeline.acceptanceErrors || []).length > 0;
-                const failedChecks = checks.filter((check) => check.status !== 'pass');
-                if (pipelineFailed) {
-                  status = 'REJECTED';
-                  reason = `fresh-state acceptance failed: ${(pipeline.acceptanceErrors || []).join('; ') || 'pipeline did not pass'}`;
-                } else if (acceptance.ok !== true) {
-                  status = 'REJECTED';
-                  reason = `persisted recovery acceptance failed: ${(acceptance.errors || []).join('; ') || 'acceptance did not pass'}`;
-                } else if (mixedCheck && !mixedCheck.ok) {
-                  status = 'REJECTED';
-                  reason = `same-DAO mixed-obligation policy failed: ${mixedCheck.errors.join('; ')}`;
-                } else if (failedChecks.length) {
-                  status = 'REJECTED';
-                  reason = `defined checks failed: ${failedChecks.map((check) => check.id).join(', ')}`;
-                } else {
-                  status = 'ACCEPTED';
-                  reason = 'All defined source, build, replay, recovery, same-DAO and preservation checks passed.';
+                if (mixedCheck?.ok) {
+                  const settlementDir = path.join(outDir, 'settlement');
+                  const settlementResult = runChild([
+                    SETTLEMENT,
+                    '--candidate-wasm', wasmPath,
+                    '--base-wasm', BASE_WASM,
+                    '--out', settlementDir,
+                  ], {timeout: SETTLEMENT_TIMEOUT_MS, env: sandboxDir ? {NEAR_SANDBOX_BIN_PATH: sandboxDir, NEAR_SANDBOX_BINARY_PATH: sandboxDir} : {}});
+                  writeLog(path.join(evidenceDir, 'settlement.log'), settlementResult);
+                  safeCopy(path.join(settlementDir, 'settlement-refund.json'), path.join(evidenceDir, 'settlement-refund.json'));
+                  const settlement = readJson(path.join(settlementDir, 'settlement-refund.json'));
+                  if (settlement) settlementCheck = verifySettlementReport(settlement, {candidateWasmSha256: verified.builtWasmSha256, baseWasmSha256: sha256File(BASE_WASM)});
                 }
               }
+              checks = checksFrom(pipeline, report, acceptance, mixedCheck, settlementCheck);
+              acceptanceVerdict = reviewPolicyDecision({pipeline, acceptance, mixedCheck, settlementCheck});
+              status = acceptanceVerdict.status;
+              reason = policyReason(acceptanceVerdict);
             }
           }
         }
@@ -622,9 +666,11 @@ function runReview(opts) {
       appliedSourceSha256: verified.appliedSourceSha256,
     },
     policy,
+    acceptancePolicy: acceptanceVerdict,
     checks,
     summary,
     mixed: mixedCheck ? {ok: mixedCheck.ok, errors: mixedCheck.errors, outcomes: mixedCheck.outcomes} : null,
+    settlement: settlementCheck ? {ok: settlementCheck.ok, errors: settlementCheck.errors, outcomes: settlementCheck.outcomes} : null,
     evidence,
     limitations,
     boundary: 'Local Sandbox evidence for the pinned Sputnik #238 case. No live DAO recovery, deployment, audit, universal safety claim, signature or merge enforcement.',
@@ -663,4 +709,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = {exitCodeForStatus, REVIEW_EXIT_CODES, parseArgs, classify, classifyPipelineResult, policyIdentity, runReview, renderReport, checkSource, checksFrom, sandboxFromEnvironment};
+module.exports = {exitCodeForStatus, REVIEW_EXIT_CODES, parseArgs, classify, classifyPipelineResult, policyIdentity, runReview, renderReport, checkSource, checksFrom, missingGateIsInconclusive, sandboxFromEnvironment};

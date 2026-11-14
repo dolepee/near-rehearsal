@@ -50,6 +50,62 @@ function verifyMixedReport(report, opts = {}) {
     const b = amount(before?.balances?.[name], `${label} ${name} balance before`, true);
     return a === null || b === null ? 0n : a - b;
   };
+  const canonicalPolicy = (policy) => {
+    if (!policy || !Array.isArray(policy.roles)) return policy;
+    return {
+      ...policy,
+      roles: policy.roles.map((role) => ({
+        ...role,
+        permissions: Array.isArray(role.permissions) ? role.permissions.slice().sort() : role.permissions,
+      })).sort((left, right) => String(left.name).localeCompare(String(right.name))),
+    };
+  };
+  const sameJson = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+  const proposalIdentity = (proposal) => ({
+    proposer: proposal?.proposer,
+    description: proposal?.description,
+    kind: proposal?.kind,
+  });
+  const checkAttempt = (attempt, label, signerId, receiverId, methodName) => {
+    const value = attempt?.value;
+    if (!value) {
+      fail(`${label} has no execution value`);
+      return;
+    }
+    if (value.finalExecutionStatus !== 'FINAL') fail(`${label} is not FINAL`);
+    const transaction = value.transaction;
+    if (!transaction) {
+      fail(`${label} has no transaction identity`);
+      return;
+    }
+    if (transaction.signerId !== signerId) fail(`${label} signer is not the expected actor`);
+    if (transaction.receiverId !== receiverId) fail(`${label} receiver is not the DAO`);
+    const actions = Array.isArray(transaction.actions) ? transaction.actions : [];
+    if (!actions.some((action) => action?.FunctionCall?.method_name === methodName)) {
+      fail(`${label} has no expected ${methodName} action`);
+    }
+    const roots = value.transactionOutcome?.receiptIds || value.transactionOutcome?.rootReceiptIds;
+    if (!Array.isArray(roots) || roots.length === 0) {
+      fail(`${label} has no transaction receipt root`);
+    } else {
+      const receipts = new Set((value.receipts || []).map((receipt) => receipt?.id));
+      for (const root of roots) if (!receipts.has(root)) fail(`${label} receipt root is not reachable from its receipts`);
+    }
+  };
+  const checkProposalIdentity = (snapshot, label) => {
+    const beforeProposals = before?.proposals;
+    for (const name of ['alice', 'bob', 'carol']) {
+      const expected = beforeProposals?.[name];
+      const actual = snapshot?.proposals?.[name];
+      if (!expected || !actual) continue;
+      if (!sameJson(proposalIdentity(actual), proposalIdentity(expected))) fail(`${label} changed ${name} proposal identity`);
+    }
+  };
+  const checkSnapshotPreservation = (snapshot, label) => {
+    if (!snapshot?.policy) fail(`${label} has no policy`);
+    else if (!sameJson(canonicalPolicy(snapshot.policy), canonicalPolicy(before?.policy))) fail(`${label} changed governance policy`);
+    checkProposalIdentity(snapshot, label);
+  };
   const gasFromAttempt = (attempt, label) => {
     const value = attempt?.value;
     if (!value || !value.transactionOutcome) {
@@ -102,11 +158,20 @@ function verifyMixedReport(report, opts = {}) {
     for (const name of ['alice', 'bob', 'carol', 'aliceRecipient', 'bobRecipient', 'carolRecipient', 'dao']) {
       amount(snap?.balances?.[name], `${label} ${name} balance`, true);
     }
+    checkSnapshotPreservation(snap, label);
   }
   if (amount(afterUpgrade?.lockedAmount, 'post-upgrade locked', true) !== expectedBond * 2n) fail('upgrade changed the two locked liabilities');
   for (const name of ['alice', 'bob', 'carol']) {
     if (JSON.stringify(afterUpgrade?.proposals?.[name]) !== JSON.stringify(before?.proposals?.[name])) fail(`${name} proposal changed across upgrade`);
   }
+
+  const signer = report?.accounts?.alice;
+  const receiver = report?.accounts?.contract;
+  checkAttempt(report?.aliceRecovery?.attempt, 'Alice recovery', signer, receiver, 'act_proposal');
+  checkAttempt(report?.aliceRetry?.attempt, 'Alice retry', signer, receiver, 'act_proposal');
+  checkAttempt(report?.bobPayout?.attempt, 'Bob payout', signer, receiver, 'act_proposal');
+  checkAttempt(report?.bobRetry?.attempt, 'Bob retry', signer, receiver, 'act_proposal');
+  checkAttempt(report?.carolRetry?.attempt, 'Carol retry', signer, receiver, 'act_proposal');
 
   const gas = {
     aliceRecovery: gasFromAttempt(report?.aliceRecovery?.attempt, 'Alice recovery'),
@@ -160,6 +225,7 @@ function verifyMixedReport(report, opts = {}) {
   const bobProposer = balanceDelta(bobAfter, aliceRetryAfter, 'bob', 'Bob payout');
   const bobPayer = payer(bobAfter, aliceRetryAfter, gas.bobPayout, 'Bob payout');
   const bobTransferPaid = bob?.attempt?.ok === true && bob.attempt.value?.receiptFailure === false
+    && bob.attempt.value?.finalExecutionStatus === 'FINAL'
     && bobAfter?.proposals?.bob?.status === 'Approved' && bobRecipient === expectedTransfer;
   const bobPaidExactlyOnce = bobTransferPaid && bobContract === -(expectedBond + expectedTransfer) && bobLocked === -expectedBond;
   if (!bobTransferPaid) fail('Bob transfer was not paid');

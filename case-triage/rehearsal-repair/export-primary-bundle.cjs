@@ -20,6 +20,7 @@ const bundle = buildReviewBundle({
   recoveryPath: pick('persisted', 'persisted-recovery.json'),
   acceptancePath: pick('persisted', 'persisted-recovery-acceptance.json'),
   mixedPath: pick('evidence', 'mixed-obligation.json'),
+  settlementPath: pick('evidence', 'settlement-refund.json'),
   policy: JSON.parse(fs.readFileSync(pick('review-status.json'), 'utf8')).policy || null,
 });
 fs.writeFileSync(path.resolve(args.out), `${JSON.stringify(bundle, null, 2)}\n`);

@@ -1,9 +1,10 @@
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const {
-  parseArgs, classify, classifyPipelineResult, policyIdentity, renderReport, checkSource, checksFrom,
+  parseArgs, classify, classifyPipelineResult, policyIdentity, renderReport, checkSource, checksFrom, runReview,
 } = require('./review-patch.cjs');
 
 const here = __dirname;
@@ -99,13 +100,120 @@ console.log('accepted: compilation failure is not reported as an economic failur
 assert.throws(() => checkSource(path.join(root, 'does-not-exist'), '0'.repeat(40)), /not found/);
 console.log('accepted: source checkout failures are explicit');
 
+const pinnedSource = '5434a59dec23ee0c49df8c8c4350c208a7e75b0b';
+const mixedFixture = path.join(root, 'case-triage', 'rehearsal-repair', 'out', 'mixed-obligation-intended.json');
+const mixedFailureFixture = path.join(root, 'case-triage', 'rehearsal-repair', 'out', 'mixed-obligation-clear-all.json');
+const settlementFixture = path.join(root, 'case-triage', 'rehearsal-repair', 'out', 'audit-intended', 'settlement', 'settlement-refund.json');
+const persistedFixture = path.join(root, 'case-triage', 'rehearsal-repair', 'out', 'audit-intended', 'persisted', 'persisted-recovery.json');
+const baseReport = path.join(root, 'case-triage', 'rehearsal-repair', 'out', 'issue238-local.json');
+const candidateHash = JSON.parse(fs.readFileSync(settlementFixture, 'utf8')).candidate.wasmSha256;
+
+function controlledReview({pipelineOk = true, persistedMode = 'report', acceptanceMode = 'ok', mixedMode = 'ok', settlementMode = 'ok'} = {}) {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'review-patch-run-'));
+  const patch = path.join(scratch, 'candidate.diff');
+  const source = path.join(scratch, 'source');
+  const sandbox = path.join(scratch, 'sandbox');
+  const out = path.join(scratch, 'out');
+  fs.writeFileSync(patch, 'diff --git a/sputnikdao2/src/proposals.rs b/sputnikdao2/src/proposals.rs\n');
+  fs.mkdirSync(source);
+  fs.mkdirSync(sandbox);
+  fs.writeFileSync(path.join(sandbox, 'near-sandbox'), '');
+  const result = (status, stdout = '', stderr = '') => ({status, stdout, stderr, signal: null});
+  const runner = (args) => {
+    const name = path.basename(args[0]);
+    const outArg = args[args.indexOf('--out') + 1];
+    if (name === 'repair-pipeline.cjs') {
+      fs.mkdirSync(outArg, {recursive: true});
+      const applied = path.join(outArg, 'applied');
+      fs.mkdirSync(path.join(applied, 'target', 'wasm32-unknown-unknown', 'release'), {recursive: true});
+      fs.mkdirSync(path.join(applied, 'sputnikdao2', 'src'), {recursive: true});
+      fs.writeFileSync(path.join(applied, 'target', 'wasm32-unknown-unknown', 'release', 'sputnikdao2.wasm'), 'wasm');
+      fs.writeFileSync(path.join(applied, 'sputnikdao2', 'src', 'proposals.rs'), 'source');
+      fs.writeFileSync(path.join(outArg, 'candidate-identity.json'), '{}');
+      fs.writeFileSync(path.join(outArg, 'pipeline.json'), JSON.stringify({
+        ok: pipelineOk,
+        changedPaths: ['sputnikdao2/src/proposals.rs'],
+        acceptanceErrors: pipelineOk ? [] : ['economic check failed'],
+        hashes: {wasm: candidateHash, appliedSource: 'b'.repeat(64)},
+      }));
+      return result(0);
+    }
+    if (name === 'persisted-recovery.cjs') {
+      if (persistedMode === 'missing') return result(1, '', 'persisted report missing');
+      fs.mkdirSync(outArg, {recursive: true});
+      fs.copyFileSync(persistedFixture, path.join(outArg, 'persisted-recovery.json'));
+      return result(0);
+    }
+    if (name === 'persisted-recovery-acceptance.cjs') {
+      if (acceptanceMode === 'missing') return result(1, '', 'acceptance missing');
+      if (acceptanceMode === 'unreadable') return result(0, 'not-json');
+      return result(0, JSON.stringify({ok: acceptanceMode !== 'fail', errors: acceptanceMode === 'fail' ? ['recovery failed'] : []}));
+    }
+    if (name === 'mixed-obligation.cjs') {
+      if (mixedMode === 'missing') return result(1, '', 'mixed report missing');
+      fs.mkdirSync(outArg, {recursive: true});
+      fs.copyFileSync(mixedMode === 'reject' ? mixedFailureFixture : mixedFixture, path.join(outArg, 'mixed-obligation.json'));
+      return result(0);
+    }
+    if (name === 'settlement-refund-tests.cjs') {
+      if (settlementMode === 'missing') return result(1, '', 'settlement report missing');
+      fs.mkdirSync(outArg, {recursive: true});
+      fs.copyFileSync(settlementFixture, path.join(outArg, 'settlement-refund.json'));
+      return result(0);
+    }
+    throw new Error(`unexpected child ${name}`);
+  };
+  try {
+    return runReview({
+      patch, source, out, baseReport, sandboxDir: sandbox,
+      runNode: runner,
+      checkSource: () => pinnedSource,
+    });
+  } finally {
+    fs.rmSync(scratch, {recursive: true, force: true});
+  }
+}
+
+const freshFailure = controlledReview({pipelineOk: false, settlementMode: 'missing'});
+assert.equal(freshFailure.status, 'REJECTED', 'a verified fresh failure survives a missing settlement report');
+assert.ok(freshFailure.acceptancePolicy, 'terminal policy must be recorded');
+assert.equal(freshFailure.acceptancePolicy.status, 'REJECTED');
+assert.equal(freshFailure.checks.find((check) => check.id === 'fresh-replay')?.status, 'fail');
+
+const missingSettlement = controlledReview({settlementMode: 'missing'});
+assert.equal(missingSettlement.status, 'INCONCLUSIVE', 'missing settlement after all prior passes stays inconclusive');
+assert.ok(missingSettlement.acceptancePolicy, 'missing settlement still carries the shared policy verdict');
+assert.equal(missingSettlement.acceptancePolicy.status, 'INCONCLUSIVE');
+
+const freshFailureNoAcceptance = controlledReview({pipelineOk: false, persistedMode: 'missing'});
+assert.equal(freshFailureNoAcceptance.status, 'REJECTED', 'a missing persisted acceptance cannot erase a verified fresh failure');
+assert.ok(freshFailureNoAcceptance.acceptancePolicy);
+assert.equal(freshFailureNoAcceptance.acceptancePolicy.status, 'REJECTED');
+assert.equal(freshFailureNoAcceptance.checks.find((check) => check.id === 'fresh-replay')?.status, 'fail');
+
+const freshFailureUnreadableAcceptance = controlledReview({pipelineOk: false, acceptanceMode: 'unreadable'});
+assert.equal(freshFailureUnreadableAcceptance.status, 'REJECTED', 'an unreadable acceptance cannot erase a verified fresh failure');
+assert.ok(freshFailureUnreadableAcceptance.acceptancePolicy);
+
+const recoveryFailure = controlledReview({acceptanceMode: 'fail'});
+assert.equal(recoveryFailure.status, 'REJECTED', 'a known recovery failure remains rejected');
+assert.ok(recoveryFailure.acceptancePolicy);
+assert.equal(recoveryFailure.acceptancePolicy.status, 'REJECTED');
+
+const mixedFailure = controlledReview({mixedMode: 'reject', settlementMode: 'missing'});
+assert.equal(mixedFailure.status, 'REJECTED', 'a known mixed failure remains rejected even without settlement');
+assert.ok(mixedFailure.acceptancePolicy);
+assert.equal(mixedFailure.acceptancePolicy.status, 'REJECTED');
+
+console.log('accepted: runReview routes missing reports through the shared policy without erasing verified failures');
+
 console.log(JSON.stringify({
   schema: 'near-rehearsal/review-patch-tests/v1',
   tests: [
     'argument parsing', 'required input failures', 'input error', 'build error',
     'inconclusive', 'rejected', 'accepted', 'policy identity', 'bounded report language',
     'rejected language', 'no checked-in absolute paths', 'source checkout failure',
-    'malformed recovery fields', 'pipeline verdict classification',
+    'malformed recovery fields', 'pipeline verdict classification', 'runReview shared-policy gaps',
   ],
   passed: true,
 }, null, 2));

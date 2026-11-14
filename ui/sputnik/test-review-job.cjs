@@ -149,6 +149,28 @@ async function runRejected() {
   assert.equal(manager.download(started.id), null);
 }
 
+async function runInconclusive() {
+  const payload = JSON.parse(JSON.stringify(acceptedResult));
+  payload.status = 'INCONCLUSIVE';
+  payload.accepted = false;
+  payload.summary.checks.accepted = false;
+  payload.acceptancePolicy = {status: 'INCONCLUSIVE', errors: ['in-flight retry guard was not exercised']};
+  const runsRoot = path.join(tmp, 'inconclusive');
+  const manager = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({payload, code: 5})});
+  const started = manager.start(example.bundle, 'recorded-wasm');
+  await manager.get(started.id).done;
+  const run = manager.get(started.id);
+  assert.equal(run.status, 'inconclusive');
+  assert.equal(manager.list().find((entry) => entry.id === run.id).accepted, false);
+  assert.equal(manager.publicRun(run).downloadUrl, null);
+  assert.equal(manager.publicRun(run).evidenceUrl, null);
+  assert.match(run.error, /coverage evidence was not proven/);
+  const recovered = createManager({runsRoot, env: {REPAIR_SANDBOX_DIR: sandboxDir}});
+  recovered.recover();
+  assert.equal(recovered.get(started.id).status, 'inconclusive', 'the inconclusive state survives restart');
+  assert.equal(recovered.publicRun(recovered.get(started.id)).downloadUrl, null);
+}
+
 async function runActive() {
   const manager = createManager({runsRoot: path.join(tmp, 'active'), env: {REPAIR_SANDBOX_DIR: sandboxDir}, spawn: fakeSpawn({hold: true})});
   const started = manager.start(example.bundle, 'recorded-wasm');
@@ -233,6 +255,7 @@ function validation() {
     validation();
     await runAccepted();
     await runRejected();
+  await runInconclusive();
     await runActive();
     runRestartRecovery();
     runHistoricalMissingEvidence();

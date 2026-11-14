@@ -7,8 +7,10 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
-const { checkBundle, compareMixed, formatYocto, yoctoNear, preflight } = require('./repair-review.cjs');
+const { checkBundle, compareMixed, formatYocto, yoctoNear, preflight, settlementAcceptanceStage, interpretSettlementRun } = require('./repair-review.cjs');
+const { evaluateCandidate, stageFromChecks } = require('../case-triage/rehearsal-repair/acceptance-orchestrator.cjs');
 const { buildReviewBundle } = require('../case-triage/rehearsal-repair/review-bundle.cjs');
+const { buildHandoffBundle } = require('../case-triage/rehearsal-repair/handoff-bundle.cjs');
 
 const fixture = path.join(__dirname, '..', 'test-fixtures', 'repair-browser-export-1de7b8c5.json');
 const original = JSON.parse(fs.readFileSync(fixture, 'utf8'));
@@ -19,17 +21,7 @@ const rejects = (label, mutate) => {
   assert.throws(() => checkBundle(bundle), undefined, label);
 };
 
-const mixedOriginal = buildReviewBundle({
-  runId: 'mixed-policy-guard',
-  patchPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'generated/e8262f5a/repair.patch'),
-  wasmPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'generated/e8262f5a/candidate.wasm'),
-  candidateIdentityPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'generated/e8262f5a/candidate-identity.json'),
-  baseReportPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/issue238-local.json'),
-  candidateReportPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/issue238-repaired.json'),
-  recoveryPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/persisted-recovery.json'),
-  acceptancePath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/persisted-recovery-acceptance.json'),
-  mixedPath: path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out/mixed-obligation-intended.json'),
-});
+const mixedOriginal = buildHandoffBundle({runId: 'mixed-policy-guard', createdAt: '2026-11-13T21:15:09.000Z'});
 assert.doesNotThrow(() => checkBundle(mixedOriginal));
 for (const [label, mutate] of [
   ['fake mixed report', (b) => { b.mixed.reportText = 'not a real mixed report'; b.mixed.reportSha256 = '0'.repeat(64); }],
@@ -42,6 +34,81 @@ for (const [label, mutate] of [
 }
 
 const outcomes = {alicePaid: true, bobLiabilityAfterAlice: true, bobTransferPaid: true, bobPaidExactlyOnce: true, aliceLockedDelta: '-1000000000000000000000000', bobLockedDelta: '-1000000000000000000000000', bobRecipientDelta: '100000000000000000000000', bobProposerDelta: '1000000000000000000000000'};
+const coverageOnly = settlementAcceptanceStage({ok: false, unproven: true, errors: ['in-flight guard was not exercised']});
+const coverageVerdict = evaluateCandidate({
+  fresh: stageFromChecks(true),
+  recovery: stageFromChecks(true),
+  mixed: stageFromChecks(true, [], {policyVersion: 'near-rehearsal/acceptance-policy/v3'}),
+  settlement: coverageOnly,
+});
+assert.equal(coverageOnly.evidenceValid, false);
+assert.equal(coverageVerdict.status, 'INCONCLUSIVE', 'coverage-only reviewer evidence must reach the shared classifier');
+const financialOnly = settlementAcceptanceStage({ok: false, unproven: false, errors: ['failed refund lost locked debt']});
+assert.equal(financialOnly.evidenceValid, true);
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: financialOnly}).status, 'REJECTED');
+const missingRun = interpretSettlementRun({status: 1, stdout: '', stderr: 'capture failed'}, path.join(os.tmpdir(), 'missing-settlement-report.json'), () => ({ok: true}));
+assert.equal(missingRun.checked, null);
+assert.ok(missingRun.unavailable);
+const missingStage = settlementAcceptanceStage(missingRun.checked, missingRun.unavailable);
+assert.equal(missingStage.evidenceValid, false);
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: missingStage}).status, 'INCONCLUSIVE', 'a nonzero child without a report is missing evidence');
+const truncatedReport = path.join(os.tmpdir(), `truncated-settlement-${process.pid}.json`);
+fs.writeFileSync(truncatedReport, '{"schema": ');
+const truncatedRun = interpretSettlementRun({status: 1, stdout: '', stderr: 'capture interrupted during report write'}, truncatedReport, () => ({ok: true}));
+assert.equal(truncatedRun.checked, null);
+assert.ok(truncatedRun.unavailable);
+assert.match(truncatedRun.unavailable.message, /unreadable or incomplete/);
+const truncatedStage = settlementAcceptanceStage(truncatedRun.checked, truncatedRun.unavailable);
+assert.equal(truncatedStage.evidenceValid, false);
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: truncatedStage}).status, 'INCONCLUSIVE');
+fs.rmSync(truncatedReport, {force: true});
+
+const verifierThrowReport = path.join(os.tmpdir(), `verifier-throw-${process.pid}.json`);
+fs.writeFileSync(verifierThrowReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v2', broken: true}));
+const verifierThrowRun = interpretSettlementRun({status: 1, stdout: '', stderr: ''}, verifierThrowReport, () => { throw new Error('malformed report data'); });
+assert.ok(verifierThrowRun.unavailable);
+assert.match(verifierThrowRun.unavailable.message, /could not be verified/);
+assert.equal(settlementAcceptanceStage(verifierThrowRun.checked, verifierThrowRun.unavailable).evidenceValid, false);
+fs.rmSync(verifierThrowReport, {force: true});
+
+const semanticReport = path.join(os.tmpdir(), `semantic-settlement-${process.pid}.json`);
+fs.writeFileSync(semanticReport, JSON.stringify({schema: 'near-rehearsal/settlement-refund/v2'}));
+const semanticRun = interpretSettlementRun({status: 1, stdout: '', stderr: 'child exited 1'}, semanticReport, () => ({ok: false, unproven: false, errors: ['verified financial failure']}));
+assert.ok(semanticRun.report, 'a completed report is inspected even when the child exited nonzero');
+const semanticStage = settlementAcceptanceStage(semanticRun.checked, semanticRun.unavailable);
+assert.equal(semanticStage.evidenceValid, true);
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: semanticStage}).status, 'REJECTED');
+fs.rmSync(semanticReport, {force: true});
+
+const combined = settlementAcceptanceStage({ok: false, unproven: true, errors: ['in-flight guard was not exercised', 'failed refund lost locked debt']});
+assert.equal(combined.evidenceValid, false);
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: combined}).status, 'INCONCLUSIVE');
+
+// A settlement child that dies before writing a report is missing evidence, not a
+// rejection: capture uncertainty must reach the shared classifier as INCONCLUSIVE.
+const capturedFixture = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'case-triage', 'rehearsal-repair', 'out', 'audit-intended', 'settlement', 'settlement-refund.json'), 'utf8'));
+const missingGateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'settlement-missing-'));
+const missingReportPath = path.join(missingGateDir, 'settlement-refund.json');
+const captureFailure = interpretSettlementRun({status: 1, stdout: '', stderr: 'Error: fetch failed\n    at Worker.init'}, missingReportPath, () => { throw new Error('no report to verify'); });
+assert.equal(captureFailure.report, null);
+assert.equal(captureFailure.checked, null);
+assert.equal(captureFailure.unavailable.exitCode, 1);
+assert.ok(/no evidence \(exit 1\)/.test(captureFailure.unavailable.message));
+const unavailableStage = settlementAcceptanceStage(captureFailure.checked, captureFailure.unavailable);
+assert.equal(unavailableStage.ok, false);
+assert.equal(unavailableStage.evidenceValid, false, 'an unexecuted settlement gate is not verification evidence');
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: unavailableStage}).status, 'INCONCLUSIVE',
+  'a capture failure must not become a reviewer rejection');
+
+const writtenReportPath = path.join(missingGateDir, 'settlement-refund.json');
+fs.writeFileSync(writtenReportPath, JSON.stringify(capturedFixture));
+const writtenRun = interpretSettlementRun({status: 1, stdout: '', stderr: ''}, writtenReportPath, () => ({ok: false, unproven: false, errors: ['failed refund did not retain the locked debt']}));
+assert.equal(writtenRun.unavailable, null, 'a written report is execution evidence even when the candidate fails');
+const writtenStage = settlementAcceptanceStage(writtenRun.checked, writtenRun.unavailable);
+assert.equal(writtenStage.evidenceValid, true);
+assert.equal(evaluateCandidate({fresh: stageFromChecks(true), recovery: stageFromChecks(true), mixed: stageFromChecks(true), settlement: writtenStage}).status, 'REJECTED',
+  'a written semantic failure remains a verified rejection');
+
 const sameBytes = compareMixed({outcomes, candidate: {wasmSha256: 'a'.repeat(64)}}, {outcomes}, 'a'.repeat(64), 'a'.repeat(64));
 assert.equal(sameBytes.candidateMatches, true);
 const legacy = compareMixed(null, {ok: true, outcomes}, 'a'.repeat(64), 'a'.repeat(64));
@@ -110,7 +177,7 @@ try {
 console.log(JSON.stringify({
   schema: 'near-rehearsal/repair-review-guards/v1',
   ok: true,
-  checks: 26,
+  checks: 36,
   fixture: path.relative(path.join(__dirname, '..'), fixture),
   fixtureSha256: crypto.createHash('sha256').update(fs.readFileSync(fixture)).digest('hex'),
 }, null, 2));
