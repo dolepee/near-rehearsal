@@ -144,6 +144,34 @@ jobs:
           test "$(git -C "$source_dir" rev-parse HEAD)" = 5434a59dec23ee0c49df8c8c4350c208a7e75b0b
           test -z "$(git -C "$source_dir" status --porcelain --untracked-files=all)"
           echo "REPAIR_REVIEW_SOURCE=$source_dir" >> "$GITHUB_ENV"
+      - name: Provision the enforced compiler boundary
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap apparmor
+          # Ubuntu 24.04 restricts unprivileged user namespaces. bwrap needs a
+          # profile that grants userns; this profile adds no confinement of its
+          # own because the boundary is bwrap's namespaces plus no-new-privs.
+          profile=/etc/apparmor.d/bwrap
+          sudo tee "$profile" >/dev/null <<'PROFILE'
+          abi <abi/4.0>,
+          include <tunables/global>
+
+          profile bwrap /usr/bin/bwrap flags=(unconfined) {
+            userns,
+            include if exists <local/bwrap>
+          }
+          PROFILE
+          sudo apparmor_parser -r "$profile"
+          bwrap --unshare-all --die-with-parent --ro-bind / / -- /bin/true
+      - name: Verify the compiler boundary probe
+        run: node case-triage/rehearsal-repair/boundary-probe.cjs
+      - name: Exercise real namespace lifecycle
+        run: node case-triage/rehearsal-repair/compiler-boundary-tests.cjs --require-namespace
+      - name: Prefetch pinned build dependencies outside the boundary
+        run: |
+          set -euo pipefail
+          cargo fetch --locked --manifest-path "$REPAIR_REVIEW_SOURCE/Cargo.toml"
       - name: Acquire pinned NEAR Sandbox 2.14.0
         run: |
           set -euo pipefail
@@ -193,6 +221,7 @@ jobs:
           test -s "$out_dir/recorded-replay/persisted-recovery.json"
           test -s "$out_dir/recorded-replay/persisted-recovery-acceptance.json"
       - name: Upload repair review evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: repair-review-source-build
@@ -201,6 +230,9 @@ jobs:
             ${{ runner.temp }}/repair-review.log
             ${{ runner.temp }}/repair-replay.log
             ${{ runner.temp }}/repair-review/review-result.json
+            ${{ runner.temp }}/repair-review.log
+            ${{ runner.temp }}/repair-review/source-build/build.log
+            ${{ runner.temp }}/repair-review/source-build/boundary.json
             ${{ runner.temp }}/repair-review/source-build/pipeline.json
             ${{ runner.temp }}/repair-review/source-build/candidate-identity.json
             ${{ runner.temp }}/repair-review/source-build/persisted/persisted-recovery.json
@@ -208,7 +240,7 @@ jobs:
             ${{ runner.temp }}/repair-replay/review-result.json
             ${{ runner.temp }}/repair-replay/recorded-replay/persisted-recovery.json
             ${{ runner.temp }}/repair-replay/recorded-replay/persisted-recovery-acceptance.json
-          if-no-files-found: error
+          if-no-files-found: warn
 
   persisted-recovery:
     name: Persisted bond recovery (Sandbox 2.14.0)
@@ -299,6 +331,34 @@ jobs:
           git -C "$source_dir" checkout --quiet 5434a59dec23ee0c49df8c8c4350c208a7e75b0b
           test -z "$(git -C "$source_dir" status --porcelain --untracked-files=all)"
           echo "REPAIR_REVIEW_SOURCE=$source_dir" >> "$GITHUB_ENV"
+      - name: Provision the enforced compiler boundary
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap apparmor
+          # Ubuntu 24.04 restricts unprivileged user namespaces. bwrap needs a
+          # profile that grants userns; this profile adds no confinement of its
+          # own because the boundary is bwrap's namespaces plus no-new-privs.
+          profile=/etc/apparmor.d/bwrap
+          sudo tee "$profile" >/dev/null <<'PROFILE'
+          abi <abi/4.0>,
+          include <tunables/global>
+
+          profile bwrap /usr/bin/bwrap flags=(unconfined) {
+            userns,
+            include if exists <local/bwrap>
+          }
+          PROFILE
+          sudo apparmor_parser -r "$profile"
+          bwrap --unshare-all --die-with-parent --ro-bind / / -- /bin/true
+      - name: Verify the compiler boundary probe
+        run: node case-triage/rehearsal-repair/boundary-probe.cjs
+      - name: Exercise real namespace lifecycle
+        run: node case-triage/rehearsal-repair/compiler-boundary-tests.cjs --require-namespace
+      - name: Prefetch pinned build dependencies outside the boundary
+        run: |
+          set -euo pipefail
+          cargo fetch --locked --manifest-path "$REPAIR_REVIEW_SOURCE/Cargo.toml"
       - name: Acquire pinned NEAR Sandbox 2.14.0
         run: |
           set -euo pipefail
@@ -360,11 +420,13 @@ jobs:
           if(r.mixed.comparison.differences.length) throw new Error('producer/reviewer outcomes differ');
           NODE
       - name: Upload primary gate evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: primary-gate
           path: |
             ${{ runner.temp }}/primary-good/review-status.json
+            ${{ runner.temp }}/primary-good/source-build/build.log
             ${{ runner.temp }}/primary-good/review-report.md
             ${{ runner.temp }}/primary-good/evidence/mixed-obligation.json
             ${{ runner.temp }}/primary-good/evidence/settlement-refund.json

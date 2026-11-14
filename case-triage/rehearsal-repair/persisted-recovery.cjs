@@ -237,6 +237,7 @@ async function createBase(worker) {
   const root = worker.rootAccount;
   const proposer = await root.createSubAccount('proposer', {initialBalance: parseNEAR('100')});
   const recipient = await root.createSubAccount('recipient', {initialBalance: parseNEAR('10')});
+  const probe = await root.createSubAccount('authority-probe', {initialBalance: parseNEAR('10')});
   const dao = await root.createSubAccount('dao', {initialBalance: parseNEAR('100')});
   const wasm = fs.readFileSync(DEFAULT_BASE);
   const deploy = await dao.deploy(wasm);
@@ -249,7 +250,7 @@ async function createBase(worker) {
   for (let i = 0; i < 40; i += 1) {
     try { await viewJson(worker, dao.accountId, 'get_policy'); break; } catch { await sleep(250); }
   }
-  return {root, proposer, recipient, dao, deploy: summarize(deployFinal), init: summarize(initFinal)};
+  return {root, proposer, recipient, probe, dao, deploy: summarize(deployFinal), init: summarize(initFinal)};
 }
 
 function proposalKind() {
@@ -382,11 +383,27 @@ async function runRecovery(worker, candidateWasm) {
   await settle(worker, base.dao, base.proposer, base.recipient);
   const first = await snapshot(worker, base.dao, base.proposer, base.recipient, failed.proposalId);
 
+  const postRecoveryUnauthorized = await attempt('post-recovery unauthorized finalize', async () => {
+    const tx = await base.probe.callRaw(base.dao, 'act_proposal', {id: failed.proposalId, action: 'Finalize', proposal: kind}, {gas: GAS});
+    return summarize(await finalStatus(worker, tx, base.probe.accountId));
+  });
+  if (!postRecoveryUnauthorized.ok) {
+    throw new Error(`post-recovery unauthorized finalize probe did not execute: ${postRecoveryUnauthorized.error || 'no transaction result'}`);
+  }
+
   const secondTx = await base.proposer.callRaw(base.dao, 'act_proposal', {id: failed.proposalId, action: 'Finalize', proposal: kind}, {gas: GAS});
   const secondFinal = await finalStatus(worker, secondTx, base.proposer.accountId);
   const secondProposal = await waitProposal(worker, base.dao, failed.proposalId);
   await settle(worker, base.dao, base.proposer, base.recipient);
   const second = await snapshot(worker, base.dao, base.proposer, base.recipient, failed.proposalId);
+
+  const postRetryUnauthorized = await attempt('post-retry unauthorized finalize', async () => {
+    const tx = await base.probe.callRaw(base.dao, 'act_proposal', {id: failed.proposalId, action: 'Finalize', proposal: kind}, {gas: GAS});
+    return summarize(await finalStatus(worker, tx, base.probe.accountId));
+  });
+  if (!postRetryUnauthorized.ok) {
+    throw new Error(`post-retry unauthorized finalize probe did not execute: ${postRetryUnauthorized.error || 'no transaction result'}`);
+  }
 
   const frozenLocked = BigInt(frozen.lockedAmount);
   const upgradedLocked = BigInt(upgraded.lockedAmount);
@@ -440,6 +457,8 @@ async function runRecovery(worker, candidateWasm) {
       unauthorizedFinalizeRejected,
       unauthorizedFinalizeError: unauthorizedFinalize.error || null,
       unauthorizedFinalizeProbe: unauthorizedFinalize,
+      postRecoveryUnauthorizedProbe: postRecoveryUnauthorized,
+      postRetryUnauthorizedProbe: postRetryUnauthorized,
     },
     deploy: base.deploy,
     init: base.init,

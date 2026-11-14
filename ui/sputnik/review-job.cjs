@@ -9,14 +9,18 @@
  */
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const {spawn, spawnSync} = require('node:child_process');
 const {checkBundle} = require('../../scripts/repair-review.cjs');
+const {buildHandoffBundle} = require('../../case-triage/rehearsal-repair/handoff-bundle.cjs');
 const {verifyToolchain} = require('../../case-triage/rehearsal-repair/repair-pipeline.cjs');
+const {CODE, probeBoundary} = require('../../case-triage/rehearsal-repair/compiler-boundary.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const REVIEW = path.join(ROOT, 'scripts/repair-review.cjs');
 const EXAMPLE_BUNDLE = path.join(ROOT, 'test-fixtures/repair-browser-export-1de7b8c5.json');
+const EXAMPLE_FILENAME = 'settlement-fixed-handoff.json';
 const DEFAULT_RUNS_ROOT = path.join(ROOT, 'out/sputnik-ui/review-runs');
 const CASE_ID = 'sputnik-238-async-bond';
 const SCHEMA = 'near-rehearsal/repair-review-bundle/v1';
@@ -83,6 +87,22 @@ function sourceState(env, expected = SOURCE_COMMIT) {
   return {configured: clean, missing: clean ? [] : ['REPAIR_SOURCE_DIR'], head, clean};
 }
 
+let boundaryCache = null;
+function compilerBoundaryState() {
+  if (boundaryCache && Date.now() - boundaryCache.at < 60_000) return boundaryCache.value;
+  const jobDir = fs.mkdtempSync(path.join(os.tmpdir(), 'review-boundary-'));
+  let probe;
+  try { probe = probeBoundary({cwd: ROOT, jobDir, toolchainEnv: {}}); }
+  finally { fs.rmSync(jobDir, {recursive: true, force: true}); }
+  const value = probe.ok ? {configured: true, adapter: probe.adapter, guarantees: probe.guarantees} : {
+    configured: false, adapter: probe.adapter || null, code: CODE,
+    reason: `No enforced compiler launcher is available on ${process.platform}; source-build mode is blocked.`,
+    detail: probe.reason || 'compiler boundary probe failed', guarantees: probe.guarantees,
+  };
+  boundaryCache = {at: Date.now(), value};
+  return value;
+}
+
 function toolchainState() {
   try {
     const manifest = JSON.parse(fs.readFileSync(BUILD_MANIFEST, 'utf8'));
@@ -97,7 +117,7 @@ function toolchainState() {
   }
 }
 
-function modeStatus(mode, bundle, env, rust = toolchainState()) {
+function modeStatus(mode, bundle, env, rust = toolchainState(), boundary = compilerBoundaryState()) {
   if (!MODE_LABELS[mode]) return {mode, configured: false, missing: ['unknown mode'], label: mode, detail: ''};
   const sandboxDir = resolveSandboxDir(env);
   const missing = [];
@@ -107,6 +127,7 @@ function modeStatus(mode, bundle, env, rust = toolchainState()) {
     source = sourceState(env, bundle?.source?.commit || SOURCE_COMMIT);
     if (!source.configured) missing.push('REPAIR_SOURCE_DIR');
     if (!rust.configured) missing.push('Rust 1.86.0 + wasm32-unknown-unknown');
+    if (!boundary.configured) missing.push('compiler boundary');
   }
   return {
     mode,
@@ -116,19 +137,22 @@ function modeStatus(mode, bundle, env, rust = toolchainState()) {
     missing: [...new Set(missing)],
     source: source ? {configured: source.configured, head: source.head, clean: source.clean} : null,
     rust: mode === 'source-build' ? {configured: rust.configured, target: rust.target || null} : null,
+    boundary: mode === 'source-build' ? boundary : null,
   };
 }
 
 function resolveReviewConfig(env = process.env, bundle = null) {
   const rust = toolchainState();
+  const boundary = compilerBoundaryState();
   const modes = {
-    'recorded-wasm': modeStatus('recorded-wasm', bundle, env, rust),
-    'source-build': modeStatus('source-build', bundle, env, rust),
+    'recorded-wasm': modeStatus('recorded-wasm', bundle, env, rust, boundary),
+    'source-build': modeStatus('source-build', bundle, env, rust, boundary),
   };
   const defaultMode = modes['source-build'].configured ? 'source-build' : 'recorded-wasm';
   return {
     configured: modes[defaultMode].configured,
     defaultMode,
+    boundary,
     modes,
     missing: modes[defaultMode].missing,
   };
@@ -677,7 +701,7 @@ function createManager(options = {}) {
   }
 
   return {
-    case: {id: CASE_ID, schema: SCHEMA, example: path.basename(EXAMPLE_BUNDLE)},
+    case: {id: CASE_ID, schema: SCHEMA, example: EXAMPLE_FILENAME},
     start,
     get,
     list,
@@ -696,10 +720,10 @@ function createManager(options = {}) {
 }
 
 function exampleBundleText() {
-  const text = fs.readFileSync(EXAMPLE_BUNDLE, 'utf8');
-  const bundle = JSON.parse(text);
+  const bundle = buildHandoffBundle();
+  const text = JSON.stringify(bundle, null, 2);
   const checked = validateBundle(bundle);
-  return {bundle, sha256: sha256(Buffer.from(text, 'utf8')), canonicalSha256: checked.canonicalSha256, filename: path.basename(EXAMPLE_BUNDLE)};
+  return {bundle, sha256: sha256(Buffer.from(text, 'utf8')), canonicalSha256: checked.canonicalSha256, filename: EXAMPLE_FILENAME};
 }
 
 module.exports = {

@@ -5,6 +5,7 @@ const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const {resolveConfig, resolveExecutable} = require('../ui/sputnik/repair-job.cjs');
 const {verifyToolchain} = require('../case-triage/rehearsal-repair/repair-pipeline.cjs');
+const {probeBoundary} = require('../case-triage/rehearsal-repair/compiler-boundary.cjs');
 const {sandboxArgv} = require('../case-triage/rehearsal-repair/model-producer.cjs');
 const {verifiedOuterProfile} = require('../case-triage/rehearsal-repair/codex-producer.cjs');
 const ROOT = path.resolve(__dirname, '..');
@@ -84,6 +85,16 @@ function checkSetup(options, env = process.env, nodeVersion = process.versions.n
       const run = spawnSync(toolchain.env.RUSTC, ['--print', 'target-libdir', '--target', manifest.toolchain.target], {env: {...process.env, ...toolchain.env}, encoding: 'utf8', timeout: 10_000});
       if (run.status !== 0 || !fs.existsSync(run.stdout.trim())) throw new Error('Install the wasm32-unknown-unknown target for Rust 1.86.0.');
       return 'cargo/rustc 1.86.0 and wasm32 target available';
+    });
+    check('Compiler boundary', () => {
+      const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'case-triage/rehearsal-repair/build-manifest.json'), 'utf8'));
+      const toolchain = verifyToolchain(manifest);
+      const jobDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'compiler-boundary-check-'));
+      try {
+        const probe = probeBoundary({cwd: ROOT, jobDir, toolchainEnv: toolchain.env});
+        if (!probe.ok) throw new Error(`BUILD_BOUNDARY_UNAVAILABLE: ${probe.reason || 'compiler boundary probe failed'}${probe.adapter ? ` (${probe.adapter})` : ''}`);
+        return `enforced compiler boundary available (${probe.adapter})`;
+      } finally { fs.rmSync(jobDir, {recursive: true, force: true}); }
     });
     if (options.generate) check('Provider configuration', () => {
       const missing = config.missing.filter((name) => name.startsWith('CODEX_') || name === 'MODEL_PRODUCER_SANDBOX_CMD' || name === 'REPAIR_BASE_WASM');

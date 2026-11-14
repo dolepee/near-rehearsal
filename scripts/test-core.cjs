@@ -32,6 +32,7 @@ const suites = [
   'ui/sputnik/test-local-api-guard.cjs',
   'ui/sputnik/test-malformed-url.cjs',
   'case-triage/rehearsal-repair/acceptance-orchestrator-tests.cjs',
+  'case-triage/rehearsal-repair/compiler-boundary-tests.cjs',
   'case-triage/rehearsal-repair/settlement-policy-tests.cjs',
   'case-triage/rehearsal-repair/mixed-obligation-tests.cjs',
   'case-triage/rehearsal-repair/mixed-policy-tests.cjs',

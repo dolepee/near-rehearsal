@@ -296,12 +296,12 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/review/config' && req.method === 'GET') return send(res, 200, {
       case: reviewManager.case,
       ...reviewManager.config(),
-      example: {filename: 'repair-browser-export-1de7b8c5.json', label: 'Recorded model candidate, fresh Sandbox execution'},
+      example: {filename: 'settlement-fixed-handoff.json', label: 'Current accepted handoff, recorded case review'},
     });
     if (url.pathname === '/api/review/example' && req.method === 'GET') {
       try {
         const example = exampleBundleText();
-        return send(res, 200, {bundle: example.bundle, sha256: example.sha256, filename: example.filename, label: 'Recorded model candidate, fresh Sandbox execution'});
+        return send(res, 200, {bundle: example.bundle, sha256: example.sha256, filename: example.filename, label: 'Current accepted handoff, recorded case review'});
       } catch (error) {
         return send(res, 500, {error: error.message});
       }

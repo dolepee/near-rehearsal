@@ -15,6 +15,7 @@ const {spawnSync} = require('node:child_process');
 const {materializeAppliedTree, verifyPatchInTree} = require('./repair-controller.cjs');
 const {makeIdentity} = require('./candidate-identity.cjs');
 const {verify} = require('./acceptance.cjs');
+const {probeBoundary, prepareBuild, runSupervised, BoundaryUnavailableError, CODE} = require('./compiler-boundary.cjs');
 
 const HERE = __dirname;
 const ROOT = path.resolve(HERE, '..', '..');
@@ -183,15 +184,77 @@ function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance
   if (!fs.existsSync(appliedSource)) throw new Error('applied allowlisted source is missing');
 
   const toolchain = verifyToolchain(buildManifest);
-  const build = run('sh', ['-c', manifest.build.command], {
-    cwd: appliedDir,
-    timeout: 20 * 60 * 1000,
-    env: toolchain.env,
+  const probeDir = path.join(out, 'boundary-probe');
+  const probe = probeBoundary({cwd: appliedDir, jobDir: probeDir, toolchainEnv: toolchain.env});
+  fs.writeFileSync(path.join(out, 'boundary.json'), JSON.stringify({
+    schema: 'near-rehearsal/compiler-boundary/v1',
+    platform: process.platform,
+    adapter: probe.adapter,
+    limits: probe.limits,
+    guarantees: probe.guarantees,
+    probe: {ok: probe.ok, checks: probe.checks, reason: probe.reason},
+    build: null,
+  }, null, 2) + '\n');
+  if (!probe.ok) throw new BoundaryUnavailableError(probe.reason || 'compiler boundary probe failed', {platform: process.platform, probe: probe.checks || null});
+  const prepared = prepareBuild({
+    appliedDir,
+    outDir: out,
+    toolchainEnv: toolchain.env,
+    command: manifest.build.command,
+    artifact: buildManifest.build.artifact,
   });
-  writeLog(path.join(out, 'build.log'), build);
-  if (build.status !== 0) throw new Error(`candidate build failed with exit ${build.status}; see build.log`);
+  const build = runSupervised({
+    file: prepared.argv.file,
+    args: prepared.argv.args,
+    cwd: prepared.cwd,
+    env: prepared.env,
+    jobDir: prepared.jobDir,
+    limits: prepared.limits,
+    pidNamespace: prepared.pidNamespace,
+    requirePidNamespace: true,
+  });
+  writeLog(path.join(out, 'build.log'), {status: build.status, stdout: build.stdout, stderr: build.stderr});
+  const boundaryRecord = JSON.parse(fs.readFileSync(path.join(out, 'boundary.json'), 'utf8'));
+  boundaryRecord.build = {
+    ok: build.ok, status: build.status, signal: build.signal,
+    timedOut: build.timedOut, outputLimit: build.outputLimit,
+    supervisorStatus: build.supervisorStatus,
+  };
+  fs.writeFileSync(path.join(out, 'boundary.json'), JSON.stringify(boundaryRecord, null, 2) + '\n');
+  if (!build.ok) {
+    const detail = `${build.stderr || ''}\n${build.stdout || ''}`.trim().split('\n').slice(-40).join('\n').slice(0, 4000);
+    if (build.timedOut) throw new Error(`candidate build timed out; see build.log${detail ? `\n${detail}` : ''}`);
+    if (build.outputLimit) throw new Error(`candidate build exceeded the bounded output limit; see build.log${detail ? `\n${detail}` : ''}`);
+    throw new Error(`candidate build failed with exit ${build.status ?? 'unavailable'}; see build.log${detail ? `\n${detail}` : ''}`);
+  }
+  const MAX_WASM_BYTES = 16 * 1024 * 1024;
+  const artifactReal = fs.realpathSync(prepared.artifact);
+  const jobRoot = fs.realpathSync(prepared.jobDir);
+  if (artifactReal !== jobRoot && !artifactReal.startsWith(jobRoot + path.sep)) {
+    throw new Error('candidate artifact resolves outside the disposable job tree');
+  }
+  const artifactStat = fs.lstatSync(prepared.artifact);
+  if (!artifactStat.isFile() || artifactStat.isSymbolicLink()) {
+    throw new Error('candidate artifact is not a regular non-symlink file');
+  }
+  if (artifactStat.size <= 0 || artifactStat.size > MAX_WASM_BYTES) {
+    throw new Error(`candidate artifact size ${artifactStat.size} is outside the bounded WASM range`);
+  }
+  let artifactFd;
+  let artifactBytes;
+  try {
+    artifactFd = fs.openSync(prepared.artifact, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+    const opened = fs.fstatSync(artifactFd);
+    if (!opened.isFile() || opened.size !== artifactStat.size || opened.size > MAX_WASM_BYTES) {
+      throw new Error('candidate artifact changed or is not a bounded regular file');
+    }
+    artifactBytes = fs.readFileSync(artifactFd);
+  } finally {
+    if (artifactFd !== undefined) fs.closeSync(artifactFd);
+  }
   const wasm = path.join(appliedDir, buildManifest.build.artifact);
-  if (!fs.existsSync(wasm)) throw new Error(`candidate build produced no ${buildManifest.build.artifact}`);
+  fs.mkdirSync(path.dirname(wasm), {recursive: true});
+  fs.writeFileSync(wasm, artifactBytes, {mode: 0o600});
 
   const sandbox = verifySandbox(buildManifest, sandboxDir);
   const replay = run(process.execPath, [ISSUE238], {

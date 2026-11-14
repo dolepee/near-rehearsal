@@ -33,7 +33,7 @@
         </label>
         <p id="bundle-help" class="hint">JSON only, up to 8 MB. The file stays local to this server.</p>
         <div id="selection" class="selection" role="status" aria-live="polite">No bundle selected.</div>
-        <button id="example-button" class="secondary" type="button">Load example (recorded candidate)</button>
+        <button id="example-button" class="secondary" type="button">Load example (accepted handoff)</button>
 
         <fieldset class="mode-card mode-picker">
           <legend class="eyebrow">Execution mode</legend>
@@ -47,7 +47,7 @@
           </label>
         </fieldset>
 
-        <div class="boundary"><strong>Trusted-local source build</strong><p>Source builds run on this machine. Build scripts can read host files and credentials; choose this mode only for source you trust. This is not compiler isolation or an untrusted-code sandbox.</p></div>
+        <div class="boundary"><strong>Compiler boundary</strong><p>Source builds are available only on supported Linux hosts with the enforced compiler boundary: build scripts run in a confined mount and PID namespace, with network disabled. On macOS source builds are unavailable. Recorded replay remains available on this machine.</p></div>
         <button id="run-button" class="primary" type="button" disabled>Select a bundle to run</button>
         <div id="runtime-note" class="notice" role="status" aria-live="polite">Checking the local runtime…</div>
         <div class="boundary"><strong>Local evidence only</strong><p>Accepted means the supplied artifact passed the declared local checks. It is not production approval, an audit, or a claim about other contracts.</p></div>

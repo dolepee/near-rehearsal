@@ -60,6 +60,8 @@ function fakeChild(handler) {
     sourceDir: tmp, baseWasm: path.join(tmp, 'base.wasm'), sandboxDir: tmp,
     codexBin: 'codex', profile: 'test-profile', privateRuntime,
     authSource: path.join(tmp, 'auth.json'), sandboxCmd: 'test', providerConfigured: true,
+    // This test injects fake child processes; it does not exercise a compiler launcher.
+    compilerBoundary: {configured: true},
     configured: true, missing: [], timeouts: {baselineMs: 10000, generationMs: 10000, pipelineMs: 10000, jobMs: 30000},
   };
   const fakeSpawn = (command, args, options) => {

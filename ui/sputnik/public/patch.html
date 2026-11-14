@@ -18,7 +18,7 @@
 <input id="patch-file" type="file" accept=".patch,.diff,text/plain" aria-describedby="patch-help">
 <label class="field" for="patch-text"><span>Source diff</span></label><textarea id="patch-text" rows="9" spellcheck="false" autocapitalize="off" aria-describedby="patch-help"></textarea>
 <p id="patch-help" class="hint">Paste a unified diff or open a file above. You can edit it before checking.</p>
-<p id="patch-trust" class="hint">Build only source you trust. Compilation runs on this machine and can read local files and credentials; the compiler is not isolated.</p>
+<p id="patch-trust" class="hint">Build only source you trust. Source-build mode requires the enforced compiler boundary; if the launcher or probe is unavailable, source-build is blocked rather than falling back to host execution.</p>
 <button class="primary" id="check" type="submit" aria-describedby="patch-trust">Check patch</button></form>
 <p id="patch-status" role="status" aria-live="polite"></p>
 <section id="patch-result" hidden aria-labelledby="result-title"><h3 id="result-title" tabindex="-1"></h3><p id="result-note"></p>

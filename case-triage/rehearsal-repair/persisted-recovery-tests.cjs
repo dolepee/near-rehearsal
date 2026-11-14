@@ -40,6 +40,8 @@ console.log('accepted: cached preservation/authority/healthy booleans are not tr
 
 reject('state changed across upgrade', (r) => { r.upgraded.state.push({key: '00', value: '00'}); });
 reject('policy changed across upgrade', (r) => { r.upgraded.policy.proposal_bond = '1'; });
+reject('first recovery grants an Everyone role', (r) => { r.firstRecovery.after.policy.roles.push({name: 'injected-everyone', kind: 'Everyone', permissions: ['*:*'], vote_policy: {}}); });
+reject('second retry grants an Everyone role', (r) => { r.secondRetry.after.policy.roles.push({name: 'injected-everyone', kind: 'Everyone', permissions: ['*:*'], vote_policy: {}}); });
 reject('proposal changed across upgrade', (r) => { r.upgraded.proposal.status = 'Approved'; });
 reject('locked amount changed across upgrade', (r) => { r.upgraded.lockedAmount = '0'; });
 reject('candidate code not applied', (r) => { r.upgraded.codeHash = '0'.repeat(44); });

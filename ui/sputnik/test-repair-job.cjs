@@ -132,6 +132,16 @@ try {
     status: 'running', phase: 'replaying', startedAt: new Date().toISOString(), finishedAt: null,
     error: null, phaseLog: [], source: {}, obligation: {}, baseline: null, candidate: null,
   }));
+  let providerSpawns = 0;
+  const unsupported = createManager({
+    config: {configured: false, providerConfigured: false, compilerBoundary: {configured: false, reason: 'test boundary unavailable'}, missing: [], timeouts: {}},
+    runsRoot: tmp,
+    spawn: () => { providerSpawns += 1; throw new Error('provider must not spawn'); },
+  });
+  assert.throws(() => unsupported.start('sputnik-238-async-bond'), (error) => error?.status === 'unsupported-boundary' && error?.statusCode === 503);
+  assert.equal(providerSpawns, 0, 'no provider process is spawned when the compiler boundary is unavailable');
+  unsupported.shutdown();
+
   const manager = createManager({config: {configured: false, providerConfigured: false, missing: [], timeouts: {}}, runsRoot: tmp});
   manager.recover();
   const recovered = manager.get(id);
