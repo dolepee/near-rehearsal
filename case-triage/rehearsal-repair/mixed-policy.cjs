@@ -236,10 +236,11 @@ function verifyMixedReport(report, opts = {}) {
 
   const ar = report?.aliceRecovery?.after;
   const alice = report?.aliceRecovery;
-  const aliceContract = delta(ar, afterUpgrade, 'contractBalance', 'Alice recovery contract');
-  const aliceLocked = delta(ar, afterUpgrade, 'lockedAmount', 'Alice recovery locked');
-  const aliceRecipient = balanceDelta(ar, afterUpgrade, 'aliceRecipient', 'Alice recovery');
-  const aliceProposer = balanceDelta(ar, afterUpgrade, 'alice', 'Alice recovery');
+  const recoveryStart = report?.beforeRecovery || afterUpgrade;
+  const aliceContract = delta(ar, recoveryStart, 'contractBalance', 'Alice recovery contract');
+  const aliceLocked = delta(ar, recoveryStart, 'lockedAmount', 'Alice recovery locked');
+  const aliceRecipient = balanceDelta(ar, recoveryStart, 'aliceRecipient', 'Alice recovery');
+  const aliceProposer = balanceDelta(ar, recoveryStart, 'alice', 'Alice recovery');
   const alicePaid = alice?.attempt?.ok === true && alice?.attempt?.value?.receiptFailure === true
     && alice?.attempt?.value?.finalExecutionStatus === 'FINAL'
     && ar?.proposals?.alice?.status === 'Failed' && aliceContract === -expectedBond && aliceRecipient === 0n;
@@ -249,7 +250,7 @@ function verifyMixedReport(report, opts = {}) {
   if (alice?.deltas?.proposer && amount(alice.deltas.proposer, 'Alice recovery reported proposer') !== aliceProposer) fail('Alice proposer delta does not match snapshot balances');
   if (aliceLocked !== -expectedBond) fail('Alice recovery did not release exactly one locked bond');
   if (amount(ar?.lockedAmount, 'Alice recovery locked balance', true) < expectedBond) fail('Bob liability disappeared after Alice recovery');
-  unchanged(ar, afterUpgrade, ['bob', 'carol', 'aliceRecipient', 'bobRecipient', 'carolRecipient'], 'Alice recovery');
+  unchanged(ar, recoveryStart, ['bob', 'carol', 'aliceRecipient', 'bobRecipient', 'carolRecipient'], 'Alice recovery');
 
   const aliceRetryAfter = report?.aliceRetry?.after;
   const aliceRetry = report?.aliceRetry;
