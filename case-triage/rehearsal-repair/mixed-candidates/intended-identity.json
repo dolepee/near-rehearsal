@@ -10,11 +10,11 @@
     "sha256": "9ae060af97dcb7f4ced31d135ac84b0130f274032f17c2acb1a56e43a6ebf3d0"
   },
   "wasm": {
-    "sha256": "3205860e557dbe4852e4022866ab7cc6461483d39a7be3e990ade3287f3c8df4",
-    "bytes": 539065
+    "sha256": "133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d",
+    "bytes": 540609
   },
   "controller": {
-    "generatedAt": "2026-11-14T18:05:00.000Z",
+    "generatedAt": "2026-11-14T18:18:00.000Z",
     "generatedBy": "repair-candidate-identity/v1"
   }
 }

@@ -20,14 +20,14 @@
     },
     "intended": {
       "wasm": "mixed-candidates/intended.wasm",
-      "wasmSha256": "3205860e557dbe4852e4022866ab7cc6461483d39a7be3e990ade3287f3c8df4",
-      "wasmBytes": 539065,
+      "wasmSha256": "133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d",
+      "wasmBytes": 540609,
       "patch": "mixed-candidates/intended.patch",
       "patchSha256": "9ae060af97dcb7f4ced31d135ac84b0130f274032f17c2acb1a56e43a6ebf3d0",
       "source": "mixed-candidates/intended-proposals.rs",
       "sourceSha256": "1e1c693fc2cae3c2ce3159a1e0d79699a6e8085148b5c521cb166acddd74464c",
       "identity": "mixed-candidates/intended-identity.json",
-      "identitySha256": "871aff75d7a6719972f62c26214ef76308313e1adad8a16754fbb72fff106b77"
+      "identitySha256": "9828ae917566a949892e4a71c2c7a4ecd964c75ca7f9e8d2e20fd38ef3c790d6"
     },
     "future-only": {
       "wasm": "mixed-candidates/future-only.wasm",
