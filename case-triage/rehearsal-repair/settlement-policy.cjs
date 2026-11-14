@@ -883,7 +883,7 @@ function verifySettlementReport(report, opts = {}) {
     const observedCodeValid = typeof approved.observedCodeHash === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,64}$/.test(approved.observedCodeHash);
     approvedFail(observedCodeValid, 'observed DAO code hash is missing or malformed');
     if (deployed !== null && observedCodeValid) approvedFail(approved.observedCodeHash === approved.deploy.codeHash, 'observed DAO code differs from the deployment commitment', 'verified');
-    const installationValid = deployed !== null && deployed === approved.candidateWasmSha256 && observedCodeValid && approved.observedCodeHash === approved.deploy.codeHash;
+    const installationValid = approvedDaoValid && deployed !== null && deployed === approved.candidateWasmSha256 && observedCodeValid && approved.observedCodeHash === approved.deploy.codeHash;
     const snapshotBinding = Object.fromEntries(['before', 'afterApproval', 'beforeRetry', 'afterRetry', 'afterDuplicate', 'afterUnauthorized'].map((name) => [name, true]));
     const windowValid = {approval: true, retry: true, duplicate: true};
     const approval = approved.approval;
@@ -976,9 +976,9 @@ function verifySettlementReport(report, opts = {}) {
       approvedFail(approvalOk, 'approval has no successful receipt chain');
       approvedFail(retryOk, 'retry has no successful receipt chain');
       const operationValid = {
-        approval: Boolean(approval && approval.transaction && approvalCall && approvalCall.call.method_name === 'act_proposal' && approvalCall.args.action === 'VoteApprove' && approvalOk && approval.transaction.receiverId === dao && (!approvedDaoValid || approved.dao === dao)),
-        retry: Boolean(retry && retry.transaction && retryCall && retryCall.call.method_name === 'act_proposal' && retryCall.args.action === 'Finalize' && approvalCall && String(retryCall.args.id) === String(approvalCall.args.id) && retry.transaction.signerId === approved.proposer && retryOk && retry.transaction.receiverId === dao),
-        duplicate: Boolean(duplicate && duplicate.transaction && duplicateCall && duplicateCall.call.method_name === 'act_proposal' && duplicateCall.args.action === 'Finalize' && approvalCall && String(duplicateCall.args.id) === String(approvalCall.args.id) && duplicate.transaction.receiverId === dao),
+        approval: Boolean(approval && approval.finalExecutionStatus === 'FINAL' && approval.transaction && approvalCall && approvalCall.call.method_name === 'act_proposal' && approvalCall.args.action === 'VoteApprove' && approvalOk && approval.transaction.receiverId === dao && approvedDaoValid && approved.dao === dao),
+        retry: Boolean(retry && retry.finalExecutionStatus === 'FINAL' && retry.transaction && retryCall && retryCall.call.method_name === 'act_proposal' && retryCall.args.action === 'Finalize' && approvalCall && String(retryCall.args.id) === String(approvalCall.args.id) && retry.transaction.signerId === approved.proposer && retryCall.args.proposal && JSON.stringify(retryCall.args.proposal) === JSON.stringify(approvalCall.args.proposal) && retryOk && retry.transaction.receiverId === dao),
+        duplicate: Boolean(duplicate && duplicate.finalExecutionStatus === 'FINAL' && duplicate.transaction && duplicateCall && duplicateCall.call.method_name === 'act_proposal' && duplicateCall.args.action === 'Finalize' && approvalCall && String(duplicateCall.args.id) === String(approvalCall.args.id) && duplicate.transaction.receiverId === dao),
       };
       const economicFail = (condition, message, relevant) => {
         const attributable = installationValid &&

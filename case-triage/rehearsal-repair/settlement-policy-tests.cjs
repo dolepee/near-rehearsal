@@ -111,6 +111,14 @@ checkApprovedMutation('receipt completes before its root', (approved) => {
 checkApprovedMutation('approval observation after retry start', (approved) => {
   approved.beforeRetry.blockHeight = approved.afterApproval.blockHeight - 1;
 }, 'INCONCLUSIVE');
+checkApprovedMutation('missing DAO with altered locked amount', (approved) => {
+  delete approved.dao;
+  approved.afterRetry.lockedAmount = '42';
+}, 'INCONCLUSIVE');
+checkApprovedMutation('retry not FINAL with altered locked amount', (approved) => {
+  approved.retry.finalExecutionStatus = 'NONE';
+  approved.afterRetry.lockedAmount = '42';
+}, 'INCONCLUSIVE');
 checkApprovedMutation('all execution heights missing', (approved) => {
   delete approved.approval.blockHeight;
   delete approved.retry.blockHeight;
