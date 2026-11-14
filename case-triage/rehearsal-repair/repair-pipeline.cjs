@@ -224,10 +224,34 @@ function runPipeline({patch, source, out, baseReport = AUTHORED_BASE, provenance
     if (build.outputLimit) throw new Error(`candidate build exceeded the bounded output limit; see build.log`);
     throw new Error(`candidate build failed with exit ${build.status ?? 'unavailable'}; see build.log`);
   }
-  if (!fs.existsSync(prepared.artifact)) throw new Error(`candidate build produced no ${buildManifest.build.artifact}`);
+  const MAX_WASM_BYTES = 16 * 1024 * 1024;
+  const artifactReal = fs.realpathSync(prepared.artifact);
+  const jobRoot = fs.realpathSync(prepared.jobDir);
+  if (artifactReal !== jobRoot && !artifactReal.startsWith(jobRoot + path.sep)) {
+    throw new Error('candidate artifact resolves outside the disposable job tree');
+  }
+  const artifactStat = fs.lstatSync(prepared.artifact);
+  if (!artifactStat.isFile() || artifactStat.isSymbolicLink()) {
+    throw new Error('candidate artifact is not a regular non-symlink file');
+  }
+  if (artifactStat.size <= 0 || artifactStat.size > MAX_WASM_BYTES) {
+    throw new Error(`candidate artifact size ${artifactStat.size} is outside the bounded WASM range`);
+  }
+  let artifactFd;
+  let artifactBytes;
+  try {
+    artifactFd = fs.openSync(prepared.artifact, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+    const opened = fs.fstatSync(artifactFd);
+    if (!opened.isFile() || opened.size !== artifactStat.size || opened.size > MAX_WASM_BYTES) {
+      throw new Error('candidate artifact changed or is not a bounded regular file');
+    }
+    artifactBytes = fs.readFileSync(artifactFd);
+  } finally {
+    if (artifactFd !== undefined) fs.closeSync(artifactFd);
+  }
   const wasm = path.join(appliedDir, buildManifest.build.artifact);
   fs.mkdirSync(path.dirname(wasm), {recursive: true});
-  fs.copyFileSync(prepared.artifact, wasm);
+  fs.writeFileSync(wasm, artifactBytes, {mode: 0o600});
 
   const sandbox = verifySandbox(buildManifest, sandboxDir);
   const replay = run(process.execPath, [ISSUE238], {
