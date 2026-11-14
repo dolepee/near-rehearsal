@@ -418,7 +418,7 @@ jobs:
           out="$RUNNER_TEMP/primary-bad"
           set +e
           node scripts/review-patch.cjs \
-            --patch case-triage/rehearsal-repair/mixed-candidates/clear-all.patch \
+            --patch case-triage/rehearsal-repair/mixed-candidates/seeded-clear-all.patch \
             --source "$REPAIR_REVIEW_SOURCE" --out "$out" --sandbox-dir "$REPAIR_SANDBOX_DIR"
           code=$?
           set -e
@@ -464,6 +464,13 @@ jobs:
             ${{ runner.temp }}/primary-bad/review-status.json
             ${{ runner.temp }}/primary-bad/review-report.md
             ${{ runner.temp }}/primary-bad/evidence/mixed-obligation.json
+            ${{ runner.temp }}/primary-bad/evidence/settlement-refund.json
+            ${{ runner.temp }}/primary-bad/evidence/settlement.log
+            ${{ runner.temp }}/primary-bad/evidence/persisted.log
+            ${{ runner.temp }}/primary-bad/evidence/persisted-recovery.json
+            ${{ runner.temp }}/primary-bad/evidence/persisted-recovery-acceptance.json
+            ${{ runner.temp }}/primary-bad/persisted/persisted-recovery.json
+            ${{ runner.temp }}/primary-bad/persisted/persisted-recovery-acceptance.json
             ${{ runner.temp }}/primary-review-bundle.json
             ${{ runner.temp }}/primary-replay/review-result.json
           if-no-files-found: warn
