@@ -32,7 +32,7 @@ function arg(args, name) {
   return index >= 0 ? args[index + 1] : null;
 }
 
-function fakeSpawn({mixedPath = mixedReport, writeSettlement = true, settlementMutate = null} = {}) {
+function fakeSpawn({mixedPath = mixedReport, writeSettlement = true, settlementMutate = null, settlementFail = false} = {}) {
   return (command, args, options) => {
     const child = new EventEmitter();
     child.pid = 900000 + Math.floor(Math.random() * 1000);
@@ -80,6 +80,7 @@ function fakeSpawn({mixedPath = mixedReport, writeSettlement = true, settlementM
           fs.mkdirSync(out, {recursive: true});
           fs.copyFileSync(persistedReport, path.join(out, 'persisted-recovery.json'));
         } else if (command === process.execPath && args[0]?.endsWith('settlement-refund-tests.cjs')) {
+          if (settlementFail) throw new Error('settlement child failed before writing a report');
           if (!writeSettlement) throw new Error('settlement child failed before writing a report');
           const out = arg(args, '--out');
           fs.mkdirSync(out, {recursive: true});
@@ -225,6 +226,18 @@ function fakeSpawn({mixedPath = mixedReport, writeSettlement = true, settlementM
     await mutationManager.get(started.id).done;
     return mutationManager.get(started.id);
   };
+  const captureFailRoot = path.join(tmp, 'capture-failure-run');
+  const captureFailManager = createManager({
+    runsRoot: captureFailRoot,
+    spawn: fakeSpawn({writeSettlement: false, settlementFail: true}),
+    config: {...mutationConfig, privateRuntime: path.join(tmp, 'capture-failure-provider-runtime')},
+  });
+  const captureFailStarted = captureFailManager.start('sputnik-238-async-bond');
+  await captureFailManager.get(captureFailStarted.id).done;
+  const captureFailRun = captureFailManager.get(captureFailStarted.id);
+  assert.equal(captureFailRun.status, 'inconclusive', 'a failed retry-capture child must remain inconclusive, not a proved rejection');
+  assert.equal(captureFailRun.settlement.ok, false);
+
   const guardRun = await runMutationCase('guard-unproven', 'guard');
   assert.equal(guardRun.status, 'inconclusive', 'a guard-only omission must remain inconclusive');
   const debtRun = await runMutationCase('lost-debt', 'debt');
