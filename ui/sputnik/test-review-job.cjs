@@ -55,7 +55,7 @@ function fakeSpawn({payload = null, code = 0, error = null, hold = false, freshE
         if (freshEvidence !== 'missing') {
           for (const [folder, name, schema] of [
             ['mixed', 'mixed-obligation.json', 'near-rehearsal/mixed-obligation/v1'],
-            ['settlement', 'settlement-refund.json', 'near-rehearsal/settlement-refund/v2'],
+            ['settlement', 'settlement-refund.json', 'near-rehearsal/settlement-refund/v3'],
           ]) {
             fs.mkdirSync(path.join(out, folder), {recursive: true});
             const evidence = {schema, candidate: {wasmSha256: freshEvidence === 'wrong-candidate' ? '0'.repeat(64) : payload.run?.wasmSha256}, reviewerOnlyReceipt: 'fresh-reviewer-only-receipt', runtime: {binary: '/tmp/private/reviewer-runtime'}};
@@ -190,7 +190,6 @@ async function runInfrastructureFailure() {
   assert.equal(manager.download(started.id), null);
 }
 
-runTerminalExitMatrix().then(runRejected).then(runInconclusive);
 async function runRejected() {
   const payload = JSON.parse(JSON.stringify(acceptedResult));
   payload.status = 'REJECTED';
@@ -345,7 +344,8 @@ function validation() {
     await runAccepted();
     await runMissingFreshEvidence();
     await runInfrastructureFailure();
-  await runRejected();
+    await runTerminalExitMatrix();
+    await runRejected();
   await runInconclusive();
     await runActive();
     runRestartRecovery();
