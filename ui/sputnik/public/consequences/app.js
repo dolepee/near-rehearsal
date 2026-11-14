@@ -186,12 +186,14 @@
             <li><a href="${attr(record.downloads?.evidence?.path)}">Complete #238 evidence zip <small>${esc(record.downloads?.evidence?.bytes || '')} bytes</small></a></li>
             ${candidate.candidate?.patch ? `<li><a href="${attr(candidate.candidate.patch.path)}">Download ${esc(candidate.label)} patch <small>${esc(candidate.candidate.patch.sha256.slice(0, 12))}…</small></a></li>` : ''}
             <li><a href="${attr(candidate.candidate?.wasm?.path)}">Download ${esc(candidate.label)} WASM <small>${esc(candidate.candidate?.wasm?.sha256?.slice(0, 12) || '')}…</small></a></li>
+            ${candidate.handoff ? `<li><a href="${attr(candidate.handoff.path)}" download>Download reviewer handoff JSON <small>${esc(candidate.handoff.sha256.slice(0, 12))}…</small></a></li>` : ''}
             <li><a href="downloads/238/README.md">Review reproduction notes <small>prerequisites + command</small></a></li>
           </ul>
           <details>
             <summary>Show the supported source-review command</summary>
             <pre class="command">${esc(candidate.status === 'ACCEPTED' ? record.commands?.intended : record.commands?.review)}</pre>
             <p class="cash-note">Run from a clean checkout at the pinned source commit with Sandbox 2.14.0. This is a fresh local source-build check, not the recorded result shown above. The exact patch, report and verifier output are in the download.</p>
+            ${candidate.handoff ? `<p class="cash-note">The reviewer handoff is the same existing repair-review JSON format. On macOS select Recorded WASM replay; on Linux use the confined source build. The reviewer exports its own fresh evidence after the run.</p>` : ''}
           </details>
         </section>
       </div>

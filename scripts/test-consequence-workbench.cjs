@@ -11,6 +11,7 @@ const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const {assertCaseFiles, bindReportIdentity, OUT, shaFile} = require('./build-consequence-workbench.cjs');
+const {checkBundle} = require('./repair-review.cjs');
 const {verifyPacket} = require('../case-triage/sputnik-226/review-packet/packet-model.cjs');
 const {validateRepairCandidate, validateUpgrade, bindCandidateSwitch} = require('../ui/sputnik/public/consequences/model.js');
 
@@ -28,6 +29,15 @@ assert.equal(data.label, 'Recorded execution');
 assert.deepEqual(repair.candidates.map((candidate) => candidate.id), ['clear-all', 'intended']);
 assert.equal(repair.candidates[0].status, 'REJECTED');
 assert.equal(repair.candidates[1].status, 'ACCEPTED');
+assert.equal(repair.candidates[0].handoff, null, 'rejected candidate must not offer a passing handoff');
+assert.ok(repair.candidates[1].handoff, 'accepted candidate must offer the reviewer handoff');
+const acceptedHandoff = JSON.parse(fs.readFileSync(path.resolve(OUT, repair.candidates[1].handoff.path), 'utf8'));
+assert.equal(acceptedHandoff.producer, null);
+assert.equal(acceptedHandoff.candidate.wasm.sha256, repair.candidates[1].candidate.wasm.sha256);
+assert.equal(acceptedHandoff.candidate.patch.sha256, repair.candidates[1].candidate.patch.sha256);
+assert.equal(acceptedHandoff.mixed.reportSha256, repair.candidates[1].candidate.report.sha256);
+assert.equal(acceptedHandoff.source.commit, repair.source.commit);
+assert.doesNotThrow(() => checkBundle(acceptedHandoff), 'public handoff must pass the shared reader');
 assert.ok(repair.candidates[0].errors.length > 0, 'bad repair must carry the actual policy errors');
 
 const locked = (candidate) => candidate.stages.map((stage) => stage.locked);
@@ -162,7 +172,7 @@ for (const entry of fs.readdirSync(path.join(copiedPacket, 'evidence'))) {
 
 const zipList = spawnSync('unzip', ['-Z1', path.join(OUT, repair.downloads.evidence.path)], {encoding: 'utf8'});
 assert.equal(zipList.status, 0, zipList.stderr);
-for (const required of ['238/README.md', '238/clear-all.patch', '238/clear-all.wasm', '238/intended.patch', '238/intended.wasm', '238/mixed-obligation-clear-all.json', '238/mixed-obligation-intended.json', '238/LICENSE', '238/THIRD_PARTY_NOTICES.md', '238/LICENSES/sputnik-dao-contract-MIT.txt']) {
+for (const required of ['238/README.md', '238/clear-all.patch', '238/clear-all.wasm', '238/intended.patch', '238/intended.wasm', '238/mixed-obligation-clear-all.json', '238/mixed-obligation-intended.json', '238/repair-bundle-intended.json', '238/LICENSE', '238/THIRD_PARTY_NOTICES.md', '238/LICENSES/sputnik-dao-contract-MIT.txt']) {
   assert.match(zipList.stdout, new RegExp(`(^|\\n)${required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\n|$)`), `zip contains ${required}`);
 }
 for (const relative of ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'LICENSES/sputnik-dao-contract-MIT.txt']) {
@@ -177,6 +187,12 @@ try {
   fs.copyFileSync(path.join(OUT, 'downloads/238/clear-all.patch'), path.join(tmp, 'downloads/238/clear-all.patch'));
   fs.writeFileSync(path.join(tmp, 'downloads/238/clear-all.patch'), 'tampered\n');
   assert.throws(() => assertCaseFiles(data, tmp), /hash mismatch|missing/, 'tampered evidence must fail closed');
+  const crossed = JSON.parse(JSON.stringify(data));
+  crossed.cases['238'].candidates[1].handoff.candidateWasmSha256 = crossed.cases['238'].candidates[0].candidate.wasm.sha256;
+  assert.throws(() => assertCaseFiles(crossed, OUT), /WASM identity does not match/, 'crossed handoff identity must fail closed');
+  const missingHandoff = JSON.parse(JSON.stringify(data));
+  missingHandoff.cases['238'].candidates[1].handoff.path = 'downloads/238/missing-handoff.json';
+  assert.throws(() => assertCaseFiles(missingHandoff, OUT), /missing/, 'missing handoff must fail closed');
 } finally {
   fs.rmSync(tmp, {recursive: true, force: true});
 }

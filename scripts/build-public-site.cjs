@@ -113,7 +113,7 @@ function buildPublicSite({out = OUT, commit} = {}) {
 
 if (require.main === module) {
   try {
-    const generated = new Set(['ui/sputnik/public/consequences/cases.json', 'ui/sputnik/public/consequences/downloads/226-evidence.zip', 'ui/sputnik/public/consequences/downloads/238-evidence.zip']);
+    const generated = new Set(['ui/sputnik/public/consequences/cases.json', 'ui/sputnik/public/consequences/downloads/226-evidence.zip', 'ui/sputnik/public/consequences/downloads/238-evidence.zip', 'ui/sputnik/public/consequences/downloads/238/repair-bundle-intended.json']);
     const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], {cwd: ROOT, encoding: 'utf8'}).trimEnd();
     const dirty = status ? status.split('\n').filter((line) => !generated.has(line.slice(3))) : [];
     if (dirty.length) throw new Error('Commit source changes before packaging a public release');

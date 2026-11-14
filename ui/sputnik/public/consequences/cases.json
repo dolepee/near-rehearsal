@@ -210,7 +210,7 @@
       "downloads": {
         "evidence": {
           "path": "downloads/226-evidence.zip",
-          "sha256": "6b009f1ac4692db2f8ca32078bef7b98864a02a4a19c5c6e0ed0471fc7fc5ed3",
+          "sha256": "b7461b8ff0d6fc27724fd48c1a7b29f5f7c336dd2d08606ecc3b4681974b2f6e",
           "bytes": 829049
         },
         "directory": "downloads/226/",
@@ -236,13 +236,13 @@
       "policy": {
         "files": {
           "mixedObligation": "fe8109e7b0fdbb3c9971d3409ef9743578ff3c9b5566ab3636631fa865e88ff2",
-          "mixedPolicy": "3c834c5979eafdc89697066bd59094b1188028fb18bc4b5d80e77aa01ffe5dbb",
+          "mixedPolicy": "1e92a5a1c3a419c329c943d247c9ca29cd8dca498040b4a98e36090b13938374",
           "acceptanceOrchestrator": "637a8794ea7189e96a2098c58284d425ddadcfd85534fb986aa198cd87fb9b02",
           "baseWasm": "5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578",
           "baseReport": "73b5ef5d3ee19fe1bc165cf7f7d542b4903732c9bf91daae500f66c10a4b922f"
         },
         "policyVersion": "near-rehearsal/acceptance-policy/v3",
-        "sha256": "8f0f1596736098e683ee9c702bbd3878099f3ca07e69b408bee6bf8c40d54c81"
+        "sha256": "1f6ff70d0e91353ca6741fa6b9865a889dbfceff7a991a13dec5113dc1c015a1"
       },
       "baseline": {
         "label": "Pinned baseline — no repair",
@@ -508,6 +508,7 @@
               "carolRetry": "228352698206700000000"
             }
           },
+          "handoff": null,
           "stages": [
             {
               "id": "beforeUpgrade",
@@ -1297,6 +1298,16 @@
               "carolRetry": "229595411604000000000"
             }
           },
+          "handoff": {
+            "path": "downloads/238/repair-bundle-intended.json",
+            "sha256": "07cf10b8fb43cbd7fe1f4e254ff0ac7b38bb5ab4fa915b3c1f8a2a35592cb950",
+            "bytes": 1357980,
+            "runId": "settlement-fixed-handoff-2026-11-13",
+            "candidateWasmSha256": "3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2",
+            "patchSha256": "ea59d33f2102ef21d77be277dc4981911cb58d5a12b995a673261bb20a79cdc1",
+            "sourceCommit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b",
+            "reportSha256": "5558081ef16e2191a4532abb1263e118d84d64e942fb49a7eb5677cf94efbf5d"
+          },
           "stages": [
             {
               "id": "beforeUpgrade",
@@ -2064,10 +2075,20 @@
       "downloads": {
         "evidence": {
           "path": "downloads/238-evidence.zip",
-          "sha256": "425f6f4d4bdfe36aacacb605081b2b6d033b3bec976c98e346f7a3e05b4247e9",
-          "bytes": 568979
+          "sha256": "7d7304676b331ebb08c625202e1308dc2d01f7f27d76e3b545eda5666de38dda",
+          "bytes": 883774
         },
-        "directory": "downloads/238/"
+        "directory": "downloads/238/",
+        "handoff": {
+          "path": "downloads/238/repair-bundle-intended.json",
+          "sha256": "07cf10b8fb43cbd7fe1f4e254ff0ac7b38bb5ab4fa915b3c1f8a2a35592cb950",
+          "bytes": 1357980,
+          "runId": "settlement-fixed-handoff-2026-11-13",
+          "candidateWasmSha256": "3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2",
+          "patchSha256": "ea59d33f2102ef21d77be277dc4981911cb58d5a12b995a673261bb20a79cdc1",
+          "sourceCommit": "5434a59dec23ee0c49df8c8c4350c208a7e75b0b",
+          "reportSha256": "5558081ef16e2191a4532abb1263e118d84d64e942fb49a7eb5677cf94efbf5d"
+        }
       }
     }
   }
