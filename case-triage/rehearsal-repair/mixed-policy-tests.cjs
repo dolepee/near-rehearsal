@@ -58,6 +58,27 @@ mutationMustFail('extra-action', (value) => {
 }, 'extra transaction action');
 mutationMustFail('before-recovery-policy', (value) => { value.beforeRecovery.policy.proposal_bond = '2'; }, 'beforeRecovery policy');
 mutationMustFail('missing-alice-recovery-bob-proposal', (value) => { delete value.aliceRecovery.after.proposals.bob; }, 'Alice recovery missing Bob proposal');
+const canonicalStages = [
+  ['beforeUpgrade', ['alice', 'bob', 'carol']],
+  ['afterUpgrade', ['alice', 'bob', 'carol']],
+  ['aliceRecovery.after', ['alice', 'bob', 'carol']],
+  ['aliceRetry.after', ['alice', 'bob', 'carol']],
+  ['bobPayout.after', ['alice', 'bob', 'carol']],
+  ['bobRetry.after', ['bob', 'carol']],
+  ['carolRetry.after', ['carol']],
+];
+const atPath = (value, pathText) => pathText.split('.').reduce((node, key) => node?.[key], value);
+for (const [stage, names] of canonicalStages) {
+  for (const name of names) {
+    const value = clone(read('mixed-obligation-intended.json'));
+    const snapshot = atPath(value, stage);
+    assert.ok(snapshot?.proposals?.[name], `${stage} fixture must contain ${name}`);
+    delete snapshot.proposals[name];
+    const result = verifyMixedReport(value);
+    assert.equal(result.ok, false, `${stage} accepted missing ${name}`);
+    assert.ok(result.errors.some((error) => /proposal set/.test(error)), `${stage} did not report its proposal set: ${result.errors.join('; ')}`);
+  }
+}
 mutationMustFail('before-recovery-locked', (value) => { value.beforeRecovery.lockedAmount = '0'; }, 'beforeRecovery locked');
 mutationMustFail('seed-missing', (value) => { delete value.seed.alice; }, 'missing seed');
 mutationMustFail('seed-payout', (value) => {

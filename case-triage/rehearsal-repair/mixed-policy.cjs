@@ -147,6 +147,14 @@ function verifyMixedReport(report, opts = {}) {
   const checkSnapshotPreservation = (snapshot, label, names) => {
     if (!snapshot?.policy) fail(`${label} has no policy`);
     else if (!sameJson(canonicalPolicy(snapshot.policy), canonicalPolicy(before?.policy))) fail(`${label} changed governance policy`);
+    // Each canonical stage has an intentional proposal set. Requiring names
+    // individually is not enough: a missing or unexpected entry must fail the
+    // whole snapshot, even when the report digest is recomputed.
+    const actualNames = Object.keys(snapshot?.proposals || {}).sort();
+    const expectedNames = [...names].sort();
+    if (JSON.stringify(actualNames) !== JSON.stringify(expectedNames)) {
+      fail(`${label} proposal set is [${actualNames.join(', ')}], expected [${expectedNames.join(', ')}]`);
+    }
     checkProposalIdentity(snapshot, label, names);
   };
   const gasFromAttempt = (attempt, label) => {
