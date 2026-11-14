@@ -884,8 +884,8 @@ function verifySettlementReport(report, opts = {}) {
     approvedFail(observedCodeValid, 'observed DAO code hash is missing or malformed');
     if (deployed !== null && observedCodeValid) approvedFail(approved.observedCodeHash === approved.deploy.codeHash, 'observed DAO code differs from the deployment commitment', 'verified');
     const installationValid = deployed !== null && deployed === approved.candidateWasmSha256 && observedCodeValid && approved.observedCodeHash === approved.deploy.codeHash;
-    let snapshotBindingsValid = true;
-    let heightBindingsValid = true;
+    const snapshotBinding = Object.fromEntries(['before', 'afterApproval', 'beforeRetry', 'afterRetry', 'afterDuplicate', 'afterUnauthorized'].map((name) => [name, true]));
+    const windowValid = {approval: true, retry: true, duplicate: true};
     const approval = approved.approval;
     const retry = approved.retry;
     const duplicate = approved.duplicate;
@@ -911,29 +911,33 @@ function verifySettlementReport(report, opts = {}) {
         approvedFail(pinned, `${name} snapshot is not block-pinned`);
         approvedFail(codeOk, `${name} snapshot code hash is missing`);
         if (observedCodeValid && typeof value.codeHash === 'string') approvedFail(value.codeHash === approved.observedCodeHash, `${name} snapshot code differs from the deployed candidate`);
-        if (!daoOk || !sameDao || !pinned || !codeOk || !sameCode) snapshotBindingsValid = false;
+        if (!daoOk || !sameDao || !pinned || !codeOk || !sameCode) snapshotBinding[name] = false;
       } else {
-        snapshotBindingsValid = false;
+        snapshotBinding[name] = false;
       }
     }
     const heightCheck = (condition, message) => {
-      if (!condition) { approvedFail(false, message); heightBindingsValid = false; }
+      if (!condition) approvedFail(false, message);
+      return condition;
     };
     const windowCheck = (label, transaction, beforeSnapshot, afterSnapshot) => {
+      let valid = true;
       const lower = recordedHeight(beforeSnapshot?.blockHeight);
       const upper = recordedHeight(afterSnapshot?.blockHeight);
       const height = recordedHeight(transaction?.blockHeight);
-      heightCheck(lower !== null && upper !== null, `${label} measurement window is missing`);
-      heightCheck(height !== null, `${label} blockHeight is missing or malformed`);
+      if (!heightCheck(lower !== null && upper !== null, `${label} measurement window is missing`)) valid = false;
+      if (!heightCheck(height !== null, `${label} blockHeight is missing or malformed`)) valid = false;
       if (lower !== null && upper !== null) {
-        heightCheck(lower <= upper, `${label} measurement window is inverted`);
-        if (height !== null) heightCheck(height >= lower && height <= upper, `${label} execution is outside its measurement window`);
+        if (!heightCheck(lower <= upper, `${label} measurement window is inverted`)) valid = false;
+        if (height !== null && !heightCheck(height >= lower && height <= upper, `${label} execution is outside its measurement window`)) valid = false;
         for (const receipt of transaction?.receipts || []) {
           const receiptHeight = recordedHeight(receipt?.blockHeight);
-          heightCheck(receiptHeight !== null, `${label} receipt completion height is missing`);
-          if (receiptHeight !== null) heightCheck(receiptHeight >= lower && receiptHeight <= upper, `${label} receipt completion is outside its measurement window`);
+          if (!heightCheck(receiptHeight !== null, `${label} receipt completion height is missing`)) valid = false;
+          if (receiptHeight !== null && !heightCheck(receiptHeight >= lower && receiptHeight <= upper, `${label} receipt completion is outside its measurement window`)) valid = false;
         }
       }
+      windowValid[label] = valid;
+      return valid;
     };
     if (approval && retry && duplicate) {
       windowCheck('approval', approval, before, afterApproval);
@@ -965,21 +969,18 @@ function verifySettlementReport(report, opts = {}) {
       const retryOk = successfulReceiptChain(retry, 'approved action retry', (message) => fail(message));
       approvedFail(approvalOk, 'approval has no successful receipt chain');
       approvedFail(retryOk, 'retry has no successful receipt chain');
-      const operationValid = Boolean(
-        approval && retry && duplicate &&
-        approval.transaction && retry.transaction && duplicate.transaction &&
-        approvalCall && retryCall && duplicateCall &&
-        approvalCall.call.method_name === 'act_proposal' && approvalCall.args.action === 'VoteApprove' &&
-        retryCall.call.method_name === 'act_proposal' && retryCall.args.action === 'Finalize' &&
-        duplicateCall.call.method_name === 'act_proposal' && duplicateCall.args.action === 'Finalize' &&
-        String(retryCall.args.id) === String(approvalCall.args.id) &&
-        String(duplicateCall.args.id) === String(approvalCall.args.id) &&
-        retry.transaction.signerId === approved.proposer &&
-        approval.transaction.receiverId === dao && retry.transaction.receiverId === dao && duplicate.transaction.receiverId === dao &&
-        approvalOk && retryOk,
-      );
-      const economicAttributable = installationValid && snapshotBindingsValid && heightBindingsValid && operationValid;
-      const economicFail = (condition, message) => approvedFail(condition, message, economicAttributable ? 'verified' : 'incomplete');
+      const operationValid = {
+        approval: Boolean(approval && approval.transaction && approvalCall && approvalCall.call.method_name === 'act_proposal' && approvalCall.args.action === 'VoteApprove' && approvalOk && approval.transaction.receiverId === dao && (!approvedDaoValid || approved.dao === dao)),
+        retry: Boolean(retry && retry.transaction && retryCall && retryCall.call.method_name === 'act_proposal' && retryCall.args.action === 'Finalize' && approvalCall && String(retryCall.args.id) === String(approvalCall.args.id) && retry.transaction.signerId === approved.proposer && retryOk && retry.transaction.receiverId === dao),
+        duplicate: Boolean(duplicate && duplicate.transaction && duplicateCall && duplicateCall.call.method_name === 'act_proposal' && duplicateCall.args.action === 'Finalize' && approvalCall && String(duplicateCall.args.id) === String(approvalCall.args.id) && duplicate.transaction.receiverId === dao),
+      };
+      const economicFail = (condition, message, relevant) => {
+        const attributable = installationValid &&
+          (relevant.ops || []).every((op) => operationValid[op]) &&
+          (relevant.snapshots || []).every((name) => snapshotBinding[name]) &&
+          (relevant.windows || []).every((name) => windowValid[name]);
+        approvedFail(condition, message, attributable ? 'verified' : 'incomplete');
+      };
       const textAmount = (snapshot, name, label) => {
         const value = approvedAmount(snapshot?.[name]);
         approvedFail(value !== null, `${label} ${name} is missing or malformed`);
@@ -996,15 +997,15 @@ function verifySettlementReport(report, opts = {}) {
       const recipientBeforeRetry = textAmount(beforeRetry, 'recipient', 'beforeRetry');
       const recipientAfter = textAmount(afterRetry, 'recipient', 'afterRetry');
       const recipientDuplicate = textAmount(afterDuplicate, 'recipient', 'afterDuplicate');
-      if (lockedBefore !== null && bond !== null) economicFail(lockedBefore === bond, 'retry did not start with the recorded bond locked');
-      if (lockedAfter !== null) economicFail(lockedAfter === 0n, 'retry did not clear the locked bond');
-      if (lockedDuplicate !== null) economicFail(lockedDuplicate === 0n, 'duplicate did not preserve the cleared locked bond');
+      if (lockedBefore !== null && bond !== null) economicFail(lockedBefore === bond, 'retry did not start with the recorded bond locked', {ops: ['retry'], snapshots: ['beforeRetry'], windows: ['retry']});
+      if (lockedAfter !== null) economicFail(lockedAfter === 0n, 'retry did not clear the locked bond', {ops: ['retry'], snapshots: ['afterRetry'], windows: ['retry']});
+      if (lockedDuplicate !== null) economicFail(lockedDuplicate === 0n, 'duplicate did not preserve the cleared locked bond', {ops: ['duplicate'], snapshots: ['afterDuplicate'], windows: ['duplicate']});
       if (recipientBefore !== null && recipientAfterApproval !== null) {
-        economicFail(recipientAfterApproval - recipientBefore === transfer, 'approved action did not pay the recipient exactly once');
+        economicFail(recipientAfterApproval - recipientBefore === transfer, 'approved action did not pay the recipient exactly once', {ops: ['approval'], snapshots: ['before', 'afterApproval'], windows: ['approval']});
       }
-      if (recipientBeforeRetry !== null && recipientAfterApproval !== null) economicFail(recipientBeforeRetry === recipientAfterApproval, 'recipient changed between approval and retry start');
-      if (recipientAfter !== null && recipientBeforeRetry !== null) economicFail(recipientAfter === recipientBeforeRetry, 'retry paid the recipient again');
-      if (recipientDuplicate !== null && recipientAfter !== null) economicFail(recipientDuplicate === recipientAfter, 'duplicate paid the recipient again');
+      if (recipientBeforeRetry !== null && recipientAfterApproval !== null) economicFail(recipientBeforeRetry === recipientAfterApproval, 'recipient changed between approval and retry start', {ops: ['approval', 'retry'], snapshots: ['beforeRetry', 'afterApproval'], windows: ['approval', 'retry']});
+      if (recipientAfter !== null && recipientBeforeRetry !== null) economicFail(recipientAfter === recipientBeforeRetry, 'retry paid the recipient again', {ops: ['retry'], snapshots: ['beforeRetry', 'afterRetry'], windows: ['retry']});
+      if (recipientDuplicate !== null && recipientAfter !== null) economicFail(recipientDuplicate === recipientAfter, 'duplicate paid the recipient again', {ops: ['duplicate'], snapshots: ['afterRetry', 'afterDuplicate'], windows: ['duplicate']});
       const gasOf = (summary) => {
         const tx = approvedAmount(summary?.transactionOutcome?.tokensBurntYocto);
         if (tx === null || !Array.isArray(summary?.receipts)) return null;
@@ -1020,13 +1021,13 @@ function verifySettlementReport(report, opts = {}) {
       approvedFail(retryGas !== null, 'retry gas is missing or malformed');
       if (retryGas !== null && proposerBefore !== null && proposerAfter !== null && bond !== null) {
         const principal = proposerAfter - proposerBefore + retryGas;
-        economicFail(principal === bond, `retry principal is ${principal}, expected the recorded bond`);
+        economicFail(principal === bond, `retry principal is ${principal}, expected the recorded bond`, {ops: ['retry'], snapshots: ['beforeRetry', 'afterRetry'], windows: ['retry']});
       }
       const duplicateGas = gasOf(duplicate);
       approvedFail(duplicateGas !== null, 'duplicate gas is missing or malformed');
       if (duplicateGas !== null && proposerAfter !== null && duplicateAfter !== null) {
         const duplicatePrincipal = duplicateAfter - proposerAfter + duplicateGas;
-        economicFail(duplicatePrincipal === 0n, `duplicate moved proposer principal by ${duplicatePrincipal}`);
+        economicFail(duplicatePrincipal === 0n, `duplicate moved proposer principal by ${duplicatePrincipal}`, {ops: ['duplicate'], snapshots: ['afterRetry', 'afterDuplicate'], windows: ['duplicate']});
       }
       const duplicateGuard = reachableFailure(duplicate, dao, 'ERR_PROPOSAL_ALREADY_EXECUTED', 'duplicate retry', (condition, message) => approvedFail(condition, message));
       approvedFail(duplicateGuard, 'duplicate retry was not denied by the terminal guard');

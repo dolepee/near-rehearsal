@@ -76,6 +76,40 @@ for (const snapshot of ['before', 'afterApproval', 'beforeRetry', 'afterRetry', 
     approved[snapshot].dao = 'foreign-dao.test.near';
   }, 'INCONCLUSIVE');
 }
+checkApprovedMutation('foreign afterRetry with altered locked amount', (approved) => {
+  approved.afterRetry.dao = 'foreign-dao.test.near';
+  approved.afterRetry.lockedAmount = '42';
+}, 'INCONCLUSIVE');
+checkApprovedMutation('retry loss survives missing later metadata', (approved) => {
+  approved.afterRetry.lockedAmount = '42';
+  delete approved.afterUnauthorized.dao;
+}, 'REJECTED');
+checkApprovedMutation('duplicate loss survives missing earlier snapshot', (approved) => {
+  approved.afterDuplicate.proposer = (BigInt(approved.afterDuplicate.proposer) - 1n).toString();
+  delete approved.before.dao;
+}, 'REJECTED');
+checkApprovedMutation('duplicate root disconnected from old failure', (approved) => {
+  const outcome = approved.duplicate.transactionOutcome;
+  approved.duplicate.transactionOutcome = {
+    status: {SuccessReceiptId: 'new-successful-root'},
+    receiptIds: ['new-successful-root'],
+    tokensBurntYocto: outcome.tokensBurntYocto,
+  };
+  approved.duplicate.receipts.push({
+    id: 'new-successful-root',
+    executorId: approved.dao,
+    status: {SuccessValue: ''},
+    receiptIds: [],
+    blockHash: '11111111111111111111111111111111',
+    blockHeight: approved.duplicate.blockHeight,
+  });
+}, 'INCONCLUSIVE');
+checkApprovedMutation('retry height outside its window', (approved) => { approved.retry.blockHeight = 1; }, 'INCONCLUSIVE');
+checkApprovedMutation('all execution heights missing', (approved) => {
+  delete approved.approval.blockHeight;
+  delete approved.retry.blockHeight;
+  delete approved.duplicate.blockHeight;
+}, 'INCONCLUSIVE');
 
 const missingSeed = JSON.parse(JSON.stringify(correctedReport));
 delete missingSeed.inherited.transactions.seed;
