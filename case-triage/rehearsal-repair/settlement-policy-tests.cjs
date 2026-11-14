@@ -12,7 +12,7 @@ const correctedReport = read('settlement');
 assert.equal(oldReport.schema, REQUIRED_SCHEMA);
 assert.equal(correctedReport.schema, REQUIRED_SCHEMA);
 assert.equal(oldReport.candidate.wasmSha256, '49a5120cee5f4e453a37e40b18231ce9b0fef95c08dca4fdbf23f102937eb923');
-assert.equal(correctedReport.candidate.wasmSha256, '158f0f0e0a98b3df11fb86828aa72bc0edbe4e992f5db0ab8f86f012eb754f7d');
+assert.equal(correctedReport.candidate.wasmSha256, '3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2');
 
 const oldCheck = verifySettlementReport(oldReport, {candidateWasmSha256: oldReport.candidate.wasmSha256});
 const correctedCheck = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
@@ -26,6 +26,19 @@ assert.equal(correctedCheck.outcomes.retryDelta, '1000000000000000000000000');
 assert.equal(correctedCheck.outcomes.overlapDelta, '1000000000000000000000000');
 assert.equal(correctedCheck.outcomes.fresh.failedRefundLocked, '1000000000000000000000000', 'the fresh candidate scenario must also retain the debt');
 assert.equal(correctedCheck.outcomes.inherited.failedRefundLocked, '1000000000000000000000000', 'the inherited scenario must retain the debt');
+
+const missingSeed = JSON.parse(JSON.stringify(correctedReport));
+delete missingSeed.inherited.transactions.seed;
+delete missingSeed.inherited.legacy.seed;
+delete missingSeed.inherited.legacy.seedArgs;
+delete missingSeed.inherited.legacy.afterMissingSeed;
+delete missingSeed.inherited.legacy.beforeSeedProbe;
+delete missingSeed.inherited.legacy.afterSeedProbe;
+delete missingSeed.inherited.legacy.unauthorizedSeed;
+delete missingSeed.inherited.legacy.duplicateSeed;
+const missingSeedCheck = verifySettlementReport(missingSeed, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(missingSeedCheck.ok, false, 'missing trusted legacy input must not be accepted');
+assert.ok(missingSeedCheck.errors.some((error) => /legacy principal seed|trusted legacy/i.test(error)));
 
 const labelSwap = JSON.parse(JSON.stringify(correctedReport));
 const forged = '1'.repeat(64);

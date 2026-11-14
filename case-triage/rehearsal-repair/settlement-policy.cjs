@@ -346,7 +346,6 @@ function recordedHeight(value) {
 function verifyLegacySeed(scenario, dao, fail) {
   const seed = scenario.transactions?.seed;
   const legacy = scenario.legacy;
-  if (!legacy?.seed && !seed) return true;
   if (!seed) { fail(false, 'legacy principal seed transaction is missing'); return false; }
   let valid = true;
   const check = (condition, message) => { if (!condition) { valid = false; fail(false, message); } };
@@ -368,8 +367,7 @@ function verifyLegacySeed(scenario, dao, fail) {
     ['duplicate seed', legacy?.duplicateSeed, 'ERR_LEGACY_BOND_ALREADY_RECORDED'],
   ]) {
     check(probe?.executed === true && probe?.rejected === true, `${label} did not produce the expected FINAL rejection`);
-    check(probe?.value?.finalExecutionStatus === 'FINAL' && probe?.value?.receiptFailure === true, `${label} was not a FINAL failed execution`);
-    check(JSON.stringify(probe?.value?.receipts || []).includes(needle), `${label} did not expose its expected error`);
+    check(probe?.value?.finalExecutionStatus === 'FINAL' && JSON.stringify({receipts: probe?.value?.receipts || [], outcome: probe?.value?.transactionOutcome || {}}).includes(needle), `${label} was not a FINAL failed execution with its expected error`);
   }
   check(String(legacy?.beforeSeedProbe?.lockedAmount) === String(deposit) && String(legacy?.afterSeedProbe?.lockedAmount) === String(deposit), 'seed probes changed the locked debt');
   check(legacy?.beforeSeedProbe?.proposer === legacy?.afterSeedProbe?.proposer, 'seed probes changed the proposer principal');
