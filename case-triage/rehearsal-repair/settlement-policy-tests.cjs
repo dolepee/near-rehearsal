@@ -146,6 +146,31 @@ unauthorizedLabelOnly.inherited.transactions.unauthorized = {ok: false};
 assert.equal(verifySettlementReport(unauthorizedLabelOnly, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
   'the duplicated unauthorized representation must be the full record');
 
+const unauthorizedMissingSigner = JSON.parse(JSON.stringify(correctedReport));
+delete unauthorizedMissingSigner.inherited.unauthorized.value.transaction.signerId;
+delete unauthorizedMissingSigner.inherited.transactions.unauthorized.value.transaction.signerId;
+assert.equal(verifySettlementReport(unauthorizedMissingSigner, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the unauthorized callback must carry a nonempty signer');
+
+const unauthorizedBorrowedFailure = JSON.parse(JSON.stringify(correctedReport));
+{
+  const unauthorized = unauthorizedBorrowedFailure.inherited.unauthorized;
+  const firstId = unauthorized.value.transactionOutcome.status.SuccessReceiptId;
+  const first = unauthorized.value.receipts.find((receipt) => receipt.id === firstId);
+  first.status = {SuccessValue: 'Method on_refund_callback is private'};
+  unauthorized.value.receipts.push({
+    id: 'unrelated-private-failure',
+    receiptIds: [],
+    executorId: unauthorized.value.transaction.receiverId,
+    status: {Failure: {ActionError: {kind: {FunctionCallError: {ExecutionError: 'Method on_refund_callback is private'}}}}},
+    logs: [],
+    tokensBurntYocto: '0',
+  });
+  unauthorizedBorrowedFailure.inherited.transactions.unauthorized = JSON.parse(JSON.stringify(unauthorized));
+}
+assert.equal(verifySettlementReport(unauthorizedBorrowedFailure, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
+  'the linked first receipt itself must be the private-denial Failure');
+
 const unauthorizedNoAction = JSON.parse(JSON.stringify(correctedReport));
 unauthorizedNoAction.inherited.unauthorized.value.transaction.actions = [];
 assert.equal(verifySettlementReport(unauthorizedNoAction, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).ok, false,
@@ -507,6 +532,8 @@ console.log(JSON.stringify({
     'add-bond-substitution-fails',
     'add-kind-substitution-fails',
     'add-returned-id-fails',
+    'unauthorized-missing-signer-fails',
+    'unauthorized-borrowed-failure-fails',
     'unauthorized-label-only-fails',
     'unauthorized-no-action-fails',
     'unauthorized-wrong-method-fails',

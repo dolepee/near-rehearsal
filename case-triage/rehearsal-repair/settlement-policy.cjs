@@ -164,7 +164,9 @@ function verifyUnauthorized(scenario, dao, failFor) {
   if (unauthorized.ok !== false) failFor(false, 'unauthorized callback was not recorded as rejected');
   if (value.finalExecutionStatus !== 'FINAL') failFor(false, 'unauthorized callback was not FINAL');
   if (value.transaction?.receiverId !== dao) failFor(false, 'unauthorized callback did not target the DAO');
-  if (value.transaction?.signerId === dao) failFor(false, 'unauthorized callback was sent by the DAO itself');
+  const signer = value.transaction?.signerId;
+  if (typeof signer !== 'string' || signer.length === 0) failFor(false, 'unauthorized callback signer is missing');
+  else if (signer === dao) failFor(false, 'unauthorized callback was sent by the DAO itself');
   const decoded = decodeCall(value, 'unauthorized callback', (message) => failFor(false, message));
   if (!decoded) return;
   if (decoded.call.method_name !== 'on_refund_callback') failFor(false, 'unauthorized callback method is wrong');
@@ -179,8 +181,10 @@ function verifyUnauthorized(scenario, dao, failFor) {
   const first = (value.receipts || []).find((receipt) => receipt.id === firstId);
   if (!first) { failFor(false, 'unauthorized callback first receipt is missing'); return; }
   if (first.executorId !== dao) failFor(false, 'unauthorized callback first receipt was not executed by the DAO');
-  if (!JSON.stringify(first.status || {}).includes('Method on_refund_callback is private')) {
-    failFor(false, 'unauthorized callback was not rejected by the private-method guard');
+  const failure = first.status?.Failure;
+  if (!failure) failFor(false, 'unauthorized callback first receipt is not a Failure');
+  else if (!JSON.stringify(failure).includes('Method on_refund_callback is private')) {
+    failFor(false, 'unauthorized callback linked receipt was not rejected by the private-method guard');
   }
 }
 
