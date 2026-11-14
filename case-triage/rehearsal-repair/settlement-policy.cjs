@@ -897,6 +897,13 @@ function verifySettlementReport(report, opts = {}) {
     }
     for (const [name, value] of [['before', before], ['afterApproval', afterApproval], ['beforeRetry', beforeRetry], ['afterRetry', afterRetry], ['afterDuplicate', afterDuplicate]]) {
       approvedFail(value !== null && typeof value === 'object', `${name} snapshot is missing`);
+      if (value && typeof value === 'object') {
+        approvedFail(typeof value.dao === 'string' && value.dao.length > 0, `${name} snapshot DAO is missing`);
+        if (approvedDaoValid && typeof value.dao === 'string') approvedFail(value.dao === approved.dao, `${name} snapshot belongs to a different DAO`);
+        approvedFail(typeof value.blockHash === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,64}$/.test(value.blockHash) && recordedHeight(value.blockHeight) !== null, `${name} snapshot is not block-pinned`);
+        approvedFail(typeof value.codeHash === 'string' && value.codeHash.length > 0, `${name} snapshot code hash is missing`);
+        if (observedCodeValid && typeof value.codeHash === 'string') approvedFail(value.codeHash === approved.observedCodeHash, `${name} snapshot code differs from the deployed candidate`);
+      }
     }
     if (!approval?.transaction || !retry?.transaction || !duplicate?.transaction || !before || !afterApproval || !beforeRetry || !afterRetry || !afterDuplicate) {
       approvedFail(false, 'complete approval/retry/duplicate transactions and snapshots are required');
