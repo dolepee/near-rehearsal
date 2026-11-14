@@ -13,7 +13,7 @@ for (const id of ['bundle-file', 'example-button', 'run-button', 'history-list',
 }
 assert.match(html, /Source build/);
 assert.match(html, /Recorded WASM replay/);
-assert.match(html, /recorded candidate/);
+assert.match(html, /accepted handoff/);
 assert.match(html, /Local evidence only/);
 assert.match(html, /id="money-grid"/);
 assert.match(html, /id="identity-details"/);
@@ -33,7 +33,8 @@ assert.match(js, /Fresh replay completed/);
 assert.match(js, /Recorded evidence opened/);
 assert.match(js, /same-dao/);
 assert.match(js, /producer/);
-assert.match(html, /Trusted-local source build/);
+assert.match(html, /Compiler boundary/);
+assert.doesNotMatch(html, /can read host files and credentials/);
 assert.match(server, /\/api\/review\/example/);
 assert.match(server, /\/api\/review\/runs/);
 assert.match(server, /\/download/);

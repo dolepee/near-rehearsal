@@ -172,7 +172,7 @@
       setSelectionError(error.message, epoch);
     } finally {
       button.disabled = false;
-      button.textContent = 'Load example (recorded candidate)';
+      button.textContent = 'Load example (accepted handoff)';
     }
   }
 

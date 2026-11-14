@@ -13,12 +13,14 @@ const os = require('node:os');
 const path = require('node:path');
 const {spawn, spawnSync} = require('node:child_process');
 const {checkBundle} = require('../../scripts/repair-review.cjs');
+const {buildHandoffBundle} = require('../../case-triage/rehearsal-repair/handoff-bundle.cjs');
 const {verifyToolchain} = require('../../case-triage/rehearsal-repair/repair-pipeline.cjs');
 const {CODE, probeBoundary} = require('../../case-triage/rehearsal-repair/compiler-boundary.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const REVIEW = path.join(ROOT, 'scripts/repair-review.cjs');
 const EXAMPLE_BUNDLE = path.join(ROOT, 'test-fixtures/repair-browser-export-1de7b8c5.json');
+const EXAMPLE_FILENAME = 'settlement-fixed-handoff.json';
 const DEFAULT_RUNS_ROOT = path.join(ROOT, 'out/sputnik-ui/review-runs');
 const CASE_ID = 'sputnik-238-async-bond';
 const SCHEMA = 'near-rehearsal/repair-review-bundle/v1';
@@ -699,7 +701,7 @@ function createManager(options = {}) {
   }
 
   return {
-    case: {id: CASE_ID, schema: SCHEMA, example: path.basename(EXAMPLE_BUNDLE)},
+    case: {id: CASE_ID, schema: SCHEMA, example: EXAMPLE_FILENAME},
     start,
     get,
     list,
@@ -718,10 +720,10 @@ function createManager(options = {}) {
 }
 
 function exampleBundleText() {
-  const text = fs.readFileSync(EXAMPLE_BUNDLE, 'utf8');
-  const bundle = JSON.parse(text);
+  const bundle = buildHandoffBundle();
+  const text = JSON.stringify(bundle, null, 2);
   const checked = validateBundle(bundle);
-  return {bundle, sha256: sha256(Buffer.from(text, 'utf8')), canonicalSha256: checked.canonicalSha256, filename: path.basename(EXAMPLE_BUNDLE)};
+  return {bundle, sha256: sha256(Buffer.from(text, 'utf8')), canonicalSha256: checked.canonicalSha256, filename: EXAMPLE_FILENAME};
 }
 
 module.exports = {
