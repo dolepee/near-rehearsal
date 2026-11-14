@@ -14,6 +14,7 @@ const cli = path.join(root, 'scripts/review-patch.cjs');
 const output = path.join(root, '.local/browser-patch-runs');
 const manifest = require('../../case-triage/rehearsal-repair/controller-manifest.json');
 const {buildReviewBundle} = require('../../case-triage/rehearsal-repair/review-bundle.cjs');
+const {checkBundle} = require('../../scripts/repair-review.cjs');
 const SOURCE_PATH = 'sputnikdao2/src/proposals.rs';
 
 function checkerRevision() {
@@ -92,7 +93,8 @@ function patchBytes(dir) {
 }
 
 function writeReviewBundle(dir, job) {
-  if (job.status !== 'accepted') return null;
+  const bundlePath = path.join(dir, names.bundle);
+  if (job.status !== 'accepted') { fs.rmSync(bundlePath, {force: true}); return null; }
   const out = path.join(dir, 'evidence');
   const pipeline = path.join(out, 'pipeline');
   const pipelineJson = readJson(path.join(pipeline, 'pipeline.json'), {});
@@ -101,10 +103,13 @@ function writeReviewBundle(dir, job) {
   const recovery = path.join(out, 'evidence', 'persisted-recovery.json');
   const acceptance = path.join(out, 'evidence', 'persisted-recovery-acceptance.json');
   const mixed = path.join(out, 'evidence', 'mixed-obligation.json');
+  const settlement = path.join(out, 'evidence', 'settlement-refund.json');
   const identity = path.join(pipeline, 'candidate-identity.json');
   const wasm = path.join(pipeline, 'applied', 'target', 'wasm32-unknown-unknown', 'release', 'sputnikdao2.wasm');
   const patch = path.join(dir, names.patch);
-  for (const file of [baseReport, candidateReport, recovery, acceptance, identity, wasm, patch]) if (!exists(file)) return null;
+  for (const file of [baseReport, candidateReport, recovery, acceptance, mixed, settlement, identity, wasm, patch]) {
+    if (!exists(file)) { fs.rmSync(bundlePath, {force: true}); return null; }
+  }
   try {
     const bundle = buildReviewBundle({
       runId: job.id,
@@ -117,12 +122,15 @@ function writeReviewBundle(dir, job) {
       recoveryPath: recovery,
       acceptancePath: acceptance,
       mixedPath: mixed,
+      settlementPath: settlement,
       producer: {runId: job.id, status: job.status, createdAt: job.createdAt},
       policy: statusDocument(dir)?.policy || null,
     });
-    fs.writeFileSync(path.join(dir, names.bundle), json(bundle), {mode: 0o600});
-    return path.join(dir, names.bundle);
+    checkBundle(bundle);
+    fs.writeFileSync(bundlePath, json(bundle), {mode: 0o600});
+    return bundlePath;
   } catch {
+    fs.rmSync(bundlePath, {force: true});
     return null;
   }
 }
@@ -225,13 +233,23 @@ function packageCurrent(file, job) {
   if (!raw) return false;
   try {
     const meta = JSON.parse(raw);
-    return meta && meta.status === job.status;
+    if (!meta || meta.status !== job.status) return false;
+    if (job.status !== 'accepted') return true;
+    const bundleRaw = archiveEntry(file, names.bundle);
+    if (!bundleRaw) return false;
+    checkBundle(JSON.parse(bundleRaw));
+    return true;
   } catch { return false; }
 }
 
 function ensurePackage(dir, job) {
   if (!dirExists(dir) || !job || job.status === 'running') return null;
-  writeReviewBundle(dir, job);
+  const bundle = writeReviewBundle(dir, job);
+  if (job.status === 'accepted' && !bundle) {
+    for (const name of ['review-package.zip', 'review-package.tar.gz']) fs.rmSync(path.join(dir, name), {force: true});
+    job.packageName = null;
+    return null;
+  }
   let existing = null;
   for (const name of ['review-package.zip', 'review-package.tar.gz']) {
     const file = path.join(dir, name);
@@ -244,11 +262,11 @@ function ensurePackage(dir, job) {
   // Old packages copied the complete Cargo tree and can carry a stale running
   // run.json. Remove them so the next read regenerates from this allowlist.
   for (const name of ['review-package.zip', 'review-package.tar.gz']) fs.rmSync(path.join(dir, name), {force: true});
+  job.packageName = null;
   const status = artifactPath(dir, 'status');
   const report = artifactPath(dir, 'report');
   const patch = artifactPath(dir, 'patch');
   if (!patch) return null;
-  const bundle = writeReviewBundle(dir, job);
   const stage = path.join(dir, `.package-${crypto.randomUUID()}`);
   try {
     fs.mkdirSync(path.join(stage, 'evidence'), {recursive: true});

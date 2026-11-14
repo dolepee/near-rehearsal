@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
 const {spawnSync} = require('node:child_process');
+const fixtures = require('./test-patch-fixtures.cjs');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rehearsal-patch-persistence-'));
 const routeDir = path.join(root, 'ui/sputnik');
@@ -17,6 +18,7 @@ fs.writeFileSync(path.join(root, 'scripts/review-patch.cjs'), 'throw new Error("
 fs.copyFileSync(path.join(__dirname, 'patch-route.cjs'), path.join(routeDir, 'patch-route.cjs'));
 fs.copyFileSync(path.join(__dirname, '../../case-triage/rehearsal-repair/review-bundle.cjs'), path.join(root, 'case-triage/rehearsal-repair/review-bundle.cjs'));
  fs.copyFileSync(path.join(__dirname,'../../case-triage/rehearsal-repair/mixed-policy-identity.cjs'),path.join(root,'case-triage/rehearsal-repair/mixed-policy-identity.cjs'));
+fixtures.validatorFiles(root);
 for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md']) fs.copyFileSync(path.join(__dirname, '../../', name), path.join(root, name));
 fs.mkdirSync(path.join(root, 'LICENSES'), {recursive: true});
 fs.copyFileSync(path.join(__dirname, '../../LICENSES/sputnik-dao-contract-MIT.txt'), path.join(root, 'LICENSES/sputnik-dao-contract-MIT.txt'));
@@ -52,6 +54,7 @@ function completed(id, status) {
     fs.writeFileSync(path.join(pipeline, 'replay.log'), 'fixture\n');
     fs.mkdirSync(path.join(dir, 'evidence/evidence'), {recursive: true});
     fs.writeFileSync(path.join(dir, 'evidence/evidence/pipeline.log'), 'x'.repeat(3 * 1024 * 1024));
+    fixtures.acceptedEvidence(dir, root);
   }
   fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify({schema: 'near-rehearsal/patch-browser-run/v1', id, status, createdAt: '2026-11-13T10:00:00.000Z', finishedAt: '2026-11-13T10:01:00.000Z', patchSha256: 'a'.repeat(64), checkerRevision: 'f'.repeat(40), exitCode: status === 'accepted' ? 0 : 1, signal: null, termination: 'process-closed'}));
 }
@@ -74,12 +77,29 @@ fs.writeFileSync(path.join(missingStatusDir, 'submitted.patch'), 'diff --git a/x
 fs.writeFileSync(path.join(missingStatusDir, 'evidence/review-report.md'), '# accepted-looking report without status\n');
 fs.writeFileSync(path.join(missingStatusDir, 'run.json'), JSON.stringify({schema: 'near-rehearsal/patch-browser-run/v1', id: missingStatusId, status: 'accepted', createdAt: '2026-11-13T10:03:00.000Z', finishedAt: '2026-11-13T10:04:00.000Z', patchSha256: 'f'.repeat(64), checkerRevision: 'f'.repeat(40), exitCode: 0, signal: null, termination: 'process-closed'}));
 
+const staleSettlementId = '55555555-5555-4555-8555-555555555555';
+const staleSettlementDir = path.join(runsRoot, staleSettlementId);
+completed(staleSettlementId, 'accepted');
+fs.rmSync(path.join(staleSettlementDir, 'evidence/evidence/settlement-refund.json'));
+const staleStage = path.join(root, 'stale-settlement-package');
+fs.mkdirSync(staleStage, {recursive: true});
+fs.writeFileSync(path.join(staleStage, 'README.md'), '# stale package\n\nPackage format: 3 (source-patch review)\n');
+fs.writeFileSync(path.join(staleStage, 'run.json'), JSON.stringify({status: 'accepted'}));
+fs.writeFileSync(path.join(staleStage, 'review-bundle.json'), JSON.stringify({settlement: null}));
+spawnSync('zip', ['-q', '-r', path.join(staleSettlementDir, 'review-package.zip'), '.'], {cwd: staleStage, timeout: 15_000});
+
 const route = require(path.join(routeDir, 'patch-route.cjs'));
 const runs = route.list();
 assert.equal(runs.find((run) => run.id === acceptedId).status, 'accepted');
 assert.equal(runs.find((run) => run.id === interruptedId).status, 'inconclusive');
 assert.match(runs.find((run) => run.id === interruptedId).note, /restarted|not accepted/);
 assert.equal(runs.find((run) => run.id === missingStatusId).status, 'inconclusive', 'accepted metadata without review-status.json is not accepted');
+const staleSettlement = runs.find((run) => run.id === staleSettlementId);
+assert.equal(staleSettlement.status, 'accepted');
+assert.ok(!staleSettlement.downloads.includes('package'), 'a stale accepted package without settlement is not offered');
+assert.ok(!staleSettlement.downloads.includes('bundle'), 'a stale accepted bundle without settlement is not offered');
+assert.equal(fs.existsSync(path.join(staleSettlementDir, 'review-package.zip')), false, 'stale package cache was invalidated');
+assert.equal(fs.existsSync(path.join(staleSettlementDir, 'review-bundle.json')), false, 'stale bundle cache was removed');
 assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8').includes('"accepted"'), true);
 
 (async () => {
@@ -92,7 +112,7 @@ assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8'
     assert.equal(one.status, 'accepted');
     assert.ok(one.summary.firstRecovery.gross, 'completed summary survives reload');
     const list = await fetch(`${origin}/api/patch/runs`).then((r) => r.json());
-    assert.equal(list.runs.length, 3);
+    assert.equal(list.runs.length, 4);
     const pkg = await fetch(`${origin}/api/patch/runs/${acceptedId}/package`);
     assert.equal(pkg.status, 200);
     const bytes = Buffer.from(await pkg.arrayBuffer());
