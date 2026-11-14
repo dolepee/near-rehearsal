@@ -111,6 +111,8 @@ function fakeSpawn({mixedPath = mixedReport, writeSettlement = true, settlementM
     config: {
       configured: true,
       providerConfigured: true,
+      compilerBoundary: {configured: true},
+      compilerBoundary: {configured: true},
       missing: [],
       sandboxDir: '/fake-sandbox',
       baseWasm: path.join(repair, 'bundle/artifacts/base.wasm'),
@@ -147,6 +149,7 @@ function fakeSpawn({mixedPath = mixedReport, writeSettlement = true, settlementM
     config: {
       configured: true,
       providerConfigured: true,
+      compilerBoundary: {configured: true},
       missing: [],
       sandboxDir: '/fake-sandbox',
       baseWasm: path.join(repair, 'bundle/artifacts/base.wasm'),
@@ -173,7 +176,7 @@ function fakeSpawn({mixedPath = mixedReport, writeSettlement = true, settlementM
     runsRoot: clearAllRoot,
     spawn: fakeSpawn({mixedPath: path.join(repair, 'out/mixed-obligation-clear-all.json')}),
     config: {
-      configured: true, providerConfigured: true, missing: [], sandboxDir: '/fake-sandbox',
+      configured: true, providerConfigured: true, compilerBoundary: {configured: true}, missing: [], sandboxDir: '/fake-sandbox',
       baseWasm: path.join(repair, 'bundle/artifacts/base.wasm'), privateRuntime: path.join(tmp, 'clear-provider-runtime'),
       timeouts: {baselineMs: 30000, generationMs: 30000, pipelineMs: 30000, recoveryMs: 30000, mixedMs: 30000, settlementMs: 30000, jobMs: 120000},
     },
@@ -190,7 +193,7 @@ function fakeSpawn({mixedPath = mixedReport, writeSettlement = true, settlementM
     runsRoot: missingRoot,
     spawn: fakeSpawn({writeSettlement: false}),
     config: {
-      configured: true, providerConfigured: true, missing: [], sandboxDir: '/fake-sandbox',
+      configured: true, providerConfigured: true, compilerBoundary: {configured: true}, missing: [], sandboxDir: '/fake-sandbox',
       baseWasm: path.join(repair, 'bundle/artifacts/base.wasm'), privateRuntime: path.join(tmp, 'missing-provider-runtime'),
       timeouts: {baselineMs: 30000, generationMs: 30000, pipelineMs: 30000, recoveryMs: 30000, mixedMs: 30000, settlementMs: 30000, jobMs: 120000},
     },
@@ -211,7 +214,7 @@ function fakeSpawn({mixedPath = mixedReport, writeSettlement = true, settlementM
     return changed;
   };
   const mutationConfig = {
-    configured: true, providerConfigured: true, missing: [], sandboxDir: '/fake-sandbox',
+    configured: true, providerConfigured: true, compilerBoundary: {configured: true}, missing: [], sandboxDir: '/fake-sandbox',
     baseWasm: path.join(repair, 'bundle/artifacts/base.wasm'),
     timeouts: {baselineMs: 30000, generationMs: 30000, pipelineMs: 30000, recoveryMs: 30000, mixedMs: 30000, settlementMs: 30000, jobMs: 120000},
   };

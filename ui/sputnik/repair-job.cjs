@@ -13,6 +13,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {spawn, spawnSync, execFileSync} = require('node:child_process');
+const {probeBoundary, CODE: BOUNDARY_CODE} = require('../../case-triage/rehearsal-repair/compiler-boundary.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const REPAIR = path.join(ROOT, 'case-triage/rehearsal-repair');
@@ -94,6 +95,20 @@ function resolveExecutable(command, pathValue = process.env.PATH) {
   return null;
 }
 
+let boundaryCache = null;
+function compilerCapability() {
+  if (boundaryCache && Date.now() - boundaryCache.at < 60_000) return boundaryCache.value;
+  const jobDir = fs.mkdtempSync(path.join(os.tmpdir(), 'repair-job-boundary-'));
+  let probe;
+  try { probe = probeBoundary({cwd: ROOT, jobDir}); }
+  finally { fs.rmSync(jobDir, {recursive: true, force: true}); }
+  const value = probe.ok
+    ? {configured: true, adapter: probe.adapter, guarantees: probe.guarantees}
+    : {configured: false, code: BOUNDARY_CODE, adapter: probe.adapter || null, reason: probe.reason || 'compiler boundary unavailable', checks: probe.checks || null};
+  boundaryCache = {at: Date.now(), value};
+  return value;
+}
+
 function resolveConfig(env = process.env) {
   const sourceDir = env.REPAIR_SOURCE_DIR ? path.resolve(env.REPAIR_SOURCE_DIR) : null;
   const baseWasm = path.resolve(env.REPAIR_BASE_WASM || DEFAULT_BASE_WASM);
@@ -107,6 +122,8 @@ function resolveConfig(env = process.env) {
   const sandboxCmd = env.MODEL_PRODUCER_SANDBOX_CMD || null;
   const model = env.CODEX_MODEL || null;
   const missing = [];
+  const boundary = compilerCapability();
+  if (!boundary.configured) missing.push('compiler boundary');
   const buildManifest = readJson(BUILD_MANIFEST, {});
   const expectedBaseSha = buildManifest?.build?.artifactSha256 || null;
   if (!sourceDir || !fs.existsSync(path.join(sourceDir, '.git'))) missing.push('REPAIR_SOURCE_DIR');
@@ -119,7 +136,8 @@ function resolveConfig(env = process.env) {
   return {
     sourceDir, baseWasm, sandboxDir, codexBin, profile, privateRuntime, authSource, sandboxCmd, model,
     baseWasmSha256: fs.existsSync(baseWasm) ? sha256File(baseWasm) : null,
-    providerConfigured: Boolean(sandboxCmd && profile && authSource && fs.existsSync(authSource)),
+    providerConfigured: Boolean(sandboxCmd && profile && authSource && fs.existsSync(authSource) && boundary.configured),
+    compilerBoundary: boundary,
     configured: missing.length === 0,
     missing,
     timeouts: {...CASE.timeouts},
@@ -782,6 +800,9 @@ function createManager(options = {}) {
   }
 
   function start(caseId) {
+    if (!config.compilerBoundary?.configured) {
+      throw Object.assign(new Error(`Source-build is unavailable on this host: ${config.compilerBoundary?.reason || 'compiler boundary unavailable'}`), {status: 'unsupported-boundary', statusCode: 503, code: BOUNDARY_CODE});
+    }
     if (caseId !== CASE_ID) throw Object.assign(new Error('Unsupported repair case.'), {statusCode: 400});
     if (activeId) throw Object.assign(new Error('A repair job is already active.'), {statusCode: 409});
     ensureRoot();
