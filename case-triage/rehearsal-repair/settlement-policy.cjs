@@ -939,7 +939,7 @@ function verifySettlementReport(report, opts = {}) {
       const recipientBeforeRetry = textAmount(beforeRetry, 'recipient', 'beforeRetry');
       const recipientAfter = textAmount(afterRetry, 'recipient', 'afterRetry');
       const recipientDuplicate = textAmount(afterDuplicate, 'recipient', 'afterDuplicate');
-      if (lockedBefore !== null) approvedFail(lockedBefore === bond, 'retry did not start with the recorded bond locked', 'verified');
+      if (lockedBefore !== null && bond !== null) approvedFail(lockedBefore === bond, 'retry did not start with the recorded bond locked', 'verified');
       if (lockedAfter !== null) approvedFail(lockedAfter === 0n, 'retry did not clear the locked bond', 'verified');
       if (lockedDuplicate !== null) approvedFail(lockedDuplicate === 0n, 'duplicate did not preserve the cleared locked bond', 'verified');
       if (recipientBefore !== null && recipientAfterApproval !== null) {
@@ -961,7 +961,7 @@ function verifySettlementReport(report, opts = {}) {
       };
       const retryGas = gasOf(retry);
       approvedFail(retryGas !== null, 'retry gas is missing or malformed');
-      if (retryGas !== null && proposerBefore !== null && proposerAfter !== null) {
+      if (retryGas !== null && proposerBefore !== null && proposerAfter !== null && bond !== null) {
         const principal = proposerAfter - proposerBefore + retryGas;
         approvedFail(principal === bond, `retry principal is ${principal}, expected the recorded bond`, 'verified');
       }
