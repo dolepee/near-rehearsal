@@ -68,7 +68,7 @@
             <div><b>Exactly once</b><span>The first recovery returns the bond; a retry must take no additional principal and show its gas cost separately.</span></div>
             <div><b>Healthy control</b><span>The declared 0.1 NEAR Transfer and an inherited pending Transfer must still pay as expected.</span></div>
           </div>
-          <p class="notice">Accepted means the supported local reproduction passed its declared checks. It does not re-execute the failed payment, repair arbitrary contracts or authorize a public-DAO upgrade.</p>
+          <p class="notice">Accepted means the supported local reproduction passed its declared checks. Finalize retries the original action, which fails again in this case. These checks do not certify arbitrary contracts, other business effects or a public-DAO upgrade.</p>
         </section>
       </section>
     </main>

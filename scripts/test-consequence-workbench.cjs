@@ -162,8 +162,13 @@ for (const entry of fs.readdirSync(path.join(copiedPacket, 'evidence'))) {
 
 const zipList = spawnSync('unzip', ['-Z1', path.join(OUT, repair.downloads.evidence.path)], {encoding: 'utf8'});
 assert.equal(zipList.status, 0, zipList.stderr);
-for (const required of ['238/README.md', '238/clear-all.patch', '238/clear-all.wasm', '238/intended.patch', '238/intended.wasm', '238/mixed-obligation-clear-all.json', '238/mixed-obligation-intended.json']) {
+for (const required of ['238/README.md', '238/clear-all.patch', '238/clear-all.wasm', '238/intended.patch', '238/intended.wasm', '238/mixed-obligation-clear-all.json', '238/mixed-obligation-intended.json', '238/LICENSE', '238/THIRD_PARTY_NOTICES.md', '238/LICENSES/sputnik-dao-contract-MIT.txt']) {
   assert.match(zipList.stdout, new RegExp(`(^|\\n)${required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\n|$)`), `zip contains ${required}`);
+}
+for (const relative of ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'LICENSES/sputnik-dao-contract-MIT.txt']) {
+  const archived = spawnSync('unzip', ['-p', path.join(OUT, repair.downloads.evidence.path), `238/${relative}`]);
+  assert.equal(archived.status, 0);
+  assert.equal(SHA(archived.stdout), SHA(fs.readFileSync(path.join(__dirname, '..', relative))), `detached notice matches ${relative}`);
 }
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'consequence-integrity-'));
