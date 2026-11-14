@@ -656,6 +656,21 @@ wrongRetryMethodWithZero.inherited.transactions.retries[0].transaction.actions[0
 wrongRetryMethodWithZero.inherited.afterRetry.proposer = wrongRetryMethodWithZero.inherited.beforeRetry.proposer;
 assert.equal(verifySettlementReport(wrongRetryMethodWithZero, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
 
+const missingDuplicateWithDebt = JSON.parse(JSON.stringify(correctedReport));
+delete missingDuplicateWithDebt.inherited.afterDuplicate;
+missingDuplicateWithDebt.inherited.failedRefund.lockedAmount = '0';
+assert.equal(verifySettlementReport(missingDuplicateWithDebt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
+
+const wrongUpgradeReceiverDebt = JSON.parse(JSON.stringify(correctedReport));
+wrongUpgradeReceiverDebt.inherited.transactions.upgrade.deploy.transaction.receiverId = 'other.near';
+wrongUpgradeReceiverDebt.inherited.failedRefund.lockedAmount = '0';
+assert.equal(verifySettlementReport(wrongUpgradeReceiverDebt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
+const wrongRetryReceiverZero = JSON.parse(JSON.stringify(correctedReport));
+wrongRetryReceiverZero.inherited.transactions.retries[0].transaction.receiverId = 'other.near';
+wrongRetryReceiverZero.inherited.afterRetry.proposer = wrongRetryReceiverZero.inherited.beforeRetry.proposer;
+assert.equal(verifySettlementReport(wrongRetryReceiverZero, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+
 const acceptedGood = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
 assert.equal(acceptedGood.status, 'ACCEPTED');
 assert.equal(acceptedGood.ok, true);
@@ -802,6 +817,9 @@ console.log(JSON.stringify({
     'status-wrong-candidate-identity-inconclusive',
     'status-zero-payment-rejected',
     'status-double-payment-rejected',
+    'status-missing-after-duplicate-with-debt-rejected',
+    'status-wrong-upgrade-receiver-debt-inconclusive',
+    'status-wrong-retry-receiver-zero-inconclusive',
     'status-good-accepted',
     'status-lost-debt-rejected',
     'status-missing-inherited-good-fresh-inconclusive',

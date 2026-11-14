@@ -155,64 +155,71 @@ function verifyAddProposal(scenario, dao, failFor) {
 }
 
 function verifyUnauthorized(scenario, dao, failFor) {
+  let valid = true;
+  const verifyFailure = (condition, message) => { if (!condition) { valid = false; failFor(false, message); } };
   const unauthorized = scenario.unauthorized;
   const value = unauthorized?.value;
-  if (!value) { failFor(false, 'unauthorized callback transaction is missing'); return; }
+  if (!value) { verifyFailure(false, 'unauthorized callback transaction is missing'); return; }
   if (JSON.stringify(scenario.transactions?.unauthorized) !== JSON.stringify(unauthorized)) {
-    failFor(false, 'the two unauthorized callback representations are not the same full record');
+    verifyFailure(false, 'the two unauthorized callback representations are not the same full record');
   }
-  if (unauthorized.ok !== false) failFor(false, 'unauthorized callback was not recorded as rejected');
-  if (value.finalExecutionStatus !== 'FINAL') failFor(false, 'unauthorized callback was not FINAL');
-  if (value.transaction?.receiverId !== dao) failFor(false, 'unauthorized callback did not target the DAO');
+  if (unauthorized.ok !== false) verifyFailure(false, 'unauthorized callback was not recorded as rejected');
+  if (value.finalExecutionStatus !== 'FINAL') verifyFailure(false, 'unauthorized callback was not FINAL');
+  if (value.transaction?.receiverId !== dao) verifyFailure(false, 'unauthorized callback did not target the DAO');
   const signer = value.transaction?.signerId;
-  if (typeof signer !== 'string' || signer.length === 0) failFor(false, 'unauthorized callback signer is missing');
-  else if (signer === dao) failFor(false, 'unauthorized callback was sent by the DAO itself');
-  const decoded = decodeCall(value, 'unauthorized callback', (message) => failFor(false, message));
+  if (typeof signer !== 'string' || signer.length === 0) verifyFailure(false, 'unauthorized callback signer is missing');
+  else if (signer === dao) verifyFailure(false, 'unauthorized callback was sent by the DAO itself');
+  const decoded = decodeCall(value, 'unauthorized callback', (message) => verifyFailure(false, message));
   if (!decoded) return;
-  if (decoded.call.method_name !== 'on_refund_callback') failFor(false, 'unauthorized callback method is wrong');
+  if (decoded.call.method_name !== 'on_refund_callback') verifyFailure(false, 'unauthorized callback method is wrong');
   if (typeof decoded.args?.proposal_id !== 'number' || !Number.isInteger(decoded.args.proposal_id) || String(decoded.args.proposal_id) !== String(scenario.proposalId)) {
-    failFor(false, 'unauthorized callback proposal_id is not the numeric scenario proposal');
+    verifyFailure(false, 'unauthorized callback proposal_id is not the numeric scenario proposal');
   }
-  if (decoded.args?.attempt !== 999) failFor(false, 'unauthorized callback attempt is not numeric 999');
+  if (decoded.args?.attempt !== 999) verifyFailure(false, 'unauthorized callback attempt is not numeric 999');
   const firstId = value.transactionOutcome?.status?.SuccessReceiptId;
   if (!Array.isArray(value.transactionOutcome?.receiptIds) || !value.transactionOutcome.receiptIds.includes(firstId)) {
-    failFor(false, 'unauthorized callback does not link its first receipt'); return;
+    verifyFailure(false, 'unauthorized callback does not link its first receipt'); return;
   }
   const first = (value.receipts || []).find((receipt) => receipt.id === firstId);
-  if (!first) { failFor(false, 'unauthorized callback first receipt is missing'); return; }
-  if (first.executorId !== dao) failFor(false, 'unauthorized callback first receipt was not executed by the DAO');
+  if (!first) { verifyFailure(false, 'unauthorized callback first receipt is missing'); return; }
+  if (first.executorId !== dao) verifyFailure(false, 'unauthorized callback first receipt was not executed by the DAO');
   const failure = first.status?.Failure;
-  if (!failure) failFor(false, 'unauthorized callback first receipt is not a Failure');
+  if (!failure) verifyFailure(false, 'unauthorized callback first receipt is not a Failure');
   else if (!JSON.stringify(failure).includes('Method on_refund_callback is private')) {
-    failFor(false, 'unauthorized callback linked receipt was not rejected by the private-method guard');
+    verifyFailure(false, 'unauthorized callback linked receipt was not rejected by the private-method guard');
   }
+  return valid;
 }
 
 function verifyDuplicate(scenario, dao, failFor) {
+  let valid = true;
+  const verifyFailure = (condition, message) => { if (!condition) { valid = false; failFor(false, message); } };
   const duplicate = scenario.transactions?.duplicate;
-  if (!duplicate) { failFor(false, 'duplicate retry transaction is missing'); return; }
-  if (duplicate.finalExecutionStatus !== 'FINAL') failFor(false, 'duplicate retry was not FINAL');
-  if (duplicate.transaction?.receiverId !== dao) failFor(false, 'duplicate retry did not target the DAO');
+  if (!duplicate) { verifyFailure(false, 'duplicate retry transaction is missing'); return; }
+  if (duplicate.finalExecutionStatus !== 'FINAL') verifyFailure(false, 'duplicate retry was not FINAL');
+  if (duplicate.transaction?.receiverId !== dao) verifyFailure(false, 'duplicate retry did not target the DAO');
   const voteSigners = [scenario.transactions?.vote?.transaction?.signerId, scenario.transactions?.vote2?.transaction?.signerId].filter(Boolean);
-  if (!voteSigners.includes(duplicate.transaction?.signerId)) failFor(false, 'duplicate retry was not signed by an approving voter');
-  const decoded = decodeCall(duplicate, 'duplicate retry', (message) => failFor(false, message));
+  if (!voteSigners.includes(duplicate.transaction?.signerId)) verifyFailure(false, 'duplicate retry was not signed by an approving voter');
+  const decoded = decodeCall(duplicate, 'duplicate retry', (message) => verifyFailure(false, message));
   if (!decoded) return;
-  if (decoded.call.method_name !== 'act_proposal' || decoded.args?.action !== 'Finalize') failFor(false, 'duplicate retry is not an act_proposal Finalize');
-  if (String(decoded.args?.id) !== String(scenario.proposalId)) failFor(false, 'duplicate retry targets a different proposal');
+  if (decoded.call.method_name !== 'act_proposal' || decoded.args?.action !== 'Finalize') verifyFailure(false, 'duplicate retry is not an act_proposal Finalize');
+  if (String(decoded.args?.id) !== String(scenario.proposalId)) verifyFailure(false, 'duplicate retry targets a different proposal');
   const retryHashes = (scenario.transactions?.retries || []).map((tx) => tx.transactionHash).filter(Boolean);
   const legacyHash = scenario.transactions?.upgrade?.legacyFinalize?.transactionHash;
-  if (duplicate.transactionHash && retryHashes.includes(duplicate.transactionHash)) failFor(false, 'duplicate retry reuses an overlap transaction');
-  if (duplicate.transactionHash && legacyHash && duplicate.transactionHash === legacyHash) failFor(false, 'duplicate retry reuses the legacy finalize transaction');
+  if (duplicate.transactionHash && retryHashes.includes(duplicate.transactionHash)) verifyFailure(false, 'duplicate retry reuses an overlap transaction');
+  if (duplicate.transactionHash && legacyHash && duplicate.transactionHash === legacyHash) verifyFailure(false, 'duplicate retry reuses the legacy finalize transaction');
   const afterHeight = recordedHeight(scenario.afterRetry?.blockHeight);
   const duplicateHeight = recordedHeight(duplicate.blockHeight);
   const afterDuplicateHeight = recordedHeight(scenario.afterDuplicate?.blockHeight);
-  if (afterHeight === null || duplicateHeight === null) failFor(false, 'duplicate retry height is missing or malformed');
-  else if (duplicateHeight <= afterHeight) failFor(false, 'duplicate retry was not after the settled afterRetry observation');
-  if (afterDuplicateHeight === null) failFor(false, 'post-duplicate observation height is missing or malformed');
+  if (afterHeight === null || duplicateHeight === null) verifyFailure(false, 'duplicate retry height is missing or malformed');
+  else if (duplicateHeight <= afterHeight) verifyFailure(false, 'duplicate retry was not after the settled afterRetry observation');
+  if (afterDuplicateHeight === null) verifyFailure(false, 'post-duplicate observation height is missing or malformed');
   else if (duplicateHeight !== null && afterDuplicateHeight <= duplicateHeight) {
-    failFor(false, 'duplicate retry was not bounded by a later post-duplicate observation');
+    verifyFailure(false, 'duplicate retry was not bounded by a later post-duplicate observation');
   }
-  receiptChain(duplicate, 'duplicate retry', (message) => failFor(false, message), true);
+  const outcome = receiptChain(duplicate, 'duplicate retry', (message) => verifyFailure(false, message), true);
+  if (!outcome.ok && !outcome.expected) valid = false;
+  return valid;
 }
 
 function verifyLegacyFinalize(scenario, dao, failFor) {
@@ -233,6 +240,7 @@ function verifyLegacyFinalize(scenario, dao, failFor) {
 
 function verifyRetries(scenario, dao, failFor) {
   const coverageErrors = [];
+  let executionValid = true;
   const raw = scenario.transactions?.retries;
   const attempts = scenario.overlap?.attempts;
   if (!Array.isArray(raw) || raw.length !== 2) {
@@ -255,20 +263,21 @@ function verifyRetries(scenario, dao, failFor) {
   raw.forEach((tx, index) => {
     const label = `retry ${index + 1}`;
     if (tx.finalExecutionStatus !== 'FINAL') failFor(false, `${label} was not FINAL`);
-    if (tx.transaction?.receiverId !== dao) failFor(false, `${label} receiver is not the DAO`);
-    if (!voteSigners.includes(tx.transaction?.signerId)) failFor(false, `${label} signer was not an approving voter`);
+    if (tx.transaction?.receiverId !== dao) { executionValid = false; failFor(false, `${label} receiver is not the DAO`); }
+    if (!voteSigners.includes(tx.transaction?.signerId)) { executionValid = false; failFor(false, `${label} signer was not an approving voter`); }
     const decoded = decodeCall(tx, label, (message) => failFor(false, message));
     if (!decoded) return;
-    if (decoded.call.method_name !== 'act_proposal') failFor(false, `${label} method is not act_proposal`);
-    if (decoded.args?.action !== 'Finalize') failFor(false, `${label} is not Finalize`);
-    if (String(decoded.args?.id) !== String(scenario.proposalId)) failFor(false, `${label} targets a different proposal`);
+    if (decoded.call.method_name !== 'act_proposal') { executionValid = false; failFor(false, `${label} method is not act_proposal`); }
+    if (decoded.args?.action !== 'Finalize') { executionValid = false; failFor(false, `${label} is not Finalize`); }
+    if (String(decoded.args?.id) !== String(scenario.proposalId)) { executionValid = false; failFor(false, `${label} targets a different proposal`); }
     const receiptIds = (tx.receipts || []).map((receipt) => receipt.id).filter(Boolean);
-    if (!receiptIds.length) failFor(false, `${label} has no executed receipts`);
+    if (!receiptIds.length) { executionValid = false; failFor(false, `${label} has no executed receipts`); }
     const attempt = attempts[index];
     if (attempt?.transactionHash !== tx.transactionHash) failFor(false, `${label} summary hash does not match its attempt`);
     if (attempt?.signerId !== tx.transaction?.signerId) failFor(false, `${label} summary signer does not match its attempt`);
     if (JSON.stringify(attempt?.receiptIds || []) !== JSON.stringify(receiptIds)) failFor(false, `${label} summary receipts do not match its attempt`);
     const outcome = receiptChain(tx, label, (message) => failFor(false, message), true);
+    if (!outcome.ok && !outcome.expected) executionValid = false;
     if (outcome.ok) successful += 1;
     if (outcome.expected) expectedInFlight += 1;
     hashes.push(tx.transactionHash); signers.push(tx.transaction?.signerId);
@@ -293,7 +302,7 @@ function verifyRetries(scenario, dao, failFor) {
   }
   if (successful !== 1) { coverageErrors.push(`expected exactly one successful retry action, got ${successful}`); failFor(false, coverageErrors[coverageErrors.length - 1]); }
   if (expectedInFlight !== 1) { coverageErrors.push(`expected exactly one receipt-backed ERR_PROPOSAL_NOT_IN_PROGRESS rejection, got ${expectedInFlight}`); failFor(false, coverageErrors[coverageErrors.length - 1]); }
-  return {guardUnproven: successful === 2 && expectedInFlight === 0, coverageErrors};
+  return {guardUnproven: successful === 2 && expectedInFlight === 0, coverageErrors, executionValid};
 }
 
 
@@ -303,34 +312,13 @@ function recordedHeight(value) {
   return null;
 }
 
-function financialPrerequisitesEstablished(scenario, parseAmount) {
-  if (!scenario?.deploy || !scenario.transactions) return false;
-  const failed = scenario.failedRefund;
-  if (!failed || parseAmount(failed.lockedAmount) === null) return false;
-  const before = scenario.beforeRetry;
-  const after = scenario.afterRetry;
-  if (!before || !after) return false;
-  for (const snapshot of [before, after, scenario.afterDuplicate, scenario.afterUnauthorized]) {
-    if (!snapshot || parseAmount(snapshot.proposer) === null || parseAmount(snapshot.lockedAmount) === null) return false;
-  }
-  if (!scenario.overlap || parseAmount(scenario.overlap.delta) === null) return false;
-  if (!Array.isArray(scenario.transactions.retries) || scenario.transactions.retries.length !== 2) return false;
-  for (const retry of scenario.transactions.retries) {
-    const call = (retry?.transaction?.actions || [])[0]?.FunctionCall;
-    if (call?.method_name !== 'act_proposal') return false;
-    let args;
-    try { args = JSON.parse(Buffer.from(call.args || '', 'base64').toString('utf8')); } catch { return false; }
-    if (args?.action !== 'Finalize') return false;
-  }
-  if (scenario.mode === 'legacy-upgrade' && (!scenario.transactions.upgrade?.deploy || !scenario.transactions.upgrade?.migrate)) return false;
-  return true;
-}
 
 function verifyScenario(scenario, mode, context) {
   const {fail, text, candidateWasmSha256, baseWasmSha256, report} = context;
   if (!scenario) { fail(`${mode} settlement scenario is missing`); return null; }
   const failFor = (condition, message, kind = 'incomplete') => { if (!condition) fail(`${mode}: ${message}`, kind); };
   const failVerified = (condition, message) => failFor(condition, message, 'verified');
+  const failFinancial = (condition, prerequisite, message) => { if (condition) return; fail(`${mode}: ${message}`, prerequisite ? 'verified' : 'incomplete'); };
   const {parseAmount} = context;
 
   if (mode === 'candidate-only') {
@@ -392,14 +380,26 @@ function verifyScenario(scenario, mode, context) {
 
   const operationDao = scenario.deploy?.transaction?.receiverId;
   verifyAddProposal(scenario, operationDao, failFor);
-  verifyUnauthorized(scenario, operationDao, failFor);
-  verifyDuplicate(scenario, operationDao, failFor);
+  const unauthorizedExecutionValid = verifyUnauthorized(scenario, operationDao, failFor);
+  const duplicateExecutionValid = verifyDuplicate(scenario, operationDao, failFor);
+  const retryProof = verifyRetries(scenario, operationDao, failFor);
   const recordedProposal = scenario.transactions?.failedProposal;
   if (!recordedProposal) failFor(false, 'recorded old-code proposal is missing');
   else {
     if (String(recordedProposal.id) !== String(scenario.proposalId)) failFor(false, 'recorded old-code proposal is not the scenario proposal');
     if (recordedProposal.status !== 'Failed') failFor(false, 'recorded old-code proposal is not Failed');
   }
+  const freshMode = mode === 'candidate-only';
+  const candidateExecutionValid = retryProof?.executionValid === true && (freshMode
+    ? deploymentCommitment(scenario.deploy, 'fresh candidate', (message) => failFor(false, message)) === candidateWasmSha256
+    : (
+      deploymentCommitment(scenario.deploy, 'inherited base', (message) => failFor(false, message), scenario.deploy?.transaction?.receiverId) === baseWasmSha256
+      && deploymentCommitment(scenario.transactions?.upgrade?.deploy, 'inherited upgrade', (message) => failFor(false, message), scenario.deploy?.transaction?.receiverId) === candidateWasmSha256
+      && scenario.transactions?.upgrade?.migrate?.finalExecutionStatus === 'FINAL'
+    ));
+  const failedFinalizeValid = scenario.transactions?.failedProposal?.status === 'Failed'
+    && scenario.failedRefund?.proposal?.status === 'Failed';
+  const failedDebtPrereq = candidateExecutionValid && failedFinalizeValid;
   const failed = scenario.failedRefund;
   if (!failed) failFor(false, 'failed-refund snapshot missing');
   else if (!text(failed.lockedAmount)) failFor(false, 'failed refund locked amount is missing');
@@ -414,7 +414,7 @@ function verifyScenario(scenario, mode, context) {
   else {
     const failedLocked = failed ? parseAmount(failed.lockedAmount) : null;
     if (text(failed?.lockedAmount) && failedLocked === null) failFor(false, 'failed refund locked amount is malformed');
-    else if (failedLocked !== null && failedLocked !== BOND) failVerified(false, 'failed refund did not retain the locked debt');
+    else if (failedLocked !== null && failedLocked !== BOND) failFinancial(false, failedDebtPrereq, 'failed refund did not retain the locked debt');
     if (failed.proposal?.status !== 'Failed') failFor(false, 'failed refund did not leave the proposal Failed');
   }
 
@@ -423,17 +423,18 @@ function verifyScenario(scenario, mode, context) {
   let retryDelta = null;
   const beforeAmount = before ? parseAmount(before.proposer) : null;
   const afterAmount = after ? parseAmount(after.proposer) : null;
+  const beforeLocked = before ? parseAmount(before.lockedAmount) : null;
+  const afterLocked = after ? parseAmount(after.lockedAmount) : null;
+  const retryPrereq = retryProof?.executionValid === true && beforeAmount !== null && afterAmount !== null && beforeLocked !== null && afterLocked !== null;
   if (!before || !after) failFor(false, 'retry snapshots missing');
   else if (beforeAmount === null || afterAmount === null) failFor(false, 'retry proposer amounts missing or malformed');
   else {
-    const beforeLocked = parseAmount(before.lockedAmount);
     if (beforeLocked === null) failFor(false, 'retry locked amount is missing or malformed');
-    else if (beforeLocked !== BOND) failVerified(false, 'retry did not start with the debt still locked');
+    else if (beforeLocked !== BOND) failFinancial(false, retryPrereq, 'retry did not start with the debt still locked');
     retryDelta = afterAmount - beforeAmount;
-    if (retryDelta !== BOND) failVerified(false, `retry proposer delta is ${retryDelta}, expected exactly one bond`);
-    const afterLocked = parseAmount(after.lockedAmount);
+    if (retryDelta !== BOND) failFinancial(false, retryPrereq, `retry proposer delta is ${retryDelta}, expected exactly one bond`);
     if (afterLocked === null) failFor(false, 'retry resulting locked amount is missing or malformed');
-    else if (afterLocked !== 0n) failVerified(false, 'successful retry did not clear the debt');
+    else if (afterLocked !== 0n) failFinancial(false, retryPrereq, 'successful retry did not clear the debt');
   }
 
   if (afterAmount === null) {
@@ -441,19 +442,19 @@ function verifyScenario(scenario, mode, context) {
   } else {
     const duplicateAmount = scenario.afterDuplicate ? parseAmount(scenario.afterDuplicate.proposer) : null;
     const unauthorizedAmount = scenario.afterUnauthorized ? parseAmount(scenario.afterUnauthorized.proposer) : null;
-    if (duplicateAmount === null || !text(scenario.afterDuplicate?.lockedAmount)) failFor(false, 'afterDuplicate observation amounts missing or malformed');
+    const duplicateLocked = scenario.afterDuplicate ? parseAmount(scenario.afterDuplicate.lockedAmount) : null;
+    const unauthorizedLocked = scenario.afterUnauthorized ? parseAmount(scenario.afterUnauthorized.lockedAmount) : null;
+    const duplicatePrereq = retryPrereq && duplicateExecutionValid && duplicateAmount !== null && duplicateLocked !== null && afterAmount !== null;
+    const unauthorizedPrereq = retryPrereq && unauthorizedExecutionValid && unauthorizedAmount !== null && unauthorizedLocked !== null && afterAmount !== null;
+    if (duplicateAmount === null || duplicateLocked === null) failFor(false, 'afterDuplicate observation amounts missing or malformed');
     else {
-      if (duplicateAmount !== afterAmount) failVerified(false, 'duplicate retry changed the proposer balance');
-      const duplicateLocked = parseAmount(scenario.afterDuplicate.lockedAmount);
-      if (duplicateLocked === null) failFor(false, 'afterDuplicate locked amount is missing or malformed');
-      else if (duplicateLocked !== 0n) failVerified(false, 'duplicate retry changed the locked debt');
+      if (duplicateAmount !== afterAmount) failFinancial(false, duplicatePrereq, 'duplicate retry changed the proposer balance');
+      else if (duplicateLocked !== 0n) failFinancial(false, duplicatePrereq, 'duplicate retry changed the locked debt');
     }
-    if (unauthorizedAmount === null || !text(scenario.afterUnauthorized?.lockedAmount)) failFor(false, 'afterUnauthorized observation amounts missing or malformed');
+    if (unauthorizedAmount === null || unauthorizedLocked === null) failFor(false, 'afterUnauthorized observation amounts missing or malformed');
     else {
-      if (unauthorizedAmount !== afterAmount) failVerified(false, 'unauthorized callback changed the proposer balance');
-      const unauthorizedLocked = parseAmount(scenario.afterUnauthorized.lockedAmount);
-      if (unauthorizedLocked === null) failFor(false, 'afterUnauthorized locked amount is missing or malformed');
-      else if (unauthorizedLocked !== 0n) failVerified(false, 'unauthorized callback changed the locked debt');
+      if (unauthorizedAmount !== afterAmount) failFinancial(false, unauthorizedPrereq, 'unauthorized callback changed the proposer balance');
+      else if (unauthorizedLocked !== 0n) failFinancial(false, unauthorizedPrereq, 'unauthorized callback changed the locked debt');
     }
   }
 
@@ -468,7 +469,6 @@ function verifyScenario(scenario, mode, context) {
   }
   if (scenario.unauthorizedArgs?.attempt !== 999) failFor(false, 'unauthorized callback did not use the numeric attempt argument');
 
-  const retryProof = verifyRetries(scenario, scenario.deploy?.transaction?.receiverId, failFor);
   const overlap = scenario.overlap;
   if (!overlap || overlap.ok !== true) failFor(false, 'overlapping retry evidence missing or failed');
   else {
@@ -491,14 +491,13 @@ function verifyScenario(scenario, mode, context) {
     if (new Set(signers).size !== 2) failFor(false, 'overlap did not produce two distinct signers');
     const overlapDelta = parseAmount(overlap.delta);
     if (overlapDelta === null) failFor(false, 'overlap delta is missing or malformed');
-    else if (overlapDelta !== BOND) failVerified(false, 'overlapping retries did not pay exactly one bond');
+    else if (overlapDelta !== BOND) failFinancial(false, retryPrereq, 'overlapping retries did not pay exactly one bond');
     const overlapLocked = parseAmount(overlap.lockedAfter);
     if (overlapLocked === null) failFor(false, 'overlap resulting locked amount is missing or malformed');
-    else if (overlapLocked !== 0n) failVerified(false, 'overlapping retries did not settle the debt');
+    else if (overlapLocked !== 0n) failFinancial(false, retryPrereq, 'overlapping retries did not settle the debt');
   }
 
   return {
-    financialPrerequisitesEstablished: financialPrerequisitesEstablished(scenario, parseAmount),
     retryGuardUnproven: retryProof?.guardUnproven === true,
     coverageErrors: Array.isArray(retryProof?.coverageErrors) ? retryProof.coverageErrors : [],
     failedRefundLocked: text(failed?.lockedAmount),
@@ -546,14 +545,8 @@ function verifySettlementReport(report, opts = {}) {
   const freshOutcomes = verifyScenario(report?.fresh, 'candidate-only', context);
   const inheritedOutcomes = verifyScenario(report?.inherited, 'legacy-upgrade', context);
 
-  const prerequisite = (reason) => {
-    if (reason.startsWith('candidate-only:')) return freshOutcomes?.financialPrerequisitesEstablished === true;
-    if (reason.startsWith('legacy-upgrade:')) return inheritedOutcomes?.financialPrerequisitesEstablished === true;
-    return true;
-  };
-  const attributableVerified = identityEstablished ? verifiedReasons.filter(prerequisite) : [];
-  const unattributed = identityEstablished ? verifiedReasons.filter((reason) => !prerequisite(reason)) : verifiedReasons;
-  const attributableIncomplete = [...incompleteReasons, ...unattributed];
+  const attributableVerified = identityEstablished ? verifiedReasons : [];
+  const attributableIncomplete = identityEstablished ? incompleteReasons : [...incompleteReasons, ...verifiedReasons];
   const status = attributableVerified.length ? 'REJECTED' : (attributableIncomplete.length ? 'INCONCLUSIVE' : 'ACCEPTED');
   return {
     status,
