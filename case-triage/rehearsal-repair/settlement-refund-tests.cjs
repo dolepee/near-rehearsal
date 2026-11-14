@@ -244,6 +244,8 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   const id = add.parseResult();
   let upgrade = null;
   let deleteFinal = null;
+  let seedFinal = null;
+  let afterMissingSeed = null;
 
   if (!baseWasm) {
     stage(`${tag} delete proposer before the failed action`);
@@ -274,25 +276,51 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
       await sleep(250);
     }
     fail(installed, 'candidate code was not installed on the inherited DAO');
-    upgrade = {deploy: upgradeDeployFinal, migrate: migrateFinal, codeHash, candidateWasmSha256: sha256(wasm)};
     stage(`${tag} delete proposer after the upgrade`);
     const deleted = await proposer.delete(root.accountId);
     deleteFinal = {transactionHash: deleted?.transactionReceipt?.hash || null, transactionOutcome: {status: 'DeleteAccount submitted'}};
-    stage(`${tag} legacy finalize while the proposer is deleted`);
+    stage(`${tag} legacy finalize without a trusted principal`);
     const legacyFinalize = await voter.callRaw(dao, 'act_proposal', {id, action: 'Finalize', proposal: kind}, {gas: GAS});
     const legacyFinalizeFinal = await withHeight(worker, summarize(await finalStatus(worker, legacyFinalize, voter.accountId)), 'legacy finalize');
     await waitProposal(worker, dao, id, 'Failed');
-    upgrade.legacyFinalize = legacyFinalizeFinal;
+    afterMissingSeed = await settle(worker, dao, proposer.accountId, voter.accountId);
+    fail(afterMissingSeed.lockedAmount === BOND.toString(), `missing legacy principal changed locked debt to ${afterMissingSeed.lockedAmount}`);
+    fail(afterMissingSeed.proposer === null || BigInt(afterMissingSeed.proposer) === 0n, 'missing legacy principal paid the proposer');
+    upgrade = {deploy: upgradeDeployFinal, migrate: migrateFinal, codeHash, candidateWasmSha256: sha256(wasm), legacyFinalize: legacyFinalizeFinal};
+    stage(`${tag} seed the measured original principal`);
+    const seedArgs = {
+      proposal_id: id,
+      proposer: proposer.accountId,
+      amount: BOND.toString(),
+      funding_tx_hash: addFinal.transactionHash,
+    };
+    const seed = await dao.callRaw(dao, 'seed_legacy_proposal_bond', seedArgs, {gas: GAS});
+    seedFinal = await withHeight(worker, summarize(await finalStatus(worker, seed, dao.accountId)), 'legacy principal seed');
+    upgrade.seed = seedFinal;
+    const captureSeedFailure = async (account, args, label) => {
+      try {
+        const tx = await account.callRaw(dao, 'seed_legacy_proposal_bond', args, {gas: GAS});
+        const value = await withHeight(worker, summarize(await finalStatus(worker, tx, account.accountId)), label);
+        return {ok: false, value};
+      } catch (error) {
+        return {ok: false, error: String(error?.message || error)};
+      }
+    };
+    const unauthorizedSeed = await captureSeedFailure(voter, {...seedArgs, amount: (BOND * 2n).toString()}, 'unauthorized legacy seed');
+    const duplicateSeed = await captureSeedFailure(dao, {...seedArgs, amount: (BOND * 3n).toString()}, 'duplicate legacy seed');
+    upgrade.unauthorizedSeed = unauthorizedSeed;
+    upgrade.duplicateSeed = duplicateSeed;
   }
-
-  const failedRefund = await settle(worker, dao, proposer.accountId, voter.accountId);
-  fail(failedRefund.lockedAmount === BOND.toString(), `locked liability after failed refund is ${failedRefund.lockedAmount}, expected ${BOND}`);
-  fail(failedRefund.proposal.status === 'Failed', `proposal after failed refund is ${failedRefund.proposal.status}`);
 
   stage(`${tag} recreate proposer`);
   await root.createSubAccount(proposerId, {initialBalance: parseNEAR('10')});
   const recreatedBalance = await viewAmount(worker, proposer.accountId);
   stage(`${tag} recreated balance ${recreatedBalance}`);
+
+  const failedRefund = await settle(worker, dao, proposer.accountId, voter.accountId);
+  fail(failedRefund.lockedAmount === BOND.toString(), `locked liability after failed refund is ${failedRefund.lockedAmount}, expected ${BOND}`);
+  fail(failedRefund.proposal.status === 'Failed', `proposal after failed refund is ${failedRefund.proposal.status}`);
+
   const beforeRetry = await snapshot(worker, dao, proposer.accountId, voter.accountId);
   stage(`${tag} concurrent retry`);
   // Two independently signed council transactions. Both approve the original
@@ -367,13 +395,17 @@ async function runScenario({worker, tag, prefix, wasm, baseWasm}) {
   return {
     proposalId: id,
     deploy: {...deployFinal, codeHash: deployedCodeHash, wasmSha256: sha256(deployedBytes)},
-    transactions: {deploy: deployFinal, init: initFinal, add: addFinal, upgrade, delete: deleteFinal, vote: voteFinal, vote2: vote2Final, failedProposal, retries: retryFinals, retry: retryFinal, unauthorized, duplicate: duplicateFinal},
+    transactions: {deploy: deployFinal, init: initFinal, add: addFinal, upgrade, seed: seedFinal, delete: deleteFinal, vote: voteFinal, vote2: vote2Final, failedProposal, retries: retryFinals, retry: retryFinal, unauthorized, duplicate: duplicateFinal},
     legacy: baseWasm ? {
       baseWasmSha256: sha256(baseWasm),
       candidateWasmSha256: sha256(wasm),
       upgradeCodeHash: upgrade?.codeHash || null,
       proposalCreatedBeforeUpgrade: true,
       legacyFinalize: upgrade?.legacyFinalize || null,
+      seed: upgrade?.seed || null,
+      afterMissingSeed,
+      unauthorizedSeed: upgrade?.unauthorizedSeed || null,
+      duplicateSeed: upgrade?.duplicateSeed || null,
     } : null,
     unauthorized,
     unauthorizedArgs,
