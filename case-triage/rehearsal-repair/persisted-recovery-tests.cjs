@@ -10,9 +10,9 @@ const opts = {
   wasmPath: path.join(here, 'mixed-candidates/intended.wasm'),
   baseWasmPath: path.join(here, 'bundle/artifacts/base.wasm'),
   patchPath: path.join(here, 'mixed-candidates/intended.patch'),
-  expectedWasmSha256: '3bff5f26a3f2a37a2efd2b3282bcd738d578fcc18ab75799b28d12bbf41874e2',
-  expectedPatchSha256: 'ea59d33f2102ef21d77be277dc4981911cb58d5a12b995a673261bb20a79cdc1',
-  expectedSourceSha256: '2cc6f04cca4312ebfe092c2d438c9a570e602abcd81d1d240e34369a6ffcd22e',
+  expectedWasmSha256: '133c60cfb711d285c613c386d6b745ef6525438f5290b1d9feeffbd44f58d09d',
+  expectedPatchSha256: '9ae060af97dcb7f4ced31d135ac84b0130f274032f17c2acb1a56e43a6ebf3d0',
+  expectedSourceSha256: '1e1c693fc2cae3c2ce3159a1e0d79699a6e8085148b5c521cb166acddd74464c',
 };
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const reject = (label, mutate) => {
