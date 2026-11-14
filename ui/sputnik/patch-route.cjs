@@ -222,7 +222,12 @@ function writeSums(stage) {
 
 function archiveEntry(file, name) {
   const zip = file.endsWith('.zip');
-  const run = spawnSync(zip ? 'unzip' : 'tar', zip ? ['-p', file, name] : ['-xzOf', file, name], {encoding: 'utf8', timeout: 15_000});
+  const run = spawnSync(zip ? 'unzip' : 'tar', zip ? ['-p', file, name] : ['-xzOf', file, name], {
+    encoding: 'utf8',
+    timeout: 15_000,
+    maxBuffer: MAX_PACKAGE_BYTES,
+  });
+  if (run.error) return null;
   return run.status === 0 ? run.stdout : null;
 }
 

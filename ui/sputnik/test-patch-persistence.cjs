@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
 const {spawnSync} = require('node:child_process');
+const crypto = require('node:crypto');
 const fixtures = require('./test-patch-fixtures.cjs');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rehearsal-patch-persistence-'));
@@ -91,6 +92,18 @@ spawnSync('zip', ['-q', '-r', path.join(staleSettlementDir, 'review-package.zip'
 
 const route = require(path.join(routeDir, 'patch-route.cjs'));
 const runs = route.list();
+const acceptedPackage = path.join(runsRoot, acceptedId, 'review-package.zip');
+assert.ok(fs.existsSync(acceptedPackage), 'accepted package is materialized');
+const extractedBundle = spawnSync('unzip', ['-p', acceptedPackage, 'review-bundle.json'], {encoding: 'utf8', timeout: 15_000, maxBuffer: 32 * 1024 * 1024});
+assert.equal(extractedBundle.status, 0, extractedBundle.stderr);
+assert.ok(Buffer.byteLength(extractedBundle.stdout) > 1024 * 1024, 'real accepted reviewer bundle exceeds the default spawnSync buffer');
+const packageSha = crypto.createHash('sha256').update(fs.readFileSync(acceptedPackage)).digest('hex');
+const packageMtime = fs.statSync(acceptedPackage).mtimeMs;
+const restart = spawnSync(process.execPath, ['-e', `const r=require(${JSON.stringify(path.join(routeDir, 'patch-route.cjs'))}); const runs=r.list(); const run=runs.find((x)=>x.id===${JSON.stringify(acceptedId)}); if (!run) process.exit(2); console.log(JSON.stringify(run.downloads));`], {encoding: 'utf8', timeout: 60_000, maxBuffer: 1024 * 1024});
+assert.equal(restart.status, 0, restart.stderr);
+assert.notEqual(restart.stdout.trim(), '', 'restart must return the accepted run');
+assert.equal(crypto.createHash('sha256').update(fs.readFileSync(acceptedPackage)).digest('hex'), packageSha, 'a valid archive is reused unchanged after restart');
+assert.equal(fs.statSync(acceptedPackage).mtimeMs, packageMtime, 'a valid archive is not silently rebuilt after restart');
 assert.equal(runs.find((run) => run.id === acceptedId).status, 'accepted');
 assert.equal(runs.find((run) => run.id === interruptedId).status, 'inconclusive');
 assert.match(runs.find((run) => run.id === interruptedId).note, /restarted|not accepted/);
