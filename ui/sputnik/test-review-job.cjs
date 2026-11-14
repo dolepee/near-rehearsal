@@ -190,6 +190,7 @@ async function runInfrastructureFailure() {
   assert.equal(manager.download(started.id), null);
 }
 
+runTerminalExitMatrix().then(runRejected).then(runInconclusive);
 async function runRejected() {
   const payload = JSON.parse(JSON.stringify(acceptedResult));
   payload.status = 'REJECTED';
@@ -203,6 +204,32 @@ async function runRejected() {
   assert.equal(run.status, 'rejected');
   assert.match(run.error, /did not pass acceptance/);
   assert.equal(manager.download(started.id), null);
+}
+
+async function runTerminalExitMatrix() {
+  const cases = [
+    {label: 'accepted/1', status: 'ACCEPTED', code: 1, expected: 'inconclusive'},
+    {label: 'rejected/2', status: 'REJECTED', code: 2, expected: 'rejected'},
+    {label: 'inconclusive/1', status: 'INCONCLUSIVE', code: 1, expected: 'inconclusive'},
+  ];
+  for (const entry of cases) {
+    const payload = JSON.parse(JSON.stringify(acceptedResult));
+    payload.status = entry.status;
+    payload.accepted = entry.status === 'ACCEPTED';
+    payload.summary.checks.accepted = entry.status === 'ACCEPTED';
+    payload.acceptancePolicy = {status: entry.status, errors: [`${entry.label} fixture`]};
+    const manager = createManager({
+      runsRoot: path.join(tmp, `terminal-${entry.label.replace('/', '-')}`),
+      env: {REPAIR_SANDBOX_DIR: sandboxDir},
+      spawn: fakeSpawn({payload, code: entry.code}),
+    });
+    const started = manager.start(example.bundle, 'recorded-wasm');
+    await manager.get(started.id).done;
+    const run = manager.get(started.id);
+    assert.equal(run.status, entry.expected, `${entry.label} must terminate as ${entry.expected}`);
+    assert.notEqual(run.phase, 'replaying', `${entry.label} left the run replaying`);
+    assert.ok(run.finishedAt, `${entry.label} did not record finishedAt`);
+  }
 }
 
 async function runInconclusive() {

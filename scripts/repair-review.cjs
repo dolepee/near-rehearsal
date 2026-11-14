@@ -465,7 +465,8 @@ const runMixedGate = (candidateWasm, outDir, sandboxDir) => {
   const reportPath = path.join(mixedDir, 'mixed-obligation.json');
   const report = readJson(reportPath, 'same-DAO mixed-obligation report');
   const checked = verifyMixedReport(report, {requireBlockPinned: true});
-  if (!checked.ok) fail(`same-DAO mixed-obligation gate failed: ${checked.errors.join('; ')}`);
+  // A policy failure here is economic evidence, not an infrastructure crash.
+  // Keep the report and let the typed acceptance policy classify it.
   return {mixedDir, reportPath, report, checked, policy: mixedPolicyIdentity(ROOT), stdout: result.stdout};
 };
 
@@ -680,24 +681,26 @@ const main = () => {
     : runRecorded(bundle, prepared, outDir, opts);
   const report = readJson(run.reportPath, 'persisted recovery report');
   const summary = summarize(report, run);
-  if (!summary.checks.accepted) fail('persisted recovery report did not pass acceptance');
   const mixedRun = runMixedGate(run.builtWasm || run.wasmPath, outDir, plan.sandboxDir);
   const reviewerArtifactWasmSha256 = run.mode === 'source-build' ? run.builtWasmSha256 : run.wasmSha256;
   const mixedReportWasmSha256 = mixedRun.report?.candidate?.wasmSha256;
-  if (!mixedReportWasmSha256 || mixedReportWasmSha256 !== reviewerArtifactWasmSha256) fail('reviewer mixed gate did not execute the built/recorded candidate artifact');
-  const mixedComparison = compareMixed(checkBundle(bundle).producerMixed, mixedRun.checked, mixedReportWasmSha256, reviewerArtifactWasmSha256);
+  const mixedArtifactMismatch = !mixedReportWasmSha256 || mixedReportWasmSha256 !== reviewerArtifactWasmSha256
+    ? `reviewer mixed gate did not execute the built/recorded candidate artifact`
+    : null;
+  const mixedComparison = mixedArtifactMismatch
+    ? {error: mixedArtifactMismatch}
+    : compareMixed(checkBundle(bundle).producerMixed, mixedRun.checked, mixedReportWasmSha256, reviewerArtifactWasmSha256);
   const settlementRun = runSettlementGate(run.builtWasm || run.wasmPath, outDir, plan.sandboxDir);
   const settlementArtifactWasmSha256 = settlementRun.report?.candidate?.wasmSha256;
-  if (settlementArtifactWasmSha256 && settlementArtifactWasmSha256 !== reviewerArtifactWasmSha256) {
-    fail('settlement gate did not execute the built/recorded candidate artifact');
-  }
+  const settlementMismatch = settlementArtifactWasmSha256 && settlementArtifactWasmSha256 !== reviewerArtifactWasmSha256
+    ? {exitCode: null, message: 'settlement gate did not execute the built/recorded candidate artifact'}
+    : null;
   const acceptancePolicy = evaluateCandidate({
     fresh: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted/fresh acceptance did not pass'], {evidenceValid: Boolean(summary)}),
     recovery: stageFromChecks(summary.checks.accepted, summary.checks.accepted ? [] : ['persisted recovery report did not pass acceptance'], {evidenceValid: Boolean(report)}),
-    mixed: stageFromChecks(mixedRun.checked.ok === true, mixedRun.checked.errors || [], {policyVersion: POLICY_VERSION, evidenceValid: Boolean(mixedRun.checked)}),
-    settlement: settlementAcceptanceStage(settlementRun.checked, settlementRun.unavailable),
+    mixed: stageFromChecks(!mixedArtifactMismatch && mixedRun.checked.ok === true, mixedArtifactMismatch ? [mixedArtifactMismatch] : (mixedRun.checked.errors || []), {policyVersion: POLICY_VERSION, evidenceValid: !mixedArtifactMismatch && Boolean(mixedRun.checked)}),
+    settlement: settlementAcceptanceStage(settlementRun.checked, settlementRun.unavailable || settlementMismatch),
   });
-  if (acceptancePolicy.status === 'REJECTED') fail(`${acceptancePolicy.status}: versioned acceptance policy ${acceptancePolicy.policyVersion} failed: ${acceptancePolicy.errors.join('; ')}`);
   summary.checks.persistedAccepted = summary.checks.accepted;
   summary.checks.accepted = acceptancePolicy.status === 'ACCEPTED';
   summary.acceptanceStatus = acceptancePolicy.status;
@@ -742,6 +745,7 @@ const main = () => {
   fs.writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`);
   console.log(render(result));
   if (acceptancePolicy.status === 'INCONCLUSIVE') process.exitCode = 5;
+  else if (acceptancePolicy.status === 'REJECTED') process.exitCode = 2;
 };
 
 if (require.main === module) {
