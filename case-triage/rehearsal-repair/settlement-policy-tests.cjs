@@ -123,6 +123,14 @@ checkApprovedMutation('duplicate transaction root removed with changed amount', 
   delete approved.duplicate.transactionOutcome;
   approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
 }, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate root has empty status', (approved) => {
+  approved.duplicate.receipts[0].status = {};
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'INCONCLUSIVE');
+checkApprovedMutation('duplicate root has unlinked SuccessReceiptId', (approved) => {
+  approved.duplicate.receipts[0].status = {SuccessReceiptId: 'not-a-linked-child'};
+  approved.afterDuplicate.recipient = (BigInt(approved.afterDuplicate.recipient) + 1n).toString();
+}, 'INCONCLUSIVE');
 checkApprovedMutation('duplicate root replaced while old receipts remain', (approved) => {
   const old = approved.duplicate.transactionOutcome;
   approved.duplicate.transactionOutcome = {

@@ -112,8 +112,22 @@ function linkedExecution(transaction, label, fail) {
       }
       first = false;
     }
-    const status = receipt.status || {};
-    if (Object.prototype.hasOwnProperty.call(status, 'SuccessValue') || status.Failure) terminal = true;
+    const status = receipt.status;
+    if (!status || typeof status !== 'object' || Array.isArray(status)) { fail(`${label} receipt has no structured status`); return false; }
+    const statusKeys = Object.keys(status);
+    const recognized = statusKeys.filter((key) => ['SuccessValue', 'Failure', 'SuccessReceiptId'].includes(key));
+    if (recognized.length !== 1 || statusKeys.length !== 1) { fail(`${label} receipt does not have exactly one recognized status`); return false; }
+    const statusKey = recognized[0];
+    if (statusKey === 'SuccessValue') {
+      if (typeof status.SuccessValue !== 'string') { fail(`${label} receipt has a malformed SuccessValue`); return false; }
+      terminal = true;
+    } else if (statusKey === 'Failure') {
+      if (!status.Failure || typeof status.Failure !== 'object') { fail(`${label} receipt has a malformed Failure`); return false; }
+      terminal = true;
+    } else {
+      if (typeof status.SuccessReceiptId !== 'string' || !status.SuccessReceiptId) { fail(`${label} receipt has a malformed SuccessReceiptId`); return false; }
+      if (!receipt.receiptIds.includes(status.SuccessReceiptId)) { fail(`${label} SuccessReceiptId does not reference a linked child`); return false; }
+    }
     for (const child of receipt.receiptIds) {
       if (!byId.has(child)) { fail(`${label} receipt graph references a missing child`); return false; }
       if (!visit(child)) return false;
