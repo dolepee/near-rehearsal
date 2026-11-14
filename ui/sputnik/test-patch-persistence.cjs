@@ -61,8 +61,9 @@ function completed(id, status) {
 completed(acceptedId, 'accepted');
 const oldStage = path.join(root, 'old-package');
 fs.mkdirSync(oldStage, {recursive: true});
-fs.writeFileSync(path.join(oldStage, 'README.md'), '# old package\n');
-fs.writeFileSync(path.join(oldStage, 'run.json'), JSON.stringify({status: 'running'}));
+fs.writeFileSync(path.join(oldStage, 'README.md'), '# old package\n\nPackage format: 3 (source-patch review)\n');
+fs.writeFileSync(path.join(oldStage, 'run.json'), JSON.stringify({status: 'accepted'}));
+fs.writeFileSync(path.join(oldStage, 'review-bundle.json'), JSON.stringify({settlement: null}));
 spawnSync('zip', ['-q', '-r', path.join(runsRoot, acceptedId, 'review-package.zip'), '.'], {cwd: oldStage, timeout: 15_000});
 fs.mkdirSync(path.join(runsRoot, interruptedId), {recursive: true});
 fs.writeFileSync(path.join(runsRoot, interruptedId, 'submitted.patch'), 'diff --git a/x b/x\n');
@@ -128,6 +129,8 @@ assert.equal(fs.readFileSync(path.join(runsRoot, acceptedId, 'run.json'), 'utf8'
     const packageMarker = spawnSync('unzip', ['-p', file, 'README.md'], {encoding: 'utf8', timeout: 15_000});
     assert.match(packageMarker.stdout, /Package format: 3/);
     assert.doesNotMatch(packageMarker.stdout, /^# old package/m);
+    const cachedBundle = JSON.parse(spawnSync('unzip', ['-p', file, 'review-bundle.json'], {encoding: 'utf8', timeout: 15_000, maxBuffer: 16 * 1024 * 1024}).stdout);
+    assert.ok(cachedBundle.settlement, 'stale settlement:null package was rebuilt with verified settlement evidence');
     assert.match(listing.stdout, /REPRODUCE|review-report\.md/);
     assert.match(listing.stdout, /artifact\/sputnikdao2\.wasm/);
     assert.match(listing.stdout, /source\/proposals\.rs/);
