@@ -199,6 +199,14 @@ function verifyDuplicate(scenario, dao, failFor) {
   if (!decoded) return;
   if (decoded.call.method_name !== 'act_proposal' || decoded.args?.action !== 'Finalize') failFor(false, 'duplicate retry is not an act_proposal Finalize');
   if (String(decoded.args?.id) !== String(scenario.proposalId)) failFor(false, 'duplicate retry targets a different proposal');
+  const retryHashes = (scenario.transactions?.retries || []).map((tx) => tx.transactionHash).filter(Boolean);
+  const legacyHash = scenario.transactions?.upgrade?.legacyFinalize?.transactionHash;
+  if (duplicate.transactionHash && retryHashes.includes(duplicate.transactionHash)) failFor(false, 'duplicate retry reuses an overlap transaction');
+  if (duplicate.transactionHash && legacyHash && duplicate.transactionHash === legacyHash) failFor(false, 'duplicate retry reuses the legacy finalize transaction');
+  const afterHeight = recordedHeight(scenario.afterRetry?.blockHeight);
+  const duplicateHeight = recordedHeight(duplicate.blockHeight);
+  if (afterHeight === null || duplicateHeight === null) failFor(false, 'duplicate retry height is missing or malformed');
+  else if (duplicateHeight <= afterHeight) failFor(false, 'duplicate retry was not after the settled afterRetry observation');
   receiptChain(duplicate, 'duplicate retry', (message) => failFor(false, message), true);
 }
 
