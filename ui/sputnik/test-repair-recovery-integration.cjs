@@ -32,7 +32,7 @@ function arg(args, name) {
   return index >= 0 ? args[index + 1] : null;
 }
 
-function fakeSpawn({mixedPath = mixedReport, writeSettlement = true} = {}) {
+function fakeSpawn({mixedPath = mixedReport, writeSettlement = true, settlementMutate = null} = {}) {
   return (command, args, options) => {
     const child = new EventEmitter();
     child.pid = 900000 + Math.floor(Math.random() * 1000);
@@ -83,7 +83,12 @@ function fakeSpawn({mixedPath = mixedReport, writeSettlement = true} = {}) {
           if (!writeSettlement) throw new Error('settlement child failed before writing a report');
           const out = arg(args, '--out');
           fs.mkdirSync(out, {recursive: true});
-          fs.copyFileSync(settlementReport, path.join(out, 'settlement-refund.json'));
+          if (settlementMutate) {
+            const report = settlementMutate(JSON.parse(fs.readFileSync(settlementReport, 'utf8')));
+            fs.writeFileSync(path.join(out, 'settlement-refund.json'), JSON.stringify(report));
+          } else {
+            fs.copyFileSync(settlementReport, path.join(out, 'settlement-refund.json'));
+          }
         } else {
           throw new Error(`unexpected fake command: ${command} ${args.join(' ')}`);
         }
@@ -195,6 +200,39 @@ function fakeSpawn({mixedPath = mixedReport, writeSettlement = true} = {}) {
   assert.equal(missingRun.status, 'inconclusive', 'an unexecuted settlement check must be inconclusive, not rejected');
   assert.equal(missingRun.mixed.ok, true);
   assert.equal(missingRun.settlement.ok, false);
+  const mutateSettlement = (kind) => (report) => {
+    const changed = JSON.parse(JSON.stringify(report));
+    if (kind === 'guard' || kind === 'both') {
+      const retry = changed.inherited.transactions.retries[0];
+      retry.receipts.find((receipt) => receipt.id === retry.transactionOutcome.status.SuccessReceiptId).status = {SuccessValue: ''};
+    }
+    if (kind === 'debt' || kind === 'both') changed.inherited.failedRefund.lockedAmount = '0';
+    return changed;
+  };
+  const mutationConfig = {
+    configured: true, providerConfigured: true, missing: [], sandboxDir: '/fake-sandbox',
+    baseWasm: path.join(repair, 'bundle/artifacts/base.wasm'),
+    timeouts: {baselineMs: 30000, generationMs: 30000, pipelineMs: 30000, recoveryMs: 30000, mixedMs: 30000, settlementMs: 30000, jobMs: 120000},
+  };
+  const runMutationCase = async (name, kind) => {
+    const mutationRoot = path.join(tmp, `${name}-run`);
+    const mutationManager = createManager({
+      runsRoot: mutationRoot,
+      spawn: fakeSpawn({settlementMutate: mutateSettlement(kind)}),
+      config: {...mutationConfig, privateRuntime: path.join(tmp, `${name}-provider-runtime`)},
+    });
+    const started = mutationManager.start('sputnik-238-async-bond');
+    await mutationManager.get(started.id).done;
+    return mutationManager.get(started.id);
+  };
+  const guardRun = await runMutationCase('guard-unproven', 'guard');
+  assert.equal(guardRun.status, 'inconclusive', 'a guard-only omission must remain inconclusive');
+  const debtRun = await runMutationCase('lost-debt', 'debt');
+  assert.equal(debtRun.status, 'rejected', 'a lost locked debt must remain a semantic rejection');
+  assert.match(debtRun.error || '', /locked debt|failed refund/i);
+  const bothRun = await runMutationCase('lost-debt-and-guard', 'both');
+  assert.equal(bothRun.status, 'rejected', 'coverage uncertainty must not mask a verified financial failure');
+
   console.log(JSON.stringify({
     schema: 'near-rehearsal/repair-recovery-integration-tests/v1',
     passed: true,

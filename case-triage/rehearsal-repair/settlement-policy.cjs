@@ -228,6 +228,7 @@ function verifyRetries(scenario, dao, failFor) {
   if (!verifyVote(scenario, voteSigners[0], 'vote', failFor) || !verifyVote(scenario, voteSigners[1], 'vote2', failFor)) return;
   const hashes = [];
   const signers = [];
+  const coverageErrors = [];
   let successful = 0;
   let expectedInFlight = 0;
   raw.forEach((tx, index) => {
@@ -253,9 +254,9 @@ function verifyRetries(scenario, dao, failFor) {
   });
   if (new Set(hashes).size !== 2) failFor(false, 'retry transactions do not have distinct hashes');
   if (new Set(signers).size !== 2) failFor(false, 'retry transactions do not have distinct signers');
-  if (successful !== 1) failFor(false, `expected exactly one successful retry action, got ${successful}`);
-  if (expectedInFlight !== 1) failFor(false, `expected exactly one receipt-backed ERR_PROPOSAL_NOT_IN_PROGRESS rejection, got ${expectedInFlight}`);
-  return {guardUnproven: successful === 2 && expectedInFlight === 0};
+  if (successful !== 1) { coverageErrors.push(`expected exactly one successful retry action, got ${successful}`); failFor(false, coverageErrors[coverageErrors.length - 1]); }
+  if (expectedInFlight !== 1) { coverageErrors.push(`expected exactly one receipt-backed ERR_PROPOSAL_NOT_IN_PROGRESS rejection, got ${expectedInFlight}`); failFor(false, coverageErrors[coverageErrors.length - 1]); }
+  return {guardUnproven: successful === 2 && expectedInFlight === 0, coverageErrors};
 }
 
 
@@ -405,6 +406,7 @@ function verifyScenario(scenario, mode, context) {
 
   return {
     retryGuardUnproven: retryProof?.guardUnproven === true,
+    coverageErrors: Array.isArray(retryProof?.coverageErrors) ? retryProof.coverageErrors : [],
     failedRefundLocked: text(failed?.lockedAmount),
     retryDelta: before && after ? (BigInt(after.proposer ?? 0) - BigInt(before.proposer ?? 0)).toString() : null,
     duplicateDelta: text(scenario.afterDuplicate?.proposer) && text(after?.proposer) ? (BigInt(scenario.afterDuplicate.proposer) - BigInt(after.proposer)).toString() : null,
@@ -431,10 +433,14 @@ function verifySettlementReport(report, opts = {}) {
   const freshOutcomes = verifyScenario(report?.fresh, 'candidate-only', context);
   const inheritedOutcomes = verifyScenario(report?.inherited, 'legacy-upgrade', context);
 
+  const coverageErrors = [
+    ...(freshOutcomes?.coverageErrors || []),
+    ...(inheritedOutcomes?.coverageErrors || []),
+  ];
   return {
     ok: errors.length === 0,
     errors,
-    unproven: freshOutcomes?.retryGuardUnproven === true || inheritedOutcomes?.retryGuardUnproven === true,
+    unproven: coverageErrors.length > 0 && errors.length === coverageErrors.length,
     outcomes: inheritedOutcomes ? {
       ...inheritedOutcomes,
       fresh: freshOutcomes,
