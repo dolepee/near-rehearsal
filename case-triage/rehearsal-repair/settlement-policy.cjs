@@ -463,8 +463,14 @@ function verifyScenario(scenario, mode, context) {
   };
 }
 
-function isIncompleteEvidence(message) {
-  return /missing|no |not produced|not recorded|not linked|not FINAL|unreadable|malformed|incomplete|schema must|does not link|no Success|scenario is missing|expected exactly one|not exercised|could not be verified|capture/i.test(message);
+// Coverage gaps are structural: the evidence needed to exercise a scenario is
+// absent or unreadable. Financial contradictions (a lost debt, an overpayment,
+// an unguarded second payout) are verified failures even when a later stage was
+// skipped, so they must never be classified here. The overlap gate reports its
+// gaps explicitly; everything else is matched on absence wording only.
+function isIncompleteEvidence(message, coverageErrors = []) {
+  if (coverageErrors.some((coverage) => message.endsWith(coverage))) return true;
+  return /missing|no |not produced|not recorded|not linked|not FINAL|unreadable|malformed|incomplete|schema must|does not link|no Success|scenario is missing|not exercised|could not be verified|capture/i.test(message);
 }
 
 function verifySettlementReport(report, opts = {}) {
@@ -489,8 +495,8 @@ function verifySettlementReport(report, opts = {}) {
     ...(freshOutcomes?.coverageErrors || []),
     ...(inheritedOutcomes?.coverageErrors || []),
   ];
-  const incompleteReasons = errors.filter(isIncompleteEvidence);
-  const verifiedReasons = errors.filter((error) => !isIncompleteEvidence(error));
+  const incompleteReasons = errors.filter((error) => isIncompleteEvidence(error, coverageErrors));
+  const verifiedReasons = errors.filter((error) => !isIncompleteEvidence(error, coverageErrors));
   const status = verifiedReasons.length ? 'REJECTED' : (incompleteReasons.length || errors.length ? 'INCONCLUSIVE' : 'ACCEPTED');
   return {
     status,

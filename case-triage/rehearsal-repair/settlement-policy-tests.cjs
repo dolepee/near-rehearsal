@@ -362,6 +362,28 @@ const bothRetriesSucceed = JSON.parse(JSON.stringify(correctedReport));
 const bothSuccessResult = verifySettlementReport(bothRetriesSucceed, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
 assert.equal(bothSuccessResult.ok, false, 'two successful retries leave the in-flight guard unproven and must fail');
 assert.equal(bothSuccessResult.unproven, true, 'an unexercised in-flight guard must be reported as unproven');
+assert.equal(bothSuccessResult.status, 'INCONCLUSIVE', 'missing guard coverage alone is not a verified failure');
+
+// A demonstrated over- or under-payment is a verified financial failure, never
+// mere missing coverage: the bond moved by the wrong amount.
+const doublePayment = JSON.parse(JSON.stringify(correctedReport));
+for (const scenario of [doublePayment.fresh, doublePayment.inherited]) {
+  scenario.afterRetry.proposer = (BigInt(scenario.beforeRetry.proposer) + 2n * (10n ** 24n)).toString();
+  scenario.afterDuplicate.proposer = scenario.afterRetry.proposer;
+  scenario.afterUnauthorized.proposer = scenario.afterRetry.proposer;
+}
+const doublePaymentResult = verifySettlementReport(doublePayment, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+assert.equal(doublePaymentResult.status, 'REJECTED', 'paying two bonds on retry is a verified rejection');
+assert.ok(doublePaymentResult.reasons.verified.some((error) => /retry proposer delta/.test(error)));
+
+const underPayment = JSON.parse(JSON.stringify(correctedReport));
+for (const scenario of [underPayment.fresh, underPayment.inherited]) {
+  scenario.afterRetry.proposer = scenario.beforeRetry.proposer;
+  scenario.afterDuplicate.proposer = scenario.afterRetry.proposer;
+  scenario.afterUnauthorized.proposer = scenario.afterRetry.proposer;
+}
+assert.equal(verifySettlementReport(underPayment, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED',
+  'refusing to pay the bond is a verified rejection');
 
 const bothRetriesInFlight = JSON.parse(JSON.stringify(correctedReport));
 {
@@ -611,6 +633,9 @@ completedRecoveryFalse.ok = false;
 completedRecoveryFalse.errors = ['fresh: locked liability after failed refund is 0'];
 assert.equal(verifySettlementReport(completedRecoveryFalse, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
 
+assert.equal(bothSuccessResult.status, 'INCONCLUSIVE', 'coverage-only gaps stay inconclusive in the final report');
+assert.equal(doublePaymentResult.status, 'REJECTED', 'a paid-over bond stays rejected in the final report');
+
 console.log(JSON.stringify({
   schema: 'near-rehearsal/settlement-policy-tests/v2',
   passed: true,
@@ -707,5 +732,7 @@ console.log(JSON.stringify({
     'status-missing-fresh-bad-inherited-rejected',
     'status-malformed-missing-inconclusive',
     'status-completed-recovery-false-rejected',
+    'status-double-payment-rejected',
+    'status-under-payment-rejected',
   ],
 }, null, 2));
