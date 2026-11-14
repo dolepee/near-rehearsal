@@ -89,9 +89,10 @@ function deploymentCommitment(deploy, label, fail, expectedDao = null) {
   try { code = Buffer.from(action.DeployContract.code, 'base64'); } catch { code = null; }
   if (!code || code.length !== 32) { fail(`${label} DeployContract code commitment is not 32 bytes`); return null; }
   const sha256 = code.toString('hex');
-  if (deploy.wasmSha256 !== sha256) fail(`${label} deployment label does not match its DeployContract commitment`);
-  if (deploy.codeHash !== base58Encode(code)) fail(`${label} installed code hash does not match its DeployContract commitment`);
-  return sha256;
+  let valid = true;
+  if (deploy.wasmSha256 !== sha256) { valid = false; fail(`${label} deployment label does not match its DeployContract commitment`); }
+  if (deploy.codeHash !== base58Encode(code)) { valid = false; fail(`${label} installed code hash does not match its DeployContract commitment`); }
+  return valid ? sha256 : null;
 }
 
 const DEFAULT_BASE_WASM_SHA256 = '5a20ea651da684c9623cbb9b32cab968e4eed3ca22b905decfdb2a4aaaa16578';
@@ -103,6 +104,7 @@ function decodeCall(transaction, label, fail) {
   let args;
   try { args = JSON.parse(Buffer.from(call.args || '', 'base64').toString('utf8')); }
   catch { fail(`${label} args are not valid JSON`); return null; }
+  if (!args || typeof args !== 'object' || Array.isArray(args)) { fail(`${label} args are not an object`); return null; }
   return {call, args};
 }
 
@@ -122,39 +124,45 @@ function verifyMigrate(scenario, dao, failFor) {
 }
 
 function verifyVote(scenario, signer, label, failFor) {
+  let valid = true;
+  const check = (condition, message) => { if (!condition) { valid = false; failFor(false, message); } };
+  if (typeof signer !== 'string' || !signer) check(false, `${label} signer is missing`);
   const vote = scenario.transactions?.[label];
-  if (!vote) { failFor(false, `${label} transaction is missing`); return false; }
-  if (vote.finalExecutionStatus !== 'FINAL') failFor(false, `${label} was not FINAL`);
-  if (vote.transaction?.signerId !== signer) failFor(false, `${label} signer does not match the recorded approval`);
-  if (vote.transaction?.receiverId !== scenario.deploy?.transaction?.receiverId) failFor(false, `${label} receiver is not the DAO`);
-  const decoded = decodeCall(vote, label, (message) => failFor(false, message));
+  if (!vote) { check(false, `${label} transaction is missing`); return false; }
+  if (vote.finalExecutionStatus !== 'FINAL') check(false, `${label} was not FINAL`);
+  if (vote.transaction?.signerId !== signer) check(false, `${label} signer does not match the recorded approval`);
+  if (vote.transaction?.receiverId !== scenario.deploy?.transaction?.receiverId) check(false, `${label} receiver is not the DAO`);
+  const decoded = decodeCall(vote, label, (message) => check(false, message));
   if (!decoded) return false;
-  if (decoded.call.method_name !== 'act_proposal' || decoded.args?.action !== 'VoteApprove') failFor(false, `${label} is not a VoteApprove`);
-  if (String(decoded.args?.id) !== String(scenario.proposalId)) failFor(false, `${label} targets a different proposal`);
-  if (!successfulReceiptChain(vote, label, (message) => failFor(false, message))) return false;
-  return true;
+  if (decoded.call.method_name !== 'act_proposal' || decoded.args?.action !== 'VoteApprove') check(false, `${label} is not a VoteApprove`);
+  if (String(decoded.args?.id) !== String(scenario.proposalId)) check(false, `${label} targets a different proposal`);
+  if (!successfulReceiptChain(vote, label, (message) => check(false, message))) return false;
+  return valid;
 }
 
 function verifyAddProposal(scenario, dao, failFor) {
+  let valid = true;
+  const check = (condition, message) => { if (!condition) { valid = false; failFor(false, message); } };
   const add = scenario.transactions?.add;
-  if (!add) { failFor(false, 'add_proposal transaction is missing'); return; }
-  if (add.finalExecutionStatus !== 'FINAL') failFor(false, 'add_proposal was not FINAL');
-  if (add.transaction?.receiverId !== dao) failFor(false, 'add_proposal did not target the scenario DAO');
+  if (!add) { check(false, 'add_proposal transaction is missing'); return false; }
+  if (add.finalExecutionStatus !== 'FINAL') check(false, 'add_proposal was not FINAL');
+  if (add.transaction?.receiverId !== dao) check(false, 'add_proposal did not target the scenario DAO');
   const proposal = scenario.transactions?.failedProposal;
-  if (!proposal) { failFor(false, 'recorded proposal is missing for add_proposal binding'); return; }
-  if (add.transaction?.signerId !== proposal.proposer) failFor(false, 'add_proposal signer is not the recorded proposer');
-  const decoded = decodeCall(add, 'add_proposal', (message) => failFor(false, message));
-  if (!decoded) return;
-  if (decoded.call.method_name !== 'add_proposal') failFor(false, 'add_proposal FunctionCall method is wrong');
-  if (decoded.call.deposit !== BOND.toString()) failFor(false, 'add_proposal bond does not match the recorded bond');
-  if (decoded.args?.proposal?.description !== proposal.description) failFor(false, 'add_proposal description does not match the recorded proposal');
-  if (JSON.stringify(decoded.args?.proposal?.kind) !== JSON.stringify(proposal.kind)) failFor(false, 'add_proposal kind does not match the recorded proposal');
-  if (!successfulReceiptChain(add, 'add_proposal', (message) => failFor(false, message))) failFor(false, 'add_proposal action did not execute successfully');
+  if (!proposal) { check(false, 'recorded proposal is missing for add_proposal binding'); return false; }
+  if (add.transaction?.signerId !== proposal.proposer) check(false, 'add_proposal signer is not the recorded proposer');
+  const decoded = decodeCall(add, 'add_proposal', (message) => check(false, message));
+  if (!decoded) return false;
+  if (decoded.call.method_name !== 'add_proposal') check(false, 'add_proposal FunctionCall method is wrong');
+  if (decoded.call.deposit !== BOND.toString()) check(false, 'add_proposal bond does not match the recorded bond');
+  if (decoded.args?.proposal?.description !== proposal.description) check(false, 'add_proposal description does not match the recorded proposal');
+  if (JSON.stringify(decoded.args?.proposal?.kind) !== JSON.stringify(proposal.kind)) check(false, 'add_proposal kind does not match the recorded proposal');
+  if (!successfulReceiptChain(add, 'add_proposal', (message) => check(false, message))) check(false, 'add_proposal action did not execute successfully');
   const firstId = add.transactionOutcome?.status?.SuccessReceiptId;
   const first = (add.receipts || []).find((receipt) => receipt.id === firstId);
   let returnedId = null;
   try { returnedId = JSON.parse(Buffer.from(first?.status?.SuccessValue || '', 'base64').toString('utf8')); } catch {}
-  if (String(returnedId) !== String(scenario.proposalId)) failFor(false, 'add_proposal returned a different proposal id');
+  if (String(returnedId) !== String(scenario.proposalId)) check(false, 'add_proposal returned a different proposal id');
+  return valid;
 }
 
 function verifyUnauthorized(scenario, dao, failFor) {
@@ -247,63 +255,64 @@ function verifyLegacyFinalize(scenario, dao, failFor) {
 function verifyRetries(scenario, dao, failFor) {
   const coverageErrors = [];
   let executionValid = true;
+  const invalid = (condition, message) => { if (!condition) executionValid = false; failFor(condition, message); };
   const raw = scenario.transactions?.retries;
   const attempts = scenario.overlap?.attempts;
   if (!Array.isArray(raw) || raw.length !== 2) {
     coverageErrors.push('two full retry transaction summaries are required');
-    failFor(false, coverageErrors[coverageErrors.length - 1]);
-    return {guardUnproven: true, coverageErrors};
+    invalid(false, coverageErrors[coverageErrors.length - 1]);
+    return {guardUnproven: true, coverageErrors, executionValid: false};
   }
   if (!Array.isArray(attempts) || attempts.length !== 2) {
     coverageErrors.push('two retry attempts are required');
-    failFor(false, coverageErrors[coverageErrors.length - 1]);
-    return {guardUnproven: true, coverageErrors};
+    invalid(false, coverageErrors[coverageErrors.length - 1]);
+    return {guardUnproven: true, coverageErrors, executionValid: false};
   }
   const voteSigners = [scenario.transactions?.vote?.transaction?.signerId, scenario.transactions?.vote2?.transaction?.signerId].filter(Boolean);
-  if (voteSigners.length !== 2) failFor(false, 'two recorded voter approvals are required');
-  if (!verifyVote(scenario, voteSigners[0], 'vote', failFor) || !verifyVote(scenario, voteSigners[1], 'vote2', failFor)) return;
+  if (voteSigners.length !== 2) invalid(false, 'two recorded voter approvals are required');
+  if (!verifyVote(scenario, voteSigners[0], 'vote', invalid) || !verifyVote(scenario, voteSigners[1], 'vote2', invalid)) return;
   const hashes = [];
   const signers = [];
   let successful = 0;
   let expectedInFlight = 0;
   raw.forEach((tx, index) => {
     const label = `retry ${index + 1}`;
-    if (tx.finalExecutionStatus !== 'FINAL') failFor(false, `${label} was not FINAL`);
-    if (tx.transaction?.receiverId !== dao) { executionValid = false; failFor(false, `${label} receiver is not the DAO`); }
-    if (!voteSigners.includes(tx.transaction?.signerId)) { executionValid = false; failFor(false, `${label} signer was not an approving voter`); }
-    const decoded = decodeCall(tx, label, (message) => failFor(false, message));
-    if (!decoded) return;
-    if (decoded.call.method_name !== 'act_proposal') { executionValid = false; failFor(false, `${label} method is not act_proposal`); }
-    if (decoded.args?.action !== 'Finalize') { executionValid = false; failFor(false, `${label} is not Finalize`); }
-    if (String(decoded.args?.id) !== String(scenario.proposalId)) { executionValid = false; failFor(false, `${label} targets a different proposal`); }
+    if (tx.finalExecutionStatus !== 'FINAL') invalid(false, `${label} was not FINAL`);
+    if (tx.transaction?.receiverId !== dao) { executionValid = false; invalid(false, `${label} receiver is not the DAO`); }
+    if (!voteSigners.includes(tx.transaction?.signerId)) { executionValid = false; invalid(false, `${label} signer was not an approving voter`); }
+    const decoded = decodeCall(tx, label, (message) => invalid(false, message));
+    if (!decoded) { executionValid = false; return; }
+    if (decoded.call.method_name !== 'act_proposal') { executionValid = false; invalid(false, `${label} method is not act_proposal`); }
+    if (decoded.args?.action !== 'Finalize') { executionValid = false; invalid(false, `${label} is not Finalize`); }
+    if (String(decoded.args?.id) !== String(scenario.proposalId)) { executionValid = false; invalid(false, `${label} targets a different proposal`); }
     const receiptIds = (tx.receipts || []).map((receipt) => receipt.id).filter(Boolean);
-    if (!receiptIds.length) { executionValid = false; failFor(false, `${label} has no executed receipts`); }
+    if (!receiptIds.length) { executionValid = false; invalid(false, `${label} has no executed receipts`); }
     const attempt = attempts[index];
-    if (attempt?.transactionHash !== tx.transactionHash) failFor(false, `${label} summary hash does not match its attempt`);
-    if (attempt?.signerId !== tx.transaction?.signerId) failFor(false, `${label} summary signer does not match its attempt`);
-    if (JSON.stringify(attempt?.receiptIds || []) !== JSON.stringify(receiptIds)) failFor(false, `${label} summary receipts do not match its attempt`);
-    const outcome = receiptChain(tx, label, (message) => failFor(false, message), true);
+    if (attempt?.transactionHash !== tx.transactionHash) invalid(false, `${label} summary hash does not match its attempt`);
+    if (attempt?.signerId !== tx.transaction?.signerId) invalid(false, `${label} summary signer does not match its attempt`);
+    if (JSON.stringify(attempt?.receiptIds || []) !== JSON.stringify(receiptIds)) invalid(false, `${label} summary receipts do not match its attempt`);
+    const outcome = receiptChain(tx, label, (message) => invalid(false, message), true);
     if (!outcome.ok && !outcome.expected) executionValid = false;
     if (outcome.ok) successful += 1;
     if (outcome.expected) expectedInFlight += 1;
     hashes.push(tx.transactionHash); signers.push(tx.transaction?.signerId);
   });
-  if (new Set(hashes).size !== 2) failFor(false, 'retry transactions do not have distinct hashes');
-  if (new Set(signers).size !== 2) failFor(false, 'retry transactions do not have distinct signers');
+  if (new Set(hashes).size !== 2) invalid(false, 'retry transactions do not have distinct hashes');
+  if (new Set(signers).size !== 2) invalid(false, 'retry transactions do not have distinct signers');
   const beforeHeight = recordedHeight(scenario.beforeRetry?.blockHeight);
   const afterHeight = recordedHeight(scenario.afterRetry?.blockHeight);
   if (beforeHeight === null || afterHeight === null) {
     coverageErrors.push('raw retry evidence is not bounded by valid before/after snapshots');
-    failFor(false, coverageErrors[coverageErrors.length - 1]);
+    invalid(false, coverageErrors[coverageErrors.length - 1]);
   }
   else {
     raw.forEach((tx, index) => {
       const height = recordedHeight(tx.blockHeight);
       if (height === null) {
         coverageErrors.push(`retry ${index + 1} height is missing or malformed`);
-        failFor(false, coverageErrors[coverageErrors.length - 1]);
+        invalid(false, coverageErrors[coverageErrors.length - 1]);
       }
-      else if (height < beforeHeight || height > afterHeight) failFor(false, `retry ${index + 1} is outside the measured recovery window`);
+      else if (height < beforeHeight || height > afterHeight) invalid(false, `retry ${index + 1} is outside the measured recovery window`);
     });
   }
   if (successful !== 1) { coverageErrors.push(`expected exactly one successful retry action, got ${successful}`); failFor(false, coverageErrors[coverageErrors.length - 1]); }
@@ -323,46 +332,53 @@ function verifyScenario(scenario, mode, context) {
   const {fail, text, candidateWasmSha256, baseWasmSha256, report} = context;
   if (!scenario) { fail(`${mode} settlement scenario is missing`); return null; }
   const failFor = (condition, message, kind = 'incomplete') => { if (!condition) fail(`${mode}: ${message}`, kind); };
-  const failVerified = (condition, message) => failFor(condition, message, 'verified');
   const failFinancial = (condition, prerequisite, message) => { if (condition) return; fail(`${mode}: ${message}`, prerequisite ? 'verified' : 'incomplete'); };
   const {parseAmount} = context;
 
+  // Installation/creation facts precede retries. A missing later operation must
+  // never erase an already complete counterexample from the failed refund.
+  let candidateExecutionValid = true;
+  let legacyFinalizeValid = false;
+  const installCheck = (condition, message) => {
+    if (!condition) candidateExecutionValid = false;
+    failFor(condition, message);
+  };
   if (mode === 'candidate-only') {
-    if (scenario.legacy) failFor(false, 'fresh candidate scenario must not claim legacy upgrade evidence');
-    const committed = deploymentCommitment(scenario.deploy, 'fresh candidate', (message) => failFor(false, message));
-    if (committed !== candidateWasmSha256) failFor(false, 'fresh candidate deployment does not commit to the candidate WASM');
-    if (scenario.deploy?.wasmSha256 !== candidateWasmSha256) failFor(false, 'fresh candidate scenario did not deploy the candidate WASM');
+    if (scenario.legacy) installCheck(false, 'fresh candidate scenario must not claim legacy upgrade evidence');
+    const committed = deploymentCommitment(scenario.deploy, 'fresh candidate', (message) => installCheck(false, message));
+    if (committed !== candidateWasmSha256) installCheck(false, 'fresh candidate deployment does not commit to the candidate WASM');
+    if (scenario.deploy?.wasmSha256 !== candidateWasmSha256) installCheck(false, 'fresh candidate scenario did not deploy the candidate WASM');
     const upgrade = report?.inherited?.transactions?.upgrade;
     if (upgrade && scenario.deploy?.codeHash && upgrade.codeHash && scenario.deploy.codeHash !== upgrade.codeHash) {
       failFor(false, 'fresh deployment installed different code from the inherited upgrade');
     }
   } else {
     const legacy = scenario.legacy;
-    if (!legacy) failFor(false, 'legacy upgrade proof is missing');
+    if (!legacy) installCheck(false, 'legacy upgrade proof is missing');
     else {
-      if (legacy.baseWasmSha256 !== baseWasmSha256) failFor(false, 'legacy base WASM identity is wrong');
-      if (legacy.candidateWasmSha256 !== candidateWasmSha256) failFor(false, 'legacy candidate identity is wrong');
-      if (legacy.upgradeCodeHash !== scenario.transactions?.upgrade?.codeHash || !legacy.upgradeCodeHash) failFor(false, 'legacy upgrade did not install the candidate');
-      if (legacy.proposalCreatedBeforeUpgrade !== true) failFor(false, 'legacy proposal was not created before upgrade');
-      if (legacy.legacyFinalize?.finalExecutionStatus !== 'FINAL') failFor(false, 'legacy finalize evidence is missing');
+      if (legacy.baseWasmSha256 !== baseWasmSha256) installCheck(false, 'legacy base WASM identity is wrong');
+      if (legacy.candidateWasmSha256 !== candidateWasmSha256) installCheck(false, 'legacy candidate identity is wrong');
+      if (legacy.upgradeCodeHash !== scenario.transactions?.upgrade?.codeHash || !legacy.upgradeCodeHash) installCheck(false, 'legacy upgrade did not install the candidate');
+      if (legacy.proposalCreatedBeforeUpgrade !== true) installCheck(false, 'legacy proposal was not created before upgrade');
+      if (legacy.legacyFinalize?.finalExecutionStatus !== 'FINAL') installCheck(false, 'legacy finalize evidence is missing');
     }
     const upgrade = scenario.transactions?.upgrade;
     if (!upgrade || upgrade.candidateWasmSha256 !== candidateWasmSha256 || !upgrade.deploy || !upgrade.migrate) {
-      failFor(false, 'legacy upgrade transaction evidence is missing');
+      installCheck(false, 'legacy upgrade transaction evidence is missing');
     } else {
-      const upgradedCode = deploymentCommitment(upgrade.deploy, 'inherited upgrade', (message) => failFor(false, message), scenario.deploy?.transaction?.receiverId);
-      if (upgradedCode !== candidateWasmSha256) failFor(false, 'inherited upgrade does not commit to the candidate WASM');
-      if (upgrade.codeHash !== base58Encode(Buffer.from(candidateWasmSha256, 'hex'))) failFor(false, 'inherited installed code hash is not the candidate');
-      if (upgrade.migrate?.finalExecutionStatus !== 'FINAL') failFor(false, 'inherited migrate was not successful');
-      if (upgrade.migrate && !successfulReceiptChain(upgrade.migrate, 'inherited migrate', (message) => failFor(false, message))) {
-        failFor(false, 'inherited migrate child receipt failed');
+      const upgradedCode = deploymentCommitment(upgrade.deploy, 'inherited upgrade', (message) => installCheck(false, message), scenario.deploy?.transaction?.receiverId);
+      if (upgradedCode !== candidateWasmSha256) installCheck(false, 'inherited upgrade does not commit to the candidate WASM');
+      if (upgrade.codeHash !== base58Encode(Buffer.from(candidateWasmSha256, 'hex'))) installCheck(false, 'inherited installed code hash is not the candidate');
+      if (upgrade.migrate?.finalExecutionStatus !== 'FINAL') installCheck(false, 'inherited migrate was not successful');
+      if (upgrade.migrate && !successfulReceiptChain(upgrade.migrate, 'inherited migrate', (message) => installCheck(false, message))) {
+        installCheck(false, 'inherited migrate child receipt failed');
       }
     }
-    const baseCommitted = deploymentCommitment(scenario.deploy, 'inherited base', (message) => failFor(false, message), scenario.deploy?.transaction?.receiverId);
-    if (baseCommitted !== baseWasmSha256) failFor(false, 'inherited scenario does not commit to the pinned base WASM');
-    if (scenario.deploy?.wasmSha256 !== baseWasmSha256) failFor(false, 'inherited scenario did not deploy the pinned base WASM');
-    var migrateValid = verifyMigrate(scenario, scenario.deploy?.transaction?.receiverId, failFor);
-    var legacyFinalizeValid = verifyLegacyFinalize(scenario, scenario.deploy?.transaction?.receiverId, failFor);
+    const baseCommitted = deploymentCommitment(scenario.deploy, 'inherited base', (message) => installCheck(false, message), scenario.deploy?.transaction?.receiverId);
+    if (baseCommitted !== baseWasmSha256) installCheck(false, 'inherited scenario does not commit to the pinned base WASM');
+    if (scenario.deploy?.wasmSha256 !== baseWasmSha256) installCheck(false, 'inherited scenario did not deploy the pinned base WASM');
+    if (!verifyMigrate(scenario, scenario.deploy?.transaction?.receiverId, installCheck)) candidateExecutionValid = false;
+    legacyFinalizeValid = verifyLegacyFinalize(scenario, scenario.deploy?.transaction?.receiverId, failFor);
     const addHeight = recordedHeight(scenario.transactions?.add?.blockHeight);
     const vote2Height = recordedHeight(scenario.transactions?.vote2?.blockHeight);
     const failedLog = scenario.transactions?.failedProposal?.last_actions_log;
@@ -370,53 +386,51 @@ function verifyScenario(scenario, mode, context) {
     const upgradeHeight = recordedHeight(scenario.transactions?.upgrade?.deploy?.blockHeight);
     const migrateHeight = recordedHeight(scenario.transactions?.upgrade?.migrate?.blockHeight);
     const legacyHeight = recordedHeight(scenario.transactions?.upgrade?.legacyFinalize?.blockHeight);
-    if (addHeight === null || upgradeHeight === null) failFor(false, 'recorded add/upgrade block heights are missing or malformed');
-    else if (addHeight >= upgradeHeight) failFor(false, 'proposal was not added before the candidate upgrade');
-    if (vote2Height === null) failFor(false, 'second approval height is missing or malformed');
-    else if (addHeight !== null && addHeight > vote2Height) failFor(false, 'proposal was added after the second approval');
-    if (failureHeight === null) failFor(false, 'recorded old-code failure height is missing or malformed');
-    else if (vote2Height !== null && vote2Height > failureHeight) failFor(false, 'old-code failure was recorded before the second approval');
-    if (failureHeight !== null && upgradeHeight !== null && failureHeight >= upgradeHeight) failFor(false, 'recorded old-code failure was not before the candidate upgrade');
-    if (migrateHeight === null) failFor(false, 'migrate height is missing or malformed');
-    else if (upgradeHeight !== null && upgradeHeight > migrateHeight) failFor(false, 'migrate was not after the candidate upgrade');
-    if (legacyHeight === null) failFor(false, 'legacy finalize height is missing or malformed');
-    else if (migrateHeight !== null && migrateHeight > legacyHeight) failFor(false, 'legacy finalize was before migrate');
-    else if (upgradeHeight !== null && legacyHeight < upgradeHeight) failFor(false, 'legacy finalize was not after the candidate upgrade');
+    if (addHeight === null || upgradeHeight === null) installCheck(false, 'recorded add/upgrade block heights are missing or malformed');
+    else if (addHeight >= upgradeHeight) installCheck(false, 'proposal was not added before the candidate upgrade');
+    if (vote2Height === null) installCheck(false, 'second approval height is missing or malformed');
+    else if (addHeight !== null && addHeight > vote2Height) installCheck(false, 'proposal was added after the second approval');
+    if (failureHeight === null) installCheck(false, 'recorded old-code failure height is missing or malformed');
+    else if (vote2Height !== null && vote2Height > failureHeight) installCheck(false, 'old-code failure was recorded before the second approval');
+    if (failureHeight !== null && upgradeHeight !== null && failureHeight >= upgradeHeight) installCheck(false, 'recorded old-code failure was not before the candidate upgrade');
+    if (migrateHeight === null) installCheck(false, 'migrate height is missing or malformed');
+    else if (upgradeHeight !== null && upgradeHeight > migrateHeight) installCheck(false, 'migrate was not after the candidate upgrade');
+    if (legacyHeight === null) installCheck(false, 'legacy finalize height is missing or malformed');
+    else if (migrateHeight !== null && migrateHeight > legacyHeight) installCheck(false, 'legacy finalize was before migrate');
+    else if (upgradeHeight !== null && legacyHeight < upgradeHeight) installCheck(false, 'legacy finalize was not after the candidate upgrade');
   }
 
   const operationDao = scenario.deploy?.transaction?.receiverId;
-  verifyAddProposal(scenario, operationDao, failFor);
+  let proposalEvidenceValid = verifyAddProposal(scenario, operationDao, failFor);
+  const approval1Valid = verifyVote(scenario, scenario.transactions?.vote?.transaction?.signerId, 'vote', failFor);
+  const approval2Valid = verifyVote(scenario, scenario.transactions?.vote2?.transaction?.signerId, 'vote2', failFor);
+  proposalEvidenceValid = proposalEvidenceValid && approval1Valid && approval2Valid;
+  const proposalCheck = (condition, message) => {
+    if (!condition) proposalEvidenceValid = false;
+    failFor(condition, message);
+  };
   const unauthorizedExecutionValid = verifyUnauthorized(scenario, operationDao, failFor);
   const duplicateExecutionValid = verifyDuplicate(scenario, operationDao, failFor);
   const retryProof = verifyRetries(scenario, operationDao, failFor);
   const recordedProposal = scenario.transactions?.failedProposal;
-  if (!recordedProposal) failFor(false, 'recorded old-code proposal is missing');
+  if (!recordedProposal) proposalCheck(false, 'recorded old-code proposal is missing');
   else {
-    if (String(recordedProposal.id) !== String(scenario.proposalId)) failFor(false, 'recorded old-code proposal is not the scenario proposal');
-    if (recordedProposal.status !== 'Failed') failFor(false, 'recorded old-code proposal is not Failed');
+    if (String(recordedProposal.id) !== String(scenario.proposalId)) proposalCheck(false, 'recorded old-code proposal is not the scenario proposal');
+    if (recordedProposal.status !== 'Failed') proposalCheck(false, 'recorded old-code proposal is not Failed');
   }
   const freshMode = mode === 'candidate-only';
-  const candidateExecutionValid = (freshMode
-    ? deploymentCommitment(scenario.deploy, 'fresh candidate', (message) => failFor(false, message)) === candidateWasmSha256
-    : (
-      deploymentCommitment(scenario.deploy, 'inherited base', (message) => failFor(false, message), scenario.deploy?.transaction?.receiverId) === baseWasmSha256
-      && deploymentCommitment(scenario.transactions?.upgrade?.deploy, 'inherited upgrade', (message) => failFor(false, message), scenario.deploy?.transaction?.receiverId) === candidateWasmSha256
-      && migrateValid === true
-    ));
-  const failedFinalizeValid = freshMode
-    ? (scenario.transactions?.vote2?.finalExecutionStatus === 'FINAL' && scenario.failedRefund?.proposal?.status === 'Failed')
-    : legacyFinalizeValid === true;
-  const failedDebtPrereq = candidateExecutionValid && failedFinalizeValid;
+  const failedFinalizeValid = freshMode ? approval2Valid : legacyFinalizeValid;
   const failed = scenario.failedRefund;
   if (!failed) failFor(false, 'failed-refund snapshot missing');
   else if (!text(failed.lockedAmount)) failFor(false, 'failed refund locked amount is missing');
   if (failed?.proposal) {
-    if (String(failed.proposal.id) !== String(scenario.proposalId)) failFor(false, 'post-upgrade proposal identity changed');
-    if (failed.proposal.status !== 'Failed') failFor(false, 'post-upgrade proposal is not Failed');
-    if (JSON.stringify(recordedProposal?.kind) !== JSON.stringify(failed.proposal.kind)) failFor(false, 'proposal kind changed across the upgrade');
-    if (recordedProposal?.description !== failed.proposal.description) failFor(false, 'proposal description changed across the upgrade');
-    if (recordedProposal?.proposer !== failed.proposal.proposer) failFor(false, 'proposal beneficiary changed across the upgrade');
-  } else failFor(false, 'post-upgrade proposal identity is missing');
+    if (String(failed.proposal.id) !== String(scenario.proposalId)) proposalCheck(false, 'post-upgrade proposal identity changed');
+    if (failed.proposal.status !== 'Failed') proposalCheck(false, 'post-upgrade proposal is not Failed');
+    if (JSON.stringify(recordedProposal?.kind) !== JSON.stringify(failed.proposal.kind)) proposalCheck(false, 'proposal kind changed across the upgrade');
+    if (recordedProposal?.description !== failed.proposal.description) proposalCheck(false, 'proposal description changed across the upgrade');
+    if (recordedProposal?.proposer !== failed.proposal.proposer) proposalCheck(false, 'proposal beneficiary changed across the upgrade');
+  } else proposalCheck(false, 'post-upgrade proposal identity is missing');
+  const failedDebtPrereq = candidateExecutionValid && proposalEvidenceValid && failedFinalizeValid;
   if (!failed) failFor(false, 'failed-refund snapshot missing');
   else {
     const failedLocked = failed ? parseAmount(failed.lockedAmount) : null;
@@ -432,16 +446,17 @@ function verifyScenario(scenario, mode, context) {
   const afterAmount = after ? parseAmount(after.proposer) : null;
   const beforeLocked = before ? parseAmount(before.lockedAmount) : null;
   const afterLocked = after ? parseAmount(after.lockedAmount) : null;
-  const retryPrereq = candidateExecutionValid && retryProof?.executionValid === true && beforeAmount !== null && afterAmount !== null && beforeLocked !== null && afterLocked !== null;
+  const retryExecutionValid = failedDebtPrereq && retryProof?.executionValid === true;
+  const retryBalanceValid = retryExecutionValid && beforeAmount !== null && afterAmount !== null;
   if (!before || !after) failFor(false, 'retry snapshots missing');
   else if (beforeAmount === null || afterAmount === null) failFor(false, 'retry proposer amounts missing or malformed');
   else {
     if (beforeLocked === null) failFor(false, 'retry locked amount is missing or malformed');
-    else if (beforeLocked !== BOND) failFinancial(false, retryPrereq, 'retry did not start with the debt still locked');
+    else if (beforeLocked !== BOND) failFinancial(false, retryExecutionValid, 'retry did not start with the debt still locked');
     retryDelta = afterAmount - beforeAmount;
-    if (retryDelta !== BOND) failFinancial(false, retryPrereq, `retry proposer delta is ${retryDelta}, expected exactly one bond`);
+    if (retryDelta !== BOND) failFinancial(false, retryBalanceValid, `retry proposer delta is ${retryDelta}, expected exactly one bond`);
     if (afterLocked === null) failFor(false, 'retry resulting locked amount is missing or malformed');
-    else if (afterLocked !== 0n) failFinancial(false, retryPrereq, 'successful retry did not clear the debt');
+    else if (afterLocked !== 0n) failFinancial(false, retryExecutionValid, 'successful retry did not clear the debt');
   }
 
   if (afterAmount === null) {
@@ -451,17 +466,17 @@ function verifyScenario(scenario, mode, context) {
     const unauthorizedAmount = scenario.afterUnauthorized ? parseAmount(scenario.afterUnauthorized.proposer) : null;
     const duplicateLocked = scenario.afterDuplicate ? parseAmount(scenario.afterDuplicate.lockedAmount) : null;
     const unauthorizedLocked = scenario.afterUnauthorized ? parseAmount(scenario.afterUnauthorized.lockedAmount) : null;
-    const duplicatePrereq = retryPrereq && duplicateExecutionValid && duplicateAmount !== null && duplicateLocked !== null && afterAmount !== null;
-    const unauthorizedPrereq = retryPrereq && unauthorizedExecutionValid && unauthorizedAmount !== null && unauthorizedLocked !== null && afterAmount !== null;
+    const duplicatePrereq = retryExecutionValid && duplicateExecutionValid && duplicateAmount !== null && duplicateLocked !== null && afterAmount !== null;
+    const unauthorizedPrereq = retryExecutionValid && unauthorizedExecutionValid && unauthorizedAmount !== null && unauthorizedLocked !== null && afterAmount !== null;
     if (duplicateAmount === null || duplicateLocked === null) failFor(false, 'afterDuplicate observation amounts missing or malformed');
     else {
       if (duplicateAmount !== afterAmount) failFinancial(false, duplicatePrereq, 'duplicate retry changed the proposer balance');
-      else if (duplicateLocked !== 0n) failFinancial(false, duplicatePrereq, 'duplicate retry changed the locked debt');
+      if (afterLocked !== null && duplicateLocked !== afterLocked) failFinancial(false, duplicatePrereq, 'duplicate retry changed the locked debt');
     }
     if (unauthorizedAmount === null || unauthorizedLocked === null) failFor(false, 'afterUnauthorized observation amounts missing or malformed');
     else {
       if (unauthorizedAmount !== afterAmount) failFinancial(false, unauthorizedPrereq, 'unauthorized callback changed the proposer balance');
-      else if (unauthorizedLocked !== 0n) failFinancial(false, unauthorizedPrereq, 'unauthorized callback changed the locked debt');
+      if (afterLocked !== null && unauthorizedLocked !== afterLocked) failFinancial(false, unauthorizedPrereq, 'unauthorized callback changed the locked debt');
     }
   }
 
@@ -498,10 +513,10 @@ function verifyScenario(scenario, mode, context) {
     if (new Set(signers).size !== 2) failFor(false, 'overlap did not produce two distinct signers');
     const overlapDelta = parseAmount(overlap.delta);
     if (overlapDelta === null) failFor(false, 'overlap delta is missing or malformed');
-    else if (overlapDelta !== BOND) failFinancial(false, retryPrereq, 'overlapping retries did not pay exactly one bond');
+    else if (overlapDelta !== retryDelta) failFor(false, 'overlap delta does not match the observed retry balances');
     const overlapLocked = parseAmount(overlap.lockedAfter);
     if (overlapLocked === null) failFor(false, 'overlap resulting locked amount is missing or malformed');
-    else if (overlapLocked !== 0n) failFinancial(false, retryPrereq, 'overlapping retries did not settle the debt');
+    else if (afterLocked === null || overlapLocked !== afterLocked) failFor(false, 'overlap locked amount does not match the post-retry observation');
   }
 
   return {
@@ -543,9 +558,9 @@ function verifySettlementReport(report, opts = {}) {
   if (!baseIdentityValid) fail('settlement base WASM identity is wrong');
   const requestedCandidateValid = !opts.candidateWasmSha256 || candidateWasmSha256 === opts.candidateWasmSha256;
   if (!requestedCandidateValid) fail('settlement report is for a different candidate WASM');
-  const identityEstablished = candidateIdentityValid && baseIdentityValid && requestedCandidateValid;
+  const identityEstablished = report?.schema === REQUIRED_SCHEMA && candidateIdentityValid && baseIdentityValid && requestedCandidateValid;
   if (report?.ok !== true || (Array.isArray(report?.errors) && report.errors.length)) {
-    fail(`settlement execution was not clean: ${(report?.errors || []).join('; ') || 'ok is not true'}`, 'incomplete');
+    fail(`settlement execution was not clean: ${(Array.isArray(report?.errors) ? report.errors.join('; ') : report?.errors) || 'ok is not true'}`, 'incomplete');
   }
 
   const context = {fail, text, parseAmount, candidateWasmSha256, baseWasmSha256, report};

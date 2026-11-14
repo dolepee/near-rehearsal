@@ -17,6 +17,7 @@ assert.equal(correctedReport.candidate.wasmSha256, 'fe4401bcc33aedb7992ffa516357
 const oldCheck = verifySettlementReport(oldReport, {candidateWasmSha256: oldReport.candidate.wasmSha256});
 const correctedCheck = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
 assert.equal(oldCheck.ok, false, 'the premature-settlement candidate must fail the shared policy');
+assert.equal(oldCheck.status, 'REJECTED', 'actual premature-settlement evidence proves principal loss despite incomplete later coverage');
 assert.equal(correctedCheck.ok, true, correctedCheck.errors.join('; '));
 assert.ok(oldCheck.errors.some((error) => /locked debt/.test(error)));
 assert.ok(oldCheck.errors.some((error) => /retry proposer delta/.test(error)));
@@ -687,6 +688,48 @@ delete missingRetriesWithDebt.inherited.transactions.retries;
 missingRetriesWithDebt.inherited.failedRefund.lockedAmount = '0';
 assert.equal(verifySettlementReport(missingRetriesWithDebt, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
 
+// Cross prerequisite families with genuine financial counterexamples. These
+// test observable verdicts, not helper names: invalid evidence cannot condemn
+// the requested candidate, and a later gap cannot hide an earlier proven loss.
+const prerequisiteCases = [
+  ['non-final retry', 'INCONCLUSIVE', s => { s.transactions.retries[0].finalExecutionStatus = 'EXECUTED_OPTIMISTIC'; s.afterRetry.proposer = s.beforeRetry.proposer; }],
+  ['malformed retry args', 'INCONCLUSIVE', s => { s.transactions.retries[0].transaction.actions[0].FunctionCall.args = Buffer.from('{').toString('base64'); s.afterRetry.proposer = s.beforeRetry.proposer; }],
+  ['null retry args', 'INCONCLUSIVE', s => { s.transactions.retries[0].transaction.actions[0].FunctionCall.args = Buffer.from('null').toString('base64'); s.afterRetry.proposer = s.beforeRetry.proposer; }],
+  ['wrong approval action', 'INCONCLUSIVE', s => { s.transactions.vote2.transaction.actions[0].FunctionCall.method_name = 'get_config'; s.failedRefund.lockedAmount = '0'; }],
+  ['missing approval receipts', 'INCONCLUSIVE', s => { s.transactions.vote2.receipts = []; s.failedRefund.lockedAmount = '0'; }],
+  ['non-final approval', 'INCONCLUSIVE', s => { s.transactions.vote2.finalExecutionStatus = 'EXECUTED_OPTIMISTIC'; s.failedRefund.lockedAmount = '0'; }],
+  ['wrong proposal beneficiary', 'INCONCLUSIVE', s => { s.failedRefund.proposal.proposer = 'other.near'; s.failedRefund.lockedAmount = '0'; }],
+  ['wrong creation action', 'INCONCLUSIVE', s => { s.transactions.add.transaction.actions[0].FunctionCall.method_name = 'get_config'; s.failedRefund.lockedAmount = '0'; }],
+  ['missing later retry', 'REJECTED', s => { delete s.transactions.retries; s.failedRefund.lockedAmount = '0'; }],
+  ['missing later duplicate', 'REJECTED', s => { delete s.afterDuplicate; s.failedRefund.lockedAmount = '0'; }],
+  ['missing later unauthorized observation', 'REJECTED', s => { delete s.afterUnauthorized; s.failedRefund.lockedAmount = '0'; }],
+  ['missing prior amount preserves a later counterexample', 'REJECTED', s => { delete s.beforeRetry.proposer; s.afterDuplicate.proposer = (BigInt(s.afterRetry.proposer) + 1n).toString(); }],
+];
+for (const mode of ['fresh', 'inherited']) {
+  for (const [label, status, mutate] of prerequisiteCases) {
+    const evidence = structuredClone(correctedReport);
+    mutate(evidence[mode]);
+    const result = verifySettlementReport(evidence, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
+    assert.equal(result.status, status, `${mode}: ${label}: ${result.errors.join('; ')}`);
+  }
+  const invalidInstall = structuredClone(correctedReport);
+  const deployed = mode === 'fresh' ? invalidInstall.fresh.deploy : invalidInstall.inherited.transactions.upgrade.deploy;
+  deployed.receipts = [];
+  invalidInstall[mode].afterRetry.proposer = invalidInstall[mode].beforeRetry.proposer;
+  assert.equal(verifySettlementReport(invalidInstall, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'INCONCLUSIVE');
+  // An independent, complete other scenario is not invalidated by this one.
+  invalidInstall[mode === 'fresh' ? 'inherited' : 'fresh'].failedRefund.lockedAmount = '0';
+  assert.equal(verifySettlementReport(invalidInstall, {candidateWasmSha256: correctedReport.candidate.wasmSha256}).status, 'REJECTED');
+}
+const malformedProducerErrors = structuredClone(correctedReport);
+malformedProducerErrors.ok = false;
+malformedProducerErrors.errors = 'capture interrupted';
+assert.equal(verifySettlementReport(malformedProducerErrors).status, 'INCONCLUSIVE');
+const wrongSchemaWithCounterexample = structuredClone(correctedReport);
+wrongSchemaWithCounterexample.schema = 'unsupported';
+wrongSchemaWithCounterexample.inherited.failedRefund.lockedAmount = '0';
+assert.equal(verifySettlementReport(wrongSchemaWithCounterexample).status, 'INCONCLUSIVE');
+
 const acceptedGood = verifySettlementReport(correctedReport, {candidateWasmSha256: correctedReport.candidate.wasmSha256});
 assert.equal(acceptedGood.status, 'ACCEPTED');
 assert.equal(acceptedGood.ok, true);
@@ -839,6 +882,7 @@ console.log(JSON.stringify({
     'status-missing-legacy-finalize-debt-inconclusive',
     'status-wrong-upgrade-zero-retry-inconclusive',
     'status-missing-retries-with-debt-rejected',
+    'cross-prerequisite-contract-30-cases',
     'status-good-accepted',
     'status-lost-debt-rejected',
     'status-missing-inherited-good-fresh-inconclusive',
